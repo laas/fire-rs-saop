@@ -20,42 +20,37 @@ if version_num < 1100000:
 class ElevationMap():
     """RGF93 Digital Elevation Map."""
 
-    def __init__(self, zones=[]):
+    def __init__(self, tiles=[]):
         """Initialise ElevationMap."""
-        self._zones = []
-        # self._geotransform = None
+        self._tiles = []
 
-        for zone in zones:
-            self.add_zone(zone)
+        for tile in tiles:
+            self.add_tile(tile)
 
-    def add_zone(self, zone):
-        """Add zone to the elevation map."""
-        # if not self._geotransform:
-        #     self._geotransform = zone.geotransform
-        # else:
-        #     if zone.geotransform != self._geotransform:
-        #         logging.warning("You may have mixed incompatible map sources: zone '{}'" +
-        #                         "geotransform '{}' does not match existing geotransform '{}'",
-        #                         (zone, zone.geotransform, self._geotransform))
-        self._zones.append(zone)
+    def add_tile(self, tile):
+        """Add tile to the elevation map."""
+        self._tiles.append(tile)
 
     def get_height(self, position):
         """Get height corresponding to RGF93 position."""
-        for zone in self._zones:
-            if position in zone:
-                return zone[position]
+        for tile in self._tiles:
+            if position in tile:
+                return tile[position]
 
     def __getitem__(self, key):
         """Get height corresponding to RGF93 position."""
         return self.get_height(key)
 
 
-class Zone():
+class MapTile():
 
     FILL_VALUE = 0
 
-    def __init__(self, filename):
-        """Initialise Zone"""
+    def __init__(self, filename, masked_array=False):
+        """Initialise MapTile"""
+
+        self._masked_array = masked_array
+
         self.filehandle = gdal.Open(filename)
         self.geoprojection = self.filehandle.GetProjection()
 
@@ -67,36 +62,12 @@ class Zone():
         # and projection coordinates (Xp,Yp) space
         self.geotransform = self.filehandle.GetGeoTransform()
 
-        # self.geotransform = list(self.geotransform)
-        # self.geotransform[1] *= -1
-        # self.geotransform[5] *= -1
-
         self.direct_transform = Affine.from_gdal(*self.geotransform)
         self.inverse_transform = ~self.direct_transform
 
-        #
-        #
-        # # Set transformation matrices
-        # # Suppose diagonal matrix (faster computations)
-        # if not int(self.geotransform[2]) == 0 or not int(self.geotransform[4]) == 0:
-        #     logging.warning("Affine transformation matrix is not diagonal. Resulting mapping may be wrong")
-        # self.transform_matrix = np.array([[self.geotransform[1], self.geotransform[2]],
-        #                                   [self.geotransform[4], self.geotransform[5]]])
-        # self.proj_offset = np.array([self.geotransform[0], self.geotransform[3]])
-        #
-        # if self.filehandle.RasterCount > 1:
-        #     logging.warning("There are {} != 1 raster bands in file {}",
-        #                     self.filehandle.RasterCount, filename)
-        #
-        # bottom_right_corner = np.array([self.proj_offset[0] + (self.raster_size[0] * self.geotransform[1]),
-        #                                 self.proj_offset[1] + (self.raster_size[1] * self.geotransform[5])])
-        # self.proj_bounds = [self.proj_offset, bottom_right_corner]
-        #
         topleft_projection_corner = np.array([self.direct_transform.c,
                                               self.direct_transform.f])
         bottomright_projection_corner = np.array(self.direct_transform * (self.raster_size))
-        # bottomright_projection_corner = bottomright_projection_corner + np.array([
-        #     self.direct_transform.a / 2, self.direct_transform.e / 2])
         self.projection_bounds = [topleft_projection_corner, bottomright_projection_corner]
 
         # Process band #1
@@ -104,40 +75,32 @@ class Zone():
         self.metadata = self.band.GetMetadata()
         self.nodata_value = self.band.GetNoDataValue()
         arr = self.band.ReadAsArray()
-        self.raster_z = ma.MaskedArray(arr, np.logical_not(np.array((arr + np.abs(self.nodata_value)),
-                                                             dtype='bool')), fill_value=0.0)
-        ## Regular interpolators
-        # x = np.arange(self.raster_z.shape[0])
-        # y = np.arange(self.raster_z.shape[0])
-        # self.z_raster = RegularGridInterpolator((x, y), self.raster_z)
-        #
-        # x = self.proj_offset[0] + np.linspace(0, self.raster_size[0]*self.geotransform[1],
-        #                                       num=np.abs(self.geotransform[0]))
-        # print(x)
-        # y = self.proj_offset[1] + np.linspace(0, self.raster_size[1]*self.geotransform[5],
-        #                                       num=np.abs(self.geotransform[5]))
-        # print(y)
-        # self.z_proj = RegularGridInterpolator((x, y), self.raster_z)
+        if self._masked_array:
+            # The use of MaskedArray is interesting as DEM tiles can have nodata values. However,
+            # tests reveal that MaskedArray has slower performance than regular arrays.
+            self.raster_z = ma.MaskedArray(arr, np.logical_not(np.array((arr + np.abs(
+                self.nodata_value)), dtype='bool')), fill_value=0.0)
+        else:
+            self.raster_z = arr
 
     def raster_to_projected(self, loc):
-        """Return the projected location of a pixel point in this zone"""
+        """Return the projected location of a pixel point in this tile"""
         if loc[0] in range(0, self.raster_size[0]) and loc[1] in range(0, self.raster_size[1]):
             xp, yp = self.direct_transform * (loc[0], loc[1])
             xp, yp = xp + self.direct_transform.a / 2, yp + self.direct_transform.e / 2
             return np.array([xp, yp])
         else:
-            raise KeyError("Location out of this zone bounds")
+            raise KeyError("Location out of this tile bounds")
 
     def projected_to_raster(self, loc):
-        """Return the raster point of a projected location in this zone"""
+        """Return the raster point of a projected location in this tile"""
         xr, yr = self.inverse_transform * (loc[0], loc[1])
         xr, yr = int(xr - 0.5), int(yr - 0.5)
 
         if xr in range(0, self.raster_size[0]) and yr in range(0, self.raster_size[1]):
-            # TODO: Why size - xr ?!?!
-            return np.array([yr, xr])
+            return np.array([xr, yr])
         else:
-            raise KeyError("Location out of this zone bounds")
+            raise KeyError("Location out of this tile bounds")
 
 
     # Slightly modified from http://stackoverflow.com/a/28238050
@@ -169,17 +132,18 @@ class Zone():
     def get_height(self, location):
         """Get height of projected location."""
         p = self.projected_to_raster(location)
-        return self.raster_z.filled()[p[0], p[1]]
+        if self._masked_array:
+            return self.raster_z.filled()[p[0], p[1]]
+        else:
+            return self.raster_z[p[0], p[1]]
 
     def __getitem__(self, key):
         """Get height of projected location."""
         return self.get_height(key)
 
     def __contains__(self, item):
-        """Test if projected location is represented in this zone."""
-        # if (self.proj_bounds[0][0] < item[0] < self.proj_bounds[1][0]) and ((self.proj_bounds[0][1] < item[1] < self.proj_bounds[1][1])):
-        #     return True
-        # return False
+        """Test if projected location is represented in this tile."""
+        # TODO: Implement a faster way
         try:
             self.projected_to_raster(item)
             return True
@@ -208,48 +172,18 @@ if __name__ == '__main__':
 
     # Enable GDAL/OGR exceptions
     gdal.UseExceptions()
-    import ipdb; ipdb.set_trace()
-    celda = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.asc')
-    print(celda.geotransform)
-    print(celda.raster_z[0, 0])
-    # test corners
-    # print(celda.projected_to_raster(np.array([499987.5, 6200012.5])))
-    # print(celda.projected_to_raster(np.array([474987.5, 6200015.5])))
-    # print(celda.projected_to_raster(np.array([499987.5, 6175012.5])))
-    # print(celda.projected_to_raster(np.array([474987.5, 6175012.5])))
-    import ipdb; ipdb.set_trace()
-    print(celda[np.array([475060.0, 6200074.0])])
 
-    print(celda.projected_to_raster(celda.raster_to_projected(np.array([0, 0]))))
-    print(celda.projected_to_raster(celda.raster_to_projected(np.array([999, 0]))))
-    print(celda.projected_to_raster(celda.raster_to_projected(np.array([0, 999]))))
-    print(celda.projected_to_raster(celda.raster_to_projected(np.array([999, 999]))))
+    zone1 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.asc')
+    zone2 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.asc')
+    zone3 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.asc')
+    zone4 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.asc')
+    zone5 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.asc')
+    zone6 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.asc')
+    zone7 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.asc')
+    zone8 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.asc')
+    zone9 = MapTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.asc')
 
-    print(celda.raster_to_projected(np.array([0, 0])) in celda)
-
-    print(np.array([499987.5, 6200012.5]) in celda)
-    print(np.array([474987.5, 6200015.5]) in celda)
-    print(np.array([499987.5, 6175012.5]) in celda)
-    print(np.array([474987.5, 6175012.5]) in celda)
-
-    print(celda.projection_bounds)
-
-    zone1 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.asc')
-    zone2 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.asc')
-    zone3 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.asc')
-    zone4 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.asc')
-    zone5 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.asc')
-    zone6 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.asc')
-    zone7 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.asc')
-    zone8 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.asc')
-    zone9 = Zone('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.asc')
-
-
-    import ipdb; ipdb.set_trace()
     elevation_map = ElevationMap([zone1, zone2, zone3, zone4, zone5, zone6, zone7, zone8, zone9])
-    print(elevation_map[np.array([485345.0, 6208062.0])])
-    print(elevation_map[np.array([497841.0, 6226454.0])])
-    print(elevation_map[np.array([474987.5, 6175012.5])])
 
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
@@ -258,21 +192,29 @@ if __name__ == '__main__':
     import numpy as np
     import numpy.ma as ma
 
+    # Whole area
+    X = np.linspace(474987.5, 549987.5, num=100)
+    Y = np.linspace(6175012.5, 6250012.5, num=100)
 
-    import ipdb; ipdb.set_trace()
-    X = np.linspace(474987.5, 549987.5, num=500)
-    Y = np.linspace(6175012.5, 6250012.5, num=500)
+    # Smaller area
+    X = np.linspace(500000.0, 505000.0, num=200)
+    Y = np.linspace(6187500.0, 6192500.0, num=200)
+
     Z = np.zeros((len(X), len(Y)))
     for x in range(len(X)):
         for y in range(len(Y)):
             Z[x, y] = elevation_map.get_height(np.array([X[x], Y[y]]))
-    import ipdb; ipdb.set_trace()
     print(Z)
     Y, X = np.meshgrid(Y, X)
     fig = plt.figure()
+    fig2 = plt.figure()
+    ax2 = fig2.gca(aspect='equal')
     ax = fig.gca(projection='3d')
-    surf = ax.plot_surface(X, Y, Z, cmap=cm.gist_earth, linewidth=0, antialiased=False)
+    surf = ax.plot_surface(X, Y, Z, vmin=0, vmax=1500, cmap=cm.gist_earth, linewidth=0, antialiased=False)
+    contour = ax2.contour(X,Y,Z, 50, cmap=cm.gist_earth)
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5)
+    fig2.colorbar(contour, shrink=0.5, aspect=5)
+    ax.auto_scale_xyz([500000.0, 505000.0], [6187500.0, 6192500.0], [0, 5000])
 
     plt.show()
