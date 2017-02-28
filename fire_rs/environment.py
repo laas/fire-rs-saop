@@ -102,33 +102,6 @@ class MapTile():
         else:
             raise KeyError("Location out of this tile bounds")
 
-
-    # Slightly modified from http://stackoverflow.com/a/28238050
-    def _extract_point_from_raster(point, data_source, band_number=1):
-        """Return floating-point value that corresponds to given point."""
-
-        # Convert point co-ordinates so that they are in same projection as raster
-        point_sr = point.GetSpatialReference()
-        raster_sr = osr.SpatialReference()
-        raster_sr.ImportFromWkt(data_source.GetProjection())
-        transform = osr.CoordinateTransformation(point_sr, raster_sr)
-        point.Transform(transform)
-
-        # Convert geographic co-ordinates to pixel co-ordinates
-        x, y = point[0], point[1]
-        forward_transform = Affine.from_gdal(*data_source.GetGeoTransform())
-        reverse_transform = ~forward_transform
-        px, py = reverse_transform * (x, y)
-        px, py = int(px + 0.5), int(py + 0.5)
-
-        # Extract pixel value
-        band = data_source.GetRasterBand(band_number)
-        structval = band.ReadRaster(px, py, 1, 1, buf_type=gdal.GDT_Float32)
-        result = struct.unpack('f', structval)[0]
-        if result == band.GetNoDataValue():
-            result = float('nan')
-        return result
-
     def get_height(self, location):
         """Get height of projected location."""
         p = self.projected_to_raster(location)
