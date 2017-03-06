@@ -1,5 +1,19 @@
-import subprocess
 import os
+import subprocess
+
+from datetime import datetime
+from pytz import timezone
+
+from environment import DigitalMap
+
+
+class WindMap(DigitalMap):
+    """Wind map."""
+
+    def get_wind(self, position):
+        """Get the wind vector of a RGF93 position."""
+        return self.get_value(position)
+
 
 class WindNinjaCLI():
 
@@ -36,9 +50,17 @@ class WindNinjaCLI():
 
     @output_path.setter
     def output_path(self, output_folder):
+        """Output path.
+
+        It must exist already. If not, WindNinja won't create it and will
+        write to the default location"""
         self.args['output_path'] = output_folder
 
     def set_output_path(self, output_folder):
+        """Set output path.
+
+        It must exist already. If not, WindNinja won't create it and will
+        write to the default location"""
         self.output_path = output_folder
 
     def add_arguments(self, **kwargs):
@@ -82,14 +104,39 @@ class WindNinjaCLI():
                 'vegetation'              : vegetation}
         return args
 
-    @classmethod
+    @staticmethod
+    def diurnal_winds_args(uni_air_temp, uni_cloud_cover, date,
+                           air_temp_units='C', cloud_cover_units='fraction'):
+        """Generate a set of arguments to use diurnal winds in simulation.
+
+        :param uni_air_temp: Surface air temperature.
+        :param uni_cloud_cover: Cloud cover.
+        :param date: datetime object defining a date, a time of the day and
+            a timezone. For instance: 'Europe/Paris' or pytz.timezone('Europe/Paris')
+        :param air_temp_units: Surface air temperature units {K | C | R | F}.
+        :param cloud_cover_units: Cloud cover units {fraction | percent | canopy_category}.
+        """
+        args = {'diurnal_winds'    : 'true',
+                'uni_air_temp'     : uni_air_temp,
+                'air_temp_units'   : str(air_temp_units),
+                'uni_cloud_cover'  : uni_cloud_cover,
+                'cloud_cover_units': str(cloud_cover_units),
+                'year'             : str(date.year),
+                'month'            : str(date.month),
+                'day'              : str(date.day),
+                'hour'             : str(date.hour),
+                'minute'           : str(date.minute),
+                'time_zone'        : str(date.tzinfo)}
+        return args
+
+    @staticmethod
     def use_momentum_solver_args(number_of_iterations=300):
         """Generate a set of arguments for activating the momentum solver in WindNinja."""
         args = {'momentum_flag'       : 'true',
                 'number_of_iterations': number_of_iterations}
         return args
 
-    @classmethod
+    @staticmethod
     def output_type_args(write_ascii_output=True,
                          write_shapefile_output=False,
                          write_goog_output=False,
@@ -105,7 +152,7 @@ class WindNinjaCLI():
                 'write_vtk_output'      : str(write_vtk_output).lower()}
         return args
 
-    @classmethod
+    @staticmethod
     def weather_model_output_type_args(write_wx_model_ascii_output=True,
                                        write_wx_model_shapefile_output=False,
                                        write_wx_model_goog_output=False):
@@ -114,10 +161,14 @@ class WindNinjaCLI():
                 'write_wx_model_goog_output'     : str(write_wx_model_goog_output).lower()}
         return args
 
+
 if __name__ == '__main__':
     import ipdb; ipdb.set_trace()
     cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
-    cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
+    cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 135))
+    cli.add_arguments(**WindNinjaCLI.output_type_args(True, True, True, True, True, True))
+    cli.add_arguments(**WindNinjaCLI.diurnal_winds_args(
+        20, 0.25, datetime(2017, 11, 1, 12, 30, 0, 0, timezone('Europe/Paris'))))
     cli.set_elevation_file('/home/rbailonr/test_31.tif')
     cli.set_output_path('/home/rbailonr/output_path')
     completed = cli.run_blocking()
