@@ -1,10 +1,13 @@
+import numpy as np
 import os
 import subprocess
 
+from affine import Affine
 from datetime import datetime
+from osgeo import gdal
 from pytz import timezone
 
-from environment import DigitalMap
+from environment import DigitalMap, RasterTile
 
 
 class WindMap(DigitalMap):
@@ -13,6 +16,23 @@ class WindMap(DigitalMap):
     def get_wind(self, position):
         """Get the wind vector of a RGF93 position."""
         return self.get_value(position)
+
+
+class WindTile(RasterTile):
+
+    def __init__(self, windvel_file, windang_file):
+        """Initialise WindTile.
+        :param windvel_file: wind velocity asc file path.
+        :param windang_file: wind angle asc file path.
+        """
+        super().__init__(windvel_file)
+        self.add_bands_from_file(windang_file)
+
+        self.vel_file = windvel_file
+        self.ang_file = windang_file
+
+    def get_wind(self, location):
+        return self.get_value(location)
 
 
 class WindNinjaCLI():

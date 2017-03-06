@@ -50,14 +50,12 @@ class ElevationMap(DigitalMap):
         return self.get_value(position)
 
 
-class MapTile():
+class RasterTile():
 
-    FILL_VALUE = 0
+    def __init__(self, filename, nodata_fill=None):
+        """Initialise RasterTile."""
 
-    def __init__(self, filename, masked_array=False):
-        """Initialise MapTile"""
-
-        self._masked_array = masked_array
+        self.nodata_fill = nodata_fill
 
         self.filehandle = gdal.Open(filename)
         self.geoprojection = self.filehandle.GetProjection()
@@ -78,18 +76,55 @@ class MapTile():
         bottomright_projection_corner = np.array(self.direct_transform * (self.raster_size))
         self.projection_bounds = [topleft_projection_corner, bottomright_projection_corner]
 
-        # Process band #1
-        self.band = self.filehandle.GetRasterBand(1)  ## Bands start at 1
-        self.metadata = self.band.GetMetadata()
-        self.nodata_value = self.band.GetNoDataValue()
-        arr = self.band.ReadAsArray()
-        if self._masked_array:
-            # The use of MaskedArray is interesting as DEM tiles can have nodata values. However,
-            # tests reveal that MaskedArray has slower performance than regular arrays.
-            self.raster_z = ma.MaskedArray(arr, np.logical_not(np.array((arr + np.abs(
-                self.nodata_value)), dtype='bool')), fill_value=0.0)
-        else:
-            self.raster_z = arr
+        self.bands = []
+        self.nodata_value = []
+        self.data = []
+
+        for i in range(1, self.filehandle.RasterCount + 1):  # Bands start at 1
+            self.add_band(self.filehandle.GetRasterBand(i))
+
+    def add_band(self, band):
+        self.bands.append(band)
+        self.nodata_value.append(band.GetNoDataValue())
+        self.data.append(band.ReadAsArray())
+
+    def add_bands_from_file(self, filename):
+        filehandle = gdal.Open(filename)
+        geoprojection = self.filehandle.GetProjection()
+        geotransform = self.filehandle.GetGeoTransform()
+
+        if geotransform != self.geotransform or geoprojection != self.geoprojection:
+            raise ValueError("Only overlapping layers over the actual bands can be added.")
+
+        for i in range(1, filehandle.RasterCount + 1):  # Bands start at 1
+            self.add_band(filehandle.GetRasterBand(i))
+
+    def __getitem__(self, key):
+        """Get height of projected location."""
+        return self.get_value(key)
+
+    def __contains__(self, item):
+        """Test if projected location is represented in this tile."""
+        # TODO: Implement a faster way
+        try:
+            self.projected_to_raster(item)
+            return True
+        except KeyError:
+            return False
+
+    def get_value(self, location):
+        """Get value of projected location."""
+        p = self.projected_to_raster(location)
+        value = np.array([z[p[0], p[1]] for z in self.data])
+        if np.isclose(value, self.nodata_value).any():
+            if self.nodata_fill is not None:
+                logging.warning("Filling NODATA location {} in {} with {}",
+                                (p[0], p[1]), self, self.nodata_fill)
+                return np.array(*self.nodata_fill)
+            else:
+                logging.warning("Value of {} in {} is NODATA", (p[0], p[1]), self)
+                return value
+        return value
 
     def raster_to_projected(self, loc):
         """Return the projected location of a pixel point in this tile"""
@@ -110,26 +145,25 @@ class MapTile():
         else:
             raise KeyError("Location out of this tile bounds")
 
+
+class MapTile(RasterTile):
+
+    def __init__(self, filename, nodata_fill=None):
+        """Initialise MapTile"""
+        super().__init__(filename, nodata_fill)
+
     def get_height(self, location):
         """Get height of projected location."""
-        p = self.projected_to_raster(location)
-        if self._masked_array:
-            return self.raster_z.filled()[p[0], p[1]]
-        else:
-            return self.raster_z[p[0], p[1]]
+        return self.get_value(location)
+
+    @property
+    def raster_z(self):
+        return self.data[0]
 
     def __getitem__(self, key):
         """Get height of projected location."""
         return self.get_height(key)
 
-    def __contains__(self, item):
-        """Test if projected location is represented in this tile."""
-        # TODO: Implement a faster way
-        try:
-            self.projected_to_raster(item)
-            return True
-        except KeyError:
-            return False
 
 if __name__ == '__main__':
 
