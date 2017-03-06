@@ -17,29 +17,37 @@ if version_num < 1100000:
 # https://libraries.mit.edu/files/gis/DEM2013.pdf Slides explaining DEMs, slope calculation...
 # Another projected space is UTM
 
-class ElevationMap():
-    """RGF93 Digital Elevation Map."""
+class DigitalMap():
+    """Abstract representation of a set of tiles"""
 
     def __init__(self, tiles=[]):
-        """Initialise ElevationMap."""
+        """Initialise DigitalMap."""
         self._tiles = []
 
         for tile in tiles:
             self.add_tile(tile)
 
     def add_tile(self, tile):
-        """Add tile to the elevation map."""
+        """Add a tile to the map."""
         self._tiles.append(tile)
 
-    def get_height(self, position):
-        """Get height corresponding to RGF93 position."""
+    def get_value(self, position):
+        """Get the value corresponding to a projected position."""
         for tile in self._tiles:
             if position in tile:
                 return tile[position]
 
     def __getitem__(self, key):
-        """Get height corresponding to RGF93 position."""
-        return self.get_height(key)
+        """Get the value corresponding to a projected position."""
+        return self.get_value(key)
+
+
+class ElevationMap(DigitalMap):
+    """RGF93 Digital Elevation Map."""
+
+    def get_height(self, position):
+        """Get the height of a RGF93 position."""
+        return self.get_value(position)
 
 
 class MapTile():
