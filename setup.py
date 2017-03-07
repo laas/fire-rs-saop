@@ -7,4 +7,7 @@ setup(
     url="http://fire-rs.com",
     packages=['fire_rs',],
     license="GPLv3+",
+    install_requires=['pandas', 'numpy']
 )
+
+
