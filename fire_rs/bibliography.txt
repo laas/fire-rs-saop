@@ -1,0 +1,4 @@
+This file is intended to provide pointers to publications that are referenced in the source code.
+
+[Anderson 83]: Anderson, H. (1983). Predicting Wind-Driven Wild Land Fire Size and Shape.
+[Rothermel 72]: Rothermel, R. C. (1972). A mathematical model for predicting fire spread in wildland fuels.
