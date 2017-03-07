@@ -69,3 +69,6 @@ missing
 .csync_journal*
 .owncloudsync.log
 
+# IDE
+.idea
+
