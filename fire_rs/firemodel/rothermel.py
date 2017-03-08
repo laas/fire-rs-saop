@@ -150,7 +150,7 @@ def ros_detailed(
     qig = np.maximum(qig, np.zeros(5))  # ensure qig is always >= 0
 
     eps = f_dead*(f[0]*qig[0]*exp(-138/s[0])+f[1]*qig[1]*exp(-138/s[1])+f[2]*qig[2]*exp(-138/s[2])) \
-          + f_live*(f[3]*qig[3]*exp(-138/s[3])+f[4]*qig[4]*exp(-138/s[4]))
+        + f_live*(f[3]*qig[3]*exp(-138/s[3])+f[4]*qig[4]*exp(-138/s[4]))
 
     # ROS
     r = (ir * xi * (1+fw+fs)) / (rho_b * eps)
@@ -160,7 +160,10 @@ def ros_detailed(
         'ROS [m/min]': r,
         'Wind Factor': fw,
         'Slope Factor': fs,
-        'ROS multiplier': ir * xi / (rho_b * eps) * 0.3048
+        # Factor applied to (1 + slope_factor + wind_factor) to get the ROS
+        'ROS multiplier': ir * xi / (rho_b * eps) * 0.3048,
+        # Equivalent slope gives the strength of the wind that would give a similar effect to the one of the slope [Lopes 02]
+        'Equivalent slope [km/h]': (fs / C * rpr**E)**(1/B) / 54.6806649  # last factor is to transform output in km/h
         # "Characteristic dead fuel moisture [%]": mf_dead * 100,
         # "Characteristic live fuel moisture [%]": mf_live * 100,
         # "Live fuel moisture of extinction [%]": mx_live * 100,
