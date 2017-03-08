@@ -135,5 +135,5 @@ def propagate(env: Environment, x: int, y: int):
     return ignition_times
 
 if __name__ == '__main__':
-    env = DummyEnvironment(10, 10, 10)
+    env = DummyEnvironment(50, 50, 10)
     print(propagate(env, 5, 5))

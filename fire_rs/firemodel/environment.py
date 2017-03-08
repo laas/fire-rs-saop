@@ -1,4 +1,5 @@
 import pandas as pd
+from collections import namedtuple
 import sys
 if sys.version_info[0] < 3: 
     from StringIO import StringIO
@@ -61,7 +62,13 @@ fuel_models_csv = StringIO(""","Fuel_Model_Type","Load_1h","Load_10h","Load_100h
 "SB3","S",12.36,6.18,6.74,0,0,6562,358,98,0,0,37,25,18622,18622,18622,18622,18622
 "SB4","S",11.8,7.87,11.8,0,0,6562,358,98,0,0,82,25,18622,18622,18622,18622,18622""")
 
-fuel_models = pd.read_csv(fuel_models_csv, index_col=0)
+
+FuelModel = namedtuple('FuelModel', 'id type loads savs depth mx_dead heats')
+
+fuel_models = {}
+for f in pd.read_csv(fuel_models_csv, index_col=0).itertuples():
+    fm = FuelModel(f[0], f[1], f[2:7], f[7:12], f[12], f[13], f[13:18])
+    fuel_models[f[0]] = fm
 
 moisture_scenarios_csv = StringIO(""""","Moist_1h","Moist_10h","Moist_100h","Moist_Live_Herb","Moist_Live_Woody","Description"
 "D1L1",3,4,5,30,60,"Very dry dead FM, fully cured herb"
@@ -82,4 +89,13 @@ moisture_scenarios_csv = StringIO(""""","Moist_1h","Moist_10h","Moist_100h","Moi
 "D4L3",12,13,15,90,120,"High dead FM, 1/3 cured herb"
 """)
 
-moisture_scenarios = pd.read_csv(moisture_scenarios_csv, index_col=0)
+MoistureScenario = namedtuple('MoistureScenario', 'id moistures description')
+
+moisture_scenarios = {}
+for row in pd.read_csv(moisture_scenarios_csv, index_col=0).itertuples():
+    ms = MoistureScenario(row[0], row[1:6], row[6])
+    moisture_scenarios[row[0]] = ms
+
+
+if __name__ == '__main__':
+    pass

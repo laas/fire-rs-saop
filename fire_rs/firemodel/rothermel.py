@@ -192,18 +192,12 @@ def ros(fuel_type, moisture_scenario, wind, slope):
     :return: A tuple (ros, summary) where ros is the rate of spread in [m/s] and summary is a dictionary
      containing intermediate values in the computation of the rate of spread.
     """
-    from environment import fuel_models, moisture_scenarios
-    assert fuel_type in fuel_models.index, "Unknown fuel model: {}".format(fuel_type)
-    assert moisture_scenario in moisture_scenarios.index, 'Unknown moisture scenario: {}'.format(moisture_scenario)
-    f = fuel_models.loc[fuel_type]
-    model_type = f[0]
-    loads = f[1:6]
-    savs = f[6:11]
-    depth = f[11]
-    mx_dead = f[12]
-    heats = f[13:18]
-    moistures = moisture_scenarios.loc[moisture_scenario][0:5]
-    return ros_detailed(model_type, loads, savs, depth, mx_dead, heats, moistures, wind, slope)
+
+    assert fuel_type in fuel_models, "Unknown fuel model: {}".format(fuel_type)
+    assert moisture_scenario in moisture_scenarios, 'Unknown moisture scenario: {}'.format(moisture_scenario)
+    f = fuel_models[fuel_type]
+    moistures = moisture_scenarios[moisture_scenario].moistures
+    return ros_detailed(f.type, f.loads, f.savs, f.depth, f.mx_dead, f.heats, moistures, wind, slope)
 
 
 if __name__ == '__main__':
