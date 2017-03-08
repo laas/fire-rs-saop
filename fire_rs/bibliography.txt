@@ -1,4 +1,6 @@
 This file is intended to provide pointers to publications that are referenced in the source code.
 
+[Alexander 85]: Alexander, M. E. (1985). Estimating the Length-to-Breadth Ratio of Elliptical Forest Fire Patterns. In National Conference on Fire and Forest Meteorology.
 [Anderson 83]: Anderson, H. (1983). Predicting Wind-Driven Wild Land Fire Size and Shape.
+[Rios 14]: Rios, O., Jahn, W., & Rein, G. (2014). Forecasting wind-driven wildfires using an inverse modelling approach. Natural Hazards and Earth System Sciences, 14, 1491–1503.
 [Rothermel 72]: Rothermel, R. C. (1972). A mathematical model for predicting fire spread in wildland fuels.
