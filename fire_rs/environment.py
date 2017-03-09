@@ -1,11 +1,10 @@
-import sys
-from osgeo import gdal
-import numpy as np
-import numpy.ma as ma
-from scipy.ndimage import affine_transform
-from scipy.interpolate import RegularGridInterpolator
-import logging
 from affine import Affine
+from collections import namedtuple, Sequence
+import logging
+import numpy as np
+from osgeo import gdal
+import sys
+
 
 version_num = int(gdal.VersionInfo('VERSION_NUM'))
 if version_num < 1100000:
@@ -52,52 +51,75 @@ class ElevationMap(DigitalMap):
 
 class RasterTile():
 
-    def __init__(self, filename, nodata_fill=None):
-        """Initialise RasterTile."""
+    def __init__(self, filenames, nodata_fill=None):
+        """Initialise RasterTile.
 
+        It stores the metadata during the initilization. Data loading is lazy.
+
+        :param filenames: One or more file names corresponding to the same tile.
+        :param nodata_fill: array of of size equal to the total number of bands
+        """
+        if isinstance(filenames, str):
+            filenames = [filenames]
+        elif isinstance(filenames, Sequence):
+            if len(filenames) < 1:
+                raise ValueError("filenames is empty")
+        else:
+            raise TypeError("filenames must be a string or sequence of strings")
+
+        self.filenames = filenames
         self.nodata_fill = nodata_fill
 
-        self.filehandle = gdal.Open(filename)
-        self.geoprojection = self.filehandle.GetProjection()
+        n_bands = 0
+        nodata_values = []
 
-        self.raster_size = np.array([self.filehandle.RasterXSize, self.filehandle.RasterYSize])
+        # First file
+        handle = gdal.Open(filenames[0])
+        self.geoprojection = handle.GetProjection()
+        self.raster_size = np.array([handle.RasterXSize, handle.RasterYSize])
         self.raster_offset = np.array([0, 0])
         self.raster_bounds = [self.raster_offset, self.raster_size + self.raster_offset]
 
         # geotransform: coefficients for transforming between pixel/line (P,L) raster space,
         # and projection coordinates (Xp,Yp) space
-        self.geotransform = self.filehandle.GetGeoTransform()
-
+        self.geotransform = handle.GetGeoTransform()
         self.direct_transform = Affine.from_gdal(*self.geotransform)
         self.inverse_transform = ~self.direct_transform
-
-        topleft_projection_corner = np.array([self.direct_transform.c,
-                                              self.direct_transform.f])
+        topleft_projection_corner = np.array([self.direct_transform.c, self.direct_transform.f])
         bottomright_projection_corner = np.array(self.direct_transform * (self.raster_size))
         self.projection_bounds = [topleft_projection_corner, bottomright_projection_corner]
+        n_bands += handle.RasterCount
+        for i in range(handle.RasterCount):  # Bands start at 1
+            nodata_values.append(handle.GetRasterBand(i + 1).GetNoDataValue())
 
-        self.bands = []
-        self.nodata_value = []
-        self.data = []
+        # Process the rest of files
+        for f in self.filenames[1:]:
+            handle = gdal.Open(f)
+            if handle.GetProjection() != self.geotransform or \
+               handle.GetGeoTransform() != self.geoprojection:
+                raise ValueError("Only bands with the same projection can be added.")
+            n_bands+=handle.RasterCount
+            for i in range(handle.RasterCount):  # Bands start at 1
+                nodata_values.append(handle.GetRasterBand(i + 1).GetNoDataValue())
 
-        for i in range(1, self.filehandle.RasterCount + 1):  # Bands start at 1
-            self.add_band(self.filehandle.GetRasterBand(i))
+        # Set data array size
+        self._bands = np.empty((*self.raster_size, n_bands))
+        self._loaded = False
+        self.nodata_values = np.array(nodata_values)
 
-    def add_band(self, band):
-        self.bands.append(band)
-        self.nodata_value.append(band.GetNoDataValue())
-        self.data.append(band.ReadAsArray())
+    def _load_data(self):
+        """Load data from files."""
+        for i in range(len(self.filenames)):
+            handle = gdal.Open(self.filenames[i])
+            for j in range(handle.RasterCount):  # Bands start at 1
+                self._bands[..., i + j] = handle.GetRasterBand(j + 1).ReadAsArray()
+        self._loaded = True
 
-    def add_bands_from_file(self, filename):
-        filehandle = gdal.Open(filename)
-        geoprojection = self.filehandle.GetProjection()
-        geotransform = self.filehandle.GetGeoTransform()
-
-        if geotransform != self.geotransform or geoprojection != self.geoprojection:
-            raise ValueError("Only overlapping layers over the actual bands can be added.")
-
-        for i in range(1, filehandle.RasterCount + 1):  # Bands start at 1
-            self.add_band(filehandle.GetRasterBand(i))
+    @property
+    def data(self):
+        if not self._loaded:
+            self._load_data()
+        return self._bands
 
     def __getitem__(self, key):
         """Get height of projected location."""
@@ -115,15 +137,23 @@ class RasterTile():
     def get_value(self, location):
         """Get value of projected location."""
         p = self.projected_to_raster(location)
-        value = np.array([z[p[0], p[1]] for z in self.data])
-        if np.isclose(value, self.nodata_value).any():
-            if self.nodata_fill is not None:
-                logging.warning("Filling NODATA location {} in {} with {}",
-                                (p[0], p[1]), self, self.nodata_fill)
-                return np.array(*self.nodata_fill)
-            else:
-                logging.warning("Value of {} in {} is NODATA", (p[0], p[1]), self)
+
+        value = self.data[p[0], p[1]]
+
+        # NODATA test
+        nd = np.isclose(value, self.nodata_values)
+        if nd.any():
+            if not self.nodata_fill:
+                # No replacement for NODATA
+                logging.warning("Location {} in {} has NODATA but no fill has been defined",
+                                (p[0], p[1]), self)
                 return value
+            else:
+                for i in range(len(nd)):
+                    if nd:
+                        logging.warning("Location {} of band {} in {} with {}",
+                            (p[0], p[1]), i, self, self.nodata_fill[i])
+                        value[i] = self.nodata_fill[i]
         return value
 
     def raster_to_projected(self, loc):
