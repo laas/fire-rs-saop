@@ -19,7 +19,7 @@ if version_num < 1100000:
 class DigitalMap():
     """Abstract representation of a set of tiles"""
 
-    def __init__(self, tiles=[]):
+    def __init__(self, tiles):
         """Initialise DigitalMap."""
         self._tiles = []
 
