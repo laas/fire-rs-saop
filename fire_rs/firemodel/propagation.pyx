@@ -1,8 +1,9 @@
-import numpy as np
-import rothermel
-import fireshapes
 import heapq
-import numba as nb
+
+import numpy as np
+
+import fireshapes
+import rothermel
 
 
 class Environment:
@@ -65,7 +66,8 @@ class Environment:
         moisture = self.get_moisture(x, y)
         slope_percent, slope_dir = self.get_slope(x, y)
         wind_speed, wind_dir = self.get_wind(x, y)
-        ros, summary = rothermel.ros(fuel_type, moisture, wind_speed, slope_percent)
+        summary = rothermel.ros(fuel_type, moisture, wind_speed, slope_percent)
+        ros = summary.ros
         slope_equivalent = summary.equivalent_slope
         x_w_eff = wind_speed * np.cos(wind_dir) + slope_equivalent * np.cos(slope_dir)
         y_w_eff = wind_speed * np.sin(wind_dir) + slope_equivalent * np.sin(slope_dir)

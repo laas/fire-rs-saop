@@ -6,9 +6,6 @@ if sys.version_info[0] < 3:
 else:
     from io import StringIO
 
-DYNAMIC_FUEL_MODEL = 0
-STATIC_FUEL_MODEL = 1
-
 
 fuel_models_csv = StringIO(""","Fuel_Model_Type","Load_1h","Load_10h","Load_100h","Load_Live_Herb","Load_Live_Woody","SA/V_1h","SA/V_10h","SA/V_100h","SA/V_Live_Herb","SA/V_Live_Woody","Fuel_Bed_Depth","Mx_dead","Heat_1h","Heat_10h","Heat_100h","Heat_Live_Herb","Heat_Live_Woody"
 "A1","S",1.66,0,0,0,0,11483,0,0,0,0,30,12,18622,18622,18622,18622,18622
@@ -66,7 +63,17 @@ fuel_models_csv = StringIO(""","Fuel_Model_Type","Load_1h","Load_10h","Load_100h
 "SB4","S",11.8,7.87,11.8,0,0,6562,358,98,0,0,82,25,18622,18622,18622,18622,18622""")
 
 
-FuelModel = namedtuple('FuelModel', 'id type loads savs depth mx_dead heats')
+
+cdef class FuelModel:
+    def __init__(self, name, is_dynamic, loads, savs, depth, mx_dead, heats):
+        self.is_dynamic = is_dynamic
+        self.depth = depth
+        self.mx_dead = mx_dead
+        for i in range(5):
+            self.loads[i] = loads[i]
+            self.savs[i] = savs[i]
+            self.heat_contents[i] = heats[i]
+        
 
 fuel_models = {}
 for f in pd.read_csv(fuel_models_csv, index_col=0).itertuples():
@@ -93,12 +100,17 @@ moisture_scenarios_csv = StringIO(""""","Moist_1h","Moist_10h","Moist_100h","Moi
 "D4L3",12,13,15,90,120,"High dead FM, 1/3 cured herb"
 """)
 
-MoistureScenario = namedtuple('MoistureScenario', 'id moistures description')
+
+cdef class MoistureScenario:
+    def __init__(self, name, moistures, description):
+        for i in range(5):
+            self.moistures[i] = moistures[i]
+        
 
 moisture_scenarios = {}
 for row in pd.read_csv(moisture_scenarios_csv, index_col=0).itertuples():
     ms = MoistureScenario(row[0], row[1:6], row[6])
-    moisture_scenarios[row[0]] = ms
+    moisture_scenarios[row[0]] = ms 
 
 
 if __name__ == '__main__':

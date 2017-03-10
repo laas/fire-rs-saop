@@ -72,3 +72,9 @@ missing
 # IDE
 .idea
 
+# Ignore cython generated files
+*.c
+*.html
+
+# Jupyter notebooks
+.ipynb_checkpoints
