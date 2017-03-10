@@ -1,11 +1,13 @@
 import numpy as np
 from numpy import exp
+from collections import namedtuple
 
+import environment
 from environment import fuel_models, moisture_scenarios
 
 
 def ros_detailed(
-        modeltype,  # 'S' or 'D' (static/dynamic)
+        modeltype,
         loads,
         savs,
         depth,
@@ -16,7 +18,7 @@ def ros_detailed(
         slope):
     """Computes the Rate of Spread of a wildfire using the Rothermel model.
 
-    :param modeltype: 'S' or 'D' (static/dynamic)
+    :param modeltype: Either environment.STATIC_FUEL_MODEL or environment.DYNAMIC_FUEL_MODEL
     :param loads: fuel loads (t/ha) for fuel classes [1-hr, 10-hr, 100-hr, live-herbs, live-woody]
     :param savs: surface to volume ratios (m2/m3) for the five fuel classes
     :param depth: fuel depth (cm)
@@ -34,6 +36,9 @@ def ros_detailed(
     m = np.array(moistures) / 100
     w = np.array(loads) / 10 * 0.2048
     s = np.array(savs) / 3.281
+    for i in range(5):
+        if w[i] == 0.:
+            s[i] = 999999  # this is simply to avoid dividing by 0, each time s[i] is used, m[i] appears as a factor of the expression anyway
     h = np.array(heat_contents) * 0.429922614
     delta = depth * 0.0328084
     mx_dead /= 100
@@ -43,7 +48,7 @@ def ros_detailed(
     assert m[3] >= 0.3, "Moisture of live herbs should be greater than 30%"
 
     # If model is dynamic and moisture of live herbs is below 120%, transfer some load to dead fuel
-    if modeltype == 'D' and 0.3 <= m[3] < 1.2:
+    if modeltype == environment.DYNAMIC_FUEL_MODEL and 0.3 <= m[3] < 1.2:
         kt = (1.2 - m[3]) / 0.9
         f1 = w[0] * s[0] / 32
         f4 = w[3] * kt * s[3] / 32
@@ -156,28 +161,38 @@ def ros_detailed(
     r = (ir * xi * (1+fw+fs)) / (rho_b * eps)
     r = 0.3048 * r
 
-    summary = {
-        'ROS [m/min]': r,
-        'Wind Factor': fw,
-        'Slope Factor': fs,
-        # Factor applied to (1 + slope_factor + wind_factor) to get the ROS
-        'ROS multiplier': ir * xi / (rho_b * eps) * 0.3048,
+    # summary = {
+    #     'ROS [m/min]': r,
+    #     'Wind Factor': fw,
+    #     'Slope Factor': fs,
+    #     # Factor applied to (1 + slope_factor + wind_factor) to get the ROS
+    #     'ROS multiplier': ir * xi / (rho_b * eps) * 0.3048,
+    #     # Equivalent slope gives the strength of the wind that would give a similar effect to the one of the slope [Lopes 02]
+    #     'Equivalent slope [km/h]': (fs / C * rpr**E)**(1/B) / 54.6806649  # last factor is to transform output in km/h
+    #     # "Characteristic dead fuel moisture [%]": mf_dead * 100,
+    #     # "Characteristic live fuel moisture [%]": mf_live * 100,
+    #     # "Live fuel moisture of extinction [%]": mx_live * 100,
+    #     # "Characteristic SAV [m2/m3]": sigma_tot*3.281,
+    #     # "Bulk density [kg/m3]": rho_b * 16.0184634,
+    #     # "Packing ratio [dimensionless]": beta,
+    #     # "Relative packing ratio [dimensionless]": rpr,
+    #     # "Dead fuel Reaction intensity [kW/m2]": ir_dead * 0.1893,
+    #     # "Live fuel Reaction intensity [kW/m2]": ir_live * 0.1893,
+    #     # "Reaction intensity [kW/m2]": ir * 0.1893,
+    #     # "Heat source [kW/m2]": ir*xi*(1+fw+fs)*0.1893,
+    #     # "Heat sink [kJ/m3]": rho_b * eps * 37.258994580781
+    # }
+    summary = RothermelSummary(
+        ros=r/60,  # Rate of Spread [m/s]
+        wind_factor=fw,
+        slope_factor=fs,
         # Equivalent slope gives the strength of the wind that would give a similar effect to the one of the slope [Lopes 02]
-        'Equivalent slope [km/h]': (fs / C * rpr**E)**(1/B) / 54.6806649  # last factor is to transform output in km/h
-        # "Characteristic dead fuel moisture [%]": mf_dead * 100,
-        # "Characteristic live fuel moisture [%]": mf_live * 100,
-        # "Live fuel moisture of extinction [%]": mx_live * 100,
-        # "Characteristic SAV [m2/m3]": sigma_tot*3.281,
-        # "Bulk density [kg/m3]": rho_b * 16.0184634,
-        # "Packing ratio [dimensionless]": beta,
-        # "Relative packing ratio [dimensionless]": rpr,
-        # "Dead fuel Reaction intensity [kW/m2]": ir_dead * 0.1893,
-        # "Live fuel Reaction intensity [kW/m2]": ir_live * 0.1893,
-        # "Reaction intensity [kW/m2]": ir * 0.1893,
-        # "Heat source [kW/m2]": ir*xi*(1+fw+fs)*0.1893,
-        # "Heat sink [kJ/m3]": rho_b * eps * 37.258994580781
-    }
+        equivalent_slope=(fs / C * rpr**E)**(1/B) / 54.6806649  # last factor is to transform output in km/h
+    )
     return r/60, summary
+
+
+RothermelSummary = namedtuple('RothermelSummary', ['ros', 'wind_factor', 'slope_factor', 'equivalent_slope'])
 
 
 def ros(fuel_type, moisture_scenario, wind, slope):
@@ -201,8 +216,15 @@ def ros(fuel_type, moisture_scenario, wind, slope):
 
 
 if __name__ == '__main__':
-    print(ros_detailed('D', [2,1,0.5,3,8], [5600,358,98,6200,8000], 50, 30, [18622,18622,18622,19500,20000], [7,8,9,40,60], 5, 10))
-    print(ros('SH4', 'D1L1', 10, 30))
+    #ros_detailed(environment.DYNAMIC_FUEL_MODEL, [2., 1., 0.5, 3., 8.], [5600., 358., 98., 6200., 8000.], 50., 30., [18622., 18622., 18622., 19500., 20000.], [7., 8., 9., 40., 60.], 5., 10.)
+    print(ros('SH6', 'D2L2', 10, 0.))
+
+    import timeit
+
+    print(timeit.timeit('ros_detailed(environment.DYNAMIC_FUEL_MODEL, [2., 1., 0.5, 3., 8.], [5600., 358., 98., 6200., 8000.], 50., 30., [18622., 18622., 18622., 19500., 20000.], [7., 8., 9., 40., 60.], 5., 10.)',
+                        'from rothermel import ros_detailed\nimport environment', number=10000)/10000)
+    print(timeit.timeit('ros("SH4", "D1L1", 10, 30)', 'from rothermel import ros', number=10000)/10000)
+
 
 
 

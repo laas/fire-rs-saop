@@ -25,9 +25,8 @@ class Ellipse:
          and (x_inter, y_inter) is the coordinates of the projection of (x_orig, 0) on the ellipse in the direction of
          the angle
         """
-        assert -self.a <= x_origin <= self.a, "The given origin is not in the ellipse"
-        x = None
-        y = None
+        x = 0.
+        y = 0.
         if angle == np.pi/2:
             x, y = 0, self.b
         elif angle == -np.pi/2:
@@ -186,9 +185,8 @@ def get_fire_shape(effective_wind_speed, effective_wind_angle, ros, kind='auto')
     else:
         return DoubleEllipsePropagationShape(effective_wind_speed, effective_wind_angle, ros)
 
+
 if __name__ == '__main__':
     e = Ellipse(5, 2)
     print(e.projection(-1, np.pi))
-    shape = PropagationShape(10, 0, 2)
-    print(shape.speed(0))
 

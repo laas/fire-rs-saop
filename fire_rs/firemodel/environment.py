@@ -6,6 +6,9 @@ if sys.version_info[0] < 3:
 else:
     from io import StringIO
 
+DYNAMIC_FUEL_MODEL = 0
+STATIC_FUEL_MODEL = 1
+
 
 fuel_models_csv = StringIO(""","Fuel_Model_Type","Load_1h","Load_10h","Load_100h","Load_Live_Herb","Load_Live_Woody","SA/V_1h","SA/V_10h","SA/V_100h","SA/V_Live_Herb","SA/V_Live_Woody","Fuel_Bed_Depth","Mx_dead","Heat_1h","Heat_10h","Heat_100h","Heat_Live_Herb","Heat_Live_Woody"
 "A1","S",1.66,0,0,0,0,11483,0,0,0,0,30,12,18622,18622,18622,18622,18622
@@ -67,7 +70,8 @@ FuelModel = namedtuple('FuelModel', 'id type loads savs depth mx_dead heats')
 
 fuel_models = {}
 for f in pd.read_csv(fuel_models_csv, index_col=0).itertuples():
-    fm = FuelModel(f[0], f[1], f[2:7], f[7:12], f[12], f[13], f[13:18])
+    kind = STATIC_FUEL_MODEL if f[1] == 'S' else DYNAMIC_FUEL_MODEL
+    fm = FuelModel(f[0], kind, f[2:7], f[7:12], f[12], f[13], f[13:18])
     fuel_models[f[0]] = fm
 
 moisture_scenarios_csv = StringIO(""""","Moist_1h","Moist_10h","Moist_100h","Moist_Live_Herb","Moist_Live_Woody","Description"

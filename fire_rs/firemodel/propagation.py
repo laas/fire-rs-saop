@@ -2,6 +2,7 @@ import numpy as np
 import rothermel
 import fireshapes
 import heapq
+import numba as nb
 
 
 class Environment:
@@ -65,7 +66,7 @@ class Environment:
         slope_percent, slope_dir = self.get_slope(x, y)
         wind_speed, wind_dir = self.get_wind(x, y)
         ros, summary = rothermel.ros(fuel_type, moisture, wind_speed, slope_percent)
-        slope_equivalent = summary['Equivalent slope [km/h]']
+        slope_equivalent = summary.equivalent_slope
         x_w_eff = wind_speed * np.cos(wind_dir) + slope_equivalent * np.cos(slope_dir)
         y_w_eff = wind_speed * np.sin(wind_dir) + slope_equivalent * np.sin(slope_dir)
         angle_w_eff = np.arctan2(y_w_eff, x_w_eff)
@@ -96,6 +97,7 @@ class DummyEnvironment(Environment):
 # graph connectivity: each element is a (delta-x, delta-y)
 neighborhood = [(1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1), (0,-1), (1,-1),
     (2,1), (2,-1), (-2,1), (-2,-1), (1,2), (1,-2), (-1,2), (-1,-2)]
+
 
 
 def propagate(env: Environment, x: int, y: int):
