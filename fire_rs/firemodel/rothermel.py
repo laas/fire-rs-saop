@@ -1,11 +1,20 @@
 import numpy as np
+import cython
 from numpy import exp
 from collections import namedtuple
 
 import environment
 from environment import fuel_models, moisture_scenarios
 
+@cython.cdivision(True)
+cdef inline div(double num, double denum):
+    """Returns the division num/denum, always returning 0 if num==0"""
+    if num != 0.:
+        return num / denum
+    else:
+        return 0.
 
+@cython.cdivision(True)
 def ros_detailed(
         modeltype,
         loads,
@@ -68,7 +77,7 @@ def ros_detailed(
     a_tot = a_dead + a_live
 
     # careful, could result in division by 0
-    f = np.array([a[0]/a_dead, a[1]/a_dead, a[2]/a_dead, a[3]/a_live, a[4]/a_live])
+    f = np.array([div(a[0],a_dead), div(a[1],a_dead), div(a[2],a_dead), div(a[3],a_live), div(a[4],a_live)])
 
     f_dead = a_dead / a_tot
     f_live = a_live / a_tot
@@ -97,16 +106,20 @@ def ros_detailed(
 
     # live fuel moisture of extinction.
     # if there is no live fuel, should be set to mx_dead (currently, would crash)
-    W = ((w[0]*exp(-138/s[0]) + w[1]*exp(-138/s[1]) + w[2]*exp(-138/s[2])) /
-         (w[3]*exp(-500/s[3])+w[4]*exp(-500/s[4])))
-
-    mfpd = ((w[0]*m[0]*exp(-138/s[0]) + w[1]*m[1]*exp(-138/s[1]) + w[2]*m[2]*exp(-138/s[2])) /
-            (w[0]*exp(-138/s[0]) + w[1]*exp(-138/s[1])+w[2]*exp(-138/s[2])))
-
-    mx_live = 2.9*W*(1-mfpd/mx_dead) - 0.226
-
-    if mx_live < mx_dead:
+    cdef double mx_live
+    if w[3] + w[4] == 0:
         mx_live = mx_dead
+    else:
+        W = ((w[0]*exp(-138/s[0]) + w[1]*exp(-138/s[1]) + w[2]*exp(-138/s[2])) /
+             (w[3]*exp(-500/s[3])+w[4]*exp(-500/s[4])))
+
+        mfpd = ((w[0]*m[0]*exp(-138/s[0]) + w[1]*m[1]*exp(-138/s[1]) + w[2]*m[2]*exp(-138/s[2])) /
+                (w[0]*exp(-138/s[0]) + w[1]*exp(-138/s[1])+w[2]*exp(-138/s[2])))
+
+        mx_live = 2.9*W*(1-mfpd/mx_dead) - 0.226
+
+        if mx_live < mx_dead:
+            mx_live = mx_dead
 
     # damping coefficients
     ns = 0.174*se**(-0.19)
@@ -168,19 +181,19 @@ def ros_detailed(
     #     # Factor applied to (1 + slope_factor + wind_factor) to get the ROS
     #     'ROS multiplier': ir * xi / (rho_b * eps) * 0.3048,
     #     # Equivalent slope gives the strength of the wind that would give a similar effect to the one of the slope [Lopes 02]
-    #     'Equivalent slope [km/h]': (fs / C * rpr**E)**(1/B) / 54.6806649  # last factor is to transform output in km/h
-    #     # "Characteristic dead fuel moisture [%]": mf_dead * 100,
-    #     # "Characteristic live fuel moisture [%]": mf_live * 100,
-    #     # "Live fuel moisture of extinction [%]": mx_live * 100,
-    #     # "Characteristic SAV [m2/m3]": sigma_tot*3.281,
-    #     # "Bulk density [kg/m3]": rho_b * 16.0184634,
-    #     # "Packing ratio [dimensionless]": beta,
-    #     # "Relative packing ratio [dimensionless]": rpr,
-    #     # "Dead fuel Reaction intensity [kW/m2]": ir_dead * 0.1893,
-    #     # "Live fuel Reaction intensity [kW/m2]": ir_live * 0.1893,
-    #     # "Reaction intensity [kW/m2]": ir * 0.1893,
-    #     # "Heat source [kW/m2]": ir*xi*(1+fw+fs)*0.1893,
-    #     # "Heat sink [kJ/m3]": rho_b * eps * 37.258994580781
+    #     'Equivalent slope [km/h]': (fs / C * rpr**E)**(1/B) / 54.6806649,  # last factor is to transform output in km/h
+    #     "Characteristic dead fuel moisture [%]": mf_dead * 100,
+    #     "Characteristic live fuel moisture [%]": mf_live * 100,
+    #     "Live fuel moisture of extinction [%]": mx_live * 100,
+    #     "Characteristic SAV [m2/m3]": sigma_tot*3.281,
+    #     "Bulk density [kg/m3]": rho_b * 16.0184634,
+    #     "Packing ratio [dimensionless]": beta,
+    #     "Relative packing ratio [dimensionless]": rpr,
+    #     "Dead fuel Reaction intensity [kW/m2]": ir_dead * 0.1893,
+    #     "Live fuel Reaction intensity [kW/m2]": ir_live * 0.1893,
+    #     "Reaction intensity [kW/m2]": ir * 0.1893,
+    #     "Heat source [kW/m2]": ir*xi*(1+fw+fs)*0.1893,
+    #     "Heat sink [kJ/m3]": rho_b * eps * 37.258994580781
     # }
     summary = RothermelSummary(
         ros=r/60,  # Rate of Spread [m/s]
