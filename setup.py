@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-from distutils.core import setup
+from setuptools import find_packages, setup
 
 setup(
-    name="FireRS",
+    name="Fire RS",
     version="0.1",
-    description="FireRS software",
+    description="FireRS situation assessment and observation planning (SAOP) software",
     url="http://fire-rs.com",
-    packages=['fire_rs',],
+    packages=find_packages(),
     license="GPLv3+",
-    install_requires=['pandas', 'numpy']
+    install_requires=['affine', 'GDAL', 'numpy', 'pytz']
 )
