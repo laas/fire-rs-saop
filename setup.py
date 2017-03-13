@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from distutils.core import setup
 
 setup(
@@ -9,5 +10,3 @@ setup(
     license="GPLv3+",
     install_requires=['pandas', 'numpy']
 )
-
-

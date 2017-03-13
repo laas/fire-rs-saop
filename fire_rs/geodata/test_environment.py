@@ -2,13 +2,13 @@ import gdal
 import numpy as np
 import unittest
 
-import environment
+from elevation import ElevationMap, ElevationTile
 
 
 class OneIGNTileTest(unittest.TestCase):
 
     def setUp(self):
-        self.tile = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
+        self.tile = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
 
     def test_raster_access(self):
         np.testing.assert_allclose(self.tile.z[0, 0], 394.67)
@@ -42,16 +42,16 @@ class OneIGNTileTest(unittest.TestCase):
 class IGNElevationMap(unittest.TestCase):
 
     def setUp(self):
-        self.zone1 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif')
-        self.zone2 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
-        self.zone3 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.tif')
-        self.zone4 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif')
-        self.zone5 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
-        self.zone6 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.tif')
-        self.zone7 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.tif')
-        self.zone8 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.tif')
-        self.zone9 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.tif')
-        self.elevation_map = environment.ElevationMap([self.zone1, self.zone2, self.zone3,
+        self.zone1 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif')
+        self.zone2 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
+        self.zone3 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.tif')
+        self.zone4 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif')
+        self.zone5 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
+        self.zone6 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.tif')
+        self.zone7 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.tif')
+        self.zone8 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.tif')
+        self.zone9 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.tif')
+        self.elevation_map = ElevationMap([self.zone1, self.zone2, self.zone3,
                                                        self.zone4, self.zone5, self.zone6,
                                                        self.zone7, self.zone8, self.zone9])
 

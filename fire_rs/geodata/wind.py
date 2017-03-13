@@ -3,7 +3,7 @@ import os
 from pytz import timezone
 import subprocess
 
-from environment import DigitalMap, RasterTile
+from basemap import DigitalMap, RasterTile
 
 
 WINDNINJA_CLI_PATH = '/home/rbailonr/bin/windninja_cli'
