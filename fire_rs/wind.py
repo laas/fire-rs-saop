@@ -1,35 +1,89 @@
-import numpy as np
-import os
-import subprocess
-
-from affine import Affine
 from datetime import datetime
-from osgeo import gdal
+import os
 from pytz import timezone
+import subprocess
 
 from environment import DigitalMap, RasterTile
 
 
+WINDNINJA_CLI_PATH = '/home/rbailonr/bin/windninja_cli'
+if not os.path.exists(os.path.join(WINDNINJA_CLI_PATH, 'WindNinja_cli')):
+    raise FileNotFoundError("WINDNINJA_CLI_PATH is not defined correctly")
+
+
 class WindMap(DigitalMap):
-    """Wind map."""
+    """Wind map asociated to an elevation map."""
+
+    def __init__(self, tiles, elevation_map, windninja):
+        """Initialise WindMap.
+
+        :param tiles: Sequence of WindTiles
+        :param elevation_map: Associated ElevationMap.
+        :param scenario: WindNinjaCLI instance with all the necessary arguments set.
+        """
+        super().__init__(tiles)
+        self.elevation_map = elevation_map
+
+        self.scenario = windninja.args
+        self.windninja_cli = windninja
+
+        sce_list = []
+        if self.scenario['initialization_method'] == 'domainAverageInitialization':
+            sce_list.append(str(int(float(self.scenario['input_direction']))))
+            sce_list.append(str(int(float(self.scenario['input_speed']))))
+            if bool(self.scenario['diurnal_winds']):
+                sce_list.append('-'.join([self.scenario['month'],
+                                          self.scenario['day'],
+                                          self.scenario['year']]))
+                sce_list.append(''.join([self.scenario['hour'],
+                                         self.scenario['minute']]))
+
+            sce_list.append(''.join([str(self.scenario['mesh_resolution']),
+                                    self.scenario['units_mesh_resolution']]))
+
+        self.scenario_str = '_'.join(sce_list)  # part of WindNinja output file(s)
+
+    def _load_tile(self, base_tile):
+        tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0]
+        windfile_paths = [os.path.join(self.scenario['output_path'],
+                                       '_'.join([tile_name,
+                                                 self.scenario_str,
+                                                 'vel.asc'])),
+                          os.path.join(self.scenario['output_path'],
+                                       '_'.join([tile_name,
+                                                 self.scenario_str,
+                                                 'ang.asc']))]
+
+        if not(os.path.exists(windfile_paths[0]) and os.path.exists(windfile_paths[1])):
+            self._run_windninja(base_tile)
+
+        return WindTile(windfile_paths)
+
+    def _run_windninja(self, elevation_file):
+        self.windninja_cli.set_elevation_file(elevation_file.filenames[0])
+        completed = self.windninja_cli.run()
+        if completed.returncode != 0:
+            raise RuntimeError("Error during execution! WindNinja returned {}.".format(
+                completed.returncode))
+
+    def get_value(self, position):
+        """Get the value corresponding to a position."""
+        if position not in self.elevation_map:
+            raise KeyError("Location out of elevation map bounds")
+
+        if position not in self:
+            # We have to load a map for this position
+            tile = self._load_tile(self.elevation_map.tile_of_location(position))
+            self.add_tile(tile)
+            return tile[position]
+        return super().get_value()
 
     def get_wind(self, position):
-        """Get the wind vector of a RGF93 position."""
+        """Get the wind vector of a position."""
         return self.get_value(position)
 
 
 class WindTile(RasterTile):
-
-    def __init__(self, windvel_file, windang_file):
-        """Initialise WindTile.
-        :param windvel_file: wind velocity asc file path.
-        :param windang_file: wind angle asc file path.
-        """
-        super().__init__(windvel_file)
-        self.add_bands_from_file(windang_file)
-
-        self.vel_file = windvel_file
-        self.ang_file = windang_file
 
     def get_wind(self, location):
         return self.get_value(location)
@@ -42,7 +96,7 @@ class WindNinjaCLI():
         self.args = {} #  dict(arg, value)
         self.add_arguments(num_threads=len(os.sched_getaffinity(0)),
                            output_speed_units='mps',
-                           mesh_resolution=100.0, # ¡! Conflicts with mesh_choice
+                           mesh_resolution=100, # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
                            write_ascii_output='true')
 
@@ -87,13 +141,19 @@ class WindNinjaCLI():
         for key, value in kwargs.items():
             self.args[str(key)] = str(value)
 
+    def run(self):
+        """Run WindNinja.
+
+        :return: subprocess.CompletedProcess instance.
+        """
+        return self.run_blocking()
+
     def run_blocking(self):
         """Run WindNinja.
 
         This function blocks the execution until the process is finished.
 
-        Returns:
-            completed: subprocess.CompletedProcess instance
+        :return: subprocess.CompletedProcess instance.
         """
         arguments = self.args_list()
         cli = os.path.join(self.windninja_path, "WindNinja_cli")
@@ -110,7 +170,7 @@ class WindNinjaCLI():
         :param input_speed: input wind speed in m/s
         :param input_direction: input wind direction in degrees
         :param vegetation: vegetation type (grass, brush or trees)
-        :return arguments for WindNinja
+        :return: arguments for WindNinja
         :rtype: dict
         """
         args = {'initialization_method'   : 'domainAverageInitialization',
@@ -180,17 +240,3 @@ class WindNinjaCLI():
                 'write_wx_model_shapefile_output': str(write_wx_model_shapefile_output).lower(),
                 'write_wx_model_goog_output'     : str(write_wx_model_goog_output).lower()}
         return args
-
-
-if __name__ == '__main__':
-    import ipdb; ipdb.set_trace()
-    cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
-    cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 135))
-    cli.add_arguments(**WindNinjaCLI.output_type_args(True, True, True, True, True, True))
-    cli.add_arguments(**WindNinjaCLI.diurnal_winds_args(
-        20, 0.25, datetime(2017, 11, 1, 12, 30, 0, 0, timezone('Europe/Paris'))))
-    cli.set_elevation_file('/home/rbailonr/test_31.tif')
-    cli.set_output_path('/home/rbailonr/output_path')
-    completed = cli.run_blocking()
-    if completed.returncode != 0:
-        print("Error during execution! WindNinja returned {}.".format(completed.returncode))

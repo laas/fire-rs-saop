@@ -17,7 +17,7 @@ if version_num < 1100000:
 # Another projected space is UTM
 
 class DigitalMap():
-    """Abstract representation of a set of tiles"""
+    """Abstract representation of a set of tiles."""
 
     def __init__(self, tiles):
         """Initialise DigitalMap."""
@@ -31,14 +31,30 @@ class DigitalMap():
         self._tiles.append(tile)
 
     def get_value(self, position):
-        """Get the value corresponding to a projected position."""
+        """Get the value corresponding to a position."""
+        # TODO: Improve performance
         for tile in self._tiles:
             if position in tile:
                 return tile[position]
 
     def __getitem__(self, key):
-        """Get the value corresponding to a projected position."""
+        """Get the value corresponding to a position."""
         return self.get_value(key)
+
+    def __contains__(self, position):
+        """Whether a position is defined in the map."""
+        # TODO: Improve performance
+        for tile in self._tiles:
+            if position in tile:
+                return True
+        return False
+
+    def tile_of_location(self, position):
+        """Get the tile where the position is defined."""
+        for tile in self._tiles:
+            if position in tile:
+                return tile
+        raise KeyError("Location {} not in {}".format(location, self))
 
 
 class ElevationMap(DigitalMap):
@@ -57,7 +73,7 @@ class RasterTile():
         It stores the metadata during the initilization. Data loading is lazy.
 
         :param filenames: One or more file names corresponding to the same tile.
-        :param nodata_fill: array of of size equal to the total number of bands
+        :param nodata_fill: Array of of size equal to the total number of bands
         """
         if isinstance(filenames, str):
             filenames = [filenames]
@@ -95,12 +111,14 @@ class RasterTile():
         # Process the rest of files
         for f in self.filenames[1:]:
             handle = gdal.Open(f)
-            if handle.GetProjection() != self.geotransform or \
-               handle.GetGeoTransform() != self.geoprojection:
+            if handle.GetProjection() == self.geoprojection and \
+               handle.GetGeoTransform() == self.geotransform:
+                n_bands+=handle.RasterCount
+                for i in range(handle.RasterCount):  # Bands start at 1
+                    nodata_values.append(handle.GetRasterBand(i + 1).GetNoDataValue())
+            else:
                 raise ValueError("Only bands with the same projection can be added.")
-            n_bands+=handle.RasterCount
-            for i in range(handle.RasterCount):  # Bands start at 1
-                nodata_values.append(handle.GetRasterBand(i + 1).GetNoDataValue())
+
 
         # Set data array size
         self._bands = np.empty((*self.raster_size, n_bands))
@@ -120,6 +138,10 @@ class RasterTile():
         if not self._loaded:
             self._load_data()
         return self._bands
+
+    @property
+    def loaded(self):
+            return self._loaded
 
     def __getitem__(self, key):
         """Get height of projected location."""
@@ -187,8 +209,8 @@ class ElevationTile(RasterTile):
         return self.get_value(location)
 
     @property
-    def raster_z(self):
-        return self.data[0]
+    def z(self):
+        return self.data[..., 0]
 
     def __getitem__(self, key):
         """Get height of projected location."""

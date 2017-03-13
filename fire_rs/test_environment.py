@@ -1,6 +1,5 @@
-import numpy as np
 import gdal
-
+import numpy as np
 import unittest
 
 import environment
@@ -9,17 +8,17 @@ import environment
 class OneIGNTileTest(unittest.TestCase):
 
     def setUp(self):
-        self.tile = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.asc')
+        self.tile = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
 
     def test_raster_access(self):
-        np.testing.assert_allclose(self.tile.raster_z[0, 0], 394.67)
+        np.testing.assert_allclose(self.tile.z[0, 0], 394.67)
         for pos in [np.array([475060.0, 6200074.0]),
                     np.array([475726.0, 6202235.0]),
                     np.array([475060.0, 6200074.0])]:
 
             array_coord = self.tile.projected_to_raster(pos)
         np.testing.assert_allclose(self.tile[pos],
-                                   self.tile.raster_z[array_coord[0], array_coord[1]])
+                                   self.tile.z[array_coord[0], array_coord[1]])
 
     def test_raster_projected_conversion(self):
         raster_size = self.tile.raster_size
@@ -43,15 +42,15 @@ class OneIGNTileTest(unittest.TestCase):
 class IGNElevationMap(unittest.TestCase):
 
     def setUp(self):
-        self.zone1 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.asc')
-        self.zone2 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.asc')
-        self.zone3 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.asc')
-        self.zone4 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.asc')
-        self.zone5 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.asc')
-        self.zone6 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.asc')
-        self.zone7 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.asc')
-        self.zone8 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.asc')
-        self.zone9 = environment.ElevationTile('/home/rbailonr/Documents/FireRS/DTM/BDALTIV2_2-0_25M_ASC_LAMB93-IGN69_D031_2016-11-17/BDALTIV2/1_DONNEES_LIVRAISON_2017-02-00098/BDALTIV2_MNT_25M_ASC_LAMB93_IGN69_D031/BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.asc')
+        self.zone1 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif')
+        self.zone2 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
+        self.zone3 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.tif')
+        self.zone4 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif')
+        self.zone5 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
+        self.zone6 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.tif')
+        self.zone7 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.tif')
+        self.zone8 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.tif')
+        self.zone9 = environment.ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.tif')
         self.elevation_map = environment.ElevationMap([self.zone1, self.zone2, self.zone3,
                                                        self.zone4, self.zone5, self.zone6,
                                                        self.zone7, self.zone8, self.zone9])

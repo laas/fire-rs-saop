@@ -1,10 +1,13 @@
-import tempfile
+from datetime import datetime
 import gdal
 import numpy as np
 import os
+from pytz import timezone
+import tempfile
 import unittest
 
-from wind import WindTile, WindNinjaCLI
+from environment import ElevationMap, ElevationTile
+from wind import WindMap, WindTile, WindNinjaCLI
 
 
 class WindNinjaCLITest(unittest.TestCase):
@@ -12,20 +15,20 @@ class WindNinjaCLITest(unittest.TestCase):
     def setUp(self):
         self.output_path = tempfile.gettempdir()
 
-    def domain_average_run_blocking_test(self):
+    def test_domain_average_run_blocking(self):
         cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file('/home/rbailonr/test_31.tif')
+        cli.set_elevation_file('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
         cli.set_output_path(self.output_path)
         completed = cli.run_blocking()
         if completed.returncode != 0:
             self.assertEqual(completed.returncode, 0,
                              "WindNinja_cli execution failed! Return code is {} instead of 0.".format(completed.returncode))
 
-    def domain_average_diurnal_winds_test(self):
+    def test_domain_average_diurnal_winds(self):
         cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file('/home/rbailonr/test_31.tif')
+        cli.set_elevation_file('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
         cli.set_output_path(self.output_path)
         cli.add_arguments(diurnal_winds='true',
                           uni_air_temp=20, air_temp_units='C',
@@ -42,20 +45,43 @@ class WindTileTest(unittest.TestCase):
     def setUp(self):
         cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file('/home/rbailonr/test_31.tif')
+        cli.set_elevation_file('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
 
         self.wind_path = tempfile.gettempdir()
-        self.windvel_file = os.path.join(self.wind_path, 'test_31_0_3_100m_vel.asc')
-        self.windang_file = os.path.join(self.wind_path, 'test_31_0_3_100m_ang.asc')
+        self.windvel_file = os.path.join(self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_vel.asc')
+        self.windang_file = os.path.join(self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_ang.asc')
 
         cli.set_output_path(self.wind_path)
         completed = cli.run_blocking()
 
     def test_access(self):
-        tile = WindTile(self.windvel_file, self.windang_file)
+        tile = WindTile([self.windvel_file, self.windang_file])
         w = tile.get_wind(np.array([512748, 6211766]))
         self.assertEqual(len(w), 2)
 
+class WindMapTest(unittest.TestCase):
+
+    def setUp(self):
+        self.output_path = tempfile.gettempdir()
+
+        tile0 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif')
+        tile1 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
+        tile2 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif')
+        tile3 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
+        self.elevation_map = ElevationMap([tile0, tile1, tile2, tile3])
+
+        self.cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
+        self.cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 135))
+        self.cli.add_arguments(**WindNinjaCLI.output_type_args(True, False, True, False, False, False))
+        self.cli.add_arguments(**WindNinjaCLI.diurnal_winds_args(
+            20, 0.25, datetime(2017, 11, 15, 12, 30, 0, 0, timezone('Europe/Paris'))))
+        self.cli.set_output_path(self.output_path)
+
+
+    def test_access(self):
+        wmap = WindMap([], self.elevation_map, self.cli)
+        w = wmap.get_wind(np.array([512748, 6211766]))
+        self.assertEqual(len(w), 2)
 
 if __name__ == '__main__':
 
