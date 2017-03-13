@@ -29,9 +29,13 @@ class Ellipse:
         """
         x = 0.
         y = 0.
-        if angle == np.pi/2:
+        if np.pi/2 -0.0001 < angle % (2*np.pi) < np.pi/2 + 0.0001:
+            # angle is around PI/2, intersection is at the top of the ellipse
+            # some margin is taken to avoid overflows as tan(x) tends to infinity when x tends to PI/2
             x, y = 0, self.b
-        elif angle == -np.pi/2:
+        elif np.pi*3/2 -0.0001 < angle % (2*np.pi) < np.pi*3/2 + 0.0001:
+            # angle is around PI/2, intersection is at the top of the ellipse
+            # some margin is taken to avoid overflows as tan(x) tends to -infinity when x tends to -PI/2
             x, y = 0, -self.b
         else:
             alpha = np.tan(angle)  # coefficient directeur
@@ -57,7 +61,7 @@ class Ellipse:
                 assert np.sign(y2) == np.sign(np.sin(angle))
                 x, y = x2, y2
 
-        assert 0.99999 <= x ** 2 / self.a ** 2 + y ** 2 / self.b ** 2 <= 1.00001,\
+        assert 0.99999 <= (x / self.a) ** 2 + (y / self.b) ** 2 <= 1.00001,\
             "The computed intersection is not on the ellipse: {}".format(x ** 2 / self.a ** 2 + y ** 2 / self.b ** 2)
         length = np.sqrt((x - x_origin)**2 + y**2)
         return length, x, y

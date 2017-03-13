@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import itertools
-import fireshapes
+import fire_rs.firemodel.fireshapes as fireshapes
 
 
 class TestFireShapesConsistency(unittest.TestCase):
