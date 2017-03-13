@@ -1,3 +1,5 @@
+# cython: profile=True
+
 import pandas as pd
 from collections import namedtuple
 import sys

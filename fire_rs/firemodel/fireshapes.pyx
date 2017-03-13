@@ -1,3 +1,5 @@
+# cython: profile=True
+
 import numpy as np
 
 

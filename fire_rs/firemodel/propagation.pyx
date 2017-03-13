@@ -1,3 +1,5 @@
+# cython: profile=True
+
 import heapq
 
 import numpy as np
