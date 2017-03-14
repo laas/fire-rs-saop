@@ -54,7 +54,7 @@ Y = np.linspace(6187500.0, 6192500.0, num=200)
 Z = np.zeros((len(X), len(Y)))
 for x in range(len(X)):
     for y in range(len(Y)):
-        Z[x, y] = elevation_map.get_height(np.array([X[x], Y[y]]))
+        Z[x, y] = elevation_map.get_elevation(np.array([X[x], Y[y]]))
 print(Z)
 Y, X = np.meshgrid(Y, X)
 fig = plt.figure()

@@ -4,7 +4,7 @@ from basemap import DigitalMap, RasterTile
 class ElevationMap(DigitalMap):
     """RGF93 Digital Elevation Map."""
 
-    def get_height(self, position):
+    def get_elevation(self, position):
         """Get the height of a RGF93 position."""
         return self.get_value(position)
 
@@ -15,7 +15,7 @@ class ElevationTile(RasterTile):
         """Initialise ElevationTile"""
         super().__init__(filename, nodata_fill)
 
-    def get_height(self, location):
+    def get_elevation(self, location):
         """Get height of projected location."""
         return self.get_value(location)
 
@@ -25,7 +25,7 @@ class ElevationTile(RasterTile):
 
     def __getitem__(self, key):
         """Get height of projected location."""
-        return self.get_height(key)
+        return self.get_elevation(key)
 
 
 
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     Z = np.zeros((len(X), len(Y)))
     for x in range(len(X)):
         for y in range(len(Y)):
-            Z[x, y] = elevation_map.get_height(np.array([X[x], Y[y]]))
+            Z[x, y] = elevation_map.get_elevation(np.array([X[x], Y[y]]))
     print(Z)
     Y, X = np.meshgrid(Y, X)
     fig = plt.figure()
