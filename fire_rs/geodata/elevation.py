@@ -1,4 +1,4 @@
-from basemap import DigitalMap, RasterTile
+from .basemap import DigitalMap, RasterTile
 
 
 class ElevationMap(DigitalMap):

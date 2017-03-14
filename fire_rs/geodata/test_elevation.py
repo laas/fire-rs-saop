@@ -2,7 +2,7 @@ import gdal
 import numpy as np
 import unittest
 
-from elevation import ElevationMap, ElevationTile
+from .elevation import ElevationMap, ElevationTile
 
 
 class OneIGNTileTest(unittest.TestCase):

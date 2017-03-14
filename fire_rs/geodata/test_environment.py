@@ -2,7 +2,7 @@ import gdal
 import numpy as np
 import unittest
 
-from environment import World
+from .environment import World
 
 
 class WorldTest(unittest.TestCase):

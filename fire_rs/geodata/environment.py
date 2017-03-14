@@ -3,8 +3,8 @@ import logging
 import numpy as np
 import os
 
-from elevation import ElevationMap, ElevationTile
-from wind import WindMap, WindNinjaCLI, WINDNINJA_CLI_PATH
+from .elevation import ElevationMap, ElevationTile
+from .wind import WindMap, WindNinjaCLI, WINDNINJA_CLI_PATH
 
 
 class World:

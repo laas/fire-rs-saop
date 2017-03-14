@@ -6,8 +6,8 @@ from pytz import timezone
 import tempfile
 import unittest
 
-from elevation import ElevationMap, ElevationTile
-from wind import WindMap, WindTile, WindNinjaCLI
+from .elevation import ElevationMap, ElevationTile
+from .wind import WindMap, WindTile, WindNinjaCLI
 
 
 class WindNinjaCLITest(unittest.TestCase):
