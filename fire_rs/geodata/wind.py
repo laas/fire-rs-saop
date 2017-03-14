@@ -31,7 +31,8 @@ class WindMap(DigitalMap):
         if self.scenario['initialization_method'] == 'domainAverageInitialization':
             sce_list.append(str(int(float(self.scenario['input_direction']))))
             sce_list.append(str(int(float(self.scenario['input_speed']))))
-            if bool(self.scenario['diurnal_winds']):
+            if self.scenario.get('diurnal_winds') is not None and \
+               bool(self.scenario['diurnal_winds']) == True:
                 sce_list.append('-'.join([self.scenario['month'],
                                           self.scenario['day'],
                                           self.scenario['year']]))
