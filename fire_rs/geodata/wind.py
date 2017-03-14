@@ -92,7 +92,7 @@ class WindTile(RasterTile):
 
 class WindNinjaCLI():
 
-    def __init__(self, path):
+    def __init__(self, path, cli_arguments=None):
         self.windninja_path = path
         self.args = {} #  dict(arg, value)
         self.add_arguments(num_threads=len(os.sched_getaffinity(0)),
@@ -100,6 +100,8 @@ class WindNinjaCLI():
                            mesh_resolution=100, # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
                            write_ascii_output='true')
+        if cli_arguments is not None:
+            self.add_arguments(**cli_arguments)
 
     def args_str(self):
         return " ".join(["=".join(("".join(
