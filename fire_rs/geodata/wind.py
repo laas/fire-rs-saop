@@ -6,9 +6,9 @@ import subprocess
 from .basemap import DigitalMap, RasterTile
 
 
-WINDNINJA_CLI_PATH = '/home/rbailonr/bin/windninja_cli'
+WINDNINJA_CLI_PATH = os.environ['WINDNINJA_CLI_PATH'] if 'WINDNINJA_CLI_PATH' in os.environ else '/home/rbailonr/bin/windninja_cli'
 if not os.path.exists(os.path.join(WINDNINJA_CLI_PATH, 'WindNinja_cli')):
-    raise FileNotFoundError("WINDNINJA_CLI_PATH is not defined correctly")
+    raise FileNotFoundError("$WINDNINJA_CLI_PATH is not defined correctly")
 
 
 class WindMap(DigitalMap):
@@ -77,7 +77,7 @@ class WindMap(DigitalMap):
             tile = self._load_tile(self.elevation_map.tile_of_location(position))
             self.add_tile(tile)
             return tile[position]
-        return super().get_value()
+        return super().get_value(position)
 
     def get_wind(self, position):
         """Get the wind vector of a position."""
@@ -92,12 +92,12 @@ class WindTile(RasterTile):
 
 class WindNinjaCLI():
 
-    def __init__(self, path, cli_arguments=None):
+    def __init__(self, path=WINDNINJA_CLI_PATH, cli_arguments=None):
         self.windninja_path = path
-        self.args = {} #  dict(arg, value)
-        self.add_arguments(num_threads=len(os.sched_getaffinity(0)),
+        self.args = {}  # dict(arg, value)
+        self.add_arguments(num_threads=len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2,
                            output_speed_units='mps',
-                           mesh_resolution=100, # ¡! Conflicts with mesh_choice
+                           mesh_resolution=100,  # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
                            write_ascii_output='true')
         if cli_arguments is not None:

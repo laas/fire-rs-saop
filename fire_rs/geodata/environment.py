@@ -1,16 +1,20 @@
-from decimal import Decimal
 import logging
-import numpy as np
 import os
 
 from .elevation import ElevationMap, ElevationTile
-from .wind import WindMap, WindNinjaCLI, WINDNINJA_CLI_PATH
+from .wind import WindMap, WindNinjaCLI
+
+# Set default data folders as the one given in the environment variable $FIRERS_DATA or to Rafael's home if not set
+# TODO: check whether it is useful/desirable to keep the internal folder
+DEFAULT_FIRERS_DATA_FOLDER = os.environ['FIRERS_DATA'] if 'FIRERS_DATA' in os.environ else '/home/rbailonr/firers_data'
+DEFAULT_FIRERS_DEM_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, 'dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
+DEFAULT_FIRERS_WIND_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, 'wind/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
 
 
 class World:
     """Class providing access to environment data."""
 
-    def __init__(self, elevation_path, wind_path):
+    def __init__(self, elevation_path=DEFAULT_FIRERS_DEM_DATA, wind_path=DEFAULT_FIRERS_WIND_DATA):
         self._elevation_path = os.path.abspath(elevation_path)
         self._elevation_map = ElevationMap([])
         self._load_elevation_tiles()
@@ -22,7 +26,7 @@ class World:
         # Wind maps is a collection of wind scenarios, sorted by initialization method.
         # For domainAverageInitialization maps are sorted by (speed, direction)
 
-        domain_scenario = WindNinjaCLI(WINDNINJA_CLI_PATH)
+        domain_scenario = WindNinjaCLI()
         domain_scenario.add_arguments(**WindNinjaCLI.domain_average_args(0,0))
         domain_scenario.add_arguments(**WindNinjaCLI.output_type_args())
         domain_scenario.set_output_path(self._wind_path)
@@ -56,7 +60,7 @@ class World:
             dom_av = ("{:.0f}".format(dom_av[0]), "{:.0f}".format(dom_av[1]))
             wind_map = self._wind_maps['domainAverageInitialization'].get(dom_av)
             if wind_map is None:
-                windninja = WindNinjaCLI(WINDNINJA_CLI_PATH, self._windninja_domain.args)
+                windninja = WindNinjaCLI(cli_arguments=self._windninja_domain.args)
                 windninja.add_arguments(**{'input_speed':dom_av[0], 'input_direction': dom_av[1]})
                 m = WindMap([], self._elevation_map, windninja)
                 self._wind_maps['domainAverageInitialization'][dom_av] = m

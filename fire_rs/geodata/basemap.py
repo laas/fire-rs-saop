@@ -11,7 +11,7 @@ from osgeo import gdal
 # https://libraries.mit.edu/files/gis/DEM2013.pdf Slides explaining DEMs, slope calculation...
 # Another projected space is UTM
 
-class DigitalMap():
+class DigitalMap:
     """Abstract representation of a set of tiles."""
 
     def __init__(self, tiles):
@@ -49,10 +49,10 @@ class DigitalMap():
         for tile in self._tiles:
             if position in tile:
                 return tile
-        raise KeyError("Location {} not in {}".format(location, self))
+        raise KeyError("Location {} not in {}".format(position, self))
 
 
-class RasterTile():
+class RasterTile:
 
     def __init__(self, filenames, nodata_fill=None):
         """Initialise RasterTile.

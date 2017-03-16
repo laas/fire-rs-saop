@@ -1,5 +1,7 @@
 # cython: profile=True
 
+# Provides a simple binary heap. An optimized binary heap with update capabilities is available at:
+# https://mail.scipy.org/pipermail/scipy-user/2009-December/023539.html
 import heapq
 
 import numpy as np

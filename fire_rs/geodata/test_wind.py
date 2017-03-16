@@ -8,6 +8,7 @@ import unittest
 
 from .elevation import ElevationMap, ElevationTile
 from .wind import WindMap, WindTile, WindNinjaCLI
+from .environment import DEFAULT_FIRERS_DEM_DATA
 
 
 class WindNinjaCLITest(unittest.TestCase):
@@ -16,9 +17,9 @@ class WindNinjaCLITest(unittest.TestCase):
         self.output_path = tempfile.gettempdir()
 
     def test_domain_average_run_blocking(self):
-        cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
+        cli = WindNinjaCLI()
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
+        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
         cli.set_output_path(self.output_path)
         completed = cli.run_blocking()
         if completed.returncode != 0:
@@ -26,9 +27,9 @@ class WindNinjaCLITest(unittest.TestCase):
                              "WindNinja_cli execution failed! Return code is {} instead of 0.".format(completed.returncode))
 
     def test_domain_average_diurnal_winds(self):
-        cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
+        cli = WindNinjaCLI()
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
+        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
         cli.set_output_path(self.output_path)
         cli.add_arguments(diurnal_winds='true',
                           uni_air_temp=20, air_temp_units='C',
@@ -43,9 +44,9 @@ class WindNinjaCLITest(unittest.TestCase):
 class WindTileTest(unittest.TestCase):
 
     def setUp(self):
-        cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
+        cli = WindNinjaCLI()
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
+        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
 
         self.wind_path = tempfile.gettempdir()
         self.windvel_file = os.path.join(self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_vel.asc')
@@ -64,13 +65,13 @@ class WindMapTest(unittest.TestCase):
     def setUp(self):
         self.output_path = tempfile.gettempdir()
 
-        tile0 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif')
-        tile1 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif')
-        tile2 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif')
-        tile3 = ElevationTile('/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17/BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif')
+        tile0 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif'))
+        tile1 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif'))
+        tile2 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif'))
+        tile3 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
         self.elevation_map = ElevationMap([tile0, tile1, tile2, tile3])
 
-        self.cli = WindNinjaCLI('/home/rbailonr/bin/windninja_cli/')
+        self.cli = WindNinjaCLI()
         self.cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 135))
         self.cli.add_arguments(**WindNinjaCLI.output_type_args(True, False, True, False, False, False))
         self.cli.add_arguments(**WindNinjaCLI.diurnal_winds_args(
