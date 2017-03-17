@@ -12,8 +12,7 @@ class WorldTest(unittest.TestCase):
 
     def test_get_elevation(self):
         world = World()
-        res = world.get_elevation(np.array([475060.0, 6200074.0]))
-        self.assertEqual(len(world.get_elevation([475060.0, 6200074.0])), True)
+        self.assertAlmostEqual(world.get_elevation([475060.0, 6200074.0]), 475.4, places=3)
 
     def test_get_wind(self):
         world = World()
