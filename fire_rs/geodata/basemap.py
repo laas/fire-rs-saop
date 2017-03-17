@@ -2,6 +2,7 @@ from affine import Affine
 from collections import Sequence
 import logging
 import numpy as np
+import numpy.lib.recfunctions as rfn  # apparently there is a bug in the python distribution and recfunctions cannot be invoked directly from np
 from osgeo import gdal
 
 
@@ -32,6 +33,19 @@ class DigitalMap:
             if position in tile:
                 return tile[position]
 
+    def get_values(self, positions_intervals, cell_size):
+        """First naive version of get_values for an area"""
+        ((x_min, x_max), (y_min, y_max)) = positions_intervals
+        x_indexes = range(int((x_max-x_min) / cell_size))
+        y_indexes = range(int((y_max-y_min) / cell_size))
+        num_layers = len(self.get_value((x_min, y_min)))
+        array = np.zeros((len(x_indexes), len(y_indexes), num_layers))
+        for x in x_indexes:
+            for y in y_indexes:
+                array[x, y] = self.get_value((x*cell_size + x_min, y*cell_size + y_min))
+        return array
+
+
     def __getitem__(self, key):
         """Get the value corresponding to a position."""
         return self.get_value(key)
@@ -54,7 +68,7 @@ class DigitalMap:
 
 class RasterTile:
 
-    def __init__(self, filenames, nodata_fill=None):
+    def __init__(self, filenames, bands_names_types, nodata_fill=None):
         """Initialise RasterTile.
 
         It stores the metadata during the initilization. Data loading is lazy.
@@ -72,6 +86,7 @@ class RasterTile:
 
         self.filenames = filenames
         self.nodata_fill = nodata_fill
+        self.bands_names_types = bands_names_types
 
         n_bands = 0
         nodata_values = []
@@ -106,18 +121,30 @@ class RasterTile:
             else:
                 raise ValueError("Only bands with the same projection can be added.")
 
+        assert n_bands == len(bands_names_types),\
+            "Number of bands in files ({}) did not match the declared ones: {}".format(n_bands, bands_names_types)
 
         # Set data array size
-        self._bands = np.empty((*self.raster_size, n_bands))
+        self._bands = None
         self._loaded = False
         self.nodata_values = np.array(nodata_values)
 
     def _load_data(self):
         """Load data from files."""
+        curr_layer = 0  # tracks the layer we are currently looking at
+        layers = []  # a sequence of structured arrays: one by layer
         for i in range(len(self.filenames)):
             handle = gdal.Open(self.filenames[i])
             for j in range(handle.RasterCount):  # Bands start at 1
-                self._bands[..., i + j] = handle.GetRasterBand(j + 1).ReadAsArray()
+                layer = np.array(handle.GetRasterBand(j + 1).ReadAsArray(), dtype=[self.bands_names_types[curr_layer]])
+                layers.append(layer)
+                curr_layer += 1
+
+        assert curr_layer == len(self.bands_names_types), "Less layers that expected"
+        assert all(l.shape == layers[0].shape for l in layers), "Layers do not have a uniform shape"
+        # combine all layers into one structured array. Note that this operation could be made much faster if necessary:
+        # http://stackoverflow.com/questions/5355744/numpy-joining-structured-arrays
+        self._bands = rfn.merge_arrays(layers, flatten=False, usemask=False).reshape(layers[0].shape)
         self._loaded = True
 
     @property
@@ -128,7 +155,7 @@ class RasterTile:
 
     @property
     def loaded(self):
-            return self._loaded
+        return self._loaded
 
     def __getitem__(self, key):
         """Get height of projected location."""
@@ -146,11 +173,10 @@ class RasterTile:
     def get_value(self, location):
         """Get value of projected location."""
         p = self.projected_to_raster(location)
-
         value = self.data[p[0], p[1]]
 
         # NODATA test
-        nd = np.isclose(value, self.nodata_values)
+        nd = np.isclose(value.tolist(), self.nodata_values)
         if nd.any():
             if not self.nodata_fill:
                 # No replacement for NODATA
@@ -161,9 +187,12 @@ class RasterTile:
                 for i in range(len(nd)):
                     if nd:
                         logging.warning("Location {} of band {} in {} with {}",
-                            (p[0], p[1]), i, self, self.nodata_fill[i])
+                                        (p[0], p[1]), i, self, self.nodata_fill[i])
                         value[i] = self.nodata_fill[i]
-        return value
+        if len(value) == 1:
+            return value[0]  # Extract if there is a single value
+        else:
+            return value
 
     def raster_to_projected(self, loc):
         """Return the projected location of a pixel point in this tile"""

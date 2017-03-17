@@ -1,6 +1,4 @@
-from datetime import datetime
 import os
-from pytz import timezone
 import subprocess
 
 from .basemap import DigitalMap, RasterTile
@@ -85,6 +83,9 @@ class WindMap(DigitalMap):
 
 
 class WindTile(RasterTile):
+
+    def __init__(self, windfile_paths):
+        super().__init__(windfile_paths, [('wind_velocity', 'float32'), ('wind_angle', 'float32')])
 
     def get_wind(self, location):
         return self.get_value(location)

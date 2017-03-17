@@ -3,8 +3,8 @@ import numpy as np
 import unittest
 import os
 
-from .elevation import ElevationMap, ElevationTile
-from .environment import DEFAULT_FIRERS_DEM_DATA
+from fire_rs.geodata.elevation import ElevationMap, ElevationTile
+from fire_rs.geodata.environment import DEFAULT_FIRERS_DEM_DATA
 
 
 class OneIGNTileTest(unittest.TestCase):
@@ -14,31 +14,31 @@ class OneIGNTileTest(unittest.TestCase):
 
     def test_raster_access(self):
         np.testing.assert_allclose(self.tile.z[0, 0], 394.67)
-        for pos in [np.array([475060.0, 6200074.0]),
-                    np.array([475726.0, 6202235.0]),
-                    np.array([475060.0, 6200074.0])]:
+        for pos in [[475060.0, 6200074.0],
+                    [475726.0, 6202235.0],
+                    [475060.0, 6200074.0]]:
 
             array_coord = self.tile.projected_to_raster(pos)
-        np.testing.assert_allclose(self.tile[pos],
-                                   self.tile.z[array_coord[0], array_coord[1]])
+            np.testing.assert_allclose(self.tile[pos],
+                                       self.tile.z[array_coord[0], array_coord[1]])
 
     def test_raster_projected_conversion(self):
         raster_size = self.tile.raster_size
-        corners = [np.array([0, 0]),
-                   np.array([raster_size[0]-1, 0]),
-                   np.array([0, raster_size[1]-1]),
-                   np.array([raster_size[0]-1, raster_size[1]-1])]
+        corners = [[0, 0],
+                   [raster_size[0]-1, 0],
+                   [0, raster_size[1]-1],
+                   [raster_size[0]-1, raster_size[1]-1]]
         for corner in corners:
             np.testing.assert_allclose(self.tile.projected_to_raster(self.tile.raster_to_projected(corner)), corner)
 
     def test_in_function(self):
-        self.assertEqual(self.tile.raster_to_projected(np.array([0, 0])) in self.tile, True)
+        self.assertEqual(self.tile.raster_to_projected([0, 0]) in self.tile, True)
 
     def test_projected_boundaries(self):
-        self.assertEqual(np.array([499987.5, 6200012.5]) in self.tile, True)
-        self.assertEqual(np.array([474987.5, 6200015.5]) in self.tile, True)
-        self.assertEqual(np.array([499987.5, 6175012.5]) in self.tile, False)
-        self.assertEqual(np.array([474987.5, 6175012.5]) in self.tile, False)
+        self.assertEqual([499987.5, 6200012.5] in self.tile, True)
+        self.assertEqual([474987.5, 6200015.5] in self.tile, True)
+        self.assertEqual([499987.5, 6175012.5] in self.tile, False)
+        self.assertEqual([474987.5, 6175012.5] in self.tile, False)
 
 
 class IGNElevationMap(unittest.TestCase):
@@ -58,12 +58,12 @@ class IGNElevationMap(unittest.TestCase):
                                                        self.zone7, self.zone8, self.zone9])
 
     def test_access(self):
-        np.testing.assert_allclose(self.elevation_map[np.array([474987.5, 6175012.5])],
-                                   self.zone1[np.array([474987.5, 6175012.5])])
-        np.testing.assert_allclose(self.elevation_map[np.array([485345.0, 6208062.0])],
-                                   self.zone2[np.array([485345.0, 6208062.0])])
-        np.testing.assert_allclose(self.elevation_map[np.array([497841.0, 6226454.0])],
-                                   self.zone3[np.array([497841.0, 6226454.0])])
+        np.testing.assert_allclose(self.elevation_map[[474987.5, 6175012.5]],
+                                   self.zone1[[474987.5, 6175012.5]])
+        np.testing.assert_allclose(self.elevation_map[[485345.0, 6208062.0]],
+                                   self.zone2[[485345.0, 6208062.0]])
+        np.testing.assert_allclose(self.elevation_map[[497841.0, 6226454.0]],
+                                   self.zone3[[497841.0, 6226454.0]])
 
 
 if __name__ == '__main__':
