@@ -187,9 +187,7 @@ class RasterTile:
 
         assert curr_layer == len(self.bands_names_types), "Less layers that expected"
         assert all(l.shape == layers[0].shape for l in layers), "Layers do not have a uniform shape"
-        # combine all layers into one structured array. Note that this operation could be made much faster if necessary:
-        # http://stackoverflow.com/questions/5355744/numpy-joining-structured-arrays
-        self._bands = rfn.merge_arrays(layers, flatten=False, usemask=False).reshape(layers[0].shape)
+        self._bands = join_structured_arrays(layers)
         self._loaded = True
 
     @property
@@ -280,3 +278,23 @@ class RasterTile:
     def nearest_projected_point(self, loc):
         """Returns the (projected) coordinates of the cell center nearest to loc"""
         return self.raster_to_projected(self.projected_to_raster(loc))
+
+
+def join_structured_arrays(arrays):
+    """Efficient method to combine several structured arrays into a single one.
+    This is based on the implementation of http://stackoverflow.com/questions/5355744/numpy-joining-structured-arrays
+    with modifications to account for n-dimensional arrays.
+
+    It is equivalent (but much faster) to the pure numpy function:
+         rfn.merge_arrays(arrays, flatten=False, usemask=False).reshape(arrays[0].shape)
+    """
+    assert len(arrays) > 0
+    assert all([array.shape == arrays[0].shape for array in arrays]), "Arrays have different shapes"
+    sizes = np.array([a.itemsize for a in arrays])
+    offsets = np.r_[0, sizes.cumsum()]
+    n = arrays[0].size  # total number of cell
+    joint = np.empty((n, offsets[-1]), dtype=np.uint8)
+    for a, size, offset in zip(arrays, sizes, offsets):
+        joint[:, offset:offset+size] = a.view(np.uint8).reshape(n, size)
+    dtype = sum((a.dtype.descr for a in arrays), [])
+    return joint.ravel().view(dtype).reshape(arrays[0].shape)
