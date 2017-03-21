@@ -3,6 +3,10 @@ import subprocess
 
 from .basemap import DigitalMap, RasterTile
 
+# DEM tiles are to big to allow computing the wind on the whole tile.
+# the following factor is used to split the tile on both axis to build smaller DEM tiles to feed windninja
+_DEM_TILE_SPLIT = 4
+
 
 WINDNINJA_CLI_PATH = os.environ['WINDNINJA_CLI_PATH'] if 'WINDNINJA_CLI_PATH' in os.environ else '/home/rbailonr/bin/windninja_cli'
 if not os.path.exists(os.path.join(WINDNINJA_CLI_PATH, 'WindNinja_cli')):
@@ -42,8 +46,25 @@ class WindMap(DigitalMap):
 
         self.scenario_str = '_'.join(sce_list)  # part of WindNinja output file(s)
 
-    def _load_tile(self, base_tile):
-        tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0]
+    def _load_tile(self, position):
+        """Loads the tile corresponding to this possition, running windninja on a subset of the DEM if necessary"""
+        (x, y) = position
+        base_tile = self.elevation_map.tile_of_location(position)
+
+        # find in which subpart of the elevation tile this location is
+        xi = int((x - base_tile.x_min) / (base_tile.x_max - base_tile.x_min) * _DEM_TILE_SPLIT)
+        yi = int((y - base_tile.y_min) / (base_tile.y_max - base_tile.y_min) * _DEM_TILE_SPLIT)
+
+        # build tile names of this wind scenario and subpart of the DEM tile
+        tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0] + '[{0}%{2},{1}%{2}]'.format(xi, yi, _DEM_TILE_SPLIT)
+        dem_file_name = os.path.join(self.scenario['output_path'], tile_name+'.tif')
+
+        # save smaller DEM tile if it does not exists yet
+        if not os.path.exists(dem_file_name):
+            dem = base_tile.as_geo_data().split(_DEM_TILE_SPLIT, 1)[xi].split(1, _DEM_TILE_SPLIT)[yi]
+            assert position in dem
+            dem.write_to_file(dem_file_name)
+
         windfile_paths = [os.path.join(self.scenario['output_path'],
                                        '_'.join([tile_name,
                                                  self.scenario_str,
@@ -54,12 +75,12 @@ class WindMap(DigitalMap):
                                                  'ang.asc']))]
 
         if not(os.path.exists(windfile_paths[0]) and os.path.exists(windfile_paths[1])):
-            self._run_windninja(base_tile)
+            self._run_windninja(dem_file_name)
 
         return WindTile(windfile_paths)
 
-    def _run_windninja(self, elevation_file):
-        self.windninja_cli.set_elevation_file(elevation_file.filenames[0])
+    def _run_windninja(self, elevation_file: str):
+        self.windninja_cli.set_elevation_file(elevation_file)
         completed = self.windninja_cli.run()
         if completed.returncode != 0:
             raise RuntimeError("Error during execution! WindNinja returned {}.".format(
@@ -72,7 +93,7 @@ class WindMap(DigitalMap):
 
         if position not in self:
             # We have to load a map for this position
-            tile = self._load_tile(self.elevation_map.tile_of_location(position))
+            tile = self._load_tile(position)
             self.add_tile(tile)
             return tile[position]
         return super().get_value(position)
@@ -98,7 +119,7 @@ class WindNinjaCLI():
         self.args = {}  # dict(arg, value)
         self.add_arguments(num_threads=len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2,
                            output_speed_units='mps',
-                           mesh_resolution=100,  # ¡! Conflicts with mesh_choice
+                           mesh_resolution=25,  # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
                            write_ascii_output='true')
         if cli_arguments is not None:

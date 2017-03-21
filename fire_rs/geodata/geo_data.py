@@ -15,6 +15,11 @@ class GeoData:
         self.cell_height = cell_height
         self.projection = 'PROJCS["RGF93 / Lambert-93",GEOGCS["RGF93",DATUM["Reseau_Geodesique_Francais_1993",SPHEROID["GRS 1980",6378137,298.2572221010002,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6171"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433],AUTHORITY["EPSG","4171"]],PROJECTION["Lambert_Conformal_Conic_2SP"],PARAMETER["standard_parallel_1",49],PARAMETER["standard_parallel_2",44],PARAMETER["latitude_of_origin",46.5],PARAMETER["central_meridian",3],PARAMETER["false_easting",700000],PARAMETER["false_northing",6600000],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AUTHORITY["EPSG","2154"]]'
 
+    def __contains__(self, coordinates):
+        (x, y) = coordinates
+        return self.x_offset - self.cell_width/2 <= x <= self.x_offset + (self.data.shape[0] + .5) * self.cell_width and\
+               self.y_offset - self.cell_height/2 <= y <= self.y_offset + (self.data.shape[1] + .5) * self.cell_height
+
     def append_right(self, other: 'GeoData') -> 'GeoData':
         assert self.data.dtype == other.data.dtype
         assert self.cell_width == other.cell_width and self.cell_height == other.cell_height
@@ -63,19 +68,28 @@ class GeoData:
 
     def write_to_file(self, filename: str):
         assert len(self.data.dtype) == 1, "Writing to file data with multiple layers is not supported yet"
-        data = self.data.transpose()  # in "image" files, rows and columns are inverted
+
+        if self.cell_height < 0:
+            data = self.data.transpose()  # in "image" files, rows and columns are inverted
+            cell_height = self.cell_height
+            origin_y = self.y_offset - self.cell_height / 2  # + array.shape[1] * pixelHeight
+        else:
+            # workaround a wind ninja bug that does not work with non-negative cell height
+            # hence, we invert our matrix on the y axis to have a negative cell_height
+            data = self.data.transpose()[..., ::-1]
+            cell_height = - self.cell_height
+            origin_y = self.y_offset + self.data.shape[1] * self.cell_height - self.cell_height/2
+
         cols = data.shape[1]
         rows = data.shape[0]
         origin_x = self.x_offset - self.cell_width / 2  # + array.shape[0] * pixelWidth
-        origin_y = self.y_offset - self.cell_height / 2  # + array.shape[1] * pixelHeight
 
         driver = gdal.GetDriverByName('GTiff')
         out_raster = driver.Create(filename, cols, rows, 1, gdal.GDT_Float32)
-        out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, self.cell_height))
+        out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
         outband = out_raster.GetRasterBand(1)
         outband.WriteArray(data)
         out_raster.SetProjection(self.projection)
-
         outband.FlushCache()
 
 

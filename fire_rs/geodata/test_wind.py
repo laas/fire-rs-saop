@@ -6,9 +6,9 @@ from pytz import timezone
 import tempfile
 import unittest
 
-from .elevation import ElevationMap, ElevationTile
-from .wind import WindMap, WindTile, WindNinjaCLI
-from .environment import DEFAULT_FIRERS_DEM_DATA
+from fire_rs.geodata.elevation import ElevationMap, ElevationTile
+from fire_rs.geodata.wind import WindMap, WindTile, WindNinjaCLI
+from fire_rs.geodata.environment import DEFAULT_FIRERS_DEM_DATA
 
 
 class WindNinjaCLITest(unittest.TestCase):
