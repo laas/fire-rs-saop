@@ -182,6 +182,7 @@ class RasterTile:
             handle = gdal.Open(self.filenames[i])
             for j in range(handle.RasterCount):  # Bands start at 1
                 layer = np.array(handle.GetRasterBand(j + 1).ReadAsArray(), dtype=[self.bands_names_types[curr_layer]])
+                layer = np.array(layer.transpose(), order='C')  # make x the first index and y the second, keeping the C ordering
                 layers.append(layer)
                 curr_layer += 1
 
