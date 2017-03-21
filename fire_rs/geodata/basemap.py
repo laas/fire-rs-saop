@@ -2,8 +2,9 @@ from affine import Affine
 from collections import Sequence
 import logging
 import numpy as np
-import numpy.lib.recfunctions as rfn  # apparently there is a bug in the python distribution and recfunctions cannot be invoked directly from np
 from osgeo import gdal
+import functools
+from fire_rs.geodata.geo_data import GeoData, join_structured_arrays
 
 
 # There are 3 sets of coordinates (spaces) for every location. A position in the geographic space, expressed in GPS
@@ -78,7 +79,8 @@ class DigitalMap:
             current_y = next_y + cell_size
 
         # concatenates tables on the x-axis and then the resulting tables on the y-axis
-        result = np.concatenate([np.concatenate(h_tables, axis=0) for h_tables in tables], axis=1)
+        combined_xs = [functools.reduce(GeoData.append_right, ts) for ts in tables]
+        result = functools.reduce(GeoData.append_bottom, combined_xs)
         return result, (x_min, y_min)
 
     def __getitem__(self, key):
@@ -237,6 +239,9 @@ class RasterTile:
         else:
             return value
 
+    def as_geo_data(self):
+        return self.get_values(((self.x_min, self.x_max), (self.y_min, self.y_max)))
+
     def get_values(self, rectangle):
         """Returns an array covering the given rectangle.
         Increasing x/y array indexes correspond to increasing value in the projected space.
@@ -249,13 +254,15 @@ class RasterTile:
             xi_min, yi_min = self.projected_to_raster((x_min, y_min))
             xi_max, yi_max = self.projected_to_raster((x_max, y_max))
             # returns the subarray
-            return self.data[xi_min:xi_max+1, yi_min:yi_max+1]
+            subarray = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
+            return GeoData(subarray, *self.raster_to_projected((xi_min, yi_min)), self.x_delta, self.y_delta)
         else:  # our internal data structure is inversed on y-axis
             # get indexes of sub-array
             xi_min, yi_min = self.projected_to_raster((x_min, y_max))
             xi_max, yi_max = self.projected_to_raster((x_max, y_min))
             # returns the sub-array, inversed on the y-axis
-            return self.data[xi_min:xi_max+1, yi_min:yi_max+1][..., ::-1]
+            subarray = self.data[xi_min:xi_max+1, yi_min:yi_max+1][..., ::-1]
+            return GeoData(subarray, *self.raster_to_projected((xi_min, yi_max)), self.x_delta, -self.y_delta)
 
     def raster_to_projected(self, loc):
         """Return the projected location of a pixel point in this tile"""
@@ -281,21 +288,3 @@ class RasterTile:
         return self.raster_to_projected(self.projected_to_raster(loc))
 
 
-def join_structured_arrays(arrays):
-    """Efficient method to combine several structured arrays into a single one.
-    This is based on the implementation of http://stackoverflow.com/questions/5355744/numpy-joining-structured-arrays
-    with modifications to account for n-dimensional arrays.
-
-    It is equivalent (but much faster) to the pure numpy function:
-         rfn.merge_arrays(arrays, flatten=False, usemask=False).reshape(arrays[0].shape)
-    """
-    assert len(arrays) > 0
-    assert all([array.shape == arrays[0].shape for array in arrays]), "Arrays have different shapes"
-    sizes = np.array([a.itemsize for a in arrays])
-    offsets = np.r_[0, sizes.cumsum()]
-    n = arrays[0].size  # total number of cell
-    joint = np.empty((n, offsets[-1]), dtype=np.uint8)
-    for a, size, offset in zip(arrays, sizes, offsets):
-        joint[:, offset:offset+size] = a.view(np.uint8).reshape(n, size)
-    dtype = sum((a.dtype.descr for a in arrays), [])
-    return joint.ravel().view(dtype).reshape(arrays[0].shape)
