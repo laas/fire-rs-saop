@@ -27,6 +27,9 @@ class GeoData:
 
         return x_lim_low <= x <= x_lim_up and y_lim_low <= y <= y_lim_up
 
+    def __repr__(self):
+        return self.data.__repr__()
+
     def subset(self, area: Tuple[Tuple[float, float], Tuple[float, float]]) -> 'GeoData':
         ((x_min, x_max), (y_min, y_max)) = area
         (xi_min, yi_min) = self.array_index((x_min, y_min))
