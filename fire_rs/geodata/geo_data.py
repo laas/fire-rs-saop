@@ -14,7 +14,9 @@ class GeoData:
         self.y_offset = y_offset
         self.cell_width = cell_width
         self.cell_height = cell_height
-        self.projection = 'PROJCS["RGF93 / Lambert-93",GEOGCS["RGF93",DATUM["Reseau_Geodesique_Francais_1993",SPHEROID["GRS 1980",6378137,298.2572221010002,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6171"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433],AUTHORITY["EPSG","4171"]],PROJECTION["Lambert_Conformal_Conic_2SP"],PARAMETER["standard_parallel_1",49],PARAMETER["standard_parallel_2",44],PARAMETER["latitude_of_origin",46.5],PARAMETER["central_meridian",3],PARAMETER["false_easting",700000],PARAMETER["false_northing",6600000],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AUTHORITY["EPSG","2154"]]'
+        projection = gdal.osr.SpatialReference()
+        projection.ImportFromEPSG(2154)  # EPSG code for RGF93 / Lambert-93 projection
+        self.projection = projection
 
     def __contains__(self, coordinates):
         (x, y) = coordinates
@@ -100,7 +102,7 @@ class GeoData:
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
         outband = out_raster.GetRasterBand(1)
         outband.WriteArray(data)
-        out_raster.SetProjection(self.projection)
+        out_raster.SetProjection(self.projection.exportToWkt())
         outband.FlushCache()
 
 
