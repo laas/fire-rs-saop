@@ -78,14 +78,13 @@ class IGNElevationMap(unittest.TestCase):
                                    self.zone3[[497841.0, 6226454.0]])
 
     def test_array_extraction(self):
-        elevation, (x_offset, y_offset) = self.elevation_map.get_values(
-            [[474987.5, 507900.5], [6175012.5, 6209012.5]], 25)
+        elevation = self.elevation_map.get_values([[474987.5, 507900.5], [6175012.5, 6209012.5]])
         z = elevation.data.view('float32')
         (x_size, y_size) = z.shape
         for x in range(0, x_size, 10):
             for y in range(0, y_size, 10):
                 zxy = z[x, y]
-                z2xy = self.elevation_map.get_value((x*25+x_offset, y*25+y_offset))
+                z2xy = self.elevation_map.get_value((x*elevation.cell_width + elevation.x_offset, y*elevation.cell_height + elevation.y_offset))
                 self.assertEqual(zxy, z2xy)
 
 

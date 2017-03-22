@@ -1,5 +1,6 @@
 import logging
 import os
+import numbers
 
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
 from fire_rs.geodata.wind import WindMap, WindNinjaCLI
@@ -46,27 +47,43 @@ class World:
                     logging.warning(e.msg)
 
     def get_elevation(self, position):
-        return self._elevation_map.get_elevation(position)
+        """Retrieves elevation of a given point/area of the map.
+        Position is either a point [x, y] or an area [[x_min, x_max], [y_min, y_max]]
+        """
+        assert len(position) == 2, "Need coordinates for x and y"
+
+        if isinstance(position[0], numbers.Number) and isinstance(position[1], numbers.Number):  # point
+            return self._elevation_map.get_elevation(position)
+        else:  # position is a rectangle
+            assert len(position[0]) == 2 and len(position[1]) == 2
+            return self._elevation_map.get_values(position)
 
     def get_wind(self, position, **kwargs):
         """Get wind for a specific wind scenario.
+        Position is either a point [x, y] or an area [[x_min, x_max], [y_min, y_max]]
 
         keyword arguments:
             domain_average: (speed, direction)
                 speed is rounded to the units
                 direction is rounded to degree precision
         """
+        assert len(position) == 2, "Need coordinates for x and y"
         dom_av = kwargs.get('domain_average')
         if dom_av is None:
             raise TypeError("Only domainAverageInitialization method is implemented.")
         else:
-            # Detect if a map for this wind case has been loaded, and create if if not
+            # Detect if a map for this wind case has been loaded, and create if not
             dom_av = ("{:.0f}".format(dom_av[0]), "{:.0f}".format(dom_av[1]))
             wind_map = self._wind_maps['domainAverageInitialization'].get(dom_av)
-            if wind_map is None:
+
+            if wind_map is None:  # create a new wind map for this domain average
                 windninja = WindNinjaCLI(cli_arguments=self._windninja_domain.args)
-                windninja.add_arguments(**{'input_speed': dom_av[0], 'input_direction': dom_av[1]})
-                m = WindMap([], self._elevation_map, windninja)
-                self._wind_maps['domainAverageInitialization'][dom_av] = m
-                return self._wind_maps['domainAverageInitialization'][dom_av].get_wind(position)
-            return wind_map.get_wind(position)
+                windninja.add_arguments(**{'input_speed':dom_av[0], 'input_direction': dom_av[1]})
+                wind_map = WindMap([], self._elevation_map, windninja)
+                self._wind_maps['domainAverageInitialization'][dom_av] = wind_map
+
+            if isinstance(position[0], numbers.Number) and isinstance(position[1], numbers.Number):  # point
+                return wind_map.get_wind(position)
+            else:  # position is a rectangle
+                assert len(position[0]) == 2 and len(position[1]) == 2
+                return wind_map.get_values(position)

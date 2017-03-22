@@ -48,9 +48,7 @@ class DigitalMap:
                 if position in tile:
                     return tile[position]
 
-    def get_values(self, positions_intervals, cell_size):
-        assert cell_size == abs(self._tiles[0][0].x_delta) and \
-            cell_size == abs(self._tiles[0][0].y_delta)
+    def get_values(self, positions_intervals):
         ((x_min, x_max), (y_min, y_max)) = positions_intervals
         xi_min = xi_max = yi_min = yi_max = -1
         for xi, txs in enumerate(self._tiles):
@@ -72,6 +70,7 @@ class DigitalMap:
 
         current_y = y_min
         tables = []
+        # load in tables one table for each tile involved
         for yi in range(yi_min, yi_max + 1):
             tables.append([])  # add new line
             current_x = x_min
@@ -81,13 +80,13 @@ class DigitalMap:
                 next_y = min(y_max, tile.y_max)
                 table = tile.get_values(((current_x, next_x), (current_y, next_y)))
                 tables[-1].append(table)  # append table to last line
-                current_x = next_x + cell_size
-            current_y = next_y + cell_size
+                current_x = next_x + abs(tile.x_delta)
+            current_y = next_y + abs(tile.y_delta)
 
         # concatenates tables on the x-axis and then the resulting tables on the y-axis
         combined_xs = [functools.reduce(GeoData.append_right, ts) for ts in tables]
         result = functools.reduce(GeoData.append_bottom, combined_xs)
-        return result, (x_min, y_min)
+        return result
 
     def __getitem__(self, key):
         """Get the value corresponding to a position."""

@@ -1,5 +1,6 @@
 import os
 import subprocess
+import itertools
 
 from fire_rs.geodata.basemap import DigitalMap, RasterTile
 
@@ -103,6 +104,28 @@ class WindMap(DigitalMap):
             self.add_tile(tile)
             return tile[position]
         return super().get_value(position)
+
+    def get_values(self, positions_intervals):
+        ((x_min, x_max), (y_min, y_max)) = positions_intervals
+        assert all([p in self.elevation_map for p in itertools.product((x_min,x_max), (y_min, y_max))]),\
+               'The requested rectangle is not contained in the known DEM tiles'
+        sample_tile = self.elevation_map.tile_of_location((x_min, y_min))
+        subtile_width = (sample_tile.x_max - sample_tile.x_min + sample_tile.x_delta) / _DEM_TILE_SPLIT
+
+        # round x/y to cell centers
+        (x_min, y_min) = self.elevation_map.tile_of_location((x_min, y_min)).nearest_projected_point((x_min, y_min))
+        (x_max, y_max) = self.elevation_map.tile_of_location((x_max, y_max)).nearest_projected_point((x_max, y_max))
+
+        # sample xs and ys so we have one in each subcell
+        xs = list(range(int(x_min), int(x_max), int(subtile_width))) + [int(x_max)]
+        ys = list(range(int(y_min), int(y_max), int(subtile_width))) + [int(y_max)]
+
+        # force loading all subtiles
+        for pos in itertools.product(xs, ys):
+            self.get_value(pos)
+
+        # now that all tiles are loaded, rely on the generic method
+        return super().get_values(positions_intervals)
 
     def get_wind(self, position):
         """Get the wind vector of a position."""

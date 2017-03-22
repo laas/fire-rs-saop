@@ -122,7 +122,10 @@ def join_structured_arrays(arrays):
     offsets = np.r_[0, sizes.cumsum()]
     n = arrays[0].size  # total number of cell
     joint = np.empty((n, offsets[-1]), dtype=np.uint8)
+    # copy each array into joint at the proper offsets
     for a, size, offset in zip(arrays, sizes, offsets):
-        joint[:, offset:offset+size] = a.view(np.uint8).reshape(n, size)
+        # reshape as a C-contiguous array of bytes
+        tmp = np.ascontiguousarray(a).view(np.uint8).reshape(n, size)
+        joint[:, offset:offset+size] = tmp
     dtype = sum((a.dtype.descr for a in arrays), [])
     return joint.ravel().view(dtype).reshape(arrays[0].shape)
