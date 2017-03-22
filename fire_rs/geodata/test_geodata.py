@@ -40,6 +40,10 @@ class WorldTest(unittest.TestCase):
         combined = res[0].append_right(res[1]).append_bottom(res[2].append_right(res[3]))
         np.testing.assert_allclose(self.gd.data, combined.data)
 
+    def test_subset(self):
+        res = self.gd.subset([[1, 1], [0, 1]])
+        self.assertEqual(res.data.shape, (1, 2))
+
 
 if __name__ == '__main__':
     gdal.UseExceptions()

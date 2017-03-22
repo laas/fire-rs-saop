@@ -16,7 +16,7 @@ if not os.path.exists(os.path.join(WINDNINJA_CLI_PATH, 'WindNinja_cli')):
 
 
 class WindMap(DigitalMap):
-    """Wind map asociated to an elevation map."""
+    """Wind map associated to an elevation map."""
 
     def __init__(self, tiles, elevation_map, windninja):
         """Initialise WindMap.

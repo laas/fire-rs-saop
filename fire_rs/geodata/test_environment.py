@@ -27,6 +27,11 @@ class WorldTest(unittest.TestCase):
         world = World()
         res = world.get_wind([[475060.0, 476060.0], [6200074.0, 6200174.0]], domain_average=(3.11, 90.2))
 
+    def test_get_slope_on_area(self):
+        world = World()
+        res = world.get_slope([[475060.0, 476060.0], [6200074.0, 6200174.0]])
+
+
     def test_get_wind_elevation_on_area(self):
         world = World()
         area = [[475060.0, 476060.0], [6200074.0, 6200174.0]]

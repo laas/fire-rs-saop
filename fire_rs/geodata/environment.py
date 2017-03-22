@@ -1,6 +1,7 @@
 import logging
 import os
 import numbers
+import numpy as np
 
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
 from fire_rs.geodata.wind import WindMap, WindNinjaCLI
@@ -57,6 +58,35 @@ class World:
         else:  # position is a rectangle
             assert len(position[0]) == 2 and len(position[1]) == 2
             return self._elevation_map.get_values(position)
+
+    def get_slope(self, area):
+        """Returns a GeoData containing the slope percentage and raise direction of an area."""
+        ((x_min, x_max), (y_min, y_max)) = area
+
+        # extract DEM on a slightly large area to avoid border effects
+        dem = self.get_elevation([[x_min-25, x_max+25], [y_min-25, y_max+25]])
+        z = dem.data.view(np.float32)
+        assert dem.data.shape == z.shape, 'Apparently, the returned DEM is not an array of float'
+
+        def rolled(x_roll, y_roll):
+            """Returns a view of the DEM array rolled on X/Y axis"""
+            return np.roll(np.roll(z, x_roll, axis=0), y_roll, axis=1)
+
+        # compute elevation change on x and y direction, cf:
+        # http://desktop.arcgis.com/fr/arcmap/10.3/tools/spatial-analyst-toolbox/how-slope-works.htm
+        dzdx = rolled(-1, -1) + 2*rolled(-1, 0) + rolled(-1, 1) - rolled(1, -1) - 2*rolled(1, 0) - rolled(1, -1)
+        dzdx /= (8 * dem.cell_width)
+        dzdy = rolled(1, 1) + 2*rolled(0, 1) + rolled(-1, 1) - rolled(1, -1) - 2*rolled(0, -1) - rolled(-1, -1)
+        dzdy /= (8 * dem.cell_width)
+
+        # get percentage of slope and the direction of raise and save them as GeoData
+        slope_percent = np.sqrt(np.power(dzdx, 2) + np.power(dzdy, 2)) * 100
+        raise_dir = np.arctan2(dzdy, dzdx)
+        sp = dem.clone(np.array(slope_percent, dtype=[('slope', 'float32')]))
+        rd = dem.clone(np.array(raise_dir, dtype=[('raise_dir', 'float32')]))
+
+        # combine slope and raise direction into one GeoData and fit it to the area originally asked
+        return sp.combine(rd).subset(area)
 
     def get_wind(self, position, **kwargs):
         """Get wind for a specific wind scenario.

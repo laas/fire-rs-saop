@@ -53,8 +53,8 @@ class Environment:
         g = self.get_elevation(x - 1, y - 1, default=e)
         h = self.get_elevation(x, y - 1, default=e)
         i = self.get_elevation(x + 1, y - 1, default=e)
-        dzdx = (c + 2*f + i - a - 2*d - g) / 8 * self.cell_size
-        dzdy = (g + 2*h + i - a - 2*b - c) / 8 * self.cell_size
+        dzdx = (c + 2*f + i - a - 2*d - g) / (8 * self.cell_size)
+        dzdy = (g + 2*h + i - a - 2*b - c) / (8 * self.cell_size)
         rise_run = np.sqrt(np.power(dzdx, 2) + np.power(dzdy, 2))
         slope_percent = rise_run * 100
         raise_dir = np.arctan2(dzdy, dzdx)

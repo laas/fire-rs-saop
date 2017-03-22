@@ -1,20 +1,19 @@
-from typing import List
-
 import gdal
 import numpy as np
-
+from typing import List, Tuple
+from osgeo import osr
 
 class GeoData:
     """Container for geo-referenced raster data stored in a structured numpy array."""
 
     def __init__(self, array, x_offset, y_offset, cell_width, cell_height):
-        assert cell_width > 0 and cell_height > 0
+        assert cell_width > 0 and cell_height > 0, 'Origin must be on left-bottom'
         self.data = array
         self.x_offset = x_offset
         self.y_offset = y_offset
         self.cell_width = cell_width
         self.cell_height = cell_height
-        projection = gdal.osr.SpatialReference()
+        projection = osr.SpatialReference()
         projection.ImportFromEPSG(2154)  # EPSG code for RGF93 / Lambert-93 projection
         self.projection = projection
 
@@ -26,6 +25,25 @@ class GeoData:
         y_lim_up = self.y_offset + (self.data.shape[1] + .5) * self.cell_height
 
         return x_lim_low <= x <= x_lim_up and y_lim_low <= y <= y_lim_up
+
+    def subset(self, area: Tuple[Tuple[float, float], Tuple[float, float]]) -> 'GeoData':
+        ((x_min, x_max), (y_min, y_max)) = area
+        (xi_min, yi_min) = self.array_index((x_min, y_min))
+        (xi_max, yi_max) = self.array_index((x_max, y_max))
+        ary = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
+        return GeoData(ary, *self.coordinates((xi_min, yi_min)), self.cell_width, self.cell_height)
+
+    def array_index(self, coordinates: Tuple[float, float]) -> Tuple[int, int]:
+        (x, y) = coordinates
+        xi = int(round((x - self.x_offset) / self.cell_width))
+        yi = int(round((y - self.y_offset) / self.cell_height))
+        return xi, yi
+
+    def coordinates(self, indices: Tuple[int, int]) -> Tuple[float, float]:
+        (xi, yi) = indices
+        x = self.x_offset + xi * self.cell_width
+        y = self.y_offset + yi * self.cell_height
+        return x, y
 
     def append_right(self, other: 'GeoData') -> 'GeoData':
         assert self.data.dtype == other.data.dtype
@@ -77,6 +95,18 @@ class GeoData:
                     curr_x_offset += res[-1].data.shape[0] * self.cell_width
             assert len(res) == x_splits * y_splits
             return res
+
+    def clone(self, data_array=None):
+        """Returns a clone of this GeoData.
+
+        If the data_array is None, a copy of self.data is used.
+        Otherwise the array is used as the internal data structure.
+        """
+        if data_array is None:
+            return GeoData(self.data.copy(), self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+        else:
+            assert data_array.shape == self.data.shape, 'The passed array as a different shape'
+            return GeoData(data_array, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
 
     def write_to_file(self, filename: str):
         assert len(self.data.dtype) == 1, \
