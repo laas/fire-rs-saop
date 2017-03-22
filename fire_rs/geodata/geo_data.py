@@ -142,8 +142,7 @@ class GeoData:
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
         outband = out_raster.GetRasterBand(1)
         outband.WriteArray(data)
-        print(dir(self.projection))
-        out_raster.SetProjection(self.projection.exportToWkt())
+        out_raster.SetProjection(self.projection.ExportToWkt())
         outband.FlushCache()
 
 
