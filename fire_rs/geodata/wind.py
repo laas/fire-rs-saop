@@ -1,14 +1,15 @@
 import os
 import subprocess
 
-from .basemap import DigitalMap, RasterTile
+from fire_rs.geodata.basemap import DigitalMap, RasterTile
 
 # DEM tiles are to big to allow computing the wind on the whole tile.
-# the following factor is used to split the tile on both axis to build smaller DEM tiles to feed windninja
+# the following factor is used to split the tile on both axis to build
+# smaller DEM tiles to feed windninja
 _DEM_TILE_SPLIT = 4
 
-
-WINDNINJA_CLI_PATH = os.environ['WINDNINJA_CLI_PATH'] if 'WINDNINJA_CLI_PATH' in os.environ else '/home/rbailonr/bin/windninja_cli'
+WINDNINJA_CLI_PATH = os.environ['WINDNINJA_CLI_PATH'] \
+    if 'WINDNINJA_CLI_PATH' in os.environ else '/home/rbailonr/bin/windninja_cli'
 if not os.path.exists(os.path.join(WINDNINJA_CLI_PATH, 'WindNinja_cli')):
     raise FileNotFoundError("$WINDNINJA_CLI_PATH is not defined correctly")
 
@@ -34,7 +35,7 @@ class WindMap(DigitalMap):
             sce_list.append(str(int(float(self.scenario['input_direction']))))
             sce_list.append(str(int(float(self.scenario['input_speed']))))
             if self.scenario.get('diurnal_winds') is not None and \
-               bool(self.scenario['diurnal_winds']) == True:
+               bool(self.scenario['diurnal_winds']) is True:
                 sce_list.append('-'.join([self.scenario['month'],
                                           self.scenario['day'],
                                           self.scenario['year']]))
@@ -42,12 +43,15 @@ class WindMap(DigitalMap):
                                          self.scenario['minute']]))
 
             sce_list.append(''.join([str(self.scenario['mesh_resolution']),
-                                    self.scenario['units_mesh_resolution']]))
+                                     self.scenario['units_mesh_resolution']]))
 
         self.scenario_str = '_'.join(sce_list)  # part of WindNinja output file(s)
 
     def _load_tile(self, position):
-        """Loads the tile corresponding to this possition, running windninja on a subset of the DEM if necessary"""
+        """Load the tile corresponding to this possition.
+
+        It runs windninja on a subset of the DEM if necessary.
+        """
         (x, y) = position
         base_tile = self.elevation_map.tile_of_location(position)
 
@@ -56,12 +60,14 @@ class WindMap(DigitalMap):
         yi = int((y - base_tile.y_min) / (base_tile.y_max - base_tile.y_min) * _DEM_TILE_SPLIT)
 
         # build tile names of this wind scenario and subpart of the DEM tile
-        tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0] + '[{0}%{2},{1}%{2}]'.format(xi, yi, _DEM_TILE_SPLIT)
+        tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0] + \
+            '[{0}%{2},{1}%{2}]'.format(xi, yi, _DEM_TILE_SPLIT)
         dem_file_name = os.path.join(self.scenario['output_path'], tile_name+'.tif')
 
         # save smaller DEM tile if it does not exists yet
         if not os.path.exists(dem_file_name):
-            dem = base_tile.as_geo_data().split(_DEM_TILE_SPLIT, 1)[xi].split(1, _DEM_TILE_SPLIT)[yi]
+            dem = base_tile.as_geo_data().split(_DEM_TILE_SPLIT, 1)[xi].split(
+                1, _DEM_TILE_SPLIT)[yi]
             assert position in dem
             dem.write_to_file(dem_file_name)
 
@@ -117,7 +123,8 @@ class WindNinjaCLI():
     def __init__(self, path=WINDNINJA_CLI_PATH, cli_arguments=None):
         self.windninja_path = path
         self.args = {}  # dict(arg, value)
-        self.add_arguments(num_threads=len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2,
+        num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2,
+        self.add_arguments(num_threads=num_threads,
                            output_speed_units='mps',
                            mesh_resolution=25,  # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
@@ -198,15 +205,15 @@ class WindNinjaCLI():
         :return: arguments for WindNinja
         :rtype: dict
         """
-        args = {'initialization_method'   : 'domainAverageInitialization',
-                'input_speed'             : input_speed,
-                'input_speed_units'       : 'mps',
-                'input_direction'         : input_direction,
-                'input_wind_height'       : '10.0',
-                'units_input_wind_height' : 'm',
-                'output_wind_height'      : '10.0',
+        args = {'initialization_method': 'domainAverageInitialization',
+                'input_speed': input_speed,
+                'input_speed_units': 'mps',
+                'input_direction': input_direction,
+                'input_wind_height': '10.0',
+                'units_input_wind_height': 'm',
+                'output_wind_height': '10.0',
                 'units_output_wind_height': 'm',
-                'vegetation'              : vegetation}
+                'vegetation': vegetation}
         return args
 
     @staticmethod
@@ -221,23 +228,23 @@ class WindNinjaCLI():
         :param air_temp_units: Surface air temperature units {K | C | R | F}.
         :param cloud_cover_units: Cloud cover units {fraction | percent | canopy_category}.
         """
-        args = {'diurnal_winds'    : 'true',
-                'uni_air_temp'     : uni_air_temp,
-                'air_temp_units'   : str(air_temp_units),
-                'uni_cloud_cover'  : uni_cloud_cover,
+        args = {'diurnal_winds': 'true',
+                'uni_air_temp': uni_air_temp,
+                'air_temp_units': str(air_temp_units),
+                'uni_cloud_cover': uni_cloud_cover,
                 'cloud_cover_units': str(cloud_cover_units),
-                'year'             : str(date.year),
-                'month'            : str(date.month),
-                'day'              : str(date.day),
-                'hour'             : str(date.hour),
-                'minute'           : str(date.minute),
-                'time_zone'        : str(date.tzinfo)}
+                'year': str(date.year),
+                'month': str(date.month),
+                'day': str(date.day),
+                'hour': str(date.hour),
+                'minute': str(date.minute),
+                'time_zone': str(date.tzinfo)}
         return args
 
     @staticmethod
     def use_momentum_solver_args(number_of_iterations=300):
         """Generate a set of arguments for activating the momentum solver in WindNinja."""
-        args = {'momentum_flag'       : 'true',
+        args = {'momentum_flag': 'true',
                 'number_of_iterations': number_of_iterations}
         return args
 
@@ -249,19 +256,19 @@ class WindNinjaCLI():
                          write_pdf_output=False,
                          write_vtk_output=False):
 
-        args = {'write_ascii_output'    : str(write_ascii_output).lower(),
+        args = {'write_ascii_output': str(write_ascii_output).lower(),
                 'write_shapefile_output': str(write_shapefile_output).lower(),
-                'write_goog_output'     : str(write_goog_output).lower(),
-                'write_farsite_atm'     : str(write_farsite_atm).lower(),
-                'write_pdf_output'      : str(write_pdf_output).lower(),
-                'write_vtk_output'      : str(write_vtk_output).lower()}
+                'write_goog_output': str(write_goog_output).lower(),
+                'write_farsite_atm': str(write_farsite_atm).lower(),
+                'write_pdf_output': str(write_pdf_output).lower(),
+                'write_vtk_output': str(write_vtk_output).lower()}
         return args
 
     @staticmethod
     def weather_model_output_type_args(write_wx_model_ascii_output=True,
                                        write_wx_model_shapefile_output=False,
                                        write_wx_model_goog_output=False):
-        args = {'write_wx_model_ascii_output'    : str(write_wx_model_ascii_output).lower(),
+        args = {'write_wx_model_ascii_output': str(write_wx_model_ascii_output).lower(),
                 'write_wx_model_shapefile_output': str(write_wx_model_shapefile_output).lower(),
-                'write_wx_model_goog_output'     : str(write_wx_model_goog_output).lower()}
+                'write_wx_model_goog_output': str(write_wx_model_goog_output).lower()}
         return args

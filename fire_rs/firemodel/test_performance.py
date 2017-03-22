@@ -9,4 +9,5 @@ for side in [10, 20, 40, 50, 60, 80, 100, 120]:
     propagation.propagate(env, 5, 5)
     end = datetime.datetime.now()
     elapsed = end - start
-    print('On a {} grid: \t{}.{} seconds   ({} usecs / celll)'.format(side, elapsed.seconds, elapsed.microseconds, (elapsed / side / side).microseconds))
+    print('On a {} grid: \t{}.{} seconds   ({} usecs / celll)'.format(
+        side, elapsed.seconds, elapsed.microseconds, (elapsed / side / side).microseconds))

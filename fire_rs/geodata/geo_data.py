@@ -1,10 +1,11 @@
-import numpy as np
-import gdal
 from typing import List
+
+import gdal
+import numpy as np
 
 
 class GeoData:
-    """This class is container for geo-referenced raster data stored in a structured numpy array."""
+    """Container for geo-referenced raster data stored in a structured numpy array."""
 
     def __init__(self, array, x_offset, y_offset, cell_width, cell_height):
         assert cell_width > 0 and cell_height > 0
@@ -17,8 +18,12 @@ class GeoData:
 
     def __contains__(self, coordinates):
         (x, y) = coordinates
-        return self.x_offset - self.cell_width/2 <= x <= self.x_offset + (self.data.shape[0] + .5) * self.cell_width and\
-               self.y_offset - self.cell_height/2 <= y <= self.y_offset + (self.data.shape[1] + .5) * self.cell_height
+        x_lim_low = self.x_offset - self.cell_width/2
+        x_lim_up = self.x_offset + (self.data.shape[0] + .5) * self.cell_width
+        y_lim_low = self.y_offset - self.cell_height/2
+        y_lim_up = self.y_offset + (self.data.shape[1] + .5) * self.cell_height
+
+        return x_lim_low <= x <= x_lim_up and y_lim_low <= y <= y_lim_up
 
     def append_right(self, other: 'GeoData') -> 'GeoData':
         assert self.data.dtype == other.data.dtype
@@ -27,7 +32,8 @@ class GeoData:
         assert self.x_offset + self.data.shape[0] * self.cell_width == other.x_offset
         assert self.data.shape[1] == other.data.shape[1]
         combined_array = np.concatenate([self.data, other.data], axis=0)
-        return GeoData(combined_array, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+        return GeoData(combined_array, self.x_offset, self.y_offset,
+                       self.cell_width, self.cell_height)
 
     def append_bottom(self, other: 'GeoData') -> 'GeoData':
         assert self.data.dtype == other.data.dtype
@@ -36,13 +42,15 @@ class GeoData:
         assert self.y_offset + self.data.shape[1] * self.cell_height == other.y_offset
         assert self.data.shape[0] == other.data.shape[0]
         combined_array = np.concatenate([self.data, other.data], axis=1)
-        return GeoData(combined_array, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+        return GeoData(combined_array, self.x_offset, self.y_offset,
+                       self.cell_width, self.cell_height)
 
     def combine(self, other: 'GeoData') -> 'GeoData':
         assert self.data.shape == other.data.shape
         assert self.cell_width == other.cell_width and self.cell_height == other.cell_height
         combined_array = join_structured_arrays([self.data, other.data])
-        return GeoData(combined_array, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+        return GeoData(combined_array, self.x_offset, self.y_offset,
+                       self.cell_width, self.cell_height)
 
     def split(self, x_splits: int, y_splits: int) -> List['GeoData']:
         if x_splits == 1:
@@ -50,7 +58,8 @@ class GeoData:
             curr_y_offset = self.y_offset
             res = []
             for ary in splet:
-                res.append(GeoData(ary, self.x_offset, curr_y_offset, self.cell_width, self.cell_height))
+                res.append(GeoData(ary, self.x_offset, curr_y_offset,
+                                   self.cell_width, self.cell_height))
                 curr_y_offset += res[-1].data.shape[1] * self.cell_height
             assert len(res) == x_splits * y_splits
             return res
@@ -61,13 +70,15 @@ class GeoData:
                 splet_on_x_y = np.split(gd.data, x_splits, axis=0)
                 curr_x_offset = gd.x_offset
                 for ary in splet_on_x_y:
-                    res.append(GeoData(ary, curr_x_offset, gd.y_offset, self.cell_width, self.cell_height))
+                    res.append(GeoData(ary, curr_x_offset, gd.y_offset,
+                                       self.cell_width, self.cell_height))
                     curr_x_offset += res[-1].data.shape[0] * self.cell_width
             assert len(res) == x_splits * y_splits
             return res
 
     def write_to_file(self, filename: str):
-        assert len(self.data.dtype) == 1, "Writing to file data with multiple layers is not supported yet"
+        assert len(self.data.dtype) == 1, \
+            "Writing to file data with multiple layers is not supported yet"
 
         if self.cell_height < 0:
             data = self.data.transpose()  # in "image" files, rows and columns are inverted
@@ -95,7 +106,9 @@ class GeoData:
 
 def join_structured_arrays(arrays):
     """Efficient method to combine several structured arrays into a single one.
-    This is based on the implementation of http://stackoverflow.com/questions/5355744/numpy-joining-structured-arrays
+
+    This is based on the implementation of
+    http://stackoverflow.com/questions/5355744/numpy-joining-structured-arrays
     with modifications to account for n-dimensional arrays.
 
     It is equivalent (but much faster) to the pure numpy function:

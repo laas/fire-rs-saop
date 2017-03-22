@@ -1,10 +1,11 @@
-from datetime import datetime
-import gdal
-import numpy as np
 import os
-from pytz import timezone
 import tempfile
 import unittest
+from datetime import datetime
+
+import gdal
+import numpy as np
+from pytz import timezone
 
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
 from fire_rs.geodata.wind import WindMap, WindTile, WindNinjaCLI
@@ -19,17 +20,21 @@ class WindNinjaCLITest(unittest.TestCase):
     def test_domain_average_run_blocking(self):
         cli = WindNinjaCLI()
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
+        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                            'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
         cli.set_output_path(self.output_path)
         completed = cli.run_blocking()
         if completed.returncode != 0:
-            self.assertEqual(completed.returncode, 0,
-                             "WindNinja_cli execution failed! Return code is {} instead of 0.".format(completed.returncode))
+            self.assertEqual(
+                completed.returncode, 0,
+                "WindNinja_cli execution failed! Return code is {} instead of 0.".format(
+                    completed.returncode))
 
     def test_domain_average_diurnal_winds(self):
         cli = WindNinjaCLI()
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
+        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                            'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
         cli.set_output_path(self.output_path)
         cli.add_arguments(diurnal_winds='true',
                           uni_air_temp=20, air_temp_units='C',
@@ -37,8 +42,10 @@ class WindNinjaCLITest(unittest.TestCase):
                           year=2017, month=3, day=6, hour=11, minute=0, time_zone='Europe/Paris')
         completed = cli.run_blocking()
         if completed.returncode != 0:
-            self.assertEqual(completed.returncode, 0,
-                             "WindNinja_cli execution failed! Return code is {} instead of 0.".format(completed.returncode))
+            self.assertEqual(
+                completed.returncode, 0,
+                "WindNinja_cli execution failed! Return code is {} instead of 0.".format(
+                    completed.returncode))
 
 
 class WindTileTest(unittest.TestCase):
@@ -46,55 +53,64 @@ class WindTileTest(unittest.TestCase):
     def setUp(self):
         cli = WindNinjaCLI()
         cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
+        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                            'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
 
         self.wind_path = tempfile.gettempdir()
-        self.windvel_file = os.path.join(self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_vel.asc')
-        self.windang_file = os.path.join(self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_ang.asc')
+        self.windvel_file = os.path.join(
+            self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_vel.asc')
+        self.windang_file = os.path.join(
+            self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_ang.asc')
 
         cli.set_output_path(self.wind_path)
-        completed = cli.run_blocking()
+        cli.run_blocking()
 
     def test_access(self):
         tile = WindTile([self.windvel_file, self.windang_file])
         w = tile.get_wind(np.array([512748, 6211766]))
         self.assertEqual(len(w), 2)
 
+
 class WindMapTest(unittest.TestCase):
 
     def setUp(self):
         self.output_path = tempfile.gettempdir()
 
-        tile0 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif'))
-        tile1 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif'))
-        tile2 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif'))
-        tile3 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
+        tile0 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                           'BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif'))
+        tile1 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                           'BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif'))
+        tile2 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                           'BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif'))
+        tile3 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                           'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
         self.elevation_map = ElevationMap([tile0, tile1, tile2, tile3])
 
         self.cli = WindNinjaCLI()
         self.cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 135))
-        self.cli.add_arguments(**WindNinjaCLI.output_type_args(True, False, True, False, False, False))
+        self.cli.add_arguments(**WindNinjaCLI.output_type_args(True, False, True,
+                                                               False, False, False))
         self.cli.add_arguments(**WindNinjaCLI.diurnal_winds_args(
             20, 0.25, datetime(2017, 11, 15, 12, 30, 0, 0, timezone('Europe/Paris'))))
         self.cli.set_output_path(self.output_path)
-
 
     def test_access(self):
         wmap = WindMap([], self.elevation_map, self.cli)
         w = wmap.get_wind(np.array([512748, 6211766]))
         self.assertEqual(len(w), 2)
 
+
 if __name__ == '__main__':
 
     def gdal_error_handler(err_class, err_num, err_msg):
         errtype = {
-                gdal.CE_None:'None',
-                gdal.CE_Debug:'Debug',
-                gdal.CE_Warning:'Warning',
-                gdal.CE_Failure:'Failure',
-                gdal.CE_Fatal:'Fatal'
+            gdal.CE_None: 'None',
+            gdal.CE_Debug: 'Debug',
+            gdal.CE_Warning: 'Warning',
+            gdal.CE_Failure: 'Failure',
+            gdal.CE_Fatal: 'Fatal'
         }
-        err_msg = err_msg.replace('\n',' ')
+        err_msg = err_msg.replace('\n', ' ')
         err_class = errtype.get(err_class, 'None')
         print('Error Number: %s' % (err_num))
         print('Error Type: %s' % (err_class))

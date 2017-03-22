@@ -1,7 +1,8 @@
+import os
+import unittest
+
 import gdal
 import numpy as np
-import unittest
-import os
 
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
 from fire_rs.geodata.environment import DEFAULT_FIRERS_DEM_DATA
@@ -10,7 +11,8 @@ from fire_rs.geodata.environment import DEFAULT_FIRERS_DEM_DATA
 class OneIGNTileTest(unittest.TestCase):
 
     def setUp(self):
-        self.tile = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif'))
+        self.tile = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                               'BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif'))
 
     def test_raster_access(self):
         np.testing.assert_allclose(self.tile.z[0, 0], 394.67)
@@ -29,7 +31,8 @@ class OneIGNTileTest(unittest.TestCase):
                    [0, raster_size[1]-1],
                    [raster_size[0]-1, raster_size[1]-1]]
         for corner in corners:
-            np.testing.assert_allclose(self.tile.projected_to_raster(self.tile.raster_to_projected(corner)), corner)
+            np.testing.assert_allclose(self.tile.projected_to_raster(
+                self.tile.raster_to_projected(corner)), corner)
 
     def test_in_function(self):
         self.assertEqual(self.tile.raster_to_projected([0, 0]) in self.tile, True)
@@ -44,18 +47,27 @@ class OneIGNTileTest(unittest.TestCase):
 class IGNElevationMap(unittest.TestCase):
 
     def setUp(self):
-        self.zone1 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif'))
-        self.zone2 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif'))
-        self.zone3 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.tif'))
-        self.zone4 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif'))
-        self.zone5 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
-        self.zone6 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.tif'))
-        self.zone7 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.tif'))
-        self.zone8 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.tif'))
-        self.zone9 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA, 'BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.tif'))
+        self.zone1 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0475_6200_MNT_LAMB93_IGN69.tif'))
+        self.zone2 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0475_6225_MNT_LAMB93_IGN69.tif'))
+        self.zone3 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0475_6250_MNT_LAMB93_IGN69.tif'))
+        self.zone4 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0500_6200_MNT_LAMB93_IGN69.tif'))
+        self.zone5 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
+        self.zone6 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0500_6250_MNT_LAMB93_IGN69.tif'))
+        self.zone7 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0525_6200_MNT_LAMB93_IGN69.tif'))
+        self.zone8 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0525_6225_MNT_LAMB93_IGN69.tif'))
+        self.zone9 = ElevationTile(os.path.join(DEFAULT_FIRERS_DEM_DATA,
+                                                'BDALTIV2_25M_FXX_0525_6250_MNT_LAMB93_IGN69.tif'))
         self.elevation_map = ElevationMap([self.zone1, self.zone2, self.zone3,
-                                                       self.zone4, self.zone5, self.zone6,
-                                                       self.zone7, self.zone8, self.zone9])
+                                           self.zone4, self.zone5, self.zone6,
+                                           self.zone7, self.zone8, self.zone9])
 
     def test_access(self):
         np.testing.assert_allclose(self.elevation_map[[474987.5, 6175012.5]],
@@ -66,7 +78,8 @@ class IGNElevationMap(unittest.TestCase):
                                    self.zone3[[497841.0, 6226454.0]])
 
     def test_array_extraction(self):
-        elevation, (x_offset, y_offset) = self.elevation_map.get_values([[474987.5, 507900.5], [6175012.5, 6209012.5]], 25)
+        elevation, (x_offset, y_offset) = self.elevation_map.get_values(
+            [[474987.5, 507900.5], [6175012.5, 6209012.5]], 25)
         z = elevation.data.view('float32')
         (x_size, y_size) = z.shape
         for x in range(0, x_size, 10):
@@ -75,17 +88,17 @@ class IGNElevationMap(unittest.TestCase):
                 z2xy = self.elevation_map.get_value((x*25+x_offset, y*25+y_offset))
                 self.assertEqual(zxy, z2xy)
 
+
 if __name__ == '__main__':
 
     def gdal_error_handler(err_class, err_num, err_msg):
         errtype = {
-                gdal.CE_None:'None',
-                gdal.CE_Debug:'Debug',
-                gdal.CE_Warning:'Warning',
-                gdal.CE_Failure:'Failure',
-                gdal.CE_Fatal:'Fatal'
-        }
-        err_msg = err_msg.replace('\n',' ')
+            gdal.CE_None: 'None',
+            gdal.CE_Debug: 'Debug',
+            gdal.CE_Warning: 'Warning',
+            gdal.CE_Failure: 'Failure',
+            gdal.CE_Fatal: 'Fatal'}
+        err_msg = err_msg.replace('\n', ' ')
         err_class = errtype.get(err_class, 'None')
         print('Error Number: %s' % (err_num))
         print('Error Type: %s' % (err_class))

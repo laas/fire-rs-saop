@@ -1,15 +1,18 @@
-from affine import Affine
-from collections import Sequence
-import logging
-import numpy as np
-from osgeo import gdal
 import functools
+import logging
+from collections import Sequence
+
+import numpy as np
+from affine import Affine
+from osgeo import gdal
+
 from fire_rs.geodata.geo_data import GeoData, join_structured_arrays
 
 
-# There are 3 sets of coordinates (spaces) for every location. A position in the geographic space, expressed in GPS
-# coordinates (WGS84 system); a position in the projected space, expressed in meters north and east
-# (RGF93/Lambert-93 system); and a position in the raster space, expressed as pixel/line.
+# There are 3 sets of coordinates (spaces) for every location. A position in the geographic space,
+# expressed in GPS coordinates (WGS84 system); a position in the projected space, expressed in
+# meters north and east (RGF93/Lambert-93 system); and a position in the raster space, expressed
+# as pixel/line.
 # https://libraries.mit.edu/files/gis/DEM2013.pdf Slides explaining DEMs, slope calculation...
 # Another projected space is UTM
 
@@ -17,7 +20,7 @@ class DigitalMap:
     """Abstract representation of a set of tiles."""
 
     def __init__(self, tiles):
-        """Initialise DigitalMap. Tiles should entirely cover a rectangular area"""
+        """Initialise DigitalMap. Tiles should entirely cover a rectangular area."""
         self._tiles = [[]]  # a 2D-array of tiles, covering a rectangular area
         for tile in tiles:
             self.add_tile(tile)
@@ -46,7 +49,8 @@ class DigitalMap:
                     return tile[position]
 
     def get_values(self, positions_intervals, cell_size):
-        assert cell_size == abs(self._tiles[0][0].x_delta) and cell_size == abs(self._tiles[0][0].y_delta)
+        assert cell_size == abs(self._tiles[0][0].x_delta) and \
+            cell_size == abs(self._tiles[0][0].y_delta)
         ((x_min, x_max), (y_min, y_max)) = positions_intervals
         xi_min = xi_max = yi_min = yi_max = -1
         for xi, txs in enumerate(self._tiles):
@@ -56,8 +60,10 @@ class DigitalMap:
                 if [x_max, y_max] in t:
                     xi_max, yi_max = xi, yi
 
-        assert xi_min != -1 and yi_min != -1, "({}, {}) is out of bounds of the known tiles".format(x_min, y_min)
-        assert xi_max != -1 and yi_max != -1, "({}, {}) is out of bounds of the known tiles".format(x_max, y_max)
+        assert xi_min != -1 and yi_min != -1, "({}, {}) is out of bounds of the known tiles".format(
+            x_min, y_min)
+        assert xi_max != -1 and yi_max != -1, "({}, {}) is out of bounds of the known tiles".format(
+            x_max, y_max)
         assert xi_min <= xi_max and yi_min <= yi_max
 
         # round coordinates to cell centers
@@ -146,8 +152,10 @@ class RasterTile:
         self.projection_bounds = [topleft_projection_corner, bottomright_projection_corner]
 
         # min/max values of the the projected cell centers
-        self.x_min, self.y_min = self.nearest_projected_point((topleft_projection_corner[0]+1, bottomright_projection_corner[1]+1))
-        self.x_max, self.y_max = self.nearest_projected_point((bottomright_projection_corner[0]-1, topleft_projection_corner[1]-1))
+        self.x_min, self.y_min = self.nearest_projected_point((topleft_projection_corner[0]+1,
+                                                               bottomright_projection_corner[1]+1))
+        self.x_max, self.y_max = self.nearest_projected_point((bottomright_projection_corner[0]-1,
+                                                               topleft_projection_corner[1]-1))
 
         # delta between two cell centers (can be negative)
         self.x_delta = self.geotransform[1]
@@ -162,14 +170,15 @@ class RasterTile:
             handle = gdal.Open(f)
             if handle.GetProjection() == self.geoprojection and \
                handle.GetGeoTransform() == self.geotransform:
-                n_bands+=handle.RasterCount
+                n_bands += handle.RasterCount
                 for i in range(handle.RasterCount):  # Bands start at 1
                     nodata_values.append(handle.GetRasterBand(i + 1).GetNoDataValue())
             else:
                 raise ValueError("Only bands with the same projection can be added.")
 
         assert n_bands == len(bands_names_types),\
-            "Number of bands in files ({}) did not match the declared ones: {}".format(n_bands, bands_names_types)
+            "Number of bands in files ({}) did not match the declared ones: {}".format(
+                n_bands, bands_names_types)
 
         # Set data array size
         self._bands = None
@@ -183,8 +192,10 @@ class RasterTile:
         for i in range(len(self.filenames)):
             handle = gdal.Open(self.filenames[i])
             for j in range(handle.RasterCount):  # Bands start at 1
-                layer = np.array(handle.GetRasterBand(j + 1).ReadAsArray(), dtype=[self.bands_names_types[curr_layer]])
-                layer = np.array(layer.transpose(), order='C')  # make x the first index and y the second, keeping the C ordering
+                layer = np.array(handle.GetRasterBand(j + 1).ReadAsArray(),
+                                 dtype=[self.bands_names_types[curr_layer]])
+                # make x the first index and y the second, keeping the C ordering
+                layer = np.array(layer.transpose(), order='C')
                 layers.append(layer)
                 curr_layer += 1
 
@@ -226,12 +237,12 @@ class RasterTile:
         if nd.any():
             if not self.nodata_fill:
                 # No replacement for NODATA
-                logging.warning("Location {} in {} has NODATA but no fill has been defined",
+                logging.warning("Location %s in %s has NODATA but no fill has been defined",
                                 (p[0], p[1]), self)
             else:
                 for i in range(len(nd)):
                     if nd:
-                        logging.warning("Location {} of band {} in {} with {}",
+                        logging.warning("Location %s of band %s in %s with %s",
                                         (p[0], p[1]), i, self, self.nodata_fill[i])
                         value[i] = self.nodata_fill[i]
         if len(value) == 1:
@@ -243,7 +254,8 @@ class RasterTile:
         return self.get_values(((self.x_min, self.x_max), (self.y_min, self.y_max)))
 
     def get_values(self, rectangle):
-        """Returns an array covering the given rectangle.
+        """Return an array covering the given rectangle.
+
         Increasing x/y array indexes correspond to increasing value in the projected space.
         Cell size is the one of the tile.
         """
@@ -255,17 +267,19 @@ class RasterTile:
             xi_max, yi_max = self.projected_to_raster((x_max, y_max))
             # returns the subarray
             subarray = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
-            return GeoData(subarray, *self.raster_to_projected((xi_min, yi_min)), self.x_delta, self.y_delta)
+            return GeoData(subarray, *self.raster_to_projected((xi_min, yi_min)),
+                           self.x_delta, self.y_delta)
         else:  # our internal data structure is inversed on y-axis
             # get indexes of sub-array
             xi_min, yi_min = self.projected_to_raster((x_min, y_max))
             xi_max, yi_max = self.projected_to_raster((x_max, y_min))
             # returns the sub-array, inversed on the y-axis
             subarray = self.data[xi_min:xi_max+1, yi_min:yi_max+1][..., ::-1]
-            return GeoData(subarray, *self.raster_to_projected((xi_min, yi_max)), self.x_delta, -self.y_delta)
+            return GeoData(subarray, *self.raster_to_projected((xi_min, yi_max)),
+                           self.x_delta, -self.y_delta)
 
     def raster_to_projected(self, loc):
-        """Return the projected location of a pixel point in this tile"""
+        """Return the projected location of a pixel point in this tile."""
         if loc[0] in range(0, self.raster_size[0]) and loc[1] in range(0, self.raster_size[1]):
             xp, yp = self.direct_transform * (loc[0], loc[1])
             xp, yp = xp + self.direct_transform.a / 2, yp + self.direct_transform.e / 2
@@ -274,7 +288,7 @@ class RasterTile:
             raise KeyError("Location out of this tile bounds")
 
     def projected_to_raster(self, loc):
-        """Return the raster point of a projected location in this tile"""
+        """Return the raster point of a projected location in this tile."""
         xr, yr = self.inverse_transform * (loc[0], loc[1])
         xr, yr = int(xr - 0.5), int(yr - 0.5)
 
@@ -284,7 +298,5 @@ class RasterTile:
             raise KeyError("Location out of this tile bounds")
 
     def nearest_projected_point(self, loc):
-        """Returns the (projected) coordinates of the cell center nearest to loc"""
+        """Return the (projected) coordinates of the cell center nearest to loc."""
         return self.raster_to_projected(self.projected_to_raster(loc))
-
-
