@@ -146,7 +146,7 @@ class WindNinjaCLI():
     def __init__(self, path=WINDNINJA_CLI_PATH, cli_arguments=None):
         self.windninja_path = path
         self.args = {}  # dict(arg, value)
-        num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2,
+        num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2
         self.add_arguments(num_threads=num_threads,
                            output_speed_units='mps',
                            mesh_resolution=25,  # ¡! Conflicts with mesh_choice
