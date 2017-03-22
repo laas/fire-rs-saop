@@ -3,6 +3,7 @@ import numpy as np
 from typing import List, Tuple
 from osgeo import osr
 
+
 class GeoData:
     """Container for geo-referenced raster data stored in a structured numpy array."""
 
@@ -96,17 +97,26 @@ class GeoData:
             assert len(res) == x_splits * y_splits
             return res
 
-    def clone(self, data_array=None):
+    def clone(self, data_array=None, fill_value=None, dtype=None):
         """Returns a clone of this GeoData.
 
-        If the data_array is None, a copy of self.data is used.
-        Otherwise the array is used as the internal data structure.
+
+        data_array != None, the array is used as the internal data structure.
+        If dtype and fill_value are not None, a new array of the same shape and the given dtype is created
+        and filled with fill_value.
+        Otherwise, a copy of self.data is used.
         """
-        if data_array is None:
+        if data_array is None and fill_value is None:
+            assert dtype is None
             return GeoData(self.data.copy(), self.x_offset, self.y_offset, self.cell_width, self.cell_height)
-        else:
+        elif data_array is not None:
+            assert fill_value is None and dtype is None
             assert data_array.shape == self.data.shape, 'The passed array as a different shape'
             return GeoData(data_array, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+        else:
+            assert fill_value is not None and dtype is not None
+            d = np.full(self.data.shape, fill_value, dtype=dtype)
+            return GeoData(d, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
 
     def write_to_file(self, filename: str):
         assert len(self.data.dtype) == 1, \
@@ -125,13 +135,14 @@ class GeoData:
 
         cols = data.shape[1]
         rows = data.shape[0]
-        origin_x = self.x_offset - self.cell_width / 2  # + array.shape[0] * pixelWidth
+        origin_x = self.x_offset - self.cell_width / 2
 
         driver = gdal.GetDriverByName('GTiff')
         out_raster = driver.Create(filename, cols, rows, 1, gdal.GDT_Float32)
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
         outband = out_raster.GetRasterBand(1)
         outband.WriteArray(data)
+        print(dir(self.projection))
         out_raster.SetProjection(self.projection.exportToWkt())
         outband.FlushCache()
 

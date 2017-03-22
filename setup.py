@@ -15,7 +15,7 @@ setup(
         Extension("fire_rs.firemodel.rothermel", sources=["fire_rs/firemodel/rothermel.pyx"]),
         Extension("fire_rs.firemodel.environment", sources=["fire_rs/firemodel/environment.pyx"]),
         Extension("fire_rs.firemodel.fireshapes", sources=["fire_rs/firemodel/fireshapes.pyx"]),
-        Extension("fire_rs.firemodel.propagation", sources=["fire_rs/firemodel/propagation.pyx"]),
+        # Extension("fire_rs.firemodel.propagation", sources=["fire_rs/firemodel/propagation.pyx"]),
     ],
     cmdclass={'build_ext': build_ext}
 )

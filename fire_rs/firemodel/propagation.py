@@ -6,59 +6,44 @@ import heapq
 
 import numpy as np
 
-import fireshapes
-import rothermel
+from fire_rs.geodata.environment import World
+from fire_rs.geodata.geo_data import GeoData
+
+import fire_rs.firemodel.fireshapes as fireshapes
+import fire_rs.firemodel.rothermel as rothermel
+import fire_rs.firemodel.environment as env
+
 
 
 class Environment:
-    def __init__(self, max_x: int, max_y: int, cell_size: int):
+    def __init__(self, area, wind_speed, wind_dir):
         """Abstract class providing access to the main properties of the environment
 
-        :param max_x: Number of cells on x axis
-        :param max_y: Number of cells on y axis
-        :param cell_size: Size [m] of the side of a cell
+        :param area: ((x_min, x_max), y_min, y_max))
         """
-        self.max_x = max_x
-        self.max_y = max_y
-        self.cell_size = cell_size
+        world = World()
+        slope = world.get_slope(area)
+        wind = world.get_wind(area, domain_average=(wind_speed, wind_dir))
+        moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D2L2'), dtype=[('moisture', 'int32')])
+        fuel = slope.clone(fill_value=env.get_fuel_model_id('SH3'), dtype=[('fuel', 'int32')])
+        self.raster = slope.combine(wind).combine(moisture).combine(fuel)
 
     def get_fuel_type(self, x, y):
         """Returns the fuel type (e.g. 'SH5') in (x,y)"""
-        return
+        return env.get_fuel_model_name(int(self.raster.data[x, y]['fuel']))
 
     def get_wind(self, x, y):
         """Returns a tuple (wind_speed [km/h], wind_angle [rad]) in (x,y)"""
-        return
+        tmp = self.raster.data[x, y]
+        return tmp['wind_velocity'], tmp['wind_angle']
 
     def get_moisture(self, x, y):
         """Returns the moisture scenario (e.g. 'D1L3') in (x,y)"""
-        return
-
-    def get_elevation(self, x, y, default=None):
-        """Returns the elevation [m] in (x,y)"""
-        return default
+        return env.get_moisture_scenario_name(int(self.raster.data[x, y]['moisture']))
 
     def get_slope(self, x, y):
-        """Computes the slope of a given point.
-        http://desktop.arcgis.com/fr/arcmap/10.3/tools/spatial-analyst-toolbox/how-slope-works.htm
-
-        :returns: The slope [percent] in (x, y) and the direction in which the slope raises most.
-        """
-        e = self.get_elevation(x, y)
-        a = self.get_elevation(x - 1, y + 1, default=e)
-        b = self.get_elevation(x, y + 1, default=e)
-        c = self.get_elevation(x + 1, y + 1, default=e)
-        d = self.get_elevation(x - 1, y, default=e)
-        f = self.get_elevation(x + 1, y, default=e)
-        g = self.get_elevation(x - 1, y - 1, default=e)
-        h = self.get_elevation(x, y - 1, default=e)
-        i = self.get_elevation(x + 1, y - 1, default=e)
-        dzdx = (c + 2*f + i - a - 2*d - g) / (8 * self.cell_size)
-        dzdy = (g + 2*h + i - a - 2*b - c) / (8 * self.cell_size)
-        rise_run = np.sqrt(np.power(dzdx, 2) + np.power(dzdy, 2))
-        slope_percent = rise_run * 100
-        raise_dir = np.arctan2(dzdy, dzdx)
-        return slope_percent, raise_dir
+        tmp = self.raster.data[x, y]
+        return tmp['slope'], tmp['raise_dir']
 
     def get_spread_parameters(self, x, y):
         """Computes the three parameters dictating the spread of the fire.
@@ -84,29 +69,12 @@ class Environment:
         return fireshapes.get_fire_shape(wind_speed, wind_angle, ros)
 
 
-class DummyEnvironment(Environment):
-    """A sample environment for test purposes. Associates default values to each environment parameter."""
-
-    def get_fuel_type(self, x, y):
-        return 'SH6'
-
-    def get_wind(self, x, y):
-        return 10, np.pi * (x / self.max_x)  # speed [km/h], angle [rad]
-
-    def get_moisture(self, x, y):
-        return 'D2L2'
-
-    def get_elevation(self, x, y, default=None):
-        return 100  # elevation in meters
-
-
 # graph connectivity: each element is a (delta-x, delta-y)
 neighborhood = [(1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1), (0,-1), (1,-1),
     (2,1), (2,-1), (-2,1), (-2,-1), (1,2), (1,-2), (-1,2), (-1,-2)]
 
 
-
-def propagate(env: Environment, x: int, y: int):
+def propagate(env: Environment, x: int, y: int) -> 'GeoData':
     """Set the environment on fire in (x, y) at time 0 and returns the ignition times of other points of the environment.
 
     :param env: Environment model
@@ -115,7 +83,11 @@ def propagate(env: Environment, x: int, y: int):
     :return: A matrix of ignition time. The size of the matrix is given by the size of the environment
     """
     # ignition times of each cell, infinite before propagation
-    ignition_times = 2**63-1 * np.ones((env.max_x, env.max_y))
+    ignition_times_geo = env.raster.clone(fill_value=2**63-1, dtype=[('ignition', 'float32')])
+    ignition_times = ignition_times_geo.data.view('float32')
+    (max_x, max_y) = ignition_times.shape
+    assert ignition_times_geo.cell_width == ignition_times_geo.cell_height
+    cell_size = ignition_times_geo.cell_height
 
     # select ignition point and add to queue
     ignition = (0, (x, y))  # (ignition-time, (x, y))
@@ -129,19 +101,18 @@ def propagate(env: Environment, x: int, y: int):
         (t, (x, y)) = heapq.heappop(q)
         # neighbors in the grid
         accessible_neighbors = [(dx, dy) for (dx, dy) in neighborhood if
-                                0 <= x + dx < env.max_x and 0 <= y + dy < env.max_y]
+                                0 <= x + dx < max_x and 0 <= y + dy < max_y]
         spread_shape = env.get_propagation_shape(x, y)
         # for each neighbor, propagate earliest ignition time
         for (dx, dy) in accessible_neighbors:
-            dist = np.sqrt(dx * dx + dy * dy) * env.cell_size  # dist from current to neighbor
+            dist = np.sqrt(dx * dx + dy * dy) * cell_size  # dist from current to neighbor
             angle = np.arctan2(dy, dx)  # angle to neighbor
             speed = spread_shape.speed(angle)  # ros in the direction of neighbor
             dt = dist / speed  # time for fire to reach neighbor
             if ignition_times[x + dx, y + dy] > t + dt:
                 ignition_times[x + dx, y + dy] = t + dt
                 heapq.heappush(q, (t + dt, (x + dx, y + dy)))
-    return ignition_times
+    return ignition_times_geo
 
 if __name__ == '__main__':
-    env = DummyEnvironment(50, 50, 10)
-    print(propagate(env, 5, 5))
+    pass

@@ -5,6 +5,7 @@ import numpy as np
 
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
 from fire_rs.geodata.wind import WindMap, WindNinjaCLI
+from fire_rs.geodata.geo_data import GeoData
 
 # Set default data folders as the one given in the environment variable $FIRERS_DATA or
 # to Rafael's home if not set
@@ -47,7 +48,7 @@ class World:
                 except RuntimeError as e:
                     logging.warning(e.msg)
 
-    def get_elevation(self, position):
+    def get_elevation(self, position) -> 'GeoData':
         """Retrieves elevation of a given point/area of the map.
         Position is either a point [x, y] or an area [[x_min, x_max], [y_min, y_max]]
         """
@@ -59,7 +60,7 @@ class World:
             assert len(position[0]) == 2 and len(position[1]) == 2
             return self._elevation_map.get_values(position)
 
-    def get_slope(self, area):
+    def get_slope(self, area) -> 'GeoData':
         """Returns a GeoData containing the slope percentage and raise direction of an area."""
         ((x_min, x_max), (y_min, y_max)) = area
 
@@ -88,7 +89,7 @@ class World:
         # combine slope and raise direction into one GeoData and fit it to the area originally asked
         return sp.combine(rd).subset(area)
 
-    def get_wind(self, position, **kwargs):
+    def get_wind(self, position, **kwargs) -> 'GeoData':
         """Get wind for a specific wind scenario.
         Position is either a point [x, y] or an area [[x_min, x_max], [y_min, y_max]]
 

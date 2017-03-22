@@ -83,6 +83,15 @@ for f in pd.read_csv(fuel_models_csv, index_col=0).itertuples():
     fm = FuelModel(f[0], kind, f[2:7], f[7:12], f[12], f[13], f[13:18])
     fuel_models[f[0]] = fm
 
+# An index of fuel model names
+fuel_models_names = sorted(list(fuel_models.keys()))
+
+def get_fuel_model_name(fuel_model_id):
+    return fuel_models_names[fuel_model_id]
+
+def get_fuel_model_id(fuel_model_name):
+    return fuel_models_names.index(fuel_model_name)
+
 moisture_scenarios_csv = StringIO(""""","Moist_1h","Moist_10h","Moist_100h","Moist_Live_Herb","Moist_Live_Woody","Description"
 "D1L1",3,4,5,30,60,"Very dry dead FM, fully cured herb"
 "D2L2",6,7,8,60,90,"Dry dead FM, 2/3 cured herb"
@@ -114,6 +123,14 @@ for row in pd.read_csv(moisture_scenarios_csv, index_col=0).itertuples():
     ms = MoistureScenario(row[0], row[1:6], row[6])
     moisture_scenarios[row[0]] = ms 
 
+# An index of moisture scenarios names
+moisture_scenarios_names = sorted(list(moisture_scenarios.keys()))
+
+def get_moisture_scenario_name(moisture_scenario_id):
+    return moisture_scenarios_names[moisture_scenario_id]
+
+def get_moisture_scenario_id(moisture_scenario_name):
+    return moisture_scenarios_names.index(moisture_scenario_name)
 
 if __name__ == '__main__':
     pass
