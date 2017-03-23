@@ -121,9 +121,21 @@ class GeoData:
             d = np.full(self.data.shape, fill_value, dtype=dtype)
             return GeoData(d, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
 
-    def write_to_file(self, filename: str):
-        assert len(self.data.dtype) == 1, \
-            "Writing to file data with multiple layers is not supported yet"
+    def write_to_separate_files(self, parameterized_filename: str):
+        """Writes each layer to a distinct GeoTiff file.
+
+         The filename should contain %s which will replaced by name of each layer."""
+        assert '%s' in parameterized_filename, 'File name should contain %s which will be replaced by the layer name'
+        for layer in self.data.dtype.names:
+            file = parameterized_filename % layer
+            self.write_to_file(file, layer)
+
+    def write_to_file(self, filename: str, layer_name=None):
+        """Writes to GeoTiff file.
+
+        If a layer_name is provided, then only the corresponding layer will be written, otherwise the GeoTiff file
+        will contain all layers."""
+        layers = self.data.dtype.names if layer_name is None else [layer_name]
 
         if self.cell_height < 0:
             data = self.data.transpose()  # in "image" files, rows and columns are inverted
@@ -141,12 +153,14 @@ class GeoData:
         origin_x = self.x_offset - self.cell_width / 2
 
         driver = gdal.GetDriverByName('GTiff')
-        out_raster = driver.Create(filename, cols, rows, 1, gdal.GDT_Float32)
+        out_raster = driver.Create(filename, cols, rows, len(layers), gdal.GDT_Float32)
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
-        outband = out_raster.GetRasterBand(1)
-        outband.WriteArray(data)
+        for i, layer in enumerate(layers):
+            outband = out_raster.GetRasterBand(i+1)
+            outband.WriteArray(data[layer])
+            outband.SetDescription(layer)  # apparently not visible in QGIS, maybe there is a better alternative
+            outband.FlushCache()
         out_raster.SetProjection(self.projection.ExportToWkt())
-        outband.FlushCache()
 
 
 def join_structured_arrays(arrays):
