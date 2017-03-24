@@ -30,6 +30,9 @@ class GeoData:
     def __repr__(self):
         return self.data.__repr__()
 
+    def __getitem__(self, item):
+        return self.data
+
     def subset(self, area: Tuple[Tuple[float, float], Tuple[float, float]]) -> 'GeoData':
         ((x_min, x_max), (y_min, y_max)) = area
         (xi_min, yi_min) = self.array_index((x_min, y_min))
