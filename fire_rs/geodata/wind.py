@@ -148,7 +148,7 @@ class WindNinjaCLI():
         self.args = {}  # dict(arg, value)
         num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2
         self.add_arguments(num_threads=num_threads,
-                           output_speed_units='mps',
+                           output_speed_units='kph',
                            mesh_resolution=25,  # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
                            write_ascii_output='true')
@@ -222,7 +222,7 @@ class WindNinjaCLI():
     def domain_average_args(input_speed, input_direction, vegetation='trees'):
         """Generate a set of arguments for WindNinja for a domain average input.
 
-        :param input_speed: input wind speed in m/s
+        :param input_speed: input wind speed in km/h
         :param input_direction: input wind direction in degrees
         :param vegetation: vegetation type (grass, brush or trees)
         :return: arguments for WindNinja
@@ -230,7 +230,7 @@ class WindNinjaCLI():
         """
         args = {'initialization_method': 'domainAverageInitialization',
                 'input_speed': input_speed,
-                'input_speed_units': 'mps',
+                'input_speed_units': 'kph',
                 'input_direction': input_direction,
                 'input_wind_height': '10.0',
                 'units_input_wind_height': 'm',
