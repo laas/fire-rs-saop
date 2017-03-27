@@ -55,10 +55,13 @@ class WindMap(DigitalMap):
         """
         (x, y) = position
         base_tile = self.elevation_map.tile_of_location(position)
+        assert (x, y) in base_tile
 
         # find in which subpart of the elevation tile this location is
-        xi = int((x - base_tile.x_min) / (base_tile.x_max - base_tile.x_min) * _DEM_TILE_SPLIT)
-        yi = int((y - base_tile.y_min) / (base_tile.y_max - base_tile.y_min) * _DEM_TILE_SPLIT)
+        xi = int((x - base_tile.border_x_min) / (
+            base_tile.border_x_max - base_tile.border_x_min) * _DEM_TILE_SPLIT)
+        yi = int((y - base_tile.border_y_min) / (
+            base_tile.border_y_max - base_tile.border_y_min) * _DEM_TILE_SPLIT)
 
         # build tile names of this wind scenario and subpart of the DEM tile
         tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0] + \

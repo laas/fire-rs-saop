@@ -145,20 +145,22 @@ class RasterTile:
         # and projection coordinates (Xp,Yp) space
         self.geotransform = handle.GetGeoTransform()
         self.direct_transform = Affine.from_gdal(*self.geotransform)
+        # delta between two cell centers (can be negative)
+        self.x_delta = self.geotransform[1]
+        self.y_delta = self.geotransform[5]
         self.inverse_transform = ~self.direct_transform
         topleft_projection_corner = (self.direct_transform.c, self.direct_transform.f)
         bottomright_projection_corner = self.direct_transform * (self.raster_size)
-        self.projection_bounds = [topleft_projection_corner, bottomright_projection_corner]
+
+        # border min/max location bounds
+        self.border_x_min, self.border_y_min = topleft_projection_corner[0], bottomright_projection_corner[1]
+        self.border_x_max, self.border_y_max = bottomright_projection_corner[0], topleft_projection_corner[1]
 
         # min/max values of the the projected cell centers
         self.x_min, self.y_min = self.nearest_projected_point((topleft_projection_corner[0]+1,
                                                                bottomright_projection_corner[1]+1))
         self.x_max, self.y_max = self.nearest_projected_point((bottomright_projection_corner[0]-1,
                                                                topleft_projection_corner[1]-1))
-
-        # delta between two cell centers (can be negative)
-        self.x_delta = self.geotransform[1]
-        self.y_delta = self.geotransform[5]
 
         n_bands += handle.RasterCount
         for i in range(handle.RasterCount):  # Bands start at 1
@@ -281,7 +283,8 @@ class RasterTile:
         """Return the projected location of a pixel point in this tile."""
         if loc[0] in range(0, self.raster_size[0]) and loc[1] in range(0, self.raster_size[1]):
             xp, yp = self.direct_transform * (loc[0], loc[1])
-            xp, yp = xp + self.direct_transform.a / 2, yp + self.direct_transform.e / 2
+            xp, yp = xp + self.x_delta / 2, yp + self.y_delta / 2
+            assert self.border_x_min <= xp <= self.border_x_max and self.border_y_min <= yp <= self.border_y_max
             return np.array([xp, yp])
         else:
             raise KeyError("Location out of this tile bounds")
