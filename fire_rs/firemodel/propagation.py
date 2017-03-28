@@ -24,8 +24,8 @@ class Environment:
         world = World()
         slope = world.get_slope(area)
         wind = world.get_wind(area, domain_average=(wind_speed, wind_dir))
-        moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D2L2'), dtype=[('moisture', 'int32')])
-        fuel = slope.clone(fill_value=env.get_fuel_model_id('SH3'), dtype=[('fuel', 'int32')])
+        moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
+        fuel = slope.clone(fill_value=env.get_fuel_model_id('SH5'), dtype=[('fuel', 'int32')])
         self.raster = slope.combine(wind).combine(moisture).combine(fuel)
 
     def get_fuel_type(self, x, y):
@@ -35,7 +35,10 @@ class Environment:
     def get_wind(self, x, y):
         """Returns a tuple (wind_speed [km/h], wind_angle [rad]) in (x,y)"""
         tmp = self.raster.data[x, y]
-        return tmp['wind_velocity'], tmp['wind_angle']
+        wind_vel = tmp['wind_velocity']
+        # TODO: make this conversion right at the output of wind ninja
+        wind_angle = tmp['wind_angle'] * (2*np.pi) /360. + np.pi/2
+        return wind_vel, wind_angle
 
     def get_moisture(self, x, y):
         """Returns the moisture scenario (e.g. 'D1L3') in (x,y)"""
@@ -89,8 +92,10 @@ def propagate(env: Environment, x: int, y: int) -> 'GeoData':
     assert ignition_times_geo.cell_width == ignition_times_geo.cell_height
     cell_size = ignition_times_geo.cell_height
 
+    t = 0
+
     # select ignition point and add to queue
-    ignition = (0, (x, y))  # (ignition-time, (x, y))
+    ignition = (t, (x, y))  # (ignition-time, (x, y))
     ignition_times[ignition[1]] = ignition[0]
     q = [ignition]  # queue of labels (t, (x,y)) indicating an upper bound on the ignition time 't' of a cell '(x, y)'
     heapq.heapify(q)
