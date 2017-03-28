@@ -10,7 +10,7 @@ setup(
     url="http://fire-rs.com",
     packages=find_packages(),
     license="GPLv3+",
-    install_requires=['affine', 'GDAL', 'numpy', 'pandas', 'pytz',],
+    install_requires=['affine', 'GDAL', 'numpy', 'pandas', 'pytz', 'matplotlib'],
     ext_modules=[
         Extension("fire_rs.firemodel.rothermel", sources=["fire_rs/firemodel/rothermel.pyx"]),
         Extension("fire_rs.firemodel.environment", sources=["fire_rs/firemodel/environment.pyx"]),

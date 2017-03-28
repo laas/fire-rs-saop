@@ -1,6 +1,6 @@
 FROM abitmonn/windninja-cli:latest
 
-RUN apt-get update && apt-get install -y python3 cython3 python3-gdal python3-setuptools python3-affine python3-tz python3-pandas
+RUN apt-get update && apt-get install -y python3 cython3 python3-gdal python3-setuptools python3-affine python3-tz python3-pandas python3-matplotlib
 
 
 
