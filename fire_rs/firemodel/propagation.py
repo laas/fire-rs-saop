@@ -85,6 +85,17 @@ def propagate(env: Environment, x: int, y: int) -> 'GeoData':
     :param y: Y coordinate of ignition point
     :return: A matrix of ignition time. The size of the matrix is given by the size of the environment
     """
+    return next(propagator(env, x, y, yield_tstep=np.inf))
+
+
+def propagator(env: Environment, x: int, y: int, yield_tstep=np.inf) -> 'GeoData':
+    """Set the environment on fire in (x, y) at time 0 and returns the ignition times of other points of the environment.
+
+    :param env: Environment model
+    :param x: X coordinate of ignition point
+    :param y: Y coordinate of ignition point
+    :return: A matrix of ignition time. The size of the matrix is given by the size of the environment
+    """
     # ignition times of each cell, infinite before propagation
     ignition_times_geo = env.raster.clone(fill_value=2**63-1, dtype=[('ignition', 'float32')])
     ignition_times = ignition_times_geo.data.view('float32')
@@ -100,8 +111,16 @@ def propagate(env: Environment, x: int, y: int) -> 'GeoData':
     q = [ignition]  # queue of labels (t, (x,y)) indicating an upper bound on the ignition time 't' of a cell '(x, y)'
     heapq.heapify(q)
 
+    # yielding frequency
+    last_yield = yield_tstep
+
     # Dijkstra propagation of fire
     while not len(q) == 0:
+        # peek top value
+        t, __ = q[0]
+        if t >= last_yield:
+            last_yield += yield_tstep
+            yield ignition_times_geo
         # select current point
         (t, (x, y)) = heapq.heappop(q)
         # neighbors in the grid
@@ -117,7 +136,8 @@ def propagate(env: Environment, x: int, y: int) -> 'GeoData':
             if ignition_times[x + dx, y + dy] > t + dt:
                 ignition_times[x + dx, y + dy] = t + dt
                 heapq.heappush(q, (t + dt, (x + dx, y + dy)))
-    return ignition_times_geo
+    yield ignition_times_geo
+
 
 if __name__ == '__main__':
     pass
