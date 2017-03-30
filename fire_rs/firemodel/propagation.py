@@ -36,8 +36,7 @@ class Environment:
         """Returns a tuple (wind_speed [km/h], wind_angle [rad]) in (x,y)"""
         tmp = self.raster.data[x, y]
         wind_vel = tmp['wind_velocity']
-        # TODO: make this conversion right at the output of wind ninja
-        wind_angle = tmp['wind_angle'] * (2*np.pi) /360. + np.pi/2
+        wind_angle = tmp['wind_angle']
         return wind_vel, wind_angle
 
     def get_moisture(self, x, y):
