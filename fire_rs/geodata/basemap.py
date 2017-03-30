@@ -29,17 +29,22 @@ class DigitalMap:
         """Add a tile to the map."""
         # gather all tiles and sort them by increasing (x, y)
         all_tiles = [t for ts in self._tiles for t in ts] + [tile]
-        all_tiles.sort(key=lambda t: (t.x_min, t.y_min))
+        self._tiles = DigitalMap._arrange_tiles(all_tiles)
 
-        # repopulate tiles in a sorted 2D array
-        self._tiles = [[]]
+    @staticmethod
+    def _arrange_tiles(tile_list):
+        """Repopulate tiles in a sorted 2D array"""
+        tlist = tile_list[:]
+        tlist.sort(key=lambda t: (t.x_min, t.y_min))
+        arranged_list = [[]]
         prev_x_min = None
-        for t in all_tiles:
+        for t in tlist:
             if prev_x_min is not None and prev_x_min != t.x_min:
-                self._tiles.append([t])  # changed x origin, add new line
+                arranged_list.append([t])  # changed x origin, add new line
             else:
-                self._tiles[-1].append(t)  # append to current line
+                arranged_list[-1].append(t)  # append to current line
             prev_x_min = t.x_min
+        return arranged_list
 
     def get_value(self, position):
         """Get the value corresponding to a position."""
@@ -50,32 +55,28 @@ class DigitalMap:
 
     def get_values(self, positions_intervals):
         ((x_min, x_max), (y_min, y_max)) = positions_intervals
-        xi_min = xi_max = yi_min = yi_max = -1
-        for xi, txs in enumerate(self._tiles):
-            for yi, t in enumerate(txs):
-                if [x_min, y_min] in t:
-                    xi_min, yi_min = xi, yi
-                if [x_max, y_max] in t:
-                    xi_max, yi_max = xi, yi
 
-        assert xi_min != -1 and yi_min != -1, "({}, {}) is out of bounds of the known tiles".format(
-            x_min, y_min)
-        assert xi_max != -1 and yi_max != -1, "({}, {}) is out of bounds of the known tiles".format(
-            x_max, y_max)
-        assert xi_min <= xi_max and yi_min <= yi_max
+        # gather concerned tiles
+        tiles = []
+        for xtiles in self._tiles:
+            for tile in xtiles:
+                if (tile.border_x_max > x_min and tile.border_x_min < x_max) and (
+                                tile.border_y_max > y_min and tile.border_y_min < y_max):
+                    tiles.append(tile)
+        local_tilemap = DigitalMap._arrange_tiles(tiles)
 
         # round coordinates to cell centers
-        x_min, y_min = self._tiles[xi_min][yi_min].nearest_projected_point((x_min, y_min))
-        x_max, y_max = self._tiles[xi_max][yi_max].nearest_projected_point((x_max, y_max))
+        x_min, y_min = local_tilemap[0][0].nearest_projected_point((x_min, y_min))
+        x_max, y_max = local_tilemap[-1][-1].nearest_projected_point((x_max, y_max))
 
         current_y = y_min
         tables = []
         # load in tables one table for each tile involved
-        for yi in range(yi_min, yi_max + 1):
+        for yi in range(0, len(local_tilemap[0])):
             tables.append([])  # add new line
             current_x = x_min
-            for xi in range(xi_min, xi_max+1):
-                tile = self._tiles[xi][yi]
+            for xi in range(0, len(local_tilemap)):
+                tile = local_tilemap[xi][yi]
                 next_x = min(x_max, tile.x_max)
                 next_y = min(y_max, tile.y_max)
                 table = tile.get_values(((current_x, next_x), (current_y, next_y)))
