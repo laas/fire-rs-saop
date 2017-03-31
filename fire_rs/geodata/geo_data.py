@@ -2,6 +2,8 @@ import gdal
 import numpy as np
 from typing import List, Tuple
 from osgeo import osr
+import matplotlib
+import matplotlib.pyplot as plt
 
 
 class GeoData:
@@ -111,8 +113,7 @@ class GeoData:
     def clone(self, data_array=None, fill_value=None, dtype=None):
         """Returns a clone of this GeoData.
 
-
-        data_array != None, the array is used as the internal data structure.
+        If data_array != None, the array is used as the internal data structure.
         If dtype and fill_value are not None, a new array of the same shape and the given dtype is created
         and filled with fill_value.
         Otherwise, a copy of self.data is used.
@@ -121,13 +122,56 @@ class GeoData:
             assert dtype is None
             return GeoData(self.data.copy(), self.x_offset, self.y_offset, self.cell_width, self.cell_height)
         elif data_array is not None:
-            assert fill_value is None and dtype is None
+            assert fill_value is None
+            # impose data-type if provided
+            data_array = data_array if dtype is None else np.array(data_array, dtype=dtype)
             assert data_array.shape == self.data.shape, 'The passed array as a different shape'
             return GeoData(data_array, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
         else:
             assert fill_value is not None and dtype is not None
             d = np.full(self.data.shape, fill_value, dtype=dtype)
             return GeoData(d, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+
+    def _get_plot_data(self, downscale):
+        # axes with labels
+        ax = plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
+        ax_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
+        ax.yaxis.set_major_formatter(ax_formatter)
+        ax.xaxis.set_major_formatter(ax_formatter)
+
+        # inverted and downscaled raster
+        data = self.data.T[::-1, ...][::downscale, ::downscale]
+
+        # downscaled and geo-transformed ticks
+        x = (np.arange(data.shape[0]) * self.cell_width + self.x_offset)
+        y = (np.arange(data.shape[1]) * self.cell_height + self.y_offset)
+
+        # image geographic bounds
+        image_scale = (x[0], x[-1], y[0], y[-1])
+        return ax, data, x, y, image_scale
+
+    def plot_vector(self, dir_layer, length_layer, downscale=1, blocking=False):
+        ax, data, x, y, image_scale = self._get_plot_data(downscale)
+
+        vel = data[length_layer]
+        ang = 180 - data[dir_layer]
+        wx = (vel * np.cos(ang / 180 * np.pi))
+        wy = (vel * np.sin(ang / 180 * np.pi))
+
+        ax.quiver(x, y, wx, wy, pivot='middle', color='dimgrey')
+        plt.show(block=blocking)
+
+    def plot(self, layer=None, downscale=1, blocking=False):
+        ax, data, x, y, image_scale = self._get_plot_data(downscale)
+        if layer is None:
+            assert len(self.data.dtype) == 1
+            layer = self.data.dtype.names[0]
+
+        z = data[layer]
+
+        ax.imshow(z, extent=image_scale, vmin=z.min(), vmax=z.max(),
+                  cmap=matplotlib.cm.terrain, interpolation='none')
+        plt.show(block=blocking)
 
     def write_to_separate_files(self, parameterized_filename: str):
         """Writes each layer to a distinct GeoTiff file.
