@@ -33,6 +33,11 @@ class GeoData:
     def __getitem__(self, item):
         return self.data
 
+    @property
+    def data_display(self):
+        """Data array in display form."""
+        return self.data.T[::-1,...]
+
     def subset(self, area: Tuple[Tuple[float, float], Tuple[float, float]]) -> 'GeoData':
         ((x_min, x_max), (y_min, y_max)) = area
         (xi_min, yi_min) = self.array_index((x_min, y_min))
