@@ -19,8 +19,8 @@ A Dockerfile is provided to set up an environment with windninja and all python 
 
 To build the container:
 
-    docker build -t saop docker/
+    ./docker/run.sh build
 
 To start a shell in the container with the the code repository and the data repository mounted:
 
-    ./docker/run.sh
+    ./docker/run.sh [run]
