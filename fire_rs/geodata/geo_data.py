@@ -158,7 +158,7 @@ class GeoData:
         wx = (vel * np.cos(ang / 180 * np.pi))
         wy = (vel * np.sin(ang / 180 * np.pi))
 
-        ax.quiver(x, y, wx, wy, pivot='middle', color='dimgrey')
+        ax.quiver(*np.meshgrid(x, y), wx, wy, pivot='middle', color='dimgrey')
         plt.show(block=blocking)
 
     def plot(self, layer=None, downscale=1, blocking=False):
