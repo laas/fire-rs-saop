@@ -21,11 +21,11 @@ class WorldTest(unittest.TestCase):
 
     def test_get_wind(self):
         world = World()
-        world.get_wind([475060.0, 6200074.0], domain_average=(3.11, 90.2))
+        ret = world.get_wind([475060.0, 6200074.0], domain_average=(3.11, np.pi/2))
 
     def test_get_wind_on_area(self):
         world = World()
-        res = world.get_wind([[475060.0, 476060.0], [6200074.0, 6200174.0]], domain_average=(3.11, 90.2))
+        res = world.get_wind([[475060.0, 476160.0], [6200074.0, 6201174.0]], domain_average=(3.11, np.pi))
 
     def test_get_slope_on_area(self):
         world = World()
@@ -36,7 +36,7 @@ class WorldTest(unittest.TestCase):
         world = World()
         area = [[475060.0, 476060.0], [6200074.0, 6200174.0]]
         elevation_data = world.get_elevation(area)
-        wind_data = world.get_wind(area, domain_average=(3.11, 90.2))
+        wind_data = world.get_wind(area, domain_average=(3.11, np.pi/2))
         self.assertEqual(elevation_data.data.shape, wind_data.data.shape)
         self.assertEqual(elevation_data.x_offset, wind_data.x_offset)
         self.assertEqual(elevation_data.y_offset, wind_data.y_offset)

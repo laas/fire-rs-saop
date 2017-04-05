@@ -103,8 +103,11 @@ class World:
         if dom_av is None:
             raise TypeError("Only domainAverageInitialization method is implemented.")
         else:
+            from .wind import trigo_angle_to_geo_angle
+            assert -np.pi <= dom_av[1] <= 2*np.pi, \
+                "Wind direction should be given in radians, where 0 is East to West and rotation is trigonometric"
             # Detect if a map for this wind case has been loaded, and create if not
-            dom_av = ("{:.0f}".format(dom_av[0]), "{:.0f}".format(dom_av[1]))
+            dom_av = ("{:.0f}".format(dom_av[0]), "{:.0f}".format(trigo_angle_to_geo_angle(dom_av[1])))
             wind_map = self._wind_maps['domainAverageInitialization'].get(dom_av)
 
             if wind_map is None:  # create a new wind map for this domain average

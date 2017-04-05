@@ -8,7 +8,7 @@ import numpy as np
 from pytz import timezone
 
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
-from fire_rs.geodata.wind import WindMap, WindTile, WindNinjaCLI
+from fire_rs.geodata.wind import *
 from fire_rs.geodata.environment import DEFAULT_FIRERS_DEM_DATA
 
 
@@ -89,7 +89,7 @@ class WindMapTest(unittest.TestCase):
         self.elevation_map = ElevationMap([tile0, tile1, tile2, tile3])
 
         self.cli = WindNinjaCLI()
-        self.cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 135))
+        self.cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 3*np.pi/4))
         self.cli.add_arguments(**WindNinjaCLI.output_type_args(True, False, True,
                                                                False, False, False))
         self.cli.add_arguments(**WindNinjaCLI.diurnal_winds_args(
@@ -101,6 +101,29 @@ class WindMapTest(unittest.TestCase):
         wmap = WindMap([], self.elevation_map, self.cli)
         w = wmap.get_wind(np.array([512748, 6211766]))
         self.assertEqual(len(w), 2)
+
+
+class WindAngleTransformTest(unittest.TestCase):
+
+    def test_geo_to_trigo(self):
+        self.assertAlmostEquals(0, geo_angle_to_trigo_angle(90))
+        self.assertAlmostEquals(np.pi/2 % (np.pi * 2), geo_angle_to_trigo_angle(180))
+        self.assertAlmostEquals(-np.pi/2 % (np.pi * 2), geo_angle_to_trigo_angle(0))
+        self.assertAlmostEquals(np.pi, geo_angle_to_trigo_angle(270))
+
+    def test_trigo_to_geo(self):
+        self.assertAlmostEquals(90, trigo_angle_to_geo_angle(0))
+        self.assertAlmostEquals(0, trigo_angle_to_geo_angle(-np.pi/2))
+        self.assertAlmostEquals(180, trigo_angle_to_geo_angle(np.pi/2))
+        self.assertAlmostEquals(270, trigo_angle_to_geo_angle(np.pi))
+
+    def test_geo_geo(self):
+        for a in np.linspace(-1000, 1000):
+            self.assertAlmostEquals(a % 360, trigo_angle_to_geo_angle(geo_angle_to_trigo_angle(a)))
+
+    def test_trigo_to_trigo(self):
+        for a in np.linspace(-np.pi*5, np.pi*5):
+            self.assertAlmostEquals(a % (np.pi*2), geo_angle_to_trigo_angle(trigo_angle_to_geo_angle(a)))
 
 
 if __name__ == '__main__':

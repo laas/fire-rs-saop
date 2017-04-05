@@ -19,7 +19,7 @@ def display():
     # area = [[525000.0, 530000.0], [6225000.0, 6230000.0]]  # Produces error!
     # area = [[525000.0, 530000.0], [6225000.0, 6250000.0]]
     ignition_point = (100, 100)
-    area_wind = (10, 180)
+    area_wind = (10, np.pi)
 
     # Obtain geographic data of defined area
     world = environment.World()
@@ -92,11 +92,11 @@ def display():
         cbar = fire_fig.colorbar(shade, shrink=0.5, aspect=2)
 
         wind_vel = some_area_wind['wind']['wind_velocity']
-        wind_ang = 180 - some_area_wind['wind']['wind_angle']
-        WX = wind_vel * np.cos(wind_ang / 180 * np.pi)
-        WY = wind_vel * np.sin(wind_ang / 180 * np.pi)
+        wind_ang = some_area_wind['wind']['wind_angle']
+        WX = wind_vel * np.cos(wind_ang)
+        WY = wind_vel * np.sin(wind_ang)
 
-        plot_wind_arrows(fire_ax, *np.meshgrid(x[::10], y[::10]), WY[::10, ::10], WX[::10, ::10])
+        plot_wind_arrows(fire_ax, *np.meshgrid(x[::10], y[::10]), WX[::10, ::10], WY[::10, ::10])
         # plot_wind_flow(fire_ax, *np.meshgrid(x[::10], y[::10]), WY[::10, ::10], WX[::10, ::10], wind_vel[::10, ::10])
 
         fronts = plot_firefront_contour(fire_ax, X, Y, ignitions.data['ignition'].T[::-1,...]/60)
@@ -118,8 +118,8 @@ def display():
         wind_ang = some_area_wind['wind']['wind_angle']
         slope_slope = some_area_slope['slope']['slope']
         slope_dir = some_area_slope['slope']['raise_dir']
-        WX = wind_vel * np.cos(wind_ang / 180 * np.pi)
-        WY = wind_vel * np.sin(wind_ang / 180 * np.pi)
+        WX = wind_vel * np.cos(wind_ang)
+        WY = wind_vel * np.sin(wind_ang)
         WZ = slope_slope
 
 
@@ -139,7 +139,7 @@ def display():
 def step_by_step():
     area = [[530000.0, 535000.0], [6230000.0, 6235000.0]]
     ignition_point = (100, 100)
-    area_wind = (10, 180)
+    area_wind = (10, np.pi)
 
     # Obtain geographic data of defined area
     world = environment.World()

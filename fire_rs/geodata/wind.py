@@ -17,6 +17,21 @@ if not os.path.exists(os.path.join(WINDNINJA_CLI_PATH, 'WindNinja_cli')):
     raise FileNotFoundError("$WINDNINJA_CLI_PATH is not defined correctly")
 
 
+def geo_angle_to_trigo_angle(angles):
+    """Converts a geographic angle (used by windninja) to a trigonometric angle in radians 
+    where 0 is East to West and rotation is trigonometric
+    """
+    angles = angles - 90.  # rotate to center on X axis
+    angles = angles * (2*np.pi) / 360.  # to radians
+    return angles % (np.pi * 2)
+
+def trigo_angle_to_geo_angle(angles):
+    """Converts a trigonometric angle to a geographic one (as used by windninja)"""
+    angles = angles * 360. / (2*np.pi)
+    angles = angles + 90
+    return angles % 360.
+
+
 class WindMap(DigitalMap):
     """Wind map associated to an elevation map."""
 
@@ -144,7 +159,8 @@ class WindTile(RasterTile):
 
     def _load_data(self):
         super()._load_data()
-        self._bands['wind_angle'] = (self._bands['wind_angle'] * (np.pi) / 180.) + np.pi / 2
+        # converts angle from geographic to trigonometric
+        self._bands['wind_angle'] = geo_angle_to_trigo_angle(self._bands['wind_angle'])
 
     def get_wind(self, location):
         return self.get_value(location)
@@ -236,10 +252,11 @@ class WindNinjaCLI():
         :return: arguments for WindNinja
         :rtype: dict
         """
+        assert -np.pi <= input_direction <= 2*np.pi, "Input direction should be in radians. Received: {}".format(input_direction)
         args = {'initialization_method': 'domainAverageInitialization',
                 'input_speed': input_speed,
                 'input_speed_units': 'kph',
-                'input_direction': input_direction,
+                'input_direction': trigo_angle_to_geo_angle(input_direction),
                 'input_wind_height': '10.0',
                 'units_input_wind_height': 'm',
                 'output_wind_height': '10.0',

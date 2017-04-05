@@ -154,9 +154,9 @@ class GeoData:
         ax, data, x, y, image_scale = self._get_plot_data(downscale)
 
         vel = data[length_layer]
-        ang = 180 - data[dir_layer]
-        wx = (vel * np.cos(ang / 180 * np.pi))
-        wy = (vel * np.sin(ang / 180 * np.pi))
+        ang = data[dir_layer]
+        wx = vel * np.cos(ang)
+        wy = vel * np.sin(ang)
 
         ax.quiver(*np.meshgrid(x, y), wx, wy, pivot='middle', color='dimgrey')
         plt.show(block=blocking)
