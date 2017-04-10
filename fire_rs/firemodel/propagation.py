@@ -14,7 +14,6 @@ import fire_rs.firemodel.rothermel as rothermel
 import fire_rs.firemodel.environment as env
 
 
-
 class Environment:
     def __init__(self, area, wind_speed, wind_dir):
         """Abstract class providing access to the main properties of the environment
