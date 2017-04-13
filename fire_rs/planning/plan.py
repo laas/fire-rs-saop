@@ -4,7 +4,7 @@ from fire_rs.planning.uav import UAV
 
 
 class Plan:
-    """Immutable data structure that records a plan for a given UAV as a sequence of waypoints"""
+    """Immutable data structure that records a trajectory for a given UAV as a sequence of waypoints"""
 
     def __init__(self, uav: 'UAV', waypoints, duration=None):
         self.uav = uav
@@ -60,7 +60,7 @@ class Plan:
             pass  # only one point in the resulting trajectory, duration is still 0
         if position_in_plan == 0:
             new_duration -= self.uav.travel_time(self.waypoints[0], self.waypoints[1])
-        elif position_in_plan == len(self.waypoints):
+        elif position_in_plan == len(self.waypoints) -1:
             new_duration -= self.uav.travel_time(self.waypoints[-2], self.waypoints[-1])
         else:
             new_duration -= self.uav.travel_time(self.waypoints[position_in_plan - 1],
@@ -75,19 +75,21 @@ class Plan:
 
         return Plan(self.uav, new_points, new_duration)
 
-    def plot(self, blocking=False):
+    def plot(self, axes=None, blocking=False):
         from matplotlib import patches
         from matplotlib.path import Path
         import matplotlib.pyplot as plt
-        xs = [x for (x, y) in self.waypoints]
-        ys = [y for (x, y) in self.waypoints]
 
         path = Path(self.waypoints)
         patch = patches.PathPatch(path, facecolor='none', lw=2)
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.add_patch(patch)
-        ax.set_xlim(min(xs), max(xs))
-        ax.set_ylim(min(ys), max(ys))
+        if axes is None:
+            # no axes given, generate our own
+            fig = plt.figure()
+            axes = fig.add_subplot(111)
+            xs = [x for (x, y) in self.waypoints]
+            ys = [y for (x, y) in self.waypoints]
+            axes.set_xlim(min(xs), max(xs))
+            axes.set_ylim(min(ys), max(ys))
+        axes.add_patch(patch)
         plt.show(block=blocking)
-        return ax
+        return axes
