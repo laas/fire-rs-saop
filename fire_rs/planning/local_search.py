@@ -15,10 +15,11 @@ class SearchNode:
     """A search node is composed of a sequence of Plans (one for each UAV) and provides helper functions
     to access some of their properties."""
 
-    def __init__(self, plans: 'List(Plan)', parent=None, time_budget=None, cost_function: 'Callable[[SearchNode], float]'=None):
-        assert parent is not None or time_budget is not None
+    def __init__(self, plans: 'List(Plan)', parent: 'SearchNode'=None, time_budget=None,
+                 cost_function: 'Callable[[SearchNode], float]'=None):
+        assert parent is not None or (time_budget is not None and cost_function is not None)
         self.plans = plans
-        if parent is not None:
+        if parent is not None:  # inherit default properties from parent
             self.time_budget = parent.time_budget
             self.cost_function = parent.cost_function
         if time_budget is not None:
@@ -34,18 +35,18 @@ class SearchNode:
         return ret
 
     @property
-    def is_valid(self) -> 'bool':
+    def is_valid(self) -> bool:
         """Returns True if all plans respect the time budget."""
         return all([p.duration <= self.time_budget for p in self.plans])
 
     @property
-    def cost(self) -> 'float':
+    def cost(self) -> float:
         """Lazily computes the cost of this node, based on the given cost function passed in __init__()"""
         if self._cost is None:
             self._cost = self.cost_function(self)
         return self._cost
 
-    def is_better_than(self, other: 'SearchNode') -> 'bool':
+    def is_better_than(self, other: 'SearchNode') -> bool:
         """Returns true if this node is strictly better than the 'other'.
         A node is strictly better if its cost is lower or if it has the same cost but lower duration."""
         if self.cost < other.cost:
@@ -56,16 +57,16 @@ class SearchNode:
             return False
 
     @property
-    def duration(self):
+    def duration(self) -> float:
         """Sum of the duration of all subplans."""
-        return np.sum([x.duration for x in self.plans])
+        return sum([x.duration for x in self.plans])
 
     @property
-    def length(self):
+    def length(self) -> int:
         """Total number of waypoints in all subplans."""
-        return np.sum([x.length for x in self.plans])
+        return sum([x.length for x in self.plans])
 
-    def all_waypoints(self):
+    def all_waypoints(self) -> 'List':
         """Returns the union of waypoints of all subplans."""
         return reduce(lambda x, y: x+y, map(lambda x: x.waypoints, self.plans), [])
 
@@ -84,7 +85,9 @@ def descent(node: 'SearchNode',
             continue_on_first_improvement=False,
             on_improvement: 'Callable[[SearchNode]]'=None) -> 'SearchNode':
     """
-    Local search procedure.
+    Local search procedure that iteratively selects the most improving node in the neighbors of the last selected node.
+    The best found node is returned if it has no better neighbors.
+    
     :param node: Node from which to start exploring.
     :param neighborhood: Used to generate all neighbors of a given SearchNode
     :param max_iters: Stop search after a given number of iterations [optional]
@@ -93,7 +96,7 @@ def descent(node: 'SearchNode',
     :param on_improvement: A function to invoke at each iteration (when the best node is improved) [optional]
     :return: 
     """
-    assert node.is_valid
+    assert node.is_valid, "Invalid node given to start the descent."
     best = node
     improved = True
     num_iters = 0
@@ -116,6 +119,10 @@ def descent(node: 'SearchNode',
 
 
 def construct(node: 'SearchNode', candidate_obs, cost_func: 'Callable[[List], float]') -> 'SearchNode':
+    """Constructs an initial solution.
+    Right now this simply the N most interesting node (where N is the number of UAVs) and allocates one 
+    to each UAV.
+    """
     while not all([subplan.length > 2 for subplan in node.plans]):
         best_obs = None
         best_obs_cost = np.inf
