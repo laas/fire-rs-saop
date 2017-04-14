@@ -73,6 +73,7 @@ class Insert(Neighborhood):
         neighborhood_size = len(self.observation_candidates) * node.length
         neighbors = []
 
+        # build candidates as the index of a plan and an observation to insert in it
         if neighborhood_size < self.max_neighbors:
             # we can generate all neighbors exhaustively
             candidates = [(plan_index, obs)
@@ -109,8 +110,15 @@ class Swap(Neighborhood):
 
     def neighbors(self, node: 'SearchNode') -> 'List(SearchNode)':
         self._computed_neighborhoods += 1
-        neighborhood_size = node.length * (node.length-1)
-        if neighborhood_size < self.max_neighbors:
+        # ids of plans with at least on waypoint besides start/end
+        swappable_plans = list(filter(lambda i: node.plans[i].length > 2, range(0, len(node.plans))))
+        neighborhood_size = sum([node.plans[i].length-2 for i in swappable_plans]) **2
+
+        # select candidates as two plans indexes i and j, and one wsaypoint index for each of them
+        if len(swappable_plans) <= 1:
+            # at most one non-empty plan, nothing to swap
+            candidates = []
+        elif neighborhood_size < self.max_neighbors:
             candidates = [(i, j, i_obs_id, j_obs_id)
                           for i in range(0, len(node.plans))
                           for j in range(i+1, len(node.plans))
@@ -118,8 +126,8 @@ class Swap(Neighborhood):
                           for j_obs_id in range(1, node.plans[j].length-1)]
         else:
             def random_candidate():
-                i = random.choice(range(0, len(node.plans)-1))
-                j = random.choice(range(i+1, len(node.plans)))
+                i = random.choice(swappable_plans)
+                j = random.choice(list(filter(lambda x: x != i, swappable_plans)))
                 i_obs_id = random.choice(range(1, node.plans[i].length-1))
                 j_obs_id = random.choice(range(1, node.plans[j].length-1))
                 return i, j, i_obs_id, j_obs_id
@@ -156,6 +164,8 @@ class Relocate(Neighborhood):
     def neighbors(self, node: 'SearchNode') -> 'List(SearchNode)':
         self._computed_neighborhoods += 1
         neighborhood_size = node.length * len(node.plans)
+
+        # a candidate the the move of the i_obs_id^th waypoint of the i^th plan to the j^th plan
         if neighborhood_size < self.max_neighbors:
             # exhaustively generate all candidates
             candidates = [(i, j, i_obs_id)
@@ -165,7 +175,7 @@ class Relocate(Neighborhood):
         else:
             # randomly pick 'max_neighbors' candidates
             def random_candidate():
-                i = random.choice(range(0, len(node.plans)-1))
+                i = random.choice(range(0, len(node.plans)))
                 j = random.choice(range(0, len(node.plans)))
                 i_obs_id = random.choice(range(1, node.plans[i].length-1))
                 return i, j, i_obs_id

@@ -76,10 +76,11 @@ class Plan:
         return Plan(self.uav, new_points, new_duration)
 
     def plot(self, axes=None, blocking=False):
+        """Plot the current plan on the given axes (or a new one if None is given).
+        Returns the axes on which the plan was drawn and the patch drawn."""
         from matplotlib import patches
         from matplotlib.path import Path
         import matplotlib.pyplot as plt
-
         path = Path(self.waypoints)
         patch = patches.PathPatch(path, facecolor='none', lw=2)
         if axes is None:
@@ -91,5 +92,6 @@ class Plan:
             axes.set_xlim(min(xs), max(xs))
             axes.set_ylim(min(ys), max(ys))
         axes.add_patch(patch)
+
         plt.show(block=blocking)
-        return axes
+        return axes, patch
