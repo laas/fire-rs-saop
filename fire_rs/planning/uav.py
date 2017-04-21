@@ -115,15 +115,19 @@ class DubinsUAV2D(UAV):
             dubins_paths.extend(["RLR", "LRL"])
 
         dubins_lenght = np.empty(len(dubins_paths))
+        shortest_path = (np.inf, )
         for i, candidate in enumerate(dubins_paths):
             if candidate[1].lower() == 's':
-                dubins_lenght[i] = self.create_csc_trajectory(origin, destination,
-                                                              rot_orig=candidate[0], rot_dest=candidate[2])[0]
+                d = self.create_csc_trajectory(origin, destination, rot_orig=candidate[0], rot_dest=candidate[2])
+                if d[0] < shortest_path[0]:
+                    shortest_path = d
+                dubins_lenght[i] = d[0]
+                # self.plot_dubins(origin, destination, *d[1:])
             else:  # candidate[1] != 's'
                 dubins_lenght[i] = np.inf
                 # TODO implement create_ccc_trajectory
 
-        return np.min(dubins_paths)
+        return shortest_path[0], shortest_path[1:]
 
     def create_csc_trajectory(self, origin, destination, rot_orig='l', rot_dest='l'):
         """Calculate the lenght of a Dubins path of CSC (Circle, Straight line, Circle) type."""
