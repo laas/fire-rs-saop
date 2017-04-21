@@ -1,10 +1,11 @@
+import numpy as np
 from matplotlib import pyplot
 from sklearn.cluster import KMeans
 from fire_rs.geodata.environment import World
 
 
 area = [[530000.0, 535000.0], [6230000.0, 6235000.0]]
-area_wind = (10, 180)
+area_wind = (10, np.pi)
 
 world = World()
 some_area_wind = world.get_wind(area, domain_average=area_wind)
