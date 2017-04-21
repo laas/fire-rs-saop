@@ -79,12 +79,12 @@ class DubinsUAV2D(UAV):
             raise AttributeError()
 
     @staticmethod
-    def _draw_arc(c, a, theta, color):
+    def _draw_arc(c, a, theta, **kwargs):
         """Draw a circunference arc.
         c: center
         a: starting point of the arc
         theta: end angle
-        color: color"""
+        **kwargs: other arguments to plt.plot"""
         s = np.arange(0, abs(theta), 0.01)
         s = np.sign(theta) * s
         d = a - c
@@ -94,7 +94,13 @@ class DubinsUAV2D(UAV):
         for i, t in enumerate(s):
             w[i] = c + r * np.array([[np.cos(alpha), -np.sin(alpha)], [np.sin(alpha), np.cos(alpha)]]) @ np.array(
                     [np.cos(t), np.sin(t)])
-        plt.plot(w[:, 0], w[:, 1], color, linewidth=1)
+        plt.plot(w[:, 0], w[:, 1], **kwargs)
+
+    def plot_dubins(self, origin, destination, r, co, epsa, do, betao, cd, epsb, dd, betad):
+        plt.plot([co[0], cd[0]], [co[1], cd[1]], 'x', color='lightgrey')
+        DubinsUAV2D._draw_arc(co, origin[0:2], betao, color='darkcyan')
+        DubinsUAV2D._draw_arc(cd, destination[0:2], -betad, color='blue')
+        plt.plot([do[0], dd[0]],[do[1], dd[1]], color='blueviolet')
 
     def travel_time(self, origin, destination):
         """Return the travel time (s) to go from a point 'origin' to a point 'destination'.
@@ -144,8 +150,8 @@ class DubinsUAV2D(UAV):
         co = po + epsa * r * np.array([-np.sin(po_ang), np.cos(po_ang)])  # po_vec is rotated ±90º
         cd = pd + epsb * r * np.array([-np.sin(pd_ang), np.cos(pd_ang)])  # pd_vec is rotated ±90º
 
-        plt.plot([co[0], cd[0]], [co[1], cd[1]], 'x')
-        plt.plot([po[0], pd[0]], [po[1], pd[1]], 'o')
+        # plt.plot([co[0], cd[0]], [co[1], cd[1]], 'x')
+        # plt.plot([po[0], pd[0]], [po[1], pd[1]], 'o')
 
         alpha = 0  #
         ell = 0  # Half the length of the straight part
@@ -153,7 +159,7 @@ class DubinsUAV2D(UAV):
             ell2 = 0.25 * np.linalg.norm(cd - co)**2 - r**2
             if ell2 < 0:
                 return np.inf, None
-            ell = np.sqrt(ell2);
+            ell = np.sqrt(ell2)
             alpha = -epsa * np.arctan2(ell, r)
 
         if epsa * epsb == 1: # RSR or LSL
@@ -168,9 +174,9 @@ class DubinsUAV2D(UAV):
 
         L = r * (abs(betad) + abs(betao) + 2 * ell)
 
-        DubinsUAV2D._draw_arc(co, po, betao,'black')
-        DubinsUAV2D._draw_arc(cd, pd, -betad,'blue')
-        plt.plot([do[0], dd[0]],[do[1], dd[1]], 'r')
+        # DubinsUAV2D._draw_arc(co, po, betao,'black')
+        # DubinsUAV2D._draw_arc(cd, pd, -betad,'blue')
+        # plt.plot([do[0], dd[0]],[do[1], dd[1]], 'r')
 
         # returns:
         #   L: lenght of the trajectory
