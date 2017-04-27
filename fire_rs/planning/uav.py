@@ -196,7 +196,7 @@ class DubinsUAV2D(UAV):
         return L, r, co, epsa, do, betao, cd, epsb, dd, betad
 
 
-class FixedWingRollRate:
+class _FixedWingRollRate:
     """2D FixedWing kinematic model commanded by roll rate.
     
         ⎛ẋ₁⎞   ⎛ẋ⎞   ⎛ V·cos(ψ) ⎞   ⎛0⎞  
@@ -233,11 +233,11 @@ class FixedWingRollRate:
         self.state[3] = np.clip(self.state[3], -self.roll_max, self.roll_max)
         self.output = self.state
 
-    def __repr__(self):
-        return repr(self.state)
+    def __str__(self):
+        return str(", ".join([": ".join((a, "{0: .5f}".format(b))) for a, b in zip(('x','y','ψ','ϕ'), self.state)]))
 
 
-class FixedWingRollRateControlled:
+class FixedWing:
     """2D fixed wing plane with heading as input
     
     Using feedback linearization on the heading:
@@ -257,8 +257,8 @@ class FixedWingRollRateControlled:
                          ↑
                          Desired Heading
     """
-    def __init__(self, fixedwing: 'FixedWingRollRate', initial_state=None):
-        self.fixedwing = fixedwing  # [x, y, ψ, ϕ]
+    def __init__(self, velocity, roll_max, initial_state=np.array([0,0,0,0])):
+        self.fixedwing = _FixedWingRollRate(velocity, roll_max, initial_state)  # [x, y, ψ, ϕ]
         self.state = None
         self.input = np.array([0])  # desired heading, (1st derivative & second derivative will be always zero)
         self.output = self.fixedwing.state  # [x, y, ψ, ϕ]
@@ -281,9 +281,8 @@ class FixedWingRollRateControlled:
         self.fixedwing.step(delta)
         self.output = self.fixedwing.state
 
-    def __repr__(self):
-        return repr(self.state)
-
+    def __str__(self):
+        return str(self.fixedwing)
 
 # the X8 Skywalker UAV from PORTO
 skywalker = UAV(10, 20, 2, 3)
@@ -301,8 +300,7 @@ if __name__ == "__main__":
 
     def uav_controlled_demo():
         import matplotlib.pyplot as plt
-        avion = FixedWingRollRate(10, np.pi / 6)
-        avion_cont = FixedWingRollRateControlled(avion)
+        avion_cont = FixedWing(10, np.pi / 6)
         t_end = 500
         estados = np.zeros((t_end, 4))
         u = np.pi*np.sin(0.01*np.arange(t_end))
@@ -310,10 +308,12 @@ if __name__ == "__main__":
             avion_cont.input = np.array([u[i]])
             avion_cont.step(0.1)
             estados[i] = avion_cont.output
+            print(str(avion_cont))
         for i in range(300, 500):
             avion_cont.input = np.array([u[i]])
             avion_cont.step(0.1)
             estados[i] = avion_cont.output
+            print(str(avion_cont))
         fig = plt.figure(0)
         ax = fig.add_subplot(121, aspect='equal')
         ax.set_xlim(-200, 200)
