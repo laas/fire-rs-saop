@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from collections import deque, defaultdict
 from collections import namedtuple
 from sklearn.cluster import DBSCAN
-from sklearn import metrics
+from sklearn.linear_model import LinearRegression, RANSACRegressor
 from sklearn.datasets.samples_generator import make_blobs
 from sklearn.preprocessing import StandardScaler
 from sklearn import datasets
@@ -22,7 +22,7 @@ camera_fov = (10, 10) # Horizontal, Vertical
 # Generate sample data
 centers = [[1, 1], [-1, -1], [1, -1], [2, 2]]
 points_of_interest, labels_true = make_blobs(n_samples=200, cluster_std=1, centers=20,
-                            random_state=22)
+                            random_state=21172)
 points_of_interest = points_of_interest * 10
 
 
@@ -153,9 +153,11 @@ def distance_point_to_line(point, line: 'VectorLine'):
 
 class SegmentObservationPath():
 
-    def __init__(self, points, camera_fov):
+    def __init__(self, points, camera_fov, regressor=LinearRegression()):
         self.points = points
         self.camera_fov = camera_fov
+        self.regressor = regressor
+
         self.observed = np.zeros(self.points.shape[0], dtype=np.bool)
         self.line = None
         self.regression = None
@@ -165,14 +167,20 @@ class SegmentObservationPath():
         self._determine_coverage()
         self._determine_segment()
 
-
     def _linear_regression(self):
         """Get the line that fits the best a set of points using linear regression"""
-        # TODO: Improve using a robust regression estimator (ie. RANSAC)
-        self.regression = linregress(self.points[..., 0], self.points[..., 1])
-        logging.info("Cluster: {}\n\tslope: {}\n\ty(0): {}\n\tr: {}\n\tp: {}\n\tstderr: {}".format(
-            self.points, self.regression.slope, self.regression.intercept, self.regression.rvalue, self.regression.pvalue, self.regression.stderr))
-        self.line = PointSlopeLine(np.array([0, self.regression.intercept]), self.regression.slope).to_vector_form()
+        self.regressor.fit(X=self.points[..., 0][..., np.newaxis], y=self.points[..., 1])
+        if isinstance(self.regressor, RANSACRegressor):
+            logging.info("Cluster: {}\n\tslope: {}\n\ty(0): {}\n\tresidues: {}".format(
+                self.points, self.regressor.estimator_.coef_, self.regressor.estimator_.intercept_,
+                self.regressor.estimator_.residues_))
+            self.line = PointSlopeLine(np.array([0, self.regressor.estimator_.intercept_]),
+                                       float(self.regressor.estimator_.coef_)).to_vector_form()
+        else:
+            logging.info("Cluster: {}\n\tslope: {}\n\ty(0): {}\n\tresidues: {}".format(
+                self.points, self.regressor.coef_, self.regressor.intercept_, self.regressor.residues_))
+            self.line = PointSlopeLine(np.array([0, self.regressor.intercept_]),
+                                       float(self.regressor.coef_)).to_vector_form()
 
     def _determine_coverage(self):
         """Evaluate how many points are observed flying over a linear trajectory"""
@@ -182,7 +190,7 @@ class SegmentObservationPath():
             else:
                 self.observed[i] = False
 
-        logging.info("{}/{} points observed".format(np.count_nonzero(self.observed), self.points.shape[0]))
+        logging.info("{}: {}/{} points observed".format(str(type(self.regressor)), np.count_nonzero(self.observed), self.points.shape[0]))
 
     def _determine_segment(self):
         line_pslope = self.line.to_point_slope_form()
@@ -198,16 +206,27 @@ class SegmentObservationPath():
 
 def linear_paths():
     clusters, unclustered = cluster(points_of_interest)
+    n_observations_cumulated = {'LinearRegression': 0, 'RANSACRegressor':0}
     for c in clusters:
-        obs_path = SegmentObservationPath(c, camera_fov)
+        obs_path = SegmentObservationPath(c, camera_fov, regressor=LinearRegression())
         observed = c[obs_path.observed]
         plt.plot(observed[:, 0], observed[:, 1], 'o', markerfacecolor='green',
                  markeredgecolor='green', markersize=10)
         plt.plot([obs_path.segment[0][0], obs_path.segment[1][0]], [obs_path.segment[0][1], obs_path.segment[1][1]], linewidth=3, color='k')
+        n_observations_cumulated['LinearRegression'] += np.count_nonzero(obs_path.observed)
+
+        obs_path = SegmentObservationPath(c, camera_fov, regressor=RANSACRegressor())
+        observed = c[obs_path.observed]
+        plt.plot(observed[:, 0], observed[:, 1], 'o', markerfacecolor='blue',
+                 markeredgecolor='blue', markersize=5)
+        plt.plot([obs_path.segment[0][0], obs_path.segment[1][0]], [obs_path.segment[0][1], obs_path.segment[1][1]],
+                 linewidth=3, color='b')
+        n_observations_cumulated['RANSACRegressor'] += np.count_nonzero(obs_path.observed)
         # pl1 = obs_path._left_perp_line.point + obs_path._left_perp_line.vector*-50
         # pl2 = obs_path._left_perp_line.point + obs_path._left_perp_line.vector*50
         # plt.plot([pl1[0], pl2[0]], [pl1[1], pl2[1]])
 
+    print(n_observations_cumulated)
 
 if __name__ == '__main__':
     # tesselate()
