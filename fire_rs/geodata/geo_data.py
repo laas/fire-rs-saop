@@ -214,6 +214,45 @@ class GeoData:
             outband.FlushCache()
         out_raster.SetProjection(self.projection.ExportToWkt())
 
+    @classmethod
+    def load_from_file(cls, filename: str):
+        handle = gdal.Open(filename)
+
+        expected_projection = osr.SpatialReference()
+        expected_projection.ImportFromEPSG(2154)  # EPSG code for RGF93 / Lambert-93 projection
+        assert handle.GetProjection() == expected_projection.ExportToWkt()
+
+        geotransform = handle.GetGeoTransform()
+        x_delta = geotransform[1]
+        y_delta = geotransform[5]
+
+
+        x_orig = geotransform[0] + x_delta / 2
+        y_orig = geotransform[3] + y_delta / 2
+
+        layers = []
+        for i in range(handle.RasterCount):
+            raster_band = handle.GetRasterBand(i + 1)  # Band indices start at 1
+            band_name = raster_band.GetDescription()
+            if not band_name:
+                band_name = "band {}".format(i + 1)
+            layer = np.array(raster_band.ReadAsArray(), dtype=[(band_name, np.float32)])
+            layers.append(layer)
+
+        array = join_structured_arrays(layers)
+
+        if y_delta > 0:
+            array = array.transpose()  # in "image" files, rows and columns are inverted
+        else:
+            # workaround a wind ninja bug that does not work with non-negative cell height
+            # hence, we invert our matrix on the y axis to have a negative cell_height
+
+            y_orig = geotransform[3] + handle.RasterYSize * y_delta - y_delta / 2
+            y_delta = -y_delta
+            array = array[...,::-1].transpose()
+
+        return cls(array, x_orig, y_orig, x_delta, y_delta)
+
 
 def join_structured_arrays(arrays):
     """Efficient method to combine several structured arrays into a single one.
