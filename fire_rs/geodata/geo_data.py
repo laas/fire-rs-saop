@@ -1,3 +1,5 @@
+from functools import reduce
+
 import gdal
 import numpy as np
 from typing import List, Tuple
@@ -36,9 +38,24 @@ class GeoData:
         return self.data
 
     @property
+    def layers(self):
+        return self.data.dtype.names
+
+    @property
     def data_display(self):
         """Data array in display form."""
-        return self.data.T[::-1,...]
+        return self.data.T[::-1, ...]
+
+    def slice(self, layers: 'List') -> 'GeoData':
+        """Builds a new GeoData with a subset of the layers"""
+        assert len(layers) >= 1
+        if len(layers) == 1:
+            layer = layers[0]
+            t = self.data.dtype.fields[layer][0]  # type of layer
+            return self.clone(data_array=self.data[layer], dtype=[(layer, t)])
+        else:
+            unary_slices = [self.slice([l]) for l in layers]
+            return reduce(lambda x, y: x.combine(y), unary_slices[1:], unary_slices[0])
 
     def subset(self, area: Tuple[Tuple[float, float], Tuple[float, float]]) -> 'GeoData':
         ((x_min, x_max), (y_min, y_max)) = area
@@ -225,7 +242,6 @@ class GeoData:
         geotransform = handle.GetGeoTransform()
         x_delta = geotransform[1]
         y_delta = geotransform[5]
-
 
         x_orig = geotransform[0] + x_delta / 2
         y_orig = geotransform[3] + y_delta / 2

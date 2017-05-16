@@ -6,6 +6,7 @@ import heapq
 
 import numpy as np
 
+from fire_rs.geodata.clustering import cluster_multi_layer
 from fire_rs.geodata.environment import World
 from fire_rs.geodata.geo_data import GeoData
 
@@ -26,6 +27,16 @@ class Environment:
         moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
         fuel = slope.clone(fill_value=env.get_fuel_model_id('SH5'), dtype=[('fuel', 'int32')])
         self.raster = slope.combine(wind).combine(moisture).combine(fuel)
+        self._clustering = None
+
+    @property
+    def clustering(self):
+        if self._clustering is None:
+            base_for_clustering = self.raster.slice(['wind_angle', 'wind_velocity', 'fuel', 'moisture'])
+            self._clustering = cluster_multi_layer(base_for_clustering,
+                                                   err_by_layer={'wind_angle': 0.2, 'wind_velocity': 2},
+                                                   already_clustered=['fuel', 'moisture'])
+        return self._clustering
 
     def get_fuel_type(self, x, y):
         """Returns the fuel type (e.g. 'SH5') in (x,y)"""

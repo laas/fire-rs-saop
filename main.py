@@ -8,8 +8,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource
 from matplotlib.ticker import FuncFormatter
-from matplotlib import cm
+from matplotlib import cm, pyplot
 import numpy as np
+
 
 def display():
 
@@ -38,6 +39,7 @@ def display():
 
     # Light a fire and propagate it over the whole area
     env = propagation.Environment(area, wind_speed=area_wind[0], wind_dir=area_wind[1])
+    env.clustering.plot()
     ignitions = propagation.propagate(env, *ignition_point)
     ignitions.write_to_file('/tmp/igni.tif')
 
@@ -170,4 +172,6 @@ def step_by_step():
         plt.pause(0.1)
 
 if __name__ == "__main__":
-    step_by_step()
+    # step_by_step()
+    display()
+    pyplot.show()
