@@ -257,10 +257,11 @@ class FixedWing:
                          ↑
                          Desired Heading
     """
-    def __init__(self, velocity, roll_max, initial_state=np.array([0,0,0,0])):
+
+    def __init__(self, velocity, roll_max, initial_state=np.array([0.,0.,0.,0.])):
         self.fixedwing = _FixedWingRollRate(velocity, roll_max, initial_state)  # [x, y, ψ, ϕ]
-        self.state = None
-        self.input = np.array([0])  # desired heading, (1st derivative & second derivative will be always zero)
+        self.state = self.fixedwing.state
+        self.input = np.array([0.])  # desired heading, (1st derivative & second derivative will be always zero)
         self.output = self.fixedwing.state  # [x, y, ψ, ϕ]
 
     def _xdot(self):
@@ -279,10 +280,32 @@ class FixedWing:
     def step(self, delta):
         self.fixedwing.input = self._xdot()
         self.fixedwing.step(delta)
+        self.state = self.fixedwing.state
         self.output = self.fixedwing.state
+
+    def run(self, delta, n_iterations=np.inf):
+        n = 0
+        while n < n_iterations:
+            self.step(delta)
+            n += 1
+            yield (n, self.output)
+
+    def reset_state(self, default_state=np.array([0.,0.,0.,0.])):
+        self.fixedwing.state = default_state
+        self.state = self.fixedwing.state
+        self.fixedwing.output = default_state
+        self.output = self.fixedwing.output
 
     def __str__(self):
         return str(self.fixedwing)
+
+    def copy(self):
+        new_uav = FixedWing(velocity=self.fixedwing.velocity,
+                            roll_max=self.fixedwing.roll_max,
+                            initial_state=self.fixedwing.state.copy())
+        new_uav.output = self.output.copy()
+        new_uav.input = self.input.copy()
+        return new_uav
 
 # the X8 Skywalker UAV from PORTO
 skywalker = UAV(10, 20, 2, 3)
