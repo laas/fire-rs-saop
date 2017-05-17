@@ -8,8 +8,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource
 from matplotlib.ticker import FuncFormatter
-from matplotlib import cm
+from matplotlib import cm, pyplot
 import numpy as np
+
 
 def display():
 
@@ -38,7 +39,7 @@ def display():
 
     # Light a fire and propagate it over the whole area
     env = propagation.Environment(area, wind_speed=area_wind[0], wind_dir=area_wind[1])
-    ignitions = propagation.propagate(env, *ignition_point)
+    ignitions = propagation.propagate(env, *ignition_point).slice(['ignition'])
     ignitions.write_to_file('/tmp/igni.tif')
 
 
@@ -139,35 +140,28 @@ def display():
 def step_by_step():
     area = [[530000.0, 535000.0], [6230000.0, 6235000.0]]
     ignition_point = (100, 100)
+    ignition_time = 0
     area_wind = (10, np.pi)
-
-    # Obtain geographic data of defined area
-    world = environment.World()
-    some_area = world.get_elevation(area)
-    some_area_wind = world.get_wind(area, domain_average=area_wind)
-    some_area_slope = world.get_slope(area)
-
-    x = (np.arange(some_area.data.shape[0]) * some_area.cell_width) + some_area.x_offset
-    y = (np.arange(some_area.data.shape[1]) * some_area.cell_height) + some_area.y_offset
-
-    X, Y = np.meshgrid(x, y)
-    Z = some_area.data['elevation']
 
     # Light a fire and propagate it over the whole area
     env = propagation.Environment(area, wind_speed=area_wind[0], wind_dir=area_wind[1])
-    propag = propagation.propagator(env, *ignition_point, 100)
-    ini = next(propag)
+    propag = propagation.FirePropagation(env)
+    propag.set_ignition_point(*ignition_point, ignition_time)
 
-    fire_fig = plt.figure()
-    fire_ax = fire_fig.gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
-    p = plt.imshow(ini.data.view('float32'))
-    fig = plt.gcf()
-    # plt.clim()  # clamp the color limits
+    plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
+
+    # todo: axes and directions are wrong when using imshow to display an array (see workarounds in GeoData)
+    p = plt.imshow(propag.slice(['ignition']).data.view('float32'))
     plt.title("Wildfire propagation")
 
-    for firefront in propag:
-        p.set_data(firefront.data.view('float32'))
+    next_step = ignition_time
+    while not propag.propagation_finished:
+        propag.propagate(next_step)
+        next_step += 300
+        p.set_data(propag.slice(['ignition']).data.view('float32'))
         plt.pause(0.1)
 
 if __name__ == "__main__":
-    step_by_step()
+    # step_by_step()
+    display()
+    pyplot.show()
