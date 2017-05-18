@@ -19,7 +19,7 @@ class Environment:
     def __init__(self, area, wind_speed, wind_dir):
         """Abstract class providing access to the main properties of the environment
 
-        :param area: ((x_min, x_max), y_min, y_max))
+        :param area: ((x_min, x_max), (y_min, y_max))
         """
         world = World()
         slope = world.get_slope(area)
@@ -154,6 +154,66 @@ class FirePropagation(GeoData):
                     self.data[x + dx, y + dy][1] = x
                     self.data[x + dx, y + dy][2] = y
                     self._push_to_propagation_queue(x + dx, y + dy, t + dt)
+
+    def information_matrix(self):
+        d = self.clone(fill_value=0, dtype=[('env_cluster', 'int32'), ('propagation_angle', 'float32'),
+                                        ('propagation_speed', 'float32'), ('error_on_speed', 'float32')])
+        for x in range(0, d.max_x):
+            for y in range(0, d.max_y):
+                dxy = d.data[x, y]
+                cluster, angle, speed, error = self.information_gain(x, y)
+                dxy[0] = cluster
+                dxy[1] = angle
+                dxy[2] = speed
+                dxy[3] = error
+
+        c = d.slice(['env_cluster', 'propagation_angle'])
+        cc = cluster_multi_layer(c, {'propagation_angle': 0.1}, already_clustered=['env_cluster'], cluster_layer_name='information_clustering')
+        return d.combine(cc)
+
+    def information_gain(self, x, y):
+        def pred(x, y):
+            return self.data[x, y][1], self.data[x, y][2]
+
+        def has_pred(x, y):
+            return pred(x, y) != (x, y) and pred(x, y) != (-1, -1) and cluster_of(x, y) == cluster_of(*pred(x, y))
+
+        def propagation_angle(x, y):
+            if pred(x, y) != (x, y) and pred(x, y) != (-1, -1):
+                px, py = pred(x, y)
+                return np.arctan2(y - py, x - px)
+            else:
+                return 0
+
+        def cluster_of(x, y):
+            return self.environment.clustering.data[x, y][0]
+
+        def ignition_time(x, y):
+            return self.data[x, y][0]
+
+        def oldest_straight_line_pred(x, y):
+            if not has_pred(x, y) or cluster_of(x, y) != cluster_of(*pred(x, y)):
+                return -1, -1
+            px, py = pred(x, y)
+            while has_pred(px, py) and propagation_angle(px, py) == propagation_angle(x, y)\
+                    and cluster_of(x, y) == cluster_of(*pred(px, py)):
+                px, py = pred(px, py)
+            return px, py
+
+        if has_pred(x, y):
+            px, py = oldest_straight_line_pred(x, y)
+            dist = np.sqrt((x-px)**2 + (y-py)**2) * self.cell_height
+            ts = ignition_time(*pred(x, y))
+            te = ignition_time(x, y)
+            speed = dist / (te - ts)
+            traversal_time = self.cell_height / speed
+            min_obs_speed = dist / (te + traversal_time - ts)
+            max_obs_speed = dist / max(0.00001, (te - (ts + traversal_time)))
+            error = max_obs_speed - min_obs_speed
+
+            return cluster_of(x, y), propagation_angle(x, y), speed, error
+        else:
+            return cluster_of(x, y), propagation_angle(x, y), np.nan, np.nan
 
 
 def propagate(env: Environment, x: int, y: int) -> 'FirePropagation':
