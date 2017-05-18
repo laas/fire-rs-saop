@@ -37,7 +37,7 @@ class GeoData:
         return self.data.__repr__()
 
     def __getitem__(self, item):
-        return self.data
+        return self.data[item]
 
     @property
     def layers(self):
