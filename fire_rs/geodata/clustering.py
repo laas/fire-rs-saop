@@ -4,7 +4,7 @@ from fire_rs.geodata.environment import World
 from fire_rs.geodata.geo_data import GeoData
 
 
-def cluster_multi_layer(arr: 'GeoData', err_by_layer, already_clustered=()):
+def cluster_multi_layer(arr: 'GeoData', err_by_layer, already_clustered=(), cluster_layer_name='clustering'):
     """Clusters a GeoData by (1) clustering each of its layers individually, (2) combining each clustered layer 
     into a new clustering such that two cells are in the same cluster all the each of their individual layers are in 
     the same cluster.
@@ -35,8 +35,8 @@ def cluster_multi_layer(arr: 'GeoData', err_by_layer, already_clustered=()):
     for i in range(1, len(clustered_slices)):
         x += clustered_slices[i].data.view('int32') * (max_val**i)
     # x is now a full clustering taking into accounts all layers. Make it a geodata and return
-    full_cluster = arr.clone(data_array=x, dtype=[('clustering', 'int32')])
-    return full_cluster
+    full_cluster = arr.clone(data_array=x, dtype=[(cluster_layer_name, 'int32')])
+    return simplify_cluster(full_cluster)
 
 
 def regular_partition_clustering(arr, max_error):
@@ -56,6 +56,28 @@ def regular_partition_clustering(arr, max_error):
         clustered = arr.clone(data_array=clustered.reshape(arr.data.shape), dtype=[('clustered_'+arr.layers[0], 'int32')])
     else:
         clustered = clustered.reshape(arr.shape)
+    return simplify_cluster(clustered)
+
+
+def simplify_cluster(arr):
+    """Given a clustering with N clusters, change the clusters ids to [0, N["""
+    # extract the array into a 1D array of int32
+    if isinstance(arr, GeoData):
+        assert len(arr.layers) == 1, "Cannot cluster a GeoData with more than 1 layer"
+        x = arr.data.reshape(arr.data.size).astype('int32')
+    else:
+        x = arr.reshape(arr.size).astype('int32')
+
+    simplified = np.copy(x)
+    for k, v in enumerate(np.unique(x)):  # k is the index of the unique value v
+        simplified[x == v] = k  # replace v by its index in the unique list
+
+    # put back array in original form
+    if isinstance(arr, GeoData):
+        clustered = arr.clone(data_array=simplified.reshape(arr.data.shape),
+                              dtype=[('clustered_' + arr.layers[0], 'int32')])
+    else:
+        clustered = simplified.reshape(arr.shape)
     return clustered
 
 
