@@ -5,6 +5,8 @@ from fire_rs.geodata import environment
 import fire_rs.firemodel.propagation as propagation
 import fire_rs.display
 import fire_rs.planning.observation_path_search
+import fire_rs.geodata.geo_data
+import os
 
 
 def burn(area_bounds, ignition_point, wind):
@@ -18,7 +20,14 @@ def main():
     area = [[530000.0, 535000.0], [6230000.0, 6235000.0]]
     ignition_point = (100, 100)
     area_wind = (10, np.pi)
-    ignition_times = burn(area, ignition_point, area_wind)
+    ignition_times = None
+    if not os.path.exists('/tmp/ignition.tmp'):
+        ignition_times = burn(area, ignition_point, area_wind)
+        ignition_times.write_to_file('/tmp/ignition.tmp')
+    else:
+        ignition_times = fire_rs.geodata.geo_data.GeoData.load_from_file('/tmp/ignition.tmp')
+    ignition_times.plot('ignition')
+
 
     world = environment.World()
     some_area = world.get_elevation(area)
@@ -47,13 +56,14 @@ def main():
                     selected_points.append([hor, ver])
         selected_points = np.array(selected_points)
         try:
-            fire_rs.planning.observation_path_search.process_points(selected_points, (10,10), eps=5)
+            fire_rs.planning.observation_path_search.process_points(selected_points, (5,5), eps=5)
         except ValueError:
             logging.exception("")
 
 
 if __name__ == '__main__':
     main()
+    print("stop")
 
 
 
