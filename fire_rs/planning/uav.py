@@ -288,7 +288,7 @@ class FixedWing:
         while n < n_iterations:
             self.step(delta)
             n += 1
-            yield (n, self.output)
+            yield self.output
 
     def reset_state(self, default_state=np.array([0.,0.,0.,0.])):
         self.fixedwing.state = default_state
