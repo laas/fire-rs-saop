@@ -19,14 +19,15 @@ class Environment:
     def __init__(self, area, wind_speed, wind_dir):
         """Abstract class providing access to the main properties of the environment
 
-        :param area: ((x_min, x_max), y_min, y_max))
+        :param area: ((x_min, x_max), (y_min, y_max))
         """
         world = World()
+        elevation = world.get_elevation(area)
         slope = world.get_slope(area)
         wind = world.get_wind(area, domain_average=(wind_speed, wind_dir))
         moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
         fuel = slope.clone(fill_value=env.get_fuel_model_id('SH5'), dtype=[('fuel', 'int32')])
-        self.raster = slope.combine(wind).combine(moisture).combine(fuel)
+        self.raster = slope.combine(wind).combine(moisture).combine(fuel).combine(elevation)
         self._clustering = None
 
     @property
@@ -86,31 +87,35 @@ neighborhood = [(1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1), (0,-1), (1,-1),
     (2,1), (2,-1), (-2,1), (-2,-1), (1,2), (1,-2), (-1,2), (-1,-2)]
 
 
-class FirePropagation(GeoData):
+class FirePropagation:
     """Class to compute and store fire propagation data."""
 
     def __init__(self, environment: 'Environment'):
         self.environment = environment
         # build internal data structure compose of three layers ['ignition', 'x_pred', 'y_pred']
-        tmp = environment.raster.clone(fill_value=2**63-1, dtype=[('ignition', 'float32')])
+        self.prop_data = environment.raster.clone(fill_value=2**63-1, dtype=[('ignition', 'float32')])
         tmp2 = environment.raster.clone(fill_value=-1, dtype=[('x_pred', 'int32'), ('y_pred', 'int32')])
-        super().__init__(tmp.combine(tmp2).data, environment.raster.x_offset, environment.raster.y_offset,
-                         environment.raster.cell_width, environment.raster.cell_height)
+        self.prop_data = self.prop_data.combine(tmp2)
 
         self._propagation_queue = []
         heapq.heapify(self._propagation_queue)
-        (self.max_x, self.max_y) = self.data.shape
+        (self.max_x, self.max_y) = self.prop_data.data.shape
+        self._ignition_points = []
 
     def set_ignition_point(self, x, y, time):
         """Sets the given (x, y) point as on fire at the given time.
         Multiple ignition points can be provided.
         """
         # ignition time of (x, y) is time
-        self.data[x, y][0] = time
+        self.prop_data.data[x, y][0] = time
         # predecessor of (x, y) is itself (i.e. meaning no predecessor)
-        self.data[x, y][1] = x
-        self.data[x, y][2] = y
+        self.prop_data.data[x, y][1] = x
+        self.prop_data.data[x, y][2] = y
         self._push_to_propagation_queue(x, y, time)
+        self._ignition_points.append((x, y))
+
+    def ignitions(self):
+        return self.prop_data.slice(['ignition'])
 
     def _push_to_propagation_queue(self, x, y, time):
         heapq.heappush(self._propagation_queue, (time, (x, y)))
@@ -128,8 +133,11 @@ class FirePropagation(GeoData):
         return len(self._propagation_queue) == 0
 
     def propagate(self, horizon):
-        assert self.cell_width == self.cell_height
-        cell_size = self.cell_height
+        assert self.prop_data.cell_width == self.prop_data.cell_height
+        cell_size = self.prop_data.cell_height
+
+        d = self.prop_data.data
+
         # Dijkstra propagation of fire
         while not len(self._propagation_queue) == 0:
             # peek top value
@@ -148,12 +156,134 @@ class FirePropagation(GeoData):
                 angle = np.arctan2(dy, dx)  # angle to neighbor
                 speed = spread_shape.speed(angle)  # ros in the direction of neighbor
                 dt = dist / speed  # time for fire to reach neighbor
-                if self.data[x + dx, y + dy][0] > t + dt:
+                if d[x + dx, y + dy][0] > t + dt:
                     # update ignition time, predecessor and add to queue
-                    self.data[x + dx, y + dy][0] = t + dt
-                    self.data[x + dx, y + dy][1] = x
-                    self.data[x + dx, y + dy][2] = y
+                    d[x + dx, y + dy][0] = t + dt
+                    d[x + dx, y + dy][1] = x
+                    d[x + dx, y + dy][2] = y
                     self._push_to_propagation_queue(x + dx, y + dy, t + dt)
+
+    def information_matrix(self):
+        d = self.prop_data.clone(fill_value=0, dtype=[('env_cluster', 'int32'), ('propagation_angle', 'float32'),
+                                                      ('propagation_speed', 'float32'), ('error_on_speed', 'float32')])
+        for x in range(0, d.max_x):
+            for y in range(0, d.max_y):
+                dxy = d.data[x, y]
+                cluster, angle, speed, error = self.information_gain(x, y)
+                dxy[0] = cluster
+                dxy[1] = angle
+                dxy[2] = speed
+                dxy[3] = error
+
+        c = d.slice(['env_cluster', 'propagation_angle'])
+        cc = cluster_multi_layer(c, {'propagation_angle': 0.1}, already_clustered=['env_cluster'], cluster_layer_name='information_clustering')
+        return d.combine(cc)
+
+    def information_gain(self, x, y):
+        def pred(x, y):
+            return self.prop_data.data[x, y][1], self.prop_data.data[x, y][2]
+
+        def has_pred(x, y):
+            return pred(x, y) != (x, y) and pred(x, y) != (-1, -1) and cluster_of(x, y) == cluster_of(*pred(x, y))
+
+        def propagation_angle(x, y):
+            if pred(x, y) != (x, y) and pred(x, y) != (-1, -1):
+                px, py = pred(x, y)
+                return np.arctan2(y - py, x - px)
+            else:
+                return 0
+
+        def cluster_of(x, y):
+            return self.environment.clustering.data[x, y][0]
+
+        def ignition_time(x, y):
+            return self.prop_data.data[x, y][0]
+
+        def oldest_straight_line_pred(x, y):
+            if not has_pred(x, y) or cluster_of(x, y) != cluster_of(*pred(x, y)):
+                return -1, -1
+            px, py = pred(x, y)
+            while has_pred(px, py) and propagation_angle(px, py) == propagation_angle(x, y)\
+                    and cluster_of(x, y) == cluster_of(*pred(px, py)):
+                px, py = pred(px, py)
+            return px, py
+
+        if has_pred(x, y):
+            px, py = oldest_straight_line_pred(x, y)
+            dist = np.sqrt((x-px)**2 + (y-py)**2) * self.prop_data.cell_height
+            ts = ignition_time(*pred(x, y))
+            te = ignition_time(x, y)
+            speed = dist / (te - ts)
+            traversal_time = self.prop_data.cell_height / speed
+            min_obs_speed = dist / (te + traversal_time - ts)
+            max_obs_speed = dist / max(0.00001, (te - (ts + traversal_time)))
+            error = max_obs_speed - min_obs_speed
+
+            return cluster_of(x, y), propagation_angle(x, y), speed, error
+        else:
+            return cluster_of(x, y), propagation_angle(x, y), np.nan, np.nan
+
+    def plot(self, blocking=False):
+        import matplotlib
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import LightSource
+        from matplotlib import cm
+
+        world = self.environment.raster
+
+        x = np.arange(world.max_x)
+        x = (x * world.cell_width) + world.x_offset
+
+        y = np.arange(world.max_y)
+        y = (y * world.cell_height) + world.y_offset
+
+        X, Y = np.meshgrid(x, y)
+        Z = world['elevation']
+
+        def plot_elevation_shade(ax, x, y, z):
+            cbar_lim = (z.min(), z.max())
+
+            image_scale = (x[0][0], x[0][-1], y[0][0], y[-1][0])
+
+            ls = LightSource(azdeg=315, altdeg=45)
+            ax.imshow(ls.hillshade(z, vert_exag=5, dx=world.cell_width, dy=world.cell_width),
+                      extent=image_scale, cmap='gray')
+
+            return ax.imshow(ls.shade(z, cmap=cm.terrain, blend_mode='overlay', vert_exag=1,
+                                      dx=world.cell_width, dy=world.cell_width,
+                                      vmin=cbar_lim[0], vmax=cbar_lim[1]),
+                             extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1], cmap=cm.terrain)
+
+        def plot_wind_arrows(ax, x, y, wx, wy):
+            ax.quiver(x, y, wx, wy, pivot='middle', color='dimgrey')
+
+        fire_fig = plt.figure()
+        fire_ax = fire_fig.gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
+
+        ax_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
+        fire_ax.yaxis.set_major_formatter(ax_formatter)
+        fire_ax.xaxis.set_major_formatter(ax_formatter)
+        shade = plot_elevation_shade(fire_ax, X, Y, Z.T[::-1, ...])
+        cbar = fire_fig.colorbar(shade, shrink=0.5, aspect=2)
+
+        wind_vel = world['wind_velocity']
+        wind_ang = world['wind_angle']
+        WX = wind_vel * np.cos(wind_ang)
+        WY = wind_vel * np.sin(wind_ang)
+
+        plot_wind_arrows(fire_ax, *np.meshgrid(x[::10], y[::10]), WX[::10, ::10], WY[::10, ::10])
+
+        fronts = fire_ax.contour(x, y, self.ignitions().data['ignition'].T / 60, 10, cmap=cm.Set1)
+        fire_ax.clabel(fronts, inline=True, fontsize='smaller', inline_spacing=1, linewidth=2, fmt='%.0f')
+
+        for ignition_point in self._ignition_points:
+            coords = self.prop_data.coordinates(ignition_point)
+            fire_ax.plot(*coords, 'or', linewidth=5)
+
+        cbar.set_label("Height [m]")
+
+        plt.show(block=blocking)
+        return fire_fig
 
 
 def propagate(env: Environment, x: int, y: int) -> 'FirePropagation':

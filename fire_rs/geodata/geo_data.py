@@ -21,6 +21,8 @@ class GeoData:
         projection = osr.SpatialReference()
         projection.ImportFromEPSG(2154)  # EPSG code for RGF93 / Lambert-93 projection
         self.projection = projection
+        self.max_x = array.shape[0]
+        self.max_y = array.shape[1]
 
     def __contains__(self, coordinates):
         (x, y) = coordinates
@@ -35,7 +37,7 @@ class GeoData:
         return self.data.__repr__()
 
     def __getitem__(self, item):
-        return self.data
+        return self.data[item]
 
     @property
     def layers(self):
