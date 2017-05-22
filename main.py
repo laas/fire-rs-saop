@@ -42,14 +42,14 @@ def step_by_step():
     plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
 
     # todo: axes and directions are wrong when using imshow to display an array (see workarounds in GeoData)
-    p = plt.imshow(propag.slice(['ignition']).data.view('float32'))
+    p = plt.imshow(propag.ignitions().data.view('float32'))
     plt.title("Wildfire propagation")
 
     next_step = ignition_time
     while not propag.propagation_finished:
         propag.propagate(next_step)
         next_step += 300
-        p.set_data(propag.slice(['ignition']).data.view('float32'))
+        p.set_data(propag.ignitions().data.view('float32'))
         plt.pause(0.1)
 
 if __name__ == "__main__":

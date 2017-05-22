@@ -140,10 +140,10 @@ class Swap(Neighborhood):
             obs_j = node.plans[j][j_obs_id]
             subplans = list(node.plans)
             # swap obs_i and obs_j
-            subplans[i] = subplans[i].remove(i_obs_id)
-            subplans[i] = subplans[i].extend(obs_j, i_obs_id)
-            subplans[j] = subplans[j].remove(j_obs_id)
-            subplans[j] = subplans[j].extend(obs_i, j_obs_id)
+            subplans[i].remove(i_obs_id)
+            subplans[i].extend(obs_j, i_obs_id)
+            subplans[j].remove(j_obs_id)
+            subplans[j].extend(obs_i, j_obs_id)
             neighbor = SearchNode(subplans, parent=node)
 
             # only add to select neighbors if the node is valid
