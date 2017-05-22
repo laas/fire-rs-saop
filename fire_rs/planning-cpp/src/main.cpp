@@ -13,6 +13,8 @@ int printConfiguration(double q[3], double x, void* user_data) {
 
 int main()
 {
+    UAV uav(1,1);
+
     double q0[] = { 0,0,0 };
     double q1[] = { 4, 0, 0 };
     DubinsPath path;
@@ -21,14 +23,14 @@ int main()
     printf("%f \n", dubins_path_length(&path));
 
     std::vector<Segment> waypoints = { Segment(Waypoint(0,0,0)), Waypoint(4, 0, 0) };
-    Trajectory traj(waypoints);
+    Trajectory traj(uav, waypoints);
     printf("%f\n", traj.length());
 
-    Trajectory t;
+    Trajectory t(uav);
     auto t2 = t.with_additionnal_segment(0, Segment(Waypoint(0,0,0)));
     assert(t2.length() == 0);
     auto t3 = t2.with_additionnal_segment(1, Segment(Waypoint(4, 0, 0)));
-    assert(t2.length() == traj.length());
+    assert(t3.length() == traj.length());
     auto t4 = t3.without_segment(1);
     assert(t4.length() == t2.length());
 
