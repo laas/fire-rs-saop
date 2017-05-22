@@ -1,0 +1,4 @@
+[submodule "fire_rs/planning-cpp/pybind11"]
+	path = fire_rs/planning-cpp/pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = stable
