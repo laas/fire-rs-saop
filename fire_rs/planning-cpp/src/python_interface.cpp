@@ -10,7 +10,7 @@ PYBIND11_PLUGIN(uav_planning) {
     py::class_<Waypoint>(m, "Waypoint")
             .def(py::init<const double, const double, const double>())
             .def_readonly("x", &Waypoint::x)
-            .def_readonly("y", &Waypoint::dir)
+            .def_readonly("y", &Waypoint::y)
             .def_readonly("dir", &Waypoint::dir)
             .def("__repr__", &Waypoint::to_string);
 
@@ -24,6 +24,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def(py::init<const double, const double>())
             .def_readonly("rho", &UAV::rho)
             .def_readonly("speed", &UAV::speed)
+            .def("travel_distance", &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
             .def("travel_time", &UAV::travel_time, py::arg("origin"), py::arg("destination"));
 
 

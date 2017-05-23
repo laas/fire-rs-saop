@@ -41,7 +41,7 @@ struct UAV {
 
     constexpr UAV(const double rho, const double speed) : rho(rho), speed(speed) {};
 
-    double travel_length(const Waypoint& origin, const Waypoint &target) const {
+    double travel_distance(const Waypoint &origin, const Waypoint &target) const {
         DubinsPath path;
         // ugly hack to be compatible with dubins implementation that expects a double[3] in place of each Waypoint
         dubins_init((double*) &origin, (double*) &target, rho, &path);
@@ -49,7 +49,7 @@ struct UAV {
     }
 
     double travel_time(const Waypoint& origin, const Waypoint &target) const {
-        return travel_length(origin, target) / speed;
+        return travel_distance(origin, target) / speed;
     }
 };
 
@@ -75,7 +75,7 @@ public:
                 auto prev = traj[0];
                 _length = prev.length;
                 for (unsigned i = 1; i < sz; i++) {
-                    _length += uav.travel_length(prev.end, traj[i].start);
+                    _length += uav.travel_distance(prev.end, traj[i].start);
                     _length += traj[i].length;
                 }
             }
@@ -97,28 +97,28 @@ public:
         if(traj.size() == 0)
             return segment.length;
         else if(index == 0)
-            return segment.length + uav.travel_length(segment.end, traj[index].start);
+            return segment.length + uav.travel_distance(segment.end, traj[index].start);
         else if(index == traj.size())
-            return uav.travel_length(traj[index-1].end, segment.start) + segment.length;
+            return uav.travel_distance(traj[index - 1].end, segment.start) + segment.length;
         else {
-            return uav.travel_length(traj[index-1].end, segment.start)
+            return uav.travel_distance(traj[index - 1].end, segment.start)
                    + segment.length
-                   + uav.travel_length(segment.end, traj[index].start)
-                   - uav.travel_length(traj[index-1].end, traj[index].start);
+                   + uav.travel_distance(segment.end, traj[index].start)
+                   - uav.travel_distance(traj[index - 1].end, traj[index].start);
         }
     }
 
     double removal_gain(unsigned index) {
         const Segment segment = traj[index];
         if(index == 0)
-            return segment.length + uav.travel_length(segment.end, traj[index].start);
+            return segment.length + uav.travel_distance(segment.end, traj[index].start);
         else if(index == traj.size()-1)
-            return uav.travel_length(traj[index-1].end, segment.start) + segment.length;
+            return uav.travel_distance(traj[index - 1].end, segment.start) + segment.length;
         else {
-            return uav.travel_length(traj[index-1].end, segment.start)
+            return uav.travel_distance(traj[index - 1].end, segment.start)
                    + segment.length
-                   + uav.travel_length(segment.end, traj[index].start)
-                   - uav.travel_length(traj[index-1].end, traj[index].start);
+                   + uav.travel_distance(segment.end, traj[index].start)
+                   - uav.travel_distance(traj[index - 1].end, traj[index].start);
         }
     }
 
