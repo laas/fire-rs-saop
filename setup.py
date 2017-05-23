@@ -22,7 +22,7 @@ setup(
             'fire_rs.uav_planning',
             ['fire_rs/planning-cpp/src/dubins.cpp', 'fire_rs/planning-cpp/src/python_interface.cpp'],
             include_dirs=[pybind11.get_include(False), pybind11.get_include(True)],  # Path to pybind11 headers
-            extra_compile_args=["-std=c++11"],
+            extra_compile_args=["-g", "-std=c++11",  "-Wall", "-Wno-deprecated"],
             language='c++'
         ),
     ],

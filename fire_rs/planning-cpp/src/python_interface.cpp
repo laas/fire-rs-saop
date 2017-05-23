@@ -1,4 +1,7 @@
 #include <pybind11/pybind11.h>
+
+// for conversions between c++ and python collections
+#include <pybind11/stl.h>
 #include <sstream>
 #include "trajectory.h"
 
@@ -10,9 +13,9 @@ PYBIND11_PLUGIN(uav_planning) {
     py::class_<Waypoint>(m, "Waypoint")
             .def(py::init<const double, const double, const double>())
             .def_readonly("x", &Waypoint::x)
-            .def_readonly("y", &Waypoint::y)
+            .def_readonly("y", &Waypoint::y) 
             .def_readonly("dir", &Waypoint::dir)
-            .def("__repr__", &Waypoint::to_string);
+            .def("__repr__", &Waypoint::to_string); 
 
     py::class_<Segment>(m, "Segment")
             .def(py::init<const Waypoint, const double>())
@@ -27,7 +30,14 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("travel_distance", &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
             .def("travel_time", &UAV::travel_time, py::arg("origin"), py::arg("destination"));
 
-
+    py::class_<Trajectory>(m, "Trajectory")
+            .def(py::init<const UAV&>())
+            .def_readonly("uav", &Trajectory::uav)
+            .def("length", &Trajectory::length)
+            .def("duration", &Trajectory::duration)
+            .def("as_waypoints", &Trajectory::as_waypoints, py::arg("step_size")= -1)
+            .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
+            .def("__repr__", &Trajectory::to_string);
 
 
 
