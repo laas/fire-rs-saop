@@ -1,6 +1,10 @@
 from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 import matplotlib
+import matplotlib.patches
 import matplotlib.pyplot as plt
+import matplotlib.transforms
+
 from matplotlib.colors import LightSource
 from matplotlib.ticker import FuncFormatter
 from matplotlib import cm
@@ -16,11 +20,23 @@ def get_default_figure_and_axis():
     return fire_fig, fire_ax
 
 
+def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwargs):
+    plane_vertices = (np.array([[3.5, 6], [4, 5], [4, 4], [7, 4], [7, 3],
+                      [4,   3], [4, 1], [5, 1], [5, 0], [2, 0],
+                      [2, 1], [3, 1], [3, 3], [0, 3], [0, 4],
+                      [3, 4], [3, 5]]) - np.array([3.5, 3])) * size
+    R = np.array([[np.cos(-uav_state[2]+np.pi/2), -np.sin(-uav_state[2]+np.pi/2)],
+                  [np.sin(-uav_state[2]+np.pi/2), np.cos(-uav_state[2]+np.pi/2)]])
+
+    plane_polygon = matplotlib.patches.Polygon(np.matmul(plane_vertices, R) + uav_state[0:2], closed=True, fill=True,
+                                               facecolor=facecolor, edgecolor=edgecolor, **kwargs)
+    return ax.add_patch(plane_polygon)
+
+
 def plot_firefront_contour(ax, x, y, firefront, nfronts=20):
     fronts = ax.contour(x, y, firefront, nfronts, cmap=cm.Set1)
     labels = ax.clabel(fronts, inline=True, fontsize='smaller', inline_spacing=1, linewidth=2, fmt='%.0f')
     return fronts, labels
-
 
 
 def plot_elevation_contour(ax, x, y, z):
@@ -52,6 +68,7 @@ def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25):
     ls = LightSource(azdeg=120, altdeg=45)
     rgb = ls.shade(z, cmap=cm.terrain, vert_exag=0.1, blend_mode='overlay')
     return ax.plot_surface(x, y, z, facecolors=rgb, rstride=5, cstride=5, linewidth=0, antialiased=True, shade=True)
+
 
 def plot3d_wind_arrows(ax, x, y, z, wx, wy, wz):
     return ax.quiver(x, y, z, wx, wy, wz, pivot='middle', cmap=cm.viridis)
