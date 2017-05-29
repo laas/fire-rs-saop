@@ -4,11 +4,14 @@
 #include <pybind11/stl.h>
 #include <sstream>
 #include "trajectory.h"
+#include "local_search.h"
 
 namespace py = pybind11;
 
 PYBIND11_PLUGIN(uav_planning) {
     py::module m("uav_planning", "Generating primes in c++ with python bindings using pybind11");
+
+    srand(time(NULL));
 
     py::class_<Waypoint>(m, "Waypoint")
             .def(py::init<const double, const double, const double>())
@@ -30,7 +33,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("travel_distance", &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
             .def("travel_time", &UAV::travel_time, py::arg("origin"), py::arg("destination"));
 
-    py::class_<Trajectory>(m, "Trajectory")
+    py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const UAV&>())
             .def_readonly("uav", &Trajectory::uav)
             .def("length", &Trajectory::length)
@@ -39,7 +42,11 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
             .def("__repr__", &Trajectory::to_string);
 
-
+    m.def("improve", [](const Trajectory& traj) {
+        OrientationChangeNeighborhood neighborhood;
+        Trajectory t_res = first_improvement_search(traj, neighborhood, 5000);
+        return t_res;
+    });
 
     return m.ptr();
 }
