@@ -94,23 +94,10 @@ private:
 public:
     double length() const {
         if(_length < 0) {
-            // length not stored, compute it
-            _length = 0;
-            auto sz = traj.size();
-            if(sz == 0) {
-                _length = 0;
-            } else if(sz == 1) {
-                _length = traj[0].length;
-            } else {
-                auto prev = traj[0];
-                _length = prev.length;
-                for (unsigned i = 1; i < sz; i++) {
-                    _length += uav.travel_distance(prev.end, traj[i].start);
-                    _length += traj[i].length;
-                }
-            }
+            _length = segments_cost(traj, 0, traj.size());
         }
-
+        // expensive check that incremental length computation is correct
+        // assert(fabs(_length - segments_cost(traj, 0, traj.size())) < 0.0001);
         return _length;
     }
 
@@ -124,6 +111,9 @@ public:
     Trajectory(const UAV& uav, std::vector<Segment> traj, double length) : uav(uav), traj(std::vector<Segment>(traj)), _length(length) {}
 
     Trajectory(const UAV& uav, std::vector<Waypoint> waypoints) : uav(uav), traj(Trajectory::segments_from_waypoints(waypoints)) {}
+
+    /** Accesses the index-th segement of the trajectory */
+    const Segment& operator[] (unsigned long index) const { return traj[index]; }
 
     /** Returns the trajectory as a set of waypoints.
      * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
@@ -151,7 +141,7 @@ public:
     }
 
     /** Returns a new Trajectory with the given segment appended. */
-    Trajectory with_segment_at_end(Segment& segment) const {
+    Trajectory with_segment_at_end(const Segment& segment) const {
         return with_additional_segment(traj.size(), segment);
     }
 
@@ -162,7 +152,7 @@ public:
     }
 
     /** Increase of length as result of inserting the given segment at the given position */
-    double insertion_cost(unsigned long index, Segment segment) const {
+    double insertion_cost(unsigned long index, const Segment segment) const {
         if(traj.size() == 0)
             return segment.length;
         else if(index == 0)
@@ -192,8 +182,27 @@ public:
         }
     }
 
+    /** Computes the cost of replacing the N segments at [index, index+N] with the N segments given in parameter. */
+    double replacement_cost(unsigned long index, const std::vector<Segment>& segments) const {
+        const unsigned long end_index = index + segments.size() - 1;
+        assert(index >= 0 && end_index < traj.size());
+        double cost =
+                segments_cost(segments, 0, segments.size())
+                - segments_cost(traj, index, segments.size());
+        if(index > 0)
+            cost = cost
+                   + uav.travel_distance(traj[index-1].end, segments[0].start)
+                   - uav.travel_distance(traj[index-1].end, traj[index].start);
+        if(end_index+1 < traj.size())
+            cost = cost
+                   + uav.travel_distance(segments[segments.size()-1].end, traj[end_index+1].start)
+                   - uav.travel_distance(traj[end_index].end, traj[end_index+1].start);
+
+        return cost;
+    }
+
     /** Returns a new trajectory with an additional segment at the given index */
-    Trajectory with_additional_segment(unsigned long index, const Segment seg) const {
+    Trajectory with_additional_segment(unsigned long index, const Segment& seg) const {
         std::vector<Segment> newTraj(traj);
         newTraj.insert(newTraj.begin()+index, seg);
         return Trajectory(uav, newTraj, length() + insertion_cost(index, seg));
@@ -204,6 +213,17 @@ public:
         std::vector<Segment> newTraj(traj);
         newTraj.erase(newTraj.begin()+index);
         return Trajectory(uav, newTraj, length() - removal_gain(index));
+    }
+
+    /** In a new trajectory, replaces the N segments at [index, index+N] with the N segments given in parameter. */
+    Trajectory with_replaced_section(unsigned long index, const std::vector<Segment>& segments) const {
+        std::vector<Segment> newTraj(traj);
+        for(unsigned long i=0; i<segments.size(); i++) {
+           newTraj[index+i] = segments[i];
+        }
+        Trajectory t(uav, newTraj, length() + replacement_cost(index, segments));
+        t.length();
+        return t;
     }
 
     std::string to_string() const {
@@ -223,6 +243,18 @@ private:
         std::transform(waypoints.begin(), waypoints.end(), segments.begin(),
                        [](const Waypoint& wp) { return Segment(wp); });
         return segments;
+    }
+
+    /** Computes the cost of a sub-trajectory composed of the given segments. */
+    double segments_cost(const std::vector<Segment>& segments, unsigned long start, unsigned long length) const {
+        double cost = 0.;
+        auto end_it = segments.begin() + start + length;
+        for(auto it=segments.begin()+start; it!=end_it; it++) {
+            cost += it->length;
+            if((it+1) != end_it)
+                cost += uav.travel_distance(it->end, (it+1)->start);
+        }
+        return cost;
     }
 };
 
