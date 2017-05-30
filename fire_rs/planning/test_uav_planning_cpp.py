@@ -54,7 +54,7 @@ class TestUAV(unittest.TestCase):
         plot_trajectory(traj)
 
     def test_trajectory_mutations(self):
-        traj = get_trajectory([up.Waypoint(0, 0, 2), up.Waypoint(1.4, 4.4, 0), up.Waypoint(10, 10, 3.14),
+        traj = get_trajectory([up.Waypoint(0, 0, 4.5), up.Waypoint(1.4, 4.4, 0), up.Waypoint(10, 10, 3.14),
                                up.Waypoint(5, 0, 0), up.Waypoint(7, 1, 0), up.Waypoint(15, 9, 2), up.Waypoint(15, 5, 0),
                                up.Waypoint(0, 10, 3.14), up.Waypoint(1, 9, 3.14)])
         print(traj.length())

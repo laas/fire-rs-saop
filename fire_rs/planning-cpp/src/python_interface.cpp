@@ -43,8 +43,15 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("__repr__", &Trajectory::to_string);
 
     m.def("improve", [](const Trajectory& traj) {
-        OrientationChangeNeighborhood neighborhood;
-        Trajectory t_res = first_improvement_search(traj, neighborhood, 5000);
+//        std::unique_ptr<Neighborhood<Trajectory>> neighborhood(new AlignTwoConsecutiveNeighborhood());
+        auto n1 = std::make_shared<AlignTwoConsecutiveNeighborhood>();
+        auto n2 = std::make_shared<OrientationChangeNeighborhood>();
+        auto n3 = std::make_shared<TwoOrientationChangeNeighborhood>();
+        auto n4 = std::make_shared<AlignOnNextNeighborhood>();
+        auto n5 = std::make_shared<AlignOnPrevNeighborhood>();
+        auto ns = std::make_shared<CombinedNeighborhood<Trajectory>>(
+                std::vector<std::shared_ptr<Neighborhood<Trajectory>>> { n1, n2, n3, n4, n5 });
+        Trajectory t_res = first_improvement_search(traj, *ns, 5000);
         return t_res;
     });
 
