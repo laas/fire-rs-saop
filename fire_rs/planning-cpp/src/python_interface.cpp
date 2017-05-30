@@ -28,8 +28,8 @@ PYBIND11_PLUGIN(uav_planning) {
 
     py::class_<UAV>(m, "UAV")
             .def(py::init<const double, const double>())
-            .def_readonly("rho", &UAV::rho)
-            .def_readonly("speed", &UAV::speed)
+            .def_readonly("min_turn_radius", &UAV::min_turn_radius)
+            .def_readonly("max_air_speed", &UAV::max_air_speed)
             .def("travel_distance", &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
             .def("travel_time", &UAV::travel_time, py::arg("origin"), py::arg("destination"));
 

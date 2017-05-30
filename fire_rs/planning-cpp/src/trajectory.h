@@ -8,22 +8,9 @@
 #include <algorithm>
 #include <cassert>
 #include "dubins.h"
+#include "waypoint.h"
+#include "uav.h"
 
-struct Waypoint {
-    // order and length is important for compatibility with dubins.cpp, allowing to simply cast a Waypoint* to a double*
-    double x;
-    double y;
-    double dir;
-
-    constexpr Waypoint(const Waypoint &wp) : x(wp.x), y(wp.y), dir(wp.dir) {}
-    constexpr Waypoint(const double x, const double y, const double dir) : x(x), y(y), dir(dir) {};
-
-    std::string to_string() const {
-        std::stringstream repr;
-        repr << "(" << x<<", "<<y<<", "<<dir<<")";
-        return repr.str();
-    }
-};
 
 struct Segment {
     Waypoint start;
@@ -35,49 +22,6 @@ struct Segment {
             : start(wp1), end(wp2), length(sqrt(pow(wp1.x-wp2.x, 2) + pow(wp1.y-wp2.y, 2))) {}
     constexpr Segment(const Waypoint& wp1, const double length)
             : start(wp1), end(Waypoint(wp1.x +cos(wp1.dir)*length, wp1.y + sin(wp1.dir)*length, wp1.dir)), length(length) {}
-};
-
-struct UAV {
-    const double rho;
-    const double speed;
-
-    constexpr UAV(const double rho, const double speed) : rho(rho), speed(speed) {};
-
-    /** Returns the Dubins travel distance between the two waypoints. */
-    double travel_distance(const Waypoint &origin, const Waypoint &target) const {
-        DubinsPath path = dubins_path(origin, target);
-        return dubins_path_length(&path);
-    }
-
-    /** Returns the travel time between the two waypoints. */
-    double travel_time(const Waypoint& origin, const Waypoint &target) const {
-        return travel_distance(origin, target) / speed;
-    }
-
-    /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
-    std::vector<Waypoint> path_sampling(const Waypoint &origin, const Waypoint &target, const double step_size) const {
-        assert(step_size > 0);
-        const double length = travel_distance(origin, target);
-        DubinsPath path = dubins_path(origin, target);
-        std::vector<Waypoint> waypoints;
-        for(double it=0; it<length; it += step_size) {
-            double q[3];
-            dubins_path_sample(&path, it, q);
-            Waypoint wp(q[0], q[1], q[2]);
-            waypoints.push_back(wp);
-        }
-        waypoints.push_back(target);
-        return waypoints;
-    }
-
-private:
-    DubinsPath dubins_path(const Waypoint &origin, const Waypoint &target) const {
-        DubinsPath path;
-        // ugly hack to be compatible with dubins implementation that expects a double[3] in place of each Waypoint
-        int ret = dubins_init((double*) &origin, (double*) &target, rho, &path);
-        assert(ret == 0);
-        return path;
-    }
 };
 
 
@@ -101,7 +45,7 @@ public:
         return _length;
     }
 
-    double duration() const { return length() / uav.speed; }
+    double duration() const { return length() / uav.max_air_speed; }
 
     /** Empty trajectory constructor */
     Trajectory(const UAV& uav) : uav(uav), traj(std::vector<Segment>()), _length(0){}
