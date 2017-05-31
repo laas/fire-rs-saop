@@ -3,6 +3,8 @@ import fire_rs.uav_planning as up
 import numpy as np
 
 # X8 UAS from Porto University
+from fire_rs.geodata.geo_data import GeoData
+
 uav = up.UAV(18., 32.*np.pi/180)
 
 
@@ -61,7 +63,7 @@ class TestUAV(unittest.TestCase):
         plot_trajectory(traj, blocking=False)
         traj = up.improve(traj)
         print(traj.length())
-        plot_trajectory(traj, blocking=True)
+        plot_trajectory(traj, blocking=False)
         print(traj)
 
         print("end")
@@ -72,6 +74,24 @@ class TestUAV(unittest.TestCase):
         gd = world.get_elevation([[475060.0,485060], [6200074.0, 6210074]])
         raster = gd.as_cpp_raster()
         print(raster)
+        gd2 = GeoData.from_cpp_raster(raster, "elevation_cpp")
+        print(gd2[10,10][0])
+        self.assertAlmostEquals(gd[10,10][0], gd2[10,10][0])
+        self.assertAlmostEquals(gd.x_offset, gd2.x_offset)
+        self.assertAlmostEquals(gd.y_offset, gd2.y_offset)
+        self.assertEquals(gd.data.shape, gd2.data.shape)
+        print(gd2)
+
+    def test_visibility(self):
+        from fire_rs.geodata.environment import World
+        world = World()
+        gd = world.get_elevation([[476000.0,477000], [6201000.0, 6202000]])
+        raster = gd.as_cpp_raster()
+        visibility_raster = up.test_visibility(raster, uav, up.Segment(up.Waypoint(476100.0, 6201100, np.pi/4), 100))
+        visibility_gd = GeoData.from_cpp_raster(visibility_raster, "visibility")
+        visibility_gd.plot(blocking=False)
+        print(visibility_gd)
+        print("coucou")
 
 
 

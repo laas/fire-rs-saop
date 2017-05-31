@@ -11,6 +11,8 @@ struct UAV {
     const double max_angular_velocity;
     const double max_air_speed;
     const double min_turn_radius;
+    const double view_width = 100;
+    const double view_depth = 100;
 
 
      UAV(const double max_air_speed, const double max_angular_velocity) :

@@ -30,6 +30,18 @@ class GeoData:
         import fire_rs.uav_planning as up
         return up.Raster(self.data, self.x_offset, self.y_offset, self.cell_height)
 
+    @staticmethod
+    def from_cpp_raster(raster, layer_name):
+        ar = np.array(raster.data, dtype=[(layer_name, 'float64')])
+        gd = GeoData(ar, raster.x_offset, raster.y_offset, raster.cell_width, raster.cell_width)
+        return gd
+
+    @staticmethod
+    def from_cpp_long_raster(lraster, layer_name):
+        ar = np.array(lraster.data, dtype=[(layer_name, 'int64')])
+        gd = GeoData(ar, lraster.x_offset, lraster.y_offset, lraster.cell_width, lraster.cell_width)
+        return gd
+
     def __contains__(self, coordinates):
         (x, y) = coordinates
         x_lim_low = self.x_offset - self.cell_width/2

@@ -6,6 +6,7 @@
 #include "trajectory.h"
 #include "local_search.h"
 #include "raster.h"
+#include "visibility.h"
 
 namespace py = pybind11;
 
@@ -15,7 +16,18 @@ PYBIND11_PLUGIN(uav_planning) {
     srand(time(NULL));
 
     py::class_<Raster>(m, "Raster")
-            .def(py::init<py::array_t<double, py::array::c_style | py::array::forcecast>, double, double, double>());
+            .def(py::init<py::array_t<double, py::array::c_style | py::array::forcecast>, double, double, double>())
+            .def_readonly("data", &Raster::data)
+            .def_readonly("x_offset", &Raster::x_offset)
+            .def_readonly("y_offset", &Raster::y_offset)
+            .def_readonly("cell_width", &Raster::cell_width);
+
+    py::class_<LRaster>(m, "LRaster")
+            .def(py::init<py::array_t<long, py::array::c_style | py::array::forcecast>, double, double, double>())
+            .def_readonly("data", &LRaster::data)
+            .def_readonly("x_offset", &LRaster::x_offset)
+            .def_readonly("y_offset", &LRaster::y_offset)
+            .def_readonly("cell_width", &LRaster::cell_width);
 
     py::class_<Waypoint>(m, "Waypoint")
             .def(py::init<const double, const double, const double>())
@@ -56,6 +68,12 @@ PYBIND11_PLUGIN(uav_planning) {
                 std::vector<std::shared_ptr<Neighborhood<Trajectory>>> { n1, n2, n3, n4, n5 });
         Trajectory t_res = first_improvement_search(traj, *ns, 5000);
         return t_res;
+    });
+
+    m.def("test_visibility", [](Raster r, UAV& uav, Segment s) -> std::unique_ptr<LRaster> {
+        VisibilityMask* vm = new VisibilityMask(r.x_width(), r.y_width(), r.x_offset, r.y_offset, r.cell_width);
+        vm->add_visibility(uav, s);
+        return std::unique_ptr<LRaster>(vm);
     });
 
     return m.ptr();
