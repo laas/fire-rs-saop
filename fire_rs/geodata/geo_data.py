@@ -180,7 +180,7 @@ class GeoData:
         ax.quiver(*np.meshgrid(x, y), wx, wy, pivot='middle', color='dimgrey')
         plt.show(block=blocking)
 
-    def plot(self, layer=None, downscale=1, blocking=False):
+    def plot(self, layer=None, downscale=1, blocking=False, **kwargs):
         ax, data, x, y, image_scale = self._get_plot_data(downscale)
         if layer is None:
             assert len(self.data.dtype) == 1
@@ -189,7 +189,7 @@ class GeoData:
         z = data[layer]
 
         ax.imshow(z, extent=image_scale, vmin=z.min(), vmax=z.max(),
-                  cmap=matplotlib.cm.terrain, interpolation='none')
+                  cmap=kwargs.get('cmap', matplotlib.cm.terrain), interpolation='none')
         plt.show(block=blocking)
 
     def write_to_separate_files(self, parameterized_filename: str):
