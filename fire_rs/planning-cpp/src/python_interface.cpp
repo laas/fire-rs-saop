@@ -2,9 +2,10 @@
 
 // for conversions between c++ and python collections
 #include <pybind11/stl.h>
-#include <sstream>
+#include <pybind11/numpy.h>
 #include "trajectory.h"
 #include "local_search.h"
+#include "raster.h"
 
 namespace py = pybind11;
 
@@ -12,6 +13,9 @@ PYBIND11_PLUGIN(uav_planning) {
     py::module m("uav_planning", "Generating primes in c++ with python bindings using pybind11");
 
     srand(time(NULL));
+
+    py::class_<Raster>(m, "Raster")
+            .def(py::init<py::array_t<double, py::array::c_style | py::array::forcecast>, double, double, double>());
 
     py::class_<Waypoint>(m, "Waypoint")
             .def(py::init<const double, const double, const double>())
@@ -43,7 +47,6 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("__repr__", &Trajectory::to_string);
 
     m.def("improve", [](const Trajectory& traj) {
-//        std::unique_ptr<Neighborhood<Trajectory>> neighborhood(new AlignTwoConsecutiveNeighborhood());
         auto n1 = std::make_shared<AlignTwoConsecutiveNeighborhood>();
         auto n2 = std::make_shared<OrientationChangeNeighborhood>();
         auto n3 = std::make_shared<TwoOrientationChangeNeighborhood>();

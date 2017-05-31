@@ -24,6 +24,12 @@ class GeoData:
         self.max_x = array.shape[0]
         self.max_y = array.shape[1]
 
+    def as_cpp_raster(self):
+        assert len(self.layers) == 1
+        assert self.cell_width == self.cell_height
+        import fire_rs.uav_planning as up
+        return up.Raster(self.data, self.x_offset, self.y_offset, self.cell_height)
+
     def __contains__(self, coordinates):
         (x, y) = coordinates
         x_lim_low = self.x_offset - self.cell_width/2

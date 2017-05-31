@@ -66,6 +66,14 @@ class TestUAV(unittest.TestCase):
 
         print("end")
 
+    def test_geodata_conversion(self):
+        from fire_rs.geodata.environment import World
+        world = World()
+        gd = world.get_elevation([[475060.0,485060], [6200074.0, 6210074]])
+        raster = gd.as_cpp_raster()
+        print(raster)
+
+
 
 
 

@@ -9,7 +9,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-deprecated")
 endif()
 
-set(SOURCE_FILES src/dubins.cpp src/dubins.h src/trajectory.h src/local_search.h src/uav.h src/waypoint.h)
+set(SOURCE_FILES src/dubins.cpp src/dubins.h src/trajectory.h src/local_search.h src/uav.h src/waypoint.h src/raster.h)
 add_executable(planning_cpp ${SOURCE_FILES} src/main.cpp)
 
 pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
