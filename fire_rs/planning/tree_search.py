@@ -6,7 +6,7 @@ from  scipy.spatial.distance import cdist, euclidean
 import matplotlib.pyplot as plt
 from sklearn.datasets.samples_generator import make_blobs
 import logging
-from fire_rs.planning.uav import FixedWing
+from fire_rs.planning.uav import FixedWing, wrap_angle_rad
 from fire_rs.display import plot_uav
 
 # Faster way to advance iterators
@@ -62,21 +62,28 @@ class PathTreeSearch:
             infrontof &= mask
         return infrontof
 
-    def estimate_heuristic(self, uav_state, already_observed=None):
+    def estimate_heuristic(self, uav_state, fov=np.pi/6., already_observed=None):
         close_mask = self.close_to(uav_state[0:2], self.lookahead_distance)
-        infront_mask = self.in_front_of(uav_state[0:2], uav_state[2])
+        infront_mask = self.in_front_of(uav_state[0:2], uav_state[2]+fov) & \
+                       self.in_front_of(uav_state[0:2], uav_state[2]-fov)  # define a field of view of π/3
         filtered = self.points[~already_observed & close_mask & infront_mask]
         h = len(filtered)
-        return h, filtered
+        return h, filtered, self.points[~already_observed & infront_mask], self.points[~already_observed & close_mask]
 
     def best_combination(self, virtual_uav: FixedWing):
         best_combination_found = False
         lookahead_mod = self.lookahead_distance
         self.lookahead_distance = lookahead_mod
+        fov = np.pi/6.
+
+        # All points observed?
+        if np.count_nonzero(~self.observed_mask) == 0:
+            return (np.ones((self.depth,)) * np.pi/6, 0, self.observed_mask.copy())
 
         while not best_combination_found:
             best_combination = (None, 0, self.observed_mask.copy())  # Sequence of commands, cumulated value, observed points
             original_observed_mask = self.observed_mask.copy()
+            best_heuristic_debug = None
 
             initial_state = virtual_uav.state.copy()
             initial_input = virtual_uav.input.copy()
@@ -89,28 +96,20 @@ class PathTreeSearch:
                 # Evaluate how many points are seen while applying the inputs
                 for inp in input_sequence:
                     virtual_uav.input += inp
-                    # But only if we say to go straight
-                    if np.isclose(inp, 0.):
-                        for n, state in enumerate(virtual_uav.run(self.time_step,
-                                                                  int(self.command_execution_time / self.time_step))):
-                            if n % 2:
-                                closeto = self.close_to(state[0:2], self.observation_radius, None)
-                                observed_mask |= closeto
-                    else:
-                        # for n, state in enumerate(virtual_uav.run(self.time_step,
-                        #                                           int(self.command_execution_time / self.time_step))):
-                        #     if n % 2 :
-                        #         closeto = self.close_to(state[0:2], self.observation_radius, observed_mask)
-                        #         observed_mask |= closeto
-                        consume(virtual_uav.run(self.time_step, int(self.command_execution_time / self.time_step)))
+                    for n, state in enumerate(virtual_uav.run(self.time_step,
+                                                              int(self.command_execution_time / self.time_step))):
+                        # Observe only when the UAV is horizontal
+                        if n % 2 and np.isclose(virtual_uav.state[3], 0.):
+                            closeto = self.close_to(state[0:2], self.observation_radius, None)
+                            observed_mask |= closeto
                 if input_sequence[0] == 0. and input_sequence[1] == 0.:
                     print()
                 # Compute how many points we observed during this input sequence
                 visited_value = np.count_nonzero(~original_observed_mask&observed_mask)
                 # Estimate how many points could be reached in the next search
                 # (those in front of the uav and closer than a threshold, already visited discarded)
-                heuristic_value, points_heuristic = self.estimate_heuristic(
-                    virtual_uav.state, observed_mask)
+                heuristic_value, points_heuristic, p_infront, p_close = self.estimate_heuristic(
+                    virtual_uav.state, fov, observed_mask)
                 print("{}".format(input_sequence, visited_value, heuristic_value))
 
 
@@ -118,15 +117,21 @@ class PathTreeSearch:
                 cumulated_value = visited_value + heuristic_value
                 if (cumulated_value) > best_combination[1]:
                     best_combination = (input_sequence, cumulated_value, observed_mask)
+                    best_heuristic_debug = (heuristic_value, points_heuristic, p_infront, p_close)
                     logging.debug("Found a better combination: {}\n\t value: {}\n\t n visited: {}".format(
                                  str(best_combination[0]), best_combination[1], np.count_nonzero(best_combination[2])))
 
             # Once all combinations were tested...
             if best_combination[0] is None:
-                best_combination_found = False
-                self.lookahead_distance *= 2
-                logging.info("No suitable input combination. Increasing lookahead to {}".format(
-                    self.lookahead_distance))
+                best_combination_found = True
+                dest = self.points[~self.observed_mask][np.argmin(cdist(self.points[~self.observed_mask], [virtual_uav.state[0:2]]))] - virtual_uav.state[0:2]
+                angle = wrap_angle_rad(np.arctan2(dest[1], dest[0]) - (wrap_angle_rad(virtual_uav.state[2]) - np.pi/2))
+                n_turns = np.clip(int(np.round(angle / (np.pi/6))), -self.depth, self.depth)
+                inputs = list(itertools.repeat(np.pi / 6 * -np.sign(n_turns), np.abs(n_turns)))
+                inputs.extend(list(itertools.repeat(0., self.depth - np.abs(n_turns))))
+                best_combination = (np.array(inputs), 0, self.observed_mask.copy())
+                # logging.info("No suitable input combination. Increasing lookahead to {}".format(
+                #     self.lookahead_distance))
             else:
                 # Mark the points seen from applying the best combination
                 best_combination_found = True
@@ -206,12 +211,15 @@ def demo_firefornt_observation():
     import logging
     import numpy as np
     import matplotlib.pyplot as plt
+    import matplotlib.cm
     from fire_rs.geodata import environment
     import fire_rs.firemodel.propagation as propagation
     import fire_rs.display
     import fire_rs.planning.observation_path_search
     import fire_rs.geodata.geo_data
     import os
+
+    z_order = {'uav':1000, 'observations':500, 'firefront':1}
 
     def burn(area_bounds, ignition_point, wind):
         """Burn some area from an ignition point with given wind conditions"""
@@ -226,7 +234,7 @@ def demo_firefornt_observation():
         axes = plt.gca()
 
         searcher = PathTreeSearch(points_to_observe)
-        for iterations in range(200):
+        for iterations in range(100):
             commands = searcher.best_combination(uav.copy())
 
             uav_commands = commands[0]
@@ -238,49 +246,55 @@ def demo_firefornt_observation():
                     uav.step(searcher.time_step)
                     local_traj.append(uav.output[0:2])
                 local_traj = np.array(local_traj)
-                plt.plot(local_traj[..., 0], local_traj[..., 1], 'black', linewidth=2)
+                plt.plot(local_traj[..., 0], local_traj[..., 1], 'darkgray', linewidth=2, zorder=z_order['uav']-1)
             if visited_points is not None:
                 plt.plot(visited_points[:, 0], visited_points[:, 1], 'o', markerfacecolor=color_observed,
-                         markeredgecolor=color_observed, markersize=3)
-                plot_uav(plt.gca(), uav.state, size=5)
+                         markeredgecolor=color_observed, markersize=3, zorder=z_order['observations'])
+                plot_uav(plt.gca(), uav.state, size=5, zorder=z_order['uav'])
                 plt.show()
 
     area = [[530000.0, 535000.0], [6230000.0, 6235000.0]]
-    ignition_point = (100, 100)
+    area = [[510000.0, 520000.0], [6200000.0, 6210000.0]]
+
+    ignition_point = (200, 200)
     area_wind = (10, np.pi)
     ignition_times = None
-    if not os.path.exists('/tmp/ignition.tmp'):
+    if not os.path.exists('/tmp/ignition.tif'):
         ignition_times = burn(area, ignition_point, area_wind)
-        ignition_times.write_to_file('/tmp/ignition.tmp')
+        ignition_times.write_to_file('/tmp/ignition.tif')
     else:
-        ignition_times = fire_rs.geodata.geo_data.GeoData.load_from_file('/tmp/ignition.tmp')
+        ignition_times = fire_rs.geodata.geo_data.GeoData.load_from_file('/tmp/ignition.tif')
 
     world = environment.World()
     some_area = world.get_elevation(area)
 
-    uav = FixedWing(25., np.pi / 6, initial_state=np.array([532000.0, 6231800.0, np.random.random_sample() * 2 * np.pi, 0.]))
+    uav = FixedWing(15., np.pi / 6, initial_state=np.array([515000.0, 6205000.0, np.pi/3, 0.]))
     uav.input = np.array([0., ])  # [x, y, ψ, ϕ]
 
     # draw UAV
     plot_uav(plt.gca(), uav.state, size=5)
+    some_area.plot()
+    ignition_times.plot(cmap=matplotlib.cm.Reds)
 
     n = 0
-    colors_burning = ['red', 'firebrick']
-    colors_observed = ['darkgreen', 'lightgreen']
-    for low, high in zip(range(60, 120, 5), range(65, 125, 5)):
-        if low % 10 != 0:
-            continue
+    colors_burning = ['red', 'yellow']
+    colors_observed = ['darkred', 'orange']
+    t_start, t_end, t_step = 75, 240, 1
+    for low, high in zip(range(t_start, t_end-t_step, t_step), range(t_start+t_step, t_end, t_step)):
         ignition_array = ignition_times.data['ignition'] / 60
+
 
         selected_points = np.array(list(zip(*np.where((low < ignition_array) & (ignition_array < high)))), dtype=np.float)
         selected_points *= np.array([ignition_times.cell_width, ignition_times.cell_height], dtype=np.float)
         selected_points += np.array([ignition_times.x_offset, ignition_times.y_offset], dtype=np.float)
 
         try:
-            plt.scatter(selected_points[..., 0], selected_points[..., 1], c=colors_burning[n % 2])
-            plt.show()
+
+            plt.plot(selected_points[..., 0], selected_points[..., 1], 'o', markerfacecolor=colors_burning[n % 2],
+                         markeredgecolor=colors_burning[n % 2], markersize=5, zorder=z_order['firefront'])
             observe(selected_points, uav, colors_observed[n % 2])
             n += 1
+            plt.show()
         except ValueError:
             logging.exception("")
 
