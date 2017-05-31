@@ -20,14 +20,14 @@ struct Raster {
         return fast_data(x, y);
     }
 
-    double x_width() { return data.shape(0); }
-    double y_width() { return data.shape(1); }
+    size_t x_width() { return data.shape(0); }
+    size_t y_width() { return data.shape(1); }
 
     double x_coords(unsigned long x_index) { return x_offset + cell_width * x_index; }
     double y_coords(unsigned long y_index) { return y_offset + cell_width * y_index; }
 
-    unsigned long x_index(double x_coord) { return (unsigned long) lround((x_coord - x_offset) / cell_width); }
-    unsigned long y_index(double y_coord) { return (unsigned long) lround((y_coord - y_offset) / cell_width); }
+    size_t x_index(double x_coord) { return (unsigned long) lround((x_coord - x_offset) / cell_width); }
+    size_t y_index(double y_coord) { return (unsigned long) lround((y_coord - y_offset) / cell_width); }
 };
 
 struct LRaster {
@@ -41,18 +41,25 @@ struct LRaster {
             data(data), fast_data(data.mutable_unchecked<2>()), x_offset(x_offset), y_offset(y_offset), cell_width(cell_width) {
     }
 
-    long operator()(unsigned long x, unsigned long y) {
+    long operator()(size_t x, size_t y) {
         return fast_data(x, y);
     }
 
-    double x_width() { return data.shape(0); }
-    double y_width() { return data.shape(1); }
+    size_t x_width() { return data.shape(0); }
+    size_t y_width() { return data.shape(1); }
 
-    double x_coords(unsigned long x_index) { return x_offset + cell_width * x_index; }
-    double y_coords(unsigned long y_index) { return y_offset + cell_width * y_index; }
+    double x_coords(size_t x_index) { return x_offset + cell_width * x_index; }
+    double y_coords(size_t y_index) { return y_offset + cell_width * y_index; }
 
-    unsigned long x_index(double x_coord) { return (unsigned long) lround((x_coord - x_offset) / cell_width); }
-    unsigned long y_index(double y_coord) { return (unsigned long) lround((y_coord - y_offset) / cell_width); }
+    size_t x_index(double x_coord) {
+        assert(x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width());
+        return (size_t) lround((x_coord - x_offset) / cell_width);
+    }
+
+    size_t y_index(double y_coord) {
+        assert(y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_width());
+        return (size_t) lround((y_coord - y_offset) / cell_width);
+    }
 };
 
 
