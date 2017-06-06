@@ -6,17 +6,53 @@
 
 using namespace std;
 
+struct Point final {
+    const size_t x;
+    const size_t y;
+};
 
-struct VisibilityMask : public LRaster {
+class Visibility {
 
-    VisibilityMask(size_t width, size_t height, double x_offset, double y_offset, double cell_width)
-            : LRaster(py::array_t<long>(vector<size_t> {width, height}), x_offset, y_offset, cell_width) {
-        for(size_t x=0; x<width; x++) {
-            for(size_t y=0; y<height; y++) {
-                fast_data(x, y) = 0;
+    Raster ignitions;
+    const double cell_width;
+    LRaster visibility;
+    LRaster interest;
+
+    vector<Point> interesting_visited;
+    vector<Point> interesting_pending;
+
+    Visibility(Raster ignitions)
+            : ignitions(ignitions),
+              cell_width(ignitions.cell_width),
+
+              visibility(LRaster(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width)),
+              interest(LRaster(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width))
+    {
+
+    }
+
+    void set_time_window_of_interest(double min, double max) {
+        interest.reset();
+        interesting_pending.clear();
+        interesting_visited.clear();
+
+        for(size_t x=0; x<ignitions.x_width; x++) {
+            for(size_t y=0; y<ignitions.y_height; y++) {
+                const double t = ignitions(x, y);
+                if(min <= t && t <= max) {
+                    interest.fast_data(x, y) = 1;
+                    if(is_visible(x, y))
+                        interesting_visited.push_back(Point{x, y});
+                    else
+                        interesting_pending.push_back(Point{x, y});
+                }
             }
         }
     }
+
+
+    inline bool is_of_interest(size_t x, size_t y) final { return interest(x, y) > 0; }
+    inline bool is_visible(size_t x, size_t y) final { return visibility(x, y) > 0; }
 
 
     void add_visibility(const UAV& uav, const Segment segment) {
@@ -31,21 +67,21 @@ struct VisibilityMask : public LRaster {
         printf("Rect: m(%f, %f) (%f, %f) (%f, %f)\n", ax, ay, bx, by, cx, cy);
 
         const double greatest_side = max(w, l) + cell_width;
-        const double center_x = x_coords(x_index(segment.start.x));
-        const double center_y = y_coords(y_index(segment.start.y));
+        const double center_x = ignitions.x_coords(ignitions.x_index(segment.start.x));
+        const double center_y = ignitions.y_coords(ignitions.y_index(segment.start.y));
 
         // limits of the area in which to search for visible points
-        const double min_x = max(center_x-greatest_side, x_offset);
-        const double max_x = min(center_x+greatest_side, x_coords(x_width()));
-        const double min_y = max(center_y-greatest_side, y_offset);
-        const double max_y = min(center_y+greatest_side, y_coords(y_width()));
+        const double min_x = max(center_x-greatest_side, ignitions.x_offset);
+        const double max_x = min(center_x+greatest_side, ignitions.x_coords(ignitions.x_width));
+        const double min_y = max(center_y-greatest_side, ignitions.y_offset);
+        const double max_y = min(center_y+greatest_side, ignitions.y_coords(ignitions.y_height));
 
         printf("%f, %f, %f %f\n", min_x, max_x, min_y, max_y);
 
         for(double ix=min_x; ix<=max_x; ix+=cell_width) {
            for(double iy=min_y; iy<=max_y; iy+=cell_width) {
                if(in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
-                   fast_data(x_index(ix), y_index(iy)) += 1;
+                   visibility.fast_data(ignitions.x_index(ix), ignitions.y_index(iy)) += 1;
                }
            }
         }

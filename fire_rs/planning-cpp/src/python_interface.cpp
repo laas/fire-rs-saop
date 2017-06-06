@@ -70,11 +70,11 @@ PYBIND11_PLUGIN(uav_planning) {
         return t_res;
     });
 
-    m.def("test_visibility", [](Raster r, UAV& uav, Segment s) -> std::unique_ptr<LRaster> {
-        VisibilityMask* vm = new VisibilityMask(r.x_width(), r.y_width(), r.x_offset, r.y_offset, r.cell_width);
-        vm->add_visibility(uav, s);
-        return std::unique_ptr<LRaster>(vm);
-    });
+//    m.def("test_visibility", [](Raster r, UAV& uav, Segment s) -> std::unique_ptr<LRaster> {
+//        VisibilityMask* vm = new VisibilityMask(r.x_width(), r.y_width(), r.x_offset, r.y_offset, r.cell_width);
+//        vm->add_visibility(uav, s);
+//        return std::unique_ptr<LRaster>(vm);
+//    });
 
     return m.ptr();
 }
