@@ -114,7 +114,7 @@ class FirePropagation:
         self._push_to_propagation_queue(x, y, time)
         self._ignition_points.append((x, y))
 
-    def ignitions(self):
+    def ignitions(self) -> GeoData:
         return self.prop_data.slice(['ignition'])
 
     def _push_to_propagation_queue(self, x, y, time):
@@ -273,7 +273,12 @@ class FirePropagation:
 
         plot_wind_arrows(fire_ax, *np.meshgrid(x[::10], y[::10]), WX[::10, ::10], WY[::10, ::10])
 
-        fronts = fire_ax.contour(x, y, self.ignitions().data['ignition'].T / 60, 10, cmap=cm.Set1)
+        # mask all cells whose ignition has not been computed
+        igni = np.array(self.ignitions().data['ignition'])
+        igni[igni >= 99999999999] = np.nan
+
+        # plot fire front with contour lines in minutes
+        fronts = fire_ax.contour(x, y, igni.T / 60, 10, cmap=cm.Set1)
         fire_ax.clabel(fronts, inline=True, fontsize='smaller', inline_spacing=1, linewidth=2, fmt='%.0f')
 
         for ignition_point in self._ignition_points:
@@ -286,17 +291,18 @@ class FirePropagation:
         return fire_fig
 
 
-def propagate(env: Environment, x: int, y: int) -> 'FirePropagation':
+def propagate(env: Environment, x: int, y: int, horizon=np.inf) -> 'FirePropagation':
     """Set the environment on fire in (x, y) at time 0 and returns the ignition times of other points of the environment.
 
     :param env: Environment model
     :param x: X coordinate of ignition point
     :param y: Y coordinate of ignition point
+    :param horizon: Wall-clock time at which to stop the propagation
     :return: A matrix of ignition time. The size of the matrix is given by the size of the environment
     """
     fp = FirePropagation(env)
     fp.set_ignition_point(x, y, 0)
-    fp.propagate(horizon=np.inf)
+    fp.propagate(horizon=horizon)
     return fp
 
 
