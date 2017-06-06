@@ -54,8 +54,17 @@ class Visibility {
     inline bool is_of_interest(size_t x, size_t y) final { return interest(x, y) > 0; }
     inline bool is_visible(size_t x, size_t y) final { return visibility(x, y) > 0; }
 
-
     void add_visibility(const UAV& uav, const Segment segment) {
+        update_visibility(uav, segment, 1);
+    }
+
+    void remove_visibility(const UAV& uav, const Segment segment) {
+        update_visibility(uav, segment, -1);
+    }
+
+
+private:
+    void update_visibility(const UAV& uav, const Segment segment, const int increment) {
         const double w = uav.view_width;
         const double l = uav.view_depth + segment.length;
         const double ax = segment.start.x + cos(segment.start.dir + M_PI/2) * w/2;
@@ -81,14 +90,13 @@ class Visibility {
         for(double ix=min_x; ix<=max_x; ix+=cell_width) {
            for(double iy=min_y; iy<=max_y; iy+=cell_width) {
                if(in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
-                   visibility.fast_data(ignitions.x_index(ix), ignitions.y_index(iy)) += 1;
+                   visibility.fast_data(ignitions.x_index(ix), ignitions.y_index(iy)) += increment;
                }
            }
         }
 
     }
 
-private:
     static inline double dot(double x1, double y1, double x2, double y2) {
         return x1 * x2 + y1 * y2;
     }
