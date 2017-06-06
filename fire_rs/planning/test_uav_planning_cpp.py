@@ -2,25 +2,27 @@ import unittest
 import fire_rs.uav_planning as up
 
 
-def plot_dubins(waypoints):
+def get_trajectory(waypoints):
     traj = up.Trajectory(up.UAV(1, 1))
     for wp in waypoints:
         traj = traj.with_waypoint_at_end(wp)
-    plot_trajectory(traj)
+    return traj
 
 
-def plot_trajectory(traj):
+def plot_trajectory(traj, blocking=False):
     import matplotlib.pyplot as plt
+    ax = plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
     sampled_waypoints = traj.as_waypoints(step_size=0.1)
     x = [wp.x for wp in sampled_waypoints]
     y = [wp.y for wp in sampled_waypoints]
-    plt.scatter(x, y, s=0.1, c='b')
+    ax.scatter(x, y, s=0.1, c='b')
 
     waypoints = traj.as_waypoints()
     x = [wp.x for wp in waypoints]
     y = [wp.y for wp in waypoints]
-    plt.scatter(x, y, c='r')
-    plt.show(block=False)
+    ax.scatter(x, y, c='r')
+    plt.show(block=blocking)
+
 
 
 class TestUAV(unittest.TestCase):
@@ -45,6 +47,23 @@ class TestUAV(unittest.TestCase):
         self.assertAlmostEquals(4, traj.length())
 
     def test_trajectory_plotting(self):
-        plot_dubins([up.Waypoint(0, 0, 0), up.Waypoint(1, 1, 0), up.Waypoint(10, 10, 3.14), up.Waypoint(6, 0, 0),
+        traj = get_trajectory([up.Waypoint(0, 0, 0), up.Waypoint(1, 1, 0), up.Waypoint(10, 10, 3.14), up.Waypoint(6, 0, 0),
                      up.Waypoint(7, 1, 0)])
+        plot_trajectory(traj)
+
+    def test_trajectory_mutations(self):
+        traj = get_trajectory([up.Waypoint(0, 0, 2), up.Waypoint(1.4, 4.4, 0), up.Waypoint(10, 10, 3.14),
+                               up.Waypoint(5, 0, 0), up.Waypoint(7, 1, 0), up.Waypoint(15, 9, 2), up.Waypoint(15, 5, 0),
+                               up.Waypoint(0, 10, 3.14), up.Waypoint(1, 9, 3.14)])
+        print(traj.length())
+        plot_trajectory(traj, blocking=False)
+        traj = up.improve(traj)
+        print(traj.length())
+        plot_trajectory(traj, blocking=True)
+        print(traj)
+
+        print("end")
+
+
+
 
