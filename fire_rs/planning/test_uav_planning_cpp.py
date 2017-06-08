@@ -83,15 +83,31 @@ class TestUAV(unittest.TestCase):
         print(gd2)
 
     def test_visibility(self):
-        from fire_rs.geodata.environment import World
-        world = World()
-        gd = world.get_elevation([[476000.0,477000], [6201000.0, 6202000]])
-        raster = gd.as_cpp_raster()
-        visibility_raster = up.test_visibility(raster, uav, up.Segment(up.Waypoint(476100.0, 6201100, np.pi/4), 100))
-        visibility_gd = GeoData.from_cpp_raster(visibility_raster, "visibility")
-        visibility_gd.plot(blocking=False)
-        print(visibility_gd)
-        print("coucou")
+        from fire_rs.firemodel import propagation
+        env = propagation.Environment([[475060.0, 477060.0], [6200074.0, 6202074.0]], wind_speed=4.11, wind_dir=0)
+        prop = propagation.propagate(env, 10, 20, horizon=3600)
+        ignitions = prop.ignitions()
+        v = up.Visibility(ignitions.as_cpp_raster())
+        v.set_time_window_of_interest(1800, 2700)
+        bl = up.Segment(up.Waypoint(475060.0, 6200074, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
+        tr = up.Segment(up.Waypoint(476500, 6201500, 0), 100)  # top right segment non-overlapping the fire zone
+
+        def pr(cpp_raster):  # plots a cpp raster
+            GeoData.from_cpp_raster(cpp_raster, "xx").plot()
+
+        pr(v.interest)
+        c1 = v.cost()
+        v.add_segment(uav, bl)
+        self.assertLess(v.cost(), c1, "cost should have decreased")
+        c2 = v.cost()
+        v.add_segment(uav, tr)
+        self.assertEquals(c2, v.cost(), "Cost should have been identical")
+        v.remove_segment(uav, bl)
+        self.assertAlmostEqual(c1, v.cost(), msg="Cost should have came back to its original value")
+        pr(v.visibility)
+        print(v)
+        print("break")
+        prop.plot(blocking=False)
 
 
 

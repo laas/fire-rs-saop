@@ -58,6 +58,15 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
             .def("__repr__", &Trajectory::to_string);
 
+    py::class_<Visibility>(m, "Visibility")
+            .def(py::init<Raster>())
+            .def("set_time_window_of_interest", &Visibility::set_time_window_of_interest)
+            .def("add_segment", &Visibility::add_segment)
+            .def("remove_segment", &Visibility::remove_segment)
+            .def("cost", &Visibility::cost)
+            .def_readonly("visibility", &Visibility::visibility)
+            .def_readonly("interest", &Visibility::interest);
+
     m.def("improve", [](const Trajectory& traj) {
         auto n1 = std::make_shared<AlignTwoConsecutiveNeighborhood>();
         auto n2 = std::make_shared<OrientationChangeNeighborhood>();
@@ -69,12 +78,6 @@ PYBIND11_PLUGIN(uav_planning) {
         Trajectory t_res = first_improvement_search(traj, *ns, 5000);
         return t_res;
     });
-
-//    m.def("test_visibility", [](Raster r, UAV& uav, Segment s) -> std::unique_ptr<LRaster> {
-//        VisibilityMask* vm = new VisibilityMask(r.x_width(), r.y_width(), r.x_offset, r.y_offset, r.cell_width);
-//        vm->add_visibility(uav, s);
-//        return std::unique_ptr<LRaster>(vm);
-//    });
 
     return m.ptr();
 }
