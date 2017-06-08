@@ -164,28 +164,26 @@ private:
         // (half of it on each side) and as length equal to the length of the segment + the view depth of the UAV
         const double w = uav.view_width; // width of rect
         const double l = uav.view_depth + segment.length; // length of rect
-        // coordinates of A, B and C corners, where AB and BC are perpendicular
+
+        // coordinates of A, B and C corners, where AB and BC are perpendicular. D is the corner opposing A
+        // UAV is at the center of AB
         const double ax = segment.start.x + cos(segment.start.dir + M_PI/2) * w/2;
         const double ay = segment.start.y + sin(segment.start.dir + M_PI/2) * w/2;
         const double bx = segment.start.x - cos(segment.start.dir + M_PI/2) * w/2;
         const double by = segment.start.y - sin(segment.start.dir + M_PI/2) * w/2;
         const double cx = ax + cos(segment.start.dir) * l;
         const double cy = ay + sin(segment.start.dir) * l;
-
-        // distance from the UAV to the furthest corner
-        const double greatest_side = sqrt(pow(w/2, 2) + pow(l,2)) + cell_width;
-
-        const double center_x = ignitions.x_coords(ignitions.x_index(segment.start.x));
-        const double center_y = ignitions.y_coords(ignitions.y_index(segment.start.y));
+        const double dx = bx + cos(segment.start.dir) * l;
+        const double dy = by + sin(segment.start.dir) * l;
 
         // limits of the area in which to search for visible points
         // this is a subset of the raster that strictly contains the visibility rectangle
-        // this is currently quite conservative as it ignores the direction (simply a "big" square centered on the UAV)
-        const double min_x = max(center_x-greatest_side, ignitions.x_offset);
-        const double max_x = min(center_x+greatest_side, ignitions.x_coords(ignitions.x_width));
-        const double min_y = max(center_y-greatest_side, ignitions.y_offset);
-        const double max_y = min(center_y+greatest_side, ignitions.y_coords(ignitions.y_height));
+        const double min_x = min(min(ax, bx), min(cx, dx));
+        const double max_x = max(max(ax, bx), max(cx, dx));
+        const double min_y = min(min(ay, by), min(cy, dy));
+        const double max_y = max(max(ay, by), max(cy, dy));
 
+        // for each point possibly in the rectangle check if it is in the visible area and mark it as pending/visible when necessary
         for(double ix=min_x; ix<=max_x; ix+=cell_width) {
            for(double iy=min_y; iy<=max_y; iy+=cell_width) {
                if(in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
