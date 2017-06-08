@@ -7,7 +7,9 @@ namespace py = pybind11;
 
 struct Raster {
     py::array_t<double> data;
-    py::detail::unchecked_mutable_reference<double, 2> fast_data;
+
+    // for fast access, mutable keyword is required as the underlying object does not have const correctness
+    mutable py::detail::unchecked_mutable_reference<double, 2> fast_data;
     double x_offset;
     double y_offset;
     double cell_width;
@@ -18,20 +20,22 @@ struct Raster {
             data(data), fast_data(data.mutable_unchecked<2>()), x_offset(x_offset), y_offset(y_offset), cell_width(cell_width) {
     }
 
-    double operator()(unsigned long x, unsigned long y) {
+    double operator()(size_t x, size_t y) const {
         return fast_data(x, y);
     }
 
-    double x_coords(unsigned long x_index) { return x_offset + cell_width * x_index; }
-    double y_coords(unsigned long y_index) { return y_offset + cell_width * y_index; }
+    double x_coords(size_t x_index) const { return x_offset + cell_width * x_index; }
+    double y_coords(size_t y_index) const { return y_offset + cell_width * y_index; }
 
-    size_t x_index(double x_coord) { return (unsigned long) lround((x_coord - x_offset) / cell_width); }
-    size_t y_index(double y_coord) { return (unsigned long) lround((y_coord - y_offset) / cell_width); }
+    size_t x_index(double x_coord) const { return (size_t) lround((x_coord - x_offset) / cell_width); }
+    size_t y_index(double y_coord) const { return (size_t) lround((y_coord - y_offset) / cell_width); }
 };
 
 struct LRaster {
     py::array_t<long> data;
-    py::detail::unchecked_mutable_reference<long, 2> fast_data;
+
+    // for fast access, mutable keyword is required as the underlying object does not have const correctness
+    mutable py::detail::unchecked_mutable_reference<long, 2> fast_data;
     const double x_offset;
     const double y_offset;
     const double cell_width;
@@ -55,7 +59,7 @@ struct LRaster {
         reset();
     }
 
-    long operator()(size_t x, size_t y) {
+    long operator()(size_t x, size_t y) const {
         return fast_data(x, y);
     }
 
@@ -65,15 +69,15 @@ struct LRaster {
                 fast_data(x, y) = 0;
     }
 
-    double x_coords(size_t x_index) { return x_offset + cell_width * x_index; }
-    double y_coords(size_t y_index) { return y_offset + cell_width * y_index; }
+    double x_coords(size_t x_index) const { return x_offset + cell_width * x_index; }
+    double y_coords(size_t y_index) const { return y_offset + cell_width * y_index; }
 
-    size_t x_index(double x_coord) {
+    size_t x_index(double x_coord) const {
         assert(x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width);
         return (size_t) lround((x_coord - x_offset) / cell_width);
     }
 
-    size_t y_index(double y_coord) {
+    size_t y_index(double y_coord) const {
         assert(y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height);
         return (size_t) lround((y_coord - y_offset) / cell_width);
     }
