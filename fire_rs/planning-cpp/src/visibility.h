@@ -24,16 +24,18 @@ public:
     vector<Point> interesting_pending;
     vector<double> pending_costs;
 
-    Visibility(Raster ignitions)
+    Visibility(Raster ignitions, double time_window_min, double time_window_max)
             : ignitions(ignitions),
               cell_width(ignitions.cell_width),
 
               visibility(LRaster(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width)),
               interest(LRaster(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width))
     {
-
+        set_time_window_of_interest(time_window_min, time_window_max);
     }
 
+    /** Mark as interesting all points whose ignition time lies between min and max.
+     * All non-interesting points are not taken into account in the cost computation. */
     void set_time_window_of_interest(double min, double max) {
         reset();
 
@@ -55,10 +57,12 @@ public:
     inline bool is_of_interest(size_t x, size_t y) const { return interest(x, y) > 0; }
     inline bool is_visible(size_t x, size_t y) const { return visibility(x, y) > 0; }
 
+    /** Mark the area covered by the segment as visible and update cost accordingly. */
     void add_segment(const UAV& uav, const Segment segment) {
         update_visibility(uav, segment, 1);
     }
 
+    /** Remove the visibility contributed by the segment and update cost accordingly. */
     void remove_segment(const UAV& uav, const Segment segment) {
         update_visibility(uav, segment, -1);
     }
@@ -210,6 +214,7 @@ private:
 
     }
 
+    /** Dot product of two vectors */
     static inline double dot(double x1, double y1, double x2, double y2) {
         return x1 * x2 + y1 * y2;
     }

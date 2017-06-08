@@ -59,7 +59,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("__repr__", &Trajectory::to_string);
 
     py::class_<Visibility>(m, "Visibility")
-            .def(py::init<Raster>())
+            .def(py::init<Raster, double, double>())
             .def("set_time_window_of_interest", &Visibility::set_time_window_of_interest)
             .def("add_segment", &Visibility::add_segment)
             .def("remove_segment", &Visibility::remove_segment)
