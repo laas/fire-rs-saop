@@ -8,11 +8,11 @@
 
 
 struct UAV {
-    const double max_angular_velocity;
-    const double max_air_speed;
-    const double min_turn_radius;
-    const double view_width = 100;
-    const double view_depth = 100;
+    double max_angular_velocity;
+    double max_air_speed;
+    double min_turn_radius;
+    double view_width = 100;
+    double view_depth = 100;
 
 
      UAV(const double max_air_speed, const double max_angular_velocity) :
@@ -21,6 +21,8 @@ struct UAV {
             min_turn_radius(max_air_speed / max_angular_velocity) {
         printf("%f -- %f\n", max_air_speed, min_turn_radius);
     };
+
+    UAV(const UAV& uav) = default;
 
     /** Returns the Dubins travel distance between the two waypoints. */
     double travel_distance(const Waypoint &origin, const Waypoint &target) const {
