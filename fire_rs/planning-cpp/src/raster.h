@@ -59,6 +59,12 @@ struct LRaster {
         reset();
     }
 
+    LRaster(const LRaster& from) : LRaster(from.x_width, from.y_height, from.x_offset, from.y_offset, from.cell_width) {
+        for(size_t x=0; x<x_width; x++)
+            for(size_t y=0; y<y_height; y++)
+                fast_data(x,y) = from.fast_data(x,y);
+    }
+
     long operator()(size_t x, size_t y) const {
         return fast_data(x, y);
     }
