@@ -15,7 +15,7 @@ struct Point final {
 
 class Visibility {
 public:
-    Raster ignitions;
+    const Raster& ignitions;
     const double cell_width;
     LRaster visibility;
     LRaster interest;
@@ -24,7 +24,7 @@ public:
     vector<Point> interesting_pending;
     vector<double> pending_costs;
 
-    Visibility(Raster ignitions, double time_window_min, double time_window_max)
+    Visibility(const Raster ignitions, double time_window_min, double time_window_max)
             : ignitions(ignitions),
               cell_width(ignitions.cell_width),
 
@@ -33,6 +33,8 @@ public:
     {
         set_time_window_of_interest(time_window_min, time_window_max);
     }
+
+    Visibility(const Visibility& from) = default;
 
     /** Mark as interesting all points whose ignition time lies between min and max.
      * All non-interesting points are not taken into account in the cost computation. */
@@ -73,6 +75,29 @@ public:
             cost += pending_costs[i];
         }
         return cost;
+    }
+
+    double cost_given_addition(const UAV& uav, Segment addition) {
+        return cost_given(uav, vector<Segment> {addition}, vector<Segment> {});
+    }
+    double cost_given(const UAV& uav, const vector<Segment> additions, const vector<Segment> removal) {
+        const double init_cost = cost();
+
+        // apply changes
+        for(auto it=additions.begin(); it != additions.end(); it++)
+            add_segment(uav, *it);
+        for(auto it=removal.begin(); it != removal.end(); it++)
+            remove_segment(uav, *it);
+        const double resulting_cost = cost();
+
+        // rollback changes
+        for(auto it=additions.begin(); it != additions.end(); it++)
+            remove_segment(uav, *it);
+        for(auto it=removal.begin(); it != removal.end(); it++)
+            add_segment(uav, *it);
+
+        assert(abs(init_cost - cost()) < 0.00001);
+        return resulting_cost;
     }
 
 private:
