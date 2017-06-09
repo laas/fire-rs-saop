@@ -7,6 +7,8 @@
 #include "local_search.h"
 #include "raster.h"
 #include "visibility.h"
+#include "planning.h"
+#include "debug.h"
 
 namespace py = pybind11;
 
@@ -66,6 +68,16 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("cost", &Visibility::cost)
             .def_readonly("visibility", &Visibility::visibility)
             .def_readonly("interest", &Visibility::interest);
+
+    py::class_<Plan>(m, "Plan")
+            .def(py::init<vector<UAV>, Visibility>())
+            .def_readonly("trajectories", &Plan::trajectories);
+
+    m.def("make_plan", [](UAV uav, vector<Segment> segments, Visibility visibility) -> Plan {
+        PPlan p = make_shared<Plan>(vector<UAV> { uav }, visibility);
+        PPlan ret = Insert::smart_insert(p, 0, segments);
+        return *ret;
+    });
 
     m.def("improve", [](const Trajectory& traj) {
         auto n1 = std::make_shared<AlignTwoConsecutiveNeighborhood>();

@@ -23,7 +23,8 @@ setup(
             sources=['fire_rs/planning-cpp/src/dubins.cpp', 'fire_rs/planning-cpp/src/python_interface.cpp'],
             depends=['fire_rs/planning-cpp/src/local_search.h', 'fire_rs/planning-cpp/src/trajectory.h',
                      'fire_rs/planning-cpp/src/waypoint.h', 'fire_rs/planning-cpp/src/uav.h',
-                     'fire_rs/planning-cpp/src/raster.h', 'fire_rs/planning-cpp/src/visibility.h'],
+                     'fire_rs/planning-cpp/src/raster.h', 'fire_rs/planning-cpp/src/visibility.h',
+                     'fire_rs/planning-cpp/src/planning.h', 'fire_rs/planning-cpp/src/debug.h'],
             include_dirs=[pybind11.get_include(False), pybind11.get_include(True)],  # Path to pybind11 headers
             extra_compile_args=["-std=c++11",  "-Wall", "-Wno-deprecated"],
             language='c++',

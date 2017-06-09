@@ -10,7 +10,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 set(SOURCE_FILES src/dubins.cpp src/dubins.h src/trajectory.h src/local_search.h src/uav.h
-    src/waypoint.h src/raster.h src/visibility.h)
+    src/waypoint.h src/raster.h src/visibility.h src/planning.h src/optional.h src/debug.h)
 add_executable(planning_cpp ${SOURCE_FILES} src/main.cpp)
 
 pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)

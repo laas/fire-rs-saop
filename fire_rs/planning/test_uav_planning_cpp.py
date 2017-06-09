@@ -108,6 +108,22 @@ class TestUAV(unittest.TestCase):
         print("break")
         prop.plot(blocking=False)
 
+    def test_smart_insertion(self):
+        from fire_rs.firemodel import propagation
+        env = propagation.Environment([[475060.0, 477060.0], [6200074.0, 6202074.0]], wind_speed=4.11, wind_dir=0)
+        prop = propagation.propagate(env, 10, 20, horizon=3600)
+        ignitions = prop.ignitions()
+        v = up.Visibility(ignitions.as_cpp_raster(), 1800, 2700)
+        bl = up.Segment(up.Waypoint(475060.0, 6200074, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
+        tr = up.Segment(up.Waypoint(476500, 6201500, 0), 100)  # top right segment non-overlapping the fire zone
+        segments = [
+            up.Segment(up.Waypoint(475060.0, 6200074, np.pi/2), 300),
+            up.Segment(up.Waypoint(476500, 6201500, 0), 100),
+            up.Segment(up.Waypoint(475160.0, 6201074, np.pi/2), 300),
+            up.Segment(up.Waypoint(476700, 6201400, 0), 100)
+        ]
+        p = up.make_plan(uav, segments, v)
+        plot_trajectory(p.trajectories[0], blocking=False)
 
 
 
