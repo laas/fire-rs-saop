@@ -15,7 +15,7 @@ struct Point final {
 
 class Visibility {
 public:
-    const Raster& ignitions;
+    const Raster ignitions;
     const double cell_width;
     LRaster visibility;
     LRaster interest;
@@ -207,14 +207,18 @@ private:
 
         // limits of the area in which to search for visible points
         // this is a subset of the raster that strictly contains the visibility rectangle
-        const double min_x = min(min(ax, bx), min(cx, dx));
-        const double max_x = max(max(ax, bx), max(cx, dx));
-        const double min_y = min(min(ay, by), min(cy, dy));
-        const double max_y = max(max(ay, by), max(cy, dy));
+        const double min_x = max(min(min(ax, bx), min(cx, dx)) - cell_width, ignitions.x_offset);
+        const double max_x = min(max(max(ax, bx), max(cx, dx)) + cell_width, ignitions.x_offset + ignitions.x_width*cell_width);
+        const double min_y = max(min(min(ay, by), min(cy, dy)) - cell_width, ignitions.y_offset);
+        const double max_y = min(max(max(ay, by), max(cy, dy)) + cell_width, ignitions.y_offset + ignitions.y_height*cell_width);
+
+        // coordinates of where to start the search, centered on a cell
+        const double start_x = ignitions.x_coords(ignitions.x_index(min_x));
+        const double start_y = ignitions.y_coords(ignitions.y_index(min_y));
 
         // for each point possibly in the rectangle check if it is in the visible area and mark it as pending/visible when necessary
-        for(double ix=min_x; ix<=max_x; ix+=cell_width) {
-           for(double iy=min_y; iy<=max_y; iy+=cell_width) {
+        for(double ix=start_x; ix<=max_x; ix+=cell_width) {
+           for(double iy=start_y; iy<=max_y; iy+=cell_width) {
                if(in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
                    // corresponding point in matrix coordinates
                    const Point pt{ ignitions.x_index(ix), ignitions.y_index(iy) };

@@ -53,20 +53,18 @@ class TestUAV(unittest.TestCase):
     def test_trajectory_plotting(self):
         traj = get_trajectory([up.Waypoint(0, 0, 0), up.Waypoint(1, 1, 0), up.Waypoint(10, 10, 3.14), up.Waypoint(6, 0, 0),
                      up.Waypoint(7, 1, 0)])
-        plot_trajectory(traj)
+        # plot_trajectory(traj)
 
     def test_trajectory_mutations(self):
         traj = get_trajectory([up.Waypoint(0, 0, 4.5), up.Waypoint(1.4, 4.4, 0), up.Waypoint(10, 10, 3.14),
                                up.Waypoint(5, 0, 0), up.Waypoint(7, 1, 0), up.Waypoint(15, 9, 2), up.Waypoint(15, 5, 0),
                                up.Waypoint(0, 10, 3.14), up.Waypoint(1, 9, 3.14)])
         print(traj.length())
-        plot_trajectory(traj, blocking=False)
+        # plot_trajectory(traj, blocking=False)
         traj = up.improve(traj)
         print(traj.length())
-        plot_trajectory(traj, blocking=False)
+        # plot_trajectory(traj, blocking=False)
         print(traj)
-
-        print("end")
 
     def test_geodata_conversion(self):
         from fire_rs.geodata.environment import World
@@ -88,15 +86,17 @@ class TestUAV(unittest.TestCase):
         prop = propagation.propagate(env, 10, 20, horizon=3600)
         ignitions = prop.ignitions()
         v = up.Visibility(ignitions.as_cpp_raster(), 1800, 2700)
-        bl = up.Segment(up.Waypoint(475060.0, 6200074, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
+        bl = up.Segment(up.Waypoint(475160.0, 6200174, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
         tr = up.Segment(up.Waypoint(476500, 6201500, 0), 100)  # top right segment non-overlapping the fire zone
 
-        def pr(cpp_raster):  # plots a cpp raster
-            GeoData.from_cpp_raster(cpp_raster, "xx").plot()
+        def pr(cpp_raster, blocking=False):  # plots a cpp raster
+            GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
 
-        pr(v.interest)
+        # pr(v.interest, blocking=False)
         c1 = v.cost()
+        pr(v.visibility)
         v.add_segment(uav, bl)
+        # pr(v.visibility, blocking=False)
         self.assertLess(v.cost(), c1, "cost should have decreased")
         c2 = v.cost()
         v.add_segment(uav, tr)
@@ -104,9 +104,7 @@ class TestUAV(unittest.TestCase):
         v.remove_segment(uav, bl)
         self.assertAlmostEqual(c1, v.cost(), msg="Cost should have came back to its original value")
         pr(v.visibility)
-        print(v)
-        print("break")
-        prop.plot(blocking=False)
+        # prop.plot(blocking=False)
 
     def test_smart_insertion(self):
         from fire_rs.firemodel import propagation
@@ -123,7 +121,7 @@ class TestUAV(unittest.TestCase):
             up.Segment(up.Waypoint(476700, 6201400, 0), 100)
         ]
         p = up.make_plan(uav, segments, v)
-        plot_trajectory(p.trajectories[0], blocking=False)
+        # plot_trajectory(p.trajectories[0], blocking=False)
 
 
 

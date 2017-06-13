@@ -10,15 +10,15 @@ struct Raster {
 
     // for fast access, mutable keyword is required as the underlying object does not have const correctness
     mutable py::detail::unchecked_mutable_reference<double, 2> fast_data;
-    double x_offset;
-    double y_offset;
-    double cell_width;
+    const double x_offset;
+    const double y_offset;
+    const double cell_width;
     const size_t x_width = data.shape(0);
     const size_t y_height = data.shape(1);
 
     Raster(py::array_t<double, py::array::c_style | py::array::forcecast> data, double x_offset, double y_offset, double cell_width) :
-            data(data), fast_data(data.mutable_unchecked<2>()), x_offset(x_offset), y_offset(y_offset), cell_width(cell_width) {
-    }
+            data(data), fast_data(this->data.mutable_unchecked<2>()),
+            x_offset(x_offset), y_offset(y_offset), cell_width(cell_width) {}
 
     double operator()(size_t x, size_t y) const {
         return fast_data(x, y);
@@ -27,8 +27,22 @@ struct Raster {
     double x_coords(size_t x_index) const { return x_offset + cell_width * x_index; }
     double y_coords(size_t y_index) const { return y_offset + cell_width * y_index; }
 
-    size_t x_index(double x_coord) const { return (size_t) lround((x_coord - x_offset) / cell_width); }
-    size_t y_index(double y_coord) const { return (size_t) lround((y_coord - y_offset) / cell_width); }
+    bool is_x_in(double x_coord) const {
+        return x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width;
+    }
+    bool is_y_in(double y_coord) const {
+        return y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height;
+    }
+
+    size_t x_index(double x_coord) const {
+        ASSERT(is_x_in(x_coord));
+        return (size_t) lround((x_coord - x_offset) / cell_width);
+    }
+
+    size_t y_index(double y_coord) const {
+        ASSERT(is_y_in(y_coord));
+        return (size_t) lround((y_coord - y_offset) / cell_width);
+    }
 };
 
 struct LRaster {
@@ -44,14 +58,14 @@ struct LRaster {
 
     LRaster(py::array_t<long, py::array::c_style | py::array::forcecast> data, double x_offset, double y_offset, double cell_width) :
             data(data),
-            fast_data(data.mutable_unchecked<2>()),
+            fast_data(this->data.mutable_unchecked<2>()),
             x_offset(x_offset),
             y_offset(y_offset),
             cell_width(cell_width) {}
 
     LRaster(size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width)
             : data(py::array_t<long, py::array::c_style | py::array::forcecast>(vector<size_t> {x_width, y_height})),
-              fast_data(data.mutable_unchecked<2>()),
+              fast_data(this->data.mutable_unchecked<2>()),
               x_offset(x_offset),
               y_offset(y_offset),
               cell_width(cell_width)
@@ -78,13 +92,20 @@ struct LRaster {
     double x_coords(size_t x_index) const { return x_offset + cell_width * x_index; }
     double y_coords(size_t y_index) const { return y_offset + cell_width * y_index; }
 
+    bool is_x_in(double x_coord) const {
+        return x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width;
+    }
+    bool is_y_in(double y_coord) const {
+        return y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height;
+    }
+
     size_t x_index(double x_coord) const {
-        assert(x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width);
+        ASSERT(is_x_in(x_coord))
         return (size_t) lround((x_coord - x_offset) / cell_width);
     }
 
     size_t y_index(double y_coord) const {
-        assert(y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height);
+        ASSERT(is_y_in(y_coord))
         return (size_t) lround((y_coord - y_offset) / cell_width);
     }
 };
