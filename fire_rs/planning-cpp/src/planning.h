@@ -4,7 +4,7 @@
 #include <vector>
 #include "trajectory.h"
 #include "visibility.h"
-#import "optional.h"
+#import "ext/optional.h"
 
 using namespace std;
 

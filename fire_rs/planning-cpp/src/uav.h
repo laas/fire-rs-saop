@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <cassert>
-#include "dubins.h"
+#include "ext/dubins.h"
 #include "waypoint.h"
 
 

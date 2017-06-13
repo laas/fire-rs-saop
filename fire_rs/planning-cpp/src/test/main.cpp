@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include "dubins.h"
-#include "trajectory.h"
-#include "local_search.h"
+#include "../ext/dubins.h"
+#include "../trajectory.h"
+#include "../local_search.h"
 #include <stdio.h>
 #include <math.h>
 #include <cassert>

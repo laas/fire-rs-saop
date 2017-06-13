@@ -7,7 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cassert>
-#include "dubins.h"
+#include "ext/dubins.h"
 #include "waypoint.h"
 #include "uav.h"
 #include "debug.h"
