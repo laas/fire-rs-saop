@@ -3,7 +3,7 @@
 
 #include <sstream>
 
-struct Waypoint {
+struct Waypoint final {
     // order and length is important for compatibility with dubins.cpp, allowing to simply cast a Waypoint* to a double*
     double x;
     double y;
@@ -16,6 +16,20 @@ struct Waypoint {
         std::stringstream repr;
         repr << "(" << x<<", "<<y<<", "<<dir<<")";
         return repr.str();
+    }
+
+    Waypoint forward(double dist) const {
+        const double new_x = x + cos(dir) * dist;
+        const double new_y = y + sin(dir) * dist;
+        return Waypoint(new_x, new_y, dir);
+    }
+
+    Waypoint rotate(double relative_angle) const {
+        return Waypoint(x, y, dir+relative_angle);
+    }
+
+    Waypoint with_angle(double absolute_angle) const {
+        return Waypoint(x, y, absolute_angle);
     }
 };
 
