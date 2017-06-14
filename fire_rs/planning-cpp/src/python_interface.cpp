@@ -53,7 +53,6 @@ PYBIND11_PLUGIN(uav_planning) {
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const UAV&>())
-            .def_readonly("uav", &Trajectory::uav)
             .def("length", &Trajectory::length)
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints, py::arg("step_size")= -1)
@@ -69,12 +68,20 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("visibility", &Visibility::visibility)
             .def_readonly("interest", &Visibility::interest);
 
+    py::class_<TrajectoryConfig>(m, "TrajectoryConfig")
+            .def(py::init<UAV, Waypoint, Waypoint, double>())
+            .def_readonly("uav", &TrajectoryConfig::uav)
+            .def_readonly("max_flight_time", &TrajectoryConfig::max_flight_time)
+            .def_static("build", [](UAV uav, double max_flight_time) -> TrajectoryConfig {
+                return TrajectoryConfig(uav, max_flight_time);
+            });
+
     py::class_<Plan>(m, "Plan")
-            .def(py::init<vector<UAV>, Visibility>())
+            .def(py::init<vector<TrajectoryConfig>, Visibility>())
             .def_readonly("trajectories", &Plan::trajectories);
 
     m.def("make_plan", [](UAV uav, vector<Segment> segments, Visibility visibility) -> Plan {
-        PPlan p = make_shared<Plan>(vector<UAV> { uav }, visibility);
+        PPlan p = make_shared<Plan>(vector<TrajectoryConfig> { TrajectoryConfig(uav) }, visibility);
         PPlan ret = Insert::smart_insert(p, 0, segments);
         return *ret;
     });

@@ -14,6 +14,7 @@ typedef shared_ptr<Plan> PPlan;
 struct Plan {
     vector<Trajectory> trajectories;
     Visibility visibility;
+    vector<double> max_durations;
 
     double cost = -1;
     double length = -1;
@@ -21,21 +22,11 @@ struct Plan {
 
     Plan(const Plan& plan) = default;
 
-    Plan(vector<tuple<UAV&,Waypoint,Waypoint>> uav_start_end, Visibility visibility) :
+    Plan(vector<TrajectoryConfig> traj_confs, Visibility visibility) :
             visibility(visibility)
     {
-        for(auto it=uav_start_end.begin(); it!=uav_start_end.end(); it++) {
-            auto traj = Trajectory(std::get<0>(*it), vector<Waypoint> { std::get<1>(*it), std::get<2>(*it) });
-            trajectories.push_back(traj);
-        }
-        compute_duration_and_cost();
-    }
-
-    Plan(vector<UAV> uavs, Visibility visibility) :
-            visibility(visibility)
-    {
-        for(auto it=uavs.begin(); it!=uavs.end(); it++) {
-            auto traj = Trajectory(*it, vector<Waypoint> { });
+        for(auto conf=traj_confs.begin(); conf!=traj_confs.end(); conf++) {
+            auto traj = Trajectory(*conf);
             trajectories.push_back(traj);
         }
         compute_duration_and_cost();
@@ -56,7 +47,7 @@ struct Plan {
         ASSERT(traj_id < trajectories.size());
         ASSERT(insert_loc <= trajectories[traj_id].traj.size());
         trajectories[traj_id] = trajectories[traj_id].with_additional_segment(insert_loc, seg);
-        visibility.add_segment(trajectories[traj_id].uav, seg);
+        visibility.add_segment(trajectories[traj_id].conf->uav, seg);
         compute_duration_and_cost();
     }
 
@@ -103,13 +94,6 @@ public:
     void apply_on(PPlan p) override {
     }
 };
-
-//
-//vector<Plan> plan(const Raster& ignitions, vector<tuple<UAV&,Waypoint,Waypoint>> uav_start_end, double min_time_window, double max_time_window) {
-//    Visibility vis(ignitions, min_time_window, max_time_window);
-//
-//}
-
 
 
 struct Neighborhood {
@@ -191,7 +175,7 @@ struct Insert : LocalMove {
     {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
-        _cost = base->visibility.cost_given_addition(base->trajectories[traj_id].uav, seg);
+        _cost = base->visibility.cost_given_addition(base->trajectories[traj_id].conf->uav, seg);
         _duration = base->duration + base->trajectories[traj_id].insertion_duration_cost(insert_loc, seg);
     }
 
@@ -203,7 +187,7 @@ struct Insert : LocalMove {
     static experimental::optional<Insert> best_insert(PPlan base, size_t traj_id, Segment seg, double max_cost=INF) {
         ASSERT(traj_id < base->trajectories.size());
 
-        if(max_cost == INF || max_cost >= base->visibility.cost_given_addition(base->trajectories[traj_id].uav, seg)) {
+        if(max_cost == INF || max_cost >= base->visibility.cost_given_addition(base->trajectories[traj_id].conf->uav, seg)) {
             long best_loc = -1;
             double best_dur = INF;
             Trajectory& traj = base->trajectories[traj_id];

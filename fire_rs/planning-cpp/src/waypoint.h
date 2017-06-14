@@ -12,6 +12,10 @@ struct Waypoint final {
     constexpr Waypoint(const Waypoint &wp) : x(wp.x), y(wp.y), dir(wp.dir) {}
     constexpr Waypoint(const double x, const double y, const double dir) : x(x), y(y), dir(dir) {};
 
+    constexpr bool operator==(const Waypoint& o) const {
+        return x == o.x && y == o.y && dir == o.dir;
+    }
+
     std::string to_string() const {
         std::stringstream repr;
         repr << "(" << x<<", "<<y<<", "<<dir<<")";
