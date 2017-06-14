@@ -80,14 +80,14 @@ PYBIND11_PLUGIN(uav_planning) {
     });
 
     m.def("improve", [](const Trajectory& traj) {
-        auto n1 = std::make_shared<AlignTwoConsecutiveNeighborhood>();
-        auto n2 = std::make_shared<OrientationChangeNeighborhood>();
-        auto n3 = std::make_shared<TwoOrientationChangeNeighborhood>();
-        auto n4 = std::make_shared<AlignOnNextNeighborhood>();
-        auto n5 = std::make_shared<AlignOnPrevNeighborhood>();
-        auto ns = std::make_shared<CombinedNeighborhood<Trajectory>>(
-                std::vector<std::shared_ptr<Neighborhood<Trajectory>>> { n1, n2, n3, n4, n5 });
-        Trajectory t_res = first_improvement_search(traj, *ns, 5000);
+        auto n1 = std::make_shared<dubins::AlignTwoConsecutiveNeighborhood>();
+        auto n2 = std::make_shared<dubins::OrientationChangeNeighborhood>();
+        auto n3 = std::make_shared<dubins::TwoOrientationChangeNeighborhood>();
+        auto n4 = std::make_shared<dubins::AlignOnNextNeighborhood>();
+        auto n5 = std::make_shared<dubins::AlignOnPrevNeighborhood>();
+        auto ns = std::make_shared<dubins::CombinedNeighborhood<Trajectory>>(
+                std::vector<std::shared_ptr<dubins::Neighborhood<Trajectory>>> { n1, n2, n3, n4, n5 });
+        Trajectory t_res = dubins::first_improvement_search(traj, *ns, 5000);
         return t_res;
     });
 
