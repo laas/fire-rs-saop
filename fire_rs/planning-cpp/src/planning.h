@@ -49,8 +49,8 @@ struct Plan {
     }
 
     void add_segment(size_t traj_id, Segment seg, size_t insert_loc) {
-        assert(traj_id < trajectories.size());
-        assert(insert_loc <= trajectories[traj_id].traj.size());
+        ASSERT(traj_id < trajectories.size());
+        ASSERT(insert_loc <= trajectories[traj_id].traj.size());
         trajectories[traj_id] = trajectories[traj_id].with_additional_segment(insert_loc, seg);
         visibility.add_segment(trajectories[traj_id].uav, seg);
         compute_duration_and_cost();
@@ -71,8 +71,108 @@ public:
     LocalMove(PPlan base) : base_plan(base) {}
     double cost() const { return _cost; };
     double duration() const { return length; };
-    virtual PPlan apply() = 0;
+
+    /** Applies the move on the inner plan */
+    void apply() {
+        apply_on(base_plan);
+    }
+
+    /** Creates a new Plan on which the mode is applied */
+    PPlan apply_on_new() {
+        PPlan ret = make_shared<Plan>(*base_plan);
+        apply_on(ret);
+        return ret;
+    }
+
+protected:
+    virtual void apply_on(PPlan target) = 0;
 };
+typedef shared_ptr<LocalMove> PLocalMove;
+
+class IdentityMove : public LocalMove {
+public:
+    IdentityMove(PPlan p) : LocalMove(p) {
+        this->_cost = p->cost;
+        this->length = p->length;
+    }
+    /** does nothing */
+    void apply_on(PPlan p) override {
+    }
+};
+
+//
+//vector<Plan> plan(const Raster& ignitions, vector<tuple<UAV&,Waypoint,Waypoint>> uav_start_end, double min_time_window, double max_time_window) {
+//    Visibility vis(ignitions, min_time_window, max_time_window);
+//
+//}
+
+
+
+struct Neighborhood {
+    bool stop_on_first_improvement = false;
+    size_t max_neighbors = 50;
+    virtual PLocalMove get_move(PPlan plan) = 0;
+};
+
+
+struct VariableNeighborhoodSearch {
+    vector<Neighborhood> neighborhoods;
+
+    vector<Plan> search(Plan p, size_t max_restarts, int save_every=0) {
+        ASSERT(max_restarts == 0) // currently no shaking function
+        vector<Plan> plans;
+        plans.push_back(p);
+
+        PPlan best_plan = make_shared<Plan>(p);
+
+        size_t current_iter = 0;
+
+        size_t num_restarts = 0;
+        while(num_restarts <= max_restarts) {
+            size_t current_neighborhood = 0;
+            while(current_neighborhood < neighborhoods.size()) {
+                Neighborhood& neighborhood = neighborhoods[current_neighborhood];
+
+                const PLocalMove no_move = make_shared<IdentityMove>(best_plan);
+                PLocalMove best_move = no_move;
+                for(size_t i=0; i<neighborhood.max_neighbors; i++) {
+                    const PLocalMove move = neighborhood.get_move(best_plan);
+                    if(best_move->cost() > move->cost()) {
+                        if(best_move == no_move && neighborhood.stop_on_first_improvement) {
+                            best_move = move;
+                            break;
+                        } else {
+                            best_move = move;
+                        }
+
+                    }
+                }
+                best_move->apply();
+
+                if(best_move == no_move) {
+                    printf("Improvement: %f\n", best_plan->cost);
+                    current_neighborhood += 1;
+                } else {
+                    current_neighborhood = 0;
+                }
+
+                if(save_every != 0 && (current_iter % save_every) == 0) {
+                    plans.push_back(*best_plan);
+                }
+                current_iter += 1;
+
+            }
+
+
+
+            num_restarts += 1;
+        }
+    }
+
+};
+
+
+
 
 struct Insert : LocalMove {
     const size_t traj_id;
@@ -85,21 +185,19 @@ struct Insert : LocalMove {
               seg(seg),
               insert_loc(insert_loc)
     {
-        assert(traj_id < base->trajectories.size());
-        assert(insert_loc <= base->trajectories[traj_id].traj.size());
+        ASSERT(traj_id < base->trajectories.size());
+        ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
         _cost = base->visibility.cost_given_addition(base->trajectories[traj_id].uav, seg);
         length = base->length + base->trajectories[traj_id].insertion_cost(insert_loc, seg);
     }
 
-    PPlan apply() {
-        auto p = make_shared<Plan>(*base_plan);
+    void apply_on(PPlan p) override {
         p->add_segment(traj_id, seg, insert_loc);
-        assert(base_plan->trajectories[traj_id].traj.size() == p->trajectories[traj_id].traj.size() -1);
-        return p;
+        ASSERT(base_plan->trajectories[traj_id].traj.size() == p->trajectories[traj_id].traj.size() -1);
     }
 
     static experimental::optional<Insert> best_insert(PPlan base, size_t traj_id, Segment seg, double max_cost=INF) {
-        assert(traj_id < base->trajectories.size());
+        ASSERT(traj_id < base->trajectories.size());
 
         if(max_cost == INF || max_cost >= base->visibility.cost_given_addition(base->trajectories[traj_id].uav, seg)) {
             long best_loc = -1;
@@ -126,7 +224,7 @@ struct Insert : LocalMove {
     static PPlan smart_insert(PPlan base, size_t traj_id, vector<Segment> segments) {
         experimental::optional<PPlan> current = base;
         for(auto it=segments.begin(); it!=segments.end() && current; it++) {
-            current = best_insert(*current, traj_id, *it)->apply();
+            current = best_insert(*current, traj_id, *it)->apply_on_new();
         }
         return *current;
     }
