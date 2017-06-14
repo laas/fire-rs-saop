@@ -99,7 +99,7 @@ public:
     }
 
     /** Increase of length as result of inserting the given segment at the given position */
-    double insertion_cost(size_t insert_loc, const Segment segment) const {
+    double insertion_length_cost(size_t insert_loc, const Segment segment) const {
         if(traj.size() == 0)
             return segment.length;
         else if(insert_loc == 0)
@@ -113,9 +113,12 @@ public:
                    - uav.travel_distance(traj[insert_loc - 1].end, traj[insert_loc].start);
         }
     }
+    double insertion_duration_cost(size_t insert_loc, const Segment segment) const {
+        return insertion_length_cost(insert_loc, segment) / uav.max_air_speed;
+    }
 
     /** Decrease of length as result of removing the segment at the given position */
-    double removal_gain(unsigned long index) const {
+    double removal_length_gain(size_t index) const {
         const Segment segment = traj[index];
         if(index == 0)
             return segment.length + uav.travel_distance(segment.end, traj[index].start);
@@ -128,9 +131,12 @@ public:
                    - uav.travel_distance(traj[index - 1].end, traj[index].start);
         }
     }
+    double removal_duration_gain(size_t index) const {
+        return removal_length_gain(index) / uav.max_air_speed;
+    }
 
     /** Computes the cost of replacing the N segments at [index, index+N] with the N segments given in parameter. */
-    double replacement_cost(unsigned long index, const std::vector<Segment>& segments) const {
+    double replacement_length_cost(size_t index, const std::vector<Segment>& segments) const {
         const unsigned long end_index = index + segments.size() - 1;
         ASSERT(index >= 0 && end_index < traj.size())
         double cost =
@@ -147,19 +153,22 @@ public:
 
         return cost;
     }
+    double replacement_duration_cost(size_t index, const std::vector<Segment>& segments) const {
+        return replacement_length_cost(index, segments) / uav.max_air_speed;
+    }
 
     /** Returns a new trajectory with an additional segment at the given index */
     Trajectory with_additional_segment(size_t index, const Segment& seg) const {
         std::vector<Segment> newTraj(traj);
         newTraj.insert(newTraj.begin()+index, seg);
-        return Trajectory(uav, newTraj, length() + insertion_cost(index, seg));
+        return Trajectory(uav, newTraj, length() + insertion_length_cost(index, seg));
     }
 
     /** Returns a new trajectory without the segment at the given index */
     Trajectory without_segment(size_t index) const {
         std::vector<Segment> newTraj(traj);
         newTraj.erase(newTraj.begin()+index);
-        return Trajectory(uav, newTraj, length() - removal_gain(index));
+        return Trajectory(uav, newTraj, length() - removal_length_gain(index));
     }
 
     /** In a new trajectory, replaces the N segments at [index, index+N] with the N segments given in parameter. */
@@ -170,7 +179,7 @@ public:
         for(unsigned long i=0; i<segments.size(); i++) {
            newTraj[index+i] = segments[i];
         }
-        Trajectory t(uav, newTraj, length() + replacement_cost(index, segments));
+        Trajectory t(uav, newTraj, length() + replacement_length_cost(index, segments));
         t.length();
         return t;
     }

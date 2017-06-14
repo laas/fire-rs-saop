@@ -17,6 +17,7 @@ struct Plan {
 
     double cost = -1;
     double length = -1;
+    double duration = -1;
 
     Plan(const Plan& plan) = default;
 
@@ -42,8 +43,11 @@ struct Plan {
 
     void compute_duration_and_cost() {
         length = 0;
-        for(auto it=trajectories.begin(); it!=trajectories.end(); it++)
+        duration = 0;
+        for(auto it=trajectories.begin(); it!=trajectories.end(); it++) {
             length += it->length();
+            duration += it->duration();
+        }
 
         cost = visibility.cost();
     }
@@ -62,15 +66,15 @@ struct Plan {
 class LocalMove {
 protected:
     double _cost = -1;
-    double length = -1;
+    double _duration = -1;
 
     static constexpr double INF = 9999999999999999;
 
 public:
     PPlan base_plan;
     LocalMove(PPlan base) : base_plan(base) {}
-    double cost() const { return _cost; };
-    double duration() const { return length; };
+    inline double cost() const { ASSERT(_cost >= 0); return _cost; };
+    inline double duration() const { ASSERT(_duration >= 0); return _duration; };
 
     /** Applies the move on the inner plan */
     void apply() {
@@ -93,7 +97,7 @@ class IdentityMove : public LocalMove {
 public:
     IdentityMove(PPlan p) : LocalMove(p) {
         this->_cost = p->cost;
-        this->length = p->length;
+        this->_duration = p->duration;
     }
     /** does nothing */
     void apply_on(PPlan p) override {
@@ -188,7 +192,7 @@ struct Insert : LocalMove {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
         _cost = base->visibility.cost_given_addition(base->trajectories[traj_id].uav, seg);
-        length = base->length + base->trajectories[traj_id].insertion_cost(insert_loc, seg);
+        _duration = base->duration + base->trajectories[traj_id].insertion_duration_cost(insert_loc, seg);
     }
 
     void apply_on(PPlan p) override {
@@ -201,12 +205,12 @@ struct Insert : LocalMove {
 
         if(max_cost == INF || max_cost >= base->visibility.cost_given_addition(base->trajectories[traj_id].uav, seg)) {
             long best_loc = -1;
-            double best_length = INF;
+            double best_dur = INF;
             Trajectory& traj = base->trajectories[traj_id];
             for(size_t i=0; i<=traj.traj.size(); i++) {
-                const double length = traj.length() + traj.insertion_cost(i, seg);
-                if(best_length > length) {
-                    best_length = length;
+                const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
+                if(best_dur > dur) {
+                    best_dur = dur;
                     best_loc = i;
                 }
             }
