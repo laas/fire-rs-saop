@@ -7,6 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cassert>
+#include <memory>
 #include "ext/dubins.h"
 #include "waypoint.h"
 #include "uav.h"
@@ -23,6 +24,10 @@ struct Segment {
             : start(wp1), end(wp2), length(sqrt(pow(wp1.x-wp2.x, 2) + pow(wp1.y-wp2.y, 2))) {}
     constexpr Segment(const Waypoint& wp1, const double length)
             : start(wp1), end(Waypoint(wp1.x +cos(wp1.dir)*length, wp1.y + sin(wp1.dir)*length, wp1.dir)), length(length) {}
+
+    friend std::ostream& operator<< (std::ostream& stream, const Segment& s) {
+        return stream << "<" << s.start << ", " << s.length << ">";
+    }
 };
 
 struct TrajectoryConfig {

@@ -80,6 +80,25 @@ PYBIND11_PLUGIN(uav_planning) {
             .def(py::init<vector<TrajectoryConfig>, Visibility>())
             .def_readonly("trajectories", &Plan::trajectories);
 
+    py::class_<SearchResult>(m, "SearchResult")
+            .def("initial_plan", &SearchResult::initial)
+            .def("final_plan", &SearchResult::final)
+            .def_readonly("intermediate_plans", &SearchResult::intermediate_plans);
+
+    m.def("make_plan_vns", [](UAV uav, Raster ignitions, double min_time, double max_time) -> SearchResult {
+        TrajectoryConfig conf(uav, max_time - min_time);
+        Visibility vis(ignitions, min_time, max_time);
+        Plan p(vector<TrajectoryConfig> { conf }, vis);
+
+        vector<shared_ptr<Neighborhood>> neighborhoods;
+        neighborhoods.push_back(make_shared<OneInsertNbhd>());
+
+        VariableNeighborhoodSearch vns(neighborhoods);
+
+        auto res = vns.search(p, 0, 1);
+        return res;
+    });
+
     m.def("make_plan", [](UAV uav, vector<Segment> segments, Visibility visibility) -> Plan {
         PPlan p = make_shared<Plan>(vector<TrajectoryConfig> { TrajectoryConfig(uav) }, visibility);
         PPlan ret = Insert::smart_insert(p, 0, segments);

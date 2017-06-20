@@ -82,6 +82,7 @@ public:
     }
     double cost_given(const UAV& uav, const vector<Segment> additions, const vector<Segment> removal) {
         const double init_cost = cost();
+        cout << "Initial cost: " << init_cost << endl;
 
         // apply changes
         for(auto it=additions.begin(); it != additions.end(); it++)
@@ -89,6 +90,7 @@ public:
         for(auto it=removal.begin(); it != removal.end(); it++)
             remove_segment(uav, *it);
         const double resulting_cost = cost();
+        cout << "Resulting cost: " << resulting_cost << endl;
 
         // rollback changes
         for(auto it=additions.begin(); it != additions.end(); it++)

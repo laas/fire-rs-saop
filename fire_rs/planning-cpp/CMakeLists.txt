@@ -11,6 +11,7 @@ endif()
 
 set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/trajectory.h src/local_search.h src/uav.h
     src/waypoint.h src/raster.h src/visibility.h src/planning.h src/ext/optional.h src/debug.h)
+
 add_executable(planning_cpp ${SOURCE_FILES} src/test/main.cpp)
 
 pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)

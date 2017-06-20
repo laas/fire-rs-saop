@@ -35,6 +35,10 @@ struct Waypoint final {
     Waypoint with_angle(double absolute_angle) const {
         return Waypoint(x, y, absolute_angle);
     }
+
+    friend std::ostream& operator<< (std::ostream& stream, const Waypoint& w) {
+        return stream << "(" << w.x << ", " << w.y << ", " << w.dir <<")";
+    }
 };
 
 #endif //PLANNING_CPP_WAYPOINT_H

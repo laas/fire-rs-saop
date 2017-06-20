@@ -136,13 +136,16 @@ struct Neighborhood {
 };
 
 struct SearchResult {
-    unique_ptr<Plan> init_plan;
-    unique_ptr<Plan> final_plan;
+private:
+    shared_ptr<Plan> init_plan;
+    shared_ptr<Plan> final_plan;
+
+public:
     vector<Plan> intermediate_plans;
 
     SearchResult(Plan& init_plan)
-            : init_plan(unique_ptr<Plan>(new Plan(init_plan))),
-              final_plan(unique_ptr<Plan>())
+            : init_plan(shared_ptr<Plan>(new Plan(init_plan))),
+              final_plan(shared_ptr<Plan>())
     {}
 
     void set_final_plan(Plan& p) {
@@ -150,13 +153,19 @@ struct SearchResult {
         final_plan.reset(new Plan(p));
     }
 
+    Plan initial() const { return *init_plan; }
+    Plan final() const { return *final_plan; }
+
 
 };
 
 struct VariableNeighborhoodSearch {
-    vector<Neighborhood> neighborhoods;
+    vector<shared_ptr<Neighborhood>> neighborhoods;
 
-    SearchResult search(Plan p, size_t max_restarts, int save_every=0) {
+    VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods) :
+            neighborhoods(neighborhoods) {}
+
+    SearchResult search(Plan p, size_t max_restarts, int save_every=0, bool verbose = true) {
         ASSERT(max_restarts == 0) // currently no shaking function
 
         SearchResult result(p);
@@ -169,15 +178,21 @@ struct VariableNeighborhoodSearch {
         while(num_restarts <= max_restarts) {
             size_t current_neighborhood = 0;
             while(current_neighborhood < neighborhoods.size()) {
-                Neighborhood& neighborhood = neighborhoods[current_neighborhood];
+                shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 
                 const PLocalMove no_move = make_shared<IdentityMove>(best_plan);
                 PLocalMove best_move = no_move;
-                for(size_t i=0; i<neighborhood.max_neighbors; i++) {
-                    const opt<PLocalMove> move = neighborhood.get_move(best_plan);
+                for(size_t i=0; i<neighborhood->max_neighbors; i++) {
+                    const opt<PLocalMove> move = neighborhood->get_move(best_plan);
+                    if(move)
+                        printf("  Some\n");
+                    else
+                        printf("  None\n");
                     if(move) {
-                        if (best_move->cost() > (*move)->cost()) {
-                            if (best_move == no_move && neighborhood.stop_on_first_improvement) {
+                        printf("    %f  %f\n", best_move->cost(), (*move)->cost());
+                        if ((*move)->is_better_than(*best_move)) {
+                            printf("    better\n");
+                            if (best_move == no_move && neighborhood->stop_on_first_improvement) {
                                 best_move = *move;
                                 break;
                             } else {
@@ -288,11 +303,13 @@ struct OneInsertNbhd : public Neighborhood {
         const Point pt = p->visibility.interesting_pending[index];
 
         /** Pick an angle randomly */
-        const double angle = (double) rand() / (M_PI * 2);
+        const double angle = ((double) rand() / RAND_MAX) * (M_PI * 2);
 
         /** Waypoint and segment resulting from the random picks */
-        const Waypoint wp = Waypoint(pt.x, pt.y, angle);
-        const Segment seg = Segment(wp);
+        const Waypoint wp = Waypoint(p->visibility.ignitions.x_coords(pt.x), p->visibility.ignitions.y_coords(pt.y), angle);
+        const Segment seg = Segment(wp.forward(-30));
+
+        cout << seg << "\n";
 
         opt<Insert> best_insert = {};
 

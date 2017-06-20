@@ -20,6 +20,22 @@ struct Raster {
             data(data), fast_data(this->data.mutable_unchecked<2>()),
             x_offset(x_offset), y_offset(y_offset), cell_width(cell_width) {}
 
+    Raster(size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width)
+            : data(py::array_t<double, py::array::c_style | py::array::forcecast>(vector<size_t> {x_width, y_height})),
+              fast_data(this->data.mutable_unchecked<2>()),
+              x_offset(x_offset),
+              y_offset(y_offset),
+              cell_width(cell_width)
+    {
+        reset();
+    }
+
+    void reset() {
+        for(size_t x=0; x<x_width; x++)
+            for(size_t y=0; y<y_height; y++)
+                fast_data(x, y) = 0;
+    }
+
     double operator()(size_t x, size_t y) const {
         return fast_data(x, y);
     }

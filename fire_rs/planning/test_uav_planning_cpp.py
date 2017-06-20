@@ -123,6 +123,21 @@ class TestUAV(unittest.TestCase):
         p = up.make_plan(uav, segments, v)
         # plot_trajectory(p.trajectories[0], blocking=False)
 
+    def test_vns(self):
+        def pr(cpp_raster, blocking=False):  # plots a cpp raster
+            GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
+
+        from fire_rs.firemodel import propagation
+        env = propagation.Environment([[475060.0, 477060.0], [6200074.0, 6202074.0]], wind_speed=4.11, wind_dir=0)
+        prop = propagation.propagate(env, 10, 20, horizon=3600)
+        prop.plot()
+        ignitions = prop.ignitions()
+        ignitions.plot(blocking=True)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 0, 2700)
+
+        print(res.final_plan())
+        print(res.final_plan().trajectories)
+
 
 
 
