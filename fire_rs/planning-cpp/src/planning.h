@@ -11,6 +11,9 @@ using namespace std;
 struct Plan;
 typedef shared_ptr<Plan> PPlan;
 
+template<class T>
+using opt = experimental::optional<T>;
+
 struct Plan {
     vector<Trajectory> trajectories;
     Visibility visibility;
@@ -56,15 +59,23 @@ struct Plan {
 
 class LocalMove {
 protected:
+    /** Cost that would result in applying the move. To be filled at instantiation */
     double _cost = -1;
+
+    /** Total duration (sum of all subplans durations) that would result in applying the move*/
     double _duration = -1;
 
     static constexpr double INF = 9999999999999999;
 
 public:
+    /** Reference to the plan this move is created for. */
     PPlan base_plan;
     LocalMove(PPlan base) : base_plan(base) {}
+
+    /** Cost that would result in applying the move. */
     inline double cost() const { ASSERT(_cost >= 0); return _cost; };
+
+    /** Total duration that would result in applying the move */
     inline double duration() const { ASSERT(_duration >= 0); return _duration; };
 
     /** Applies the move on the inner plan */
@@ -72,18 +83,27 @@ public:
         apply_on(base_plan);
     }
 
-    /** Creates a new Plan on which the mode is applied */
+    /** Creates a new Plan on which the move is applied */
     PPlan apply_on_new() {
         PPlan ret = make_shared<Plan>(*base_plan);
         apply_on(ret);
         return ret;
     }
 
+    /** this move is better than another if it has a better cost or if it has a similar cost but a strictly better duration */
+    bool is_better_than(const LocalMove& other) const {
+        return cost() < other.cost() || (abs(cost() - other.cost()) < 0.0001 && duration() < other.duration());
+    }
+
 protected:
+    /** Internal method that applies the move on a given plan.
+     * This should not be used directly. Instead you should the apply/apply_on_new public methods. */
     virtual void apply_on(PPlan target) = 0;
 };
 typedef shared_ptr<LocalMove> PLocalMove;
 
+
+/** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
 class IdentityMove : public LocalMove {
 public:
     IdentityMove(PPlan p) : LocalMove(p) {
@@ -96,20 +116,50 @@ public:
 };
 
 
+/** Interface for generating local move in local search.
+ *
+ * A neighborhood provides a single method get_move() that optionally generates a new move.
+ * It also contains several parameters, with defaults, that can be overriden by subclasses.*/
 struct Neighborhood {
+    /** Should be set to true, if local search should apply should stop on the first move that */
     bool stop_on_first_improvement = false;
+
+    /** Maximum number of neighbors to generate.
+     * The contract is that local search algorithms should invoke the "get_move()" method at most
+     * "max_neighbors" on a given plan.*/
     size_t max_neighbors = 50;
-    virtual PLocalMove get_move(PPlan plan) = 0;
+
+    /** Generate a new move for the given plan.
+     *
+     * The optional might be empty if this neighborhood failed to generate a valid move. */
+    virtual opt<PLocalMove> get_move(PPlan plan) = 0;
 };
 
+struct SearchResult {
+    unique_ptr<Plan> init_plan;
+    unique_ptr<Plan> final_plan;
+    vector<Plan> intermediate_plans;
+
+    SearchResult(Plan& init_plan)
+            : init_plan(unique_ptr<Plan>(new Plan(init_plan))),
+              final_plan(unique_ptr<Plan>())
+    {}
+
+    void set_final_plan(Plan& p) {
+        ASSERT(!final_plan)
+        final_plan.reset(new Plan(p));
+    }
+
+
+};
 
 struct VariableNeighborhoodSearch {
     vector<Neighborhood> neighborhoods;
 
-    vector<Plan> search(Plan p, size_t max_restarts, int save_every=0) {
+    SearchResult search(Plan p, size_t max_restarts, int save_every=0) {
         ASSERT(max_restarts == 0) // currently no shaking function
-        vector<Plan> plans;
-        plans.push_back(p);
+
+        SearchResult result(p);
 
         PPlan best_plan = make_shared<Plan>(p);
 
@@ -124,15 +174,16 @@ struct VariableNeighborhoodSearch {
                 const PLocalMove no_move = make_shared<IdentityMove>(best_plan);
                 PLocalMove best_move = no_move;
                 for(size_t i=0; i<neighborhood.max_neighbors; i++) {
-                    const PLocalMove move = neighborhood.get_move(best_plan);
-                    if(best_move->cost() > move->cost()) {
-                        if(best_move == no_move && neighborhood.stop_on_first_improvement) {
-                            best_move = move;
-                            break;
-                        } else {
-                            best_move = move;
+                    const opt<PLocalMove> move = neighborhood.get_move(best_plan);
+                    if(move) {
+                        if (best_move->cost() > (*move)->cost()) {
+                            if (best_move == no_move && neighborhood.stop_on_first_improvement) {
+                                best_move = *move;
+                                break;
+                            } else {
+                                best_move = *move;
+                            }
                         }
-
                     }
                 }
                 best_move->apply();
@@ -145,27 +196,30 @@ struct VariableNeighborhoodSearch {
                 }
 
                 if(save_every != 0 && (current_iter % save_every) == 0) {
-                    plans.push_back(*best_plan);
+                    result.intermediate_plans.push_back(*best_plan);
                 }
                 current_iter += 1;
-
             }
-
-
 
             num_restarts += 1;
         }
+        result.set_final_plan(*best_plan);
+        return result;
     }
-
 };
 
 
 
+/** Local move that insert a segment at given place in the plan. */
+struct Insert : public LocalMove {
+    /** Index of the trajectory in which to perform the insertion. */
+    size_t traj_id;
 
-struct Insert : LocalMove {
-    const size_t traj_id;
-    const Segment seg;
-    const size_t insert_loc;
+    /** Segment to insert. */
+    Segment seg;
+
+    /** Place in the trajectory where this segment should be inserted. */
+    size_t insert_loc;
 
     Insert(PPlan base, size_t traj_id, Segment seg, size_t insert_loc)
             : LocalMove(base),
@@ -184,7 +238,9 @@ struct Insert : LocalMove {
         ASSERT(base_plan->trajectories[traj_id].traj.size() == p->trajectories[traj_id].traj.size() -1);
     }
 
-    static experimental::optional<Insert> best_insert(PPlan base, size_t traj_id, Segment seg, double max_cost=INF) {
+    /** Generates an insert move that include the segment at the best place in the given trajectory.
+     * Currently, this does not checks the trajectory constraints. */
+    static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment seg, double max_cost=INF) {
         ASSERT(traj_id < base->trajectories.size());
 
         if(max_cost == INF || max_cost >= base->visibility.cost_given_addition(base->trajectories[traj_id].conf->uav, seg)) {
@@ -209,12 +265,51 @@ struct Insert : LocalMove {
         }
     }
 
+    /** Tries to insert each of the segments at the best place in the given trajectory of the given plan */
     static PPlan smart_insert(PPlan base, size_t traj_id, vector<Segment> segments) {
-        experimental::optional<PPlan> current = base;
+        opt<PPlan> current = base;
         for(auto it=segments.begin(); it!=segments.end() && current; it++) {
             current = best_insert(*current, traj_id, *it)->apply_on_new();
         }
         return *current;
+    }
+};
+
+/** Neighborhood for generating Insert moves.
+ *
+ * The neighborhood randomly picks a pending point in the visibility structures and returns
+ * the best insertion for this point.
+ */
+struct OneInsertNbhd : public Neighborhood {
+
+    opt<PLocalMove> get_move(PPlan p) override {
+        /** Select a random point in the pending list */
+        const size_t index = rand() % p->visibility.interesting_pending.size();
+        const Point pt = p->visibility.interesting_pending[index];
+
+        /** Pick an angle randomly */
+        const double angle = (double) rand() / (M_PI * 2);
+
+        /** Waypoint and segment resulting from the random picks */
+        const Waypoint wp = Waypoint(pt.x, pt.y, angle);
+        const Segment seg = Segment(wp);
+
+        opt<Insert> best_insert = {};
+
+        /** Try best insert for each subtrajectory in the plan */
+        for(size_t i=0; i< p->trajectories.size(); i++) {
+            auto candidate = Insert::best_insert(p, i, seg);
+            if(candidate) {
+                if(!best_insert || candidate->is_better_than(*best_insert))
+                    best_insert = candidate;
+            }
+        }
+
+        /** Return the best, if any */
+        if(best_insert)
+            return opt<PLocalMove>(make_shared<Insert>(*best_insert));
+        else
+            return {};
     }
 };
 
