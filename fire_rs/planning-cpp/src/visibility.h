@@ -177,11 +177,11 @@ private:
     }
 
     void remove_pending(Point pt) {
-        assert(visibility(pt.x, pt.y) == 1 || !is_of_interest(pt.x, pt.y));
+        ASSERT(visibility(pt.x, pt.y) == 1 || !is_of_interest(pt.x, pt.y));
         size_t index = 0;
         while(interesting_pending[index] != pt) {
             index++;
-            assert(index < interesting_pending.size());  //Point is not in the pending list
+            ASSERT(index < interesting_pending.size());  //Point is not in the pending list
         }
         interesting_pending.erase(interesting_pending.begin()+index);
         pending_costs.erase(pending_costs.begin()+index);
@@ -210,9 +210,9 @@ private:
         // limits of the area in which to search for visible points
         // this is a subset of the raster that strictly contains the visibility rectangle
         const double min_x = max(min(min(ax, bx), min(cx, dx)) - cell_width, ignitions.x_offset);
-        const double max_x = min(max(max(ax, bx), max(cx, dx)) + cell_width, ignitions.x_offset + ignitions.x_width*cell_width);
+        const double max_x = min(max(max(ax, bx), max(cx, dx)) + cell_width, ignitions.x_offset + ignitions.x_width*cell_width-ignitions.cell_width/2);
         const double min_y = max(min(min(ay, by), min(cy, dy)) - cell_width, ignitions.y_offset);
-        const double max_y = min(max(max(ay, by), max(cy, dy)) + cell_width, ignitions.y_offset + ignitions.y_height*cell_width);
+        const double max_y = min(max(max(ay, by), max(cy, dy)) + cell_width, ignitions.y_offset + ignitions.y_height*cell_width -ignitions.cell_width/2);
 
         // coordinates of where to start the search, centered on a cell
         const double start_x = ignitions.x_coords(ignitions.x_index(min_x));

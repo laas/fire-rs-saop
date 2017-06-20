@@ -99,6 +99,9 @@ protected:
     /** Internal method that applies the move on a given plan.
      * This should not be used directly. Instead you should the apply/apply_on_new public methods. */
     virtual void apply_on(PPlan target) = 0;
+
+private:
+    Plan* plan_raw = base_plan.get();
 };
 typedef shared_ptr<LocalMove> PLocalMove;
 
@@ -250,7 +253,6 @@ struct Insert : public LocalMove {
 
     void apply_on(PPlan p) override {
         p->add_segment(traj_id, seg, insert_loc);
-        ASSERT(base_plan->trajectories[traj_id].traj.size() == p->trajectories[traj_id].traj.size() -1);
     }
 
     /** Generates an insert move that include the segment at the best place in the given trajectory.

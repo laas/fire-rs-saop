@@ -42,10 +42,10 @@ struct Raster {
     double y_coords(size_t y_index) const { return y_offset + cell_width * y_index; }
 
     bool is_x_in(double x_coord) const {
-        return x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width;
+        return x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width-cell_width/2;
     }
     bool is_y_in(double y_coord) const {
-        return y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height;
+        return y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height-cell_width/2;
     }
 
     size_t x_index(double x_coord) const {
