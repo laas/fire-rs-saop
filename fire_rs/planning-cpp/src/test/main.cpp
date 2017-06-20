@@ -24,7 +24,7 @@ int main()
 
     printf("%f \n", dubins_path_length(&path));
 
-    Raster ignitions(10000, 10000, 0, 0, 25);
+    Raster ignitions(100, 100, 0, 0, 25);
     Visibility visibility(ignitions, 0, 100);
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 200) };
     Plan p(confs, visibility);

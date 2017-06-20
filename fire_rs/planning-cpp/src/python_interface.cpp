@@ -12,21 +12,53 @@
 
 namespace py = pybind11;
 
-PYBIND11_PLUGIN(uav_planning) {
-    py::module m("uav_planning", "Generating primes in c++ with python bindings using pybind11");
+/** Converts a nupy array to a vector */
+template<class T>
+std::vector<T> as_vector(py::array_t<T> array) {
+    std::vector<T> data(array.size());
+    T* array_start = array.mutable_data(0, 0); 
+    for(size_t i=0; i<array.size(); i++) {
+        data[i] = *(array_start+i);
+    }
+    return data;
+}
 
-    srand(time(NULL));
+/** Converts a vector to a 2D numpy array. */
+template<class T>
+py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
+    ASSERT(vec.size() == x_width * y_height)
+    py::array_t<T> array(std::vector<size_t> {x_width, y_height});
+    T* array_start = array.mutable_data(0, 0);
+    for(size_t i=0; i<array.size(); i++) {
+        *(array_start+i) = vec[i];
+    }
+    return array;
+}
+
+PYBIND11_PLUGIN(uav_planning) {
+    py::module m("uav_planning", "Python module for AUV trajectory planning");
+
+    srand(time(0));
 
     py::class_<Raster>(m, "Raster")
-            .def(py::init<py::array_t<double, py::array::c_style | py::array::forcecast>, double, double, double>())
-            .def_readonly("data", &Raster::data)
+            .def("__init__", [](Raster& self, py::array_t<double, py::array::c_style | py::array::forcecast> arr, double x_offset, double y_offset, double cell_width)  {
+                // create a new object and sibstitute to the given self
+                new (&self) Raster(as_vector<double>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
+            })
+            .def("as_numpy", [](Raster& self) {
+                return as_nparray<double>(self.data, self.x_width, self.y_height);
+            })
             .def_readonly("x_offset", &Raster::x_offset)
             .def_readonly("y_offset", &Raster::y_offset)
             .def_readonly("cell_width", &Raster::cell_width);
 
     py::class_<LRaster>(m, "LRaster")
-            .def(py::init<py::array_t<long, py::array::c_style | py::array::forcecast>, double, double, double>())
-            .def_readonly("data", &LRaster::data)
+            .def("__init__", [](LRaster& self, py::array_t<long, py::array::c_style | py::array::forcecast> arr, double x_offset, double y_offset, double cell_width) {
+                new (&self) LRaster(as_vector<long>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
+            })
+            .def("as_numpy", [](LRaster& self) {
+                return as_nparray<long>(self.data, self.x_width, self.y_height);
+            })
             .def_readonly("x_offset", &LRaster::x_offset)
             .def_readonly("y_offset", &LRaster::y_offset)
             .def_readonly("cell_width", &LRaster::cell_width);

@@ -32,13 +32,13 @@ class GeoData:
 
     @staticmethod
     def from_cpp_raster(raster, layer_name):
-        ar = np.array(raster.data, dtype=[(layer_name, 'float64')])
+        ar = np.array(raster.as_numpy(), dtype=[(layer_name, 'float64')])
         gd = GeoData(ar, raster.x_offset, raster.y_offset, raster.cell_width, raster.cell_width)
         return gd
 
     @staticmethod
     def from_cpp_long_raster(lraster, layer_name):
-        ar = np.array(lraster.data, dtype=[(layer_name, 'int64')])
+        ar = np.array(lraster.as_numpy(), dtype=[(layer_name, 'int64')])
         gd = GeoData(ar, lraster.x_offset, lraster.y_offset, lraster.cell_width, lraster.cell_width)
         return gd
 

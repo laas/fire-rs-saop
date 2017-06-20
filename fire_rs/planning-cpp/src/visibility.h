@@ -45,7 +45,7 @@ public:
             for(size_t y=0; y<ignitions.y_height; y++) {
                 const double t = ignitions(x, y);
                 if(min <= t && t <= max) {
-                    interest.fast_data(x, y) = 1;
+                    interest.set(x, y, 1);
                     if(is_visible(x, y))
                         add_visited(Point{x, y});
                     else
@@ -225,7 +225,7 @@ private:
                    // corresponding point in matrix coordinates
                    const Point pt{ ignitions.x_index(ix), ignitions.y_index(iy) };
 
-                   visibility.fast_data(pt.x, pt.y) += increment;
+                   visibility.set(pt.x, pt.y, visibility(pt.x, pt.y) + increment);
                    if(is_of_interest(pt.x, pt.y)) {
                        // pt is of interest
                        if (visibility(pt.x, pt.y) == 1 && increment == 1) {

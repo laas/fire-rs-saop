@@ -90,7 +90,7 @@ class TestUAV(unittest.TestCase):
         tr = up.Segment(up.Waypoint(476500, 6201500, 0), 100)  # top right segment non-overlapping the fire zone
 
         def pr(cpp_raster, blocking=False):  # plots a cpp raster
-            GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
+            GeoData.from_cpp_long_raster(cpp_raster, "xx").plot(blocking=blocking)
 
         # pr(v.interest, blocking=False)
         c1 = v.cost()
