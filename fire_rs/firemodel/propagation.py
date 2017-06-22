@@ -288,7 +288,7 @@ class FirePropagation:
         cbar.set_label("Height [m]")
 
         plt.show(block=blocking)
-        return fire_fig
+        return fire_ax
 
 
 def propagate(env: Environment, x: int, y: int, horizon=np.inf) -> 'FirePropagation':

@@ -209,6 +209,7 @@ class GeoData:
         ax.imshow(z, extent=image_scale, vmin=z.min(), vmax=z.max(),
                   cmap=kwargs.get('cmap', matplotlib.cm.terrain), interpolation='none')
         plt.show(block=blocking)
+        return ax
 
     def write_to_separate_files(self, parameterized_filename: str):
         """Writes each layer to a distinct GeoTiff file.

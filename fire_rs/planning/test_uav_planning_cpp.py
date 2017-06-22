@@ -15,19 +15,21 @@ def get_trajectory(waypoints):
     return traj
 
 
-def plot_trajectory(traj, blocking=False):
+def plot_trajectory(traj, axes=None, blocking=False):
     import matplotlib.pyplot as plt
-    ax = plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
+    if not axes:
+        axes = plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
     sampled_waypoints = traj.as_waypoints(step_size=2)
     x = [wp.x for wp in sampled_waypoints]
     y = [wp.y for wp in sampled_waypoints]
-    ax.scatter(x, y, s=0.1, c='b')
+    axes.scatter(x, y, s=0.1, c='b')
 
     waypoints = traj.as_waypoints()
     x = [wp.x for wp in waypoints]
     y = [wp.y for wp in waypoints]
-    ax.scatter(x, y, c='r')
+    axes.scatter(x, y, c='r')
     plt.show(block=blocking)
+    return axes
 
 
 class TestUAV(unittest.TestCase):
@@ -125,18 +127,28 @@ class TestUAV(unittest.TestCase):
 
     def test_vns(self):
         def pr(cpp_raster, blocking=False):  # plots a cpp raster
-            GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
+            return GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
 
         from fire_rs.firemodel import propagation
-        env = propagation.Environment([[475060.0, 477060.0], [6200074.0, 6202074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 10, 20, horizon=3600)
-        prop.plot()
+        env = propagation.Environment([[475060.0, 478060.0], [6200074.0, 6203074.0]], wind_speed=4.11, wind_dir=0)
+        prop = propagation.propagate(env, 40, 40, horizon=5000)
+        ax = prop.plot()
         ignitions = prop.ignitions()
-        ignitions.plot(blocking=False)
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 0, 2700)
+        # ax = ignitions.plot(blocking=False)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 4000, 4300)
+
+        plan = res.final_plan()
+        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
+
+        ax = pr(plan.visibility.visibility)
+        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
+        ax = pr(plan.visibility.interest)
+        plot_trajectory(plan.trajectories[0], axes=ax, blocking=True)
 
         print(res.final_plan())
         print(res.final_plan().trajectories)
+
+
 
 
 
