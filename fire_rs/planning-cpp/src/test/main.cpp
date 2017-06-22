@@ -11,7 +11,7 @@ int printConfiguration(double q[3], double x, void* user_data) {
     return 0;
 }
 
-UAV uav(18., 32.*M_PI/180);
+UAV uav(10., 32.*M_PI/180);
 
 void test_single_point_to_observe() {
 
@@ -33,6 +33,31 @@ void test_single_point_to_observe() {
     auto res = vns.search(p, 0, 1);
     ASSERT(res.final_plan)
     Plan solution = res.final();
+
+    cout << "SUCCESS" << endl;
+}
+
+void test_many_points_to_observe() {
+
+    // all points ignited at time 0, except ont at time 100
+    Raster ignitions(10, 10, 0, 0, 25);
+
+    // only interested in the point ignited at time 100
+    Visibility visibility(ignitions, 0, 110);
+    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 150) };
+    Plan p(confs, visibility);
+
+
+    vector<shared_ptr<Neighborhood>> neighborhoods;
+    neighborhoods.push_back(make_shared<OneInsertNbhd>());
+
+    VariableNeighborhoodSearch vns(neighborhoods);
+
+    auto res = vns.search(p, 0, 1);
+    ASSERT(res.final_plan)
+    Plan solution = res.final();
+
+    cout << "SUCCESS" << endl;
 }
 
 int main()
@@ -49,6 +74,7 @@ int main()
     printf("%f \n", dubins_path_length(&path));
 
     test_single_point_to_observe();
+    test_many_points_to_observe();
 
     return 0;
 }

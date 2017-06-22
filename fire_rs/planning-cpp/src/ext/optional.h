@@ -1049,4 +1049,7 @@ namespace std
 # undef TR2_OPTIONAL_REQUIRES
 # undef TR2_OPTIONAL_ASSERTED_EXPRESSION
 
+template<class T>
+using opt = std::experimental::optional<T>;
+
 # endif //___OPTIONAL_HPP___

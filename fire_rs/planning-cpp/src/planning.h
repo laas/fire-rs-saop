@@ -11,15 +11,12 @@ using namespace std;
 struct Plan;
 typedef shared_ptr<Plan> PPlan;
 
-template<class T>
-using opt = experimental::optional<T>;
 
 struct Plan {
     vector<Trajectory> trajectories;
     Visibility visibility;
 
     double cost = -1;
-    double length = -1;
     double duration = -1;
 
     Plan(const Plan& plan) = default;
@@ -35,10 +32,8 @@ struct Plan {
     }
 
     void compute_duration_and_cost() {
-        length = 0;
         duration = 0;
         for(auto it=trajectories.begin(); it!=trajectories.end(); it++) {
-            length += it->length();
             duration += it->duration();
         }
 

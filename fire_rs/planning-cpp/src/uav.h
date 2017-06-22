@@ -5,6 +5,7 @@
 #include <cassert>
 #include "ext/dubins.h"
 #include "waypoint.h"
+#include "debug.h"
 
 
 struct UAV {
@@ -54,9 +55,11 @@ struct UAV {
 private:
     DubinsPath dubins_path(const Waypoint &origin, const Waypoint &target) const {
         DubinsPath path;
+        double orig[3] = { origin.x, origin.y, origin.dir };
+        double dest[3] = { target.x, target.y, target.dir };
         // ugly hack to be compatible with dubins implementation that expects a double[3] in place of each Waypoint
-        int ret = dubins_init((double*) &origin, (double*) &target, min_turn_radius, &path);
-        assert(ret == 0);
+        int ret = dubins_init(orig, dest, min_turn_radius, &path);
+        ASSERT(ret == 0);
         return path;
     }
 };

@@ -33,8 +33,8 @@ struct Segment {
 struct TrajectoryConfig {
     const UAV uav;
     const double start_time;
-    const std::experimental::optional<Waypoint> start_position;
-    const std::experimental::optional<Waypoint> end_position;
+    const opt<Waypoint> start_position;
+    const opt<Waypoint> end_position;
     const double max_flight_time;
 
     constexpr TrajectoryConfig(const UAV& uav, double start_time = 0, double max_flight_time = std::numeric_limits<double>::max())
@@ -59,33 +59,38 @@ class Trajectory {
 public:
     std::shared_ptr<TrajectoryConfig> conf;
     std::vector<Segment> traj;
+    std::vector<double> start_times;
 
     Trajectory(const Trajectory& trajectory) = default;
 
-private:
-    /** length is lazily computed and should be accessed through the length() method.
-     * mutable keyword is there to allow defining const methods */
-    mutable double _length = -1;
-
 public:
-    double length() const {
-        if(_length < 0) {
-            _length = segments_cost(traj, 0, traj.size());
-        }
-        // expensive check that incremental length computation is correct
-        // assert(fabs(_length - segments_cost(traj, 0, traj.size())) < 0.0001);
-        return _length;
+    double start_time() const { return conf->start_time; }
+    double end_time() const { return traj.size() == 0 ? start_time() : end_time(traj.size()-1); }
+
+    double start_time(size_t segment_index) const {
+        ASSERT(traj.size() == start_times.size())
+        ASSERT(segment_index >= 0 && segment_index < traj.size())
+        return start_times[segment_index];
     }
 
-    double duration() const { return length() / conf->uav.max_air_speed; }
+    double end_time(size_t segment_index) const {
+        ASSERT(traj.size() == start_times.size())
+        ASSERT(segment_index >= 0 && segment_index < traj.size())
+        return start_time(segment_index) + traj[segment_index].length / conf->uav.max_air_speed;
+    }
+
+    double duration() const {
+        return end_time() - start_time();
+    }
 
     /** Empty trajectory constructor */
     Trajectory(std::shared_ptr<TrajectoryConfig> _config)
-            : conf(_config), traj(std::vector<Segment>()), _length(0) {
+            : conf(_config)
+    {
         if(conf->start_position)
-            traj.push_back(Segment(*conf->start_position));
+            append_segment(Segment(*conf->start_position));
         if(conf->end_position)
-            traj.push_back(Segment(*conf->end_position));
+            append_segment(Segment(*conf->end_position));
     }
 
     Trajectory(const TrajectoryConfig& c) : Trajectory(std::make_shared<TrajectoryConfig>(c)) {
@@ -93,17 +98,18 @@ public:
     }
 
     Trajectory(std::shared_ptr<TrajectoryConfig> conf, std::vector<Segment> traj)
-            : conf(conf), traj(std::vector<Segment>(traj)) {
-        ASSERT(matches_configuration());
-    }
-
-    Trajectory(std::shared_ptr<TrajectoryConfig> conf, std::vector<Segment> traj, double length)
-            : conf(conf), traj(std::vector<Segment>(traj)), _length(length) {
+            : conf(conf)
+    {
+        for(auto it=traj.begin(); it!=traj.end(); it++)
+            append_segment(*it);
         ASSERT(matches_configuration());
     }
 
     Trajectory(std::shared_ptr<TrajectoryConfig> conf, std::vector<Waypoint> waypoints)
-            : conf(conf), traj(Trajectory::segments_from_waypoints(waypoints)) {
+            : conf(conf)
+    {
+        for(auto it=waypoints.begin(); it!=waypoints.end(); it++)
+            append_segment(Segment(*it));
         ASSERT(matches_configuration());
     }
 
@@ -187,8 +193,8 @@ public:
         const unsigned long end_index = index + segments.size() - 1;
         ASSERT(index >= 0 && end_index < traj.size())
         double cost =
-                segments_cost(segments, 0, segments.size())
-                - segments_cost(traj, index, segments.size());
+                segments_length(segments, 0, segments.size())
+                - segments_length(traj, index, segments.size());
         if(index > 0)
             cost = cost
                    + conf->uav.travel_distance(traj[index-1].end, segments[0].start)
@@ -206,30 +212,68 @@ public:
 
     /** Returns a new trajectory with an additional segment at the given index */
     Trajectory with_additional_segment(size_t index, const Segment& seg) const {
-        std::vector<Segment> newTraj(traj);
-        newTraj.insert(newTraj.begin()+index, seg);
-        return Trajectory(conf, newTraj, length() + insertion_length_cost(index, seg));
+        Trajectory newTraj(*this);
+        newTraj.insert_segment(seg, index);
+        return newTraj;
+    }
+
+    /** Adds segment to the end of the trajectory */
+    void append_segment(const Segment& seg) {
+        insert_segment(seg, traj.size());
+    }
+
+    /** Inserts the given segment at the given index */
+    void insert_segment(const Segment& seg, size_t at_index) {
+        const double start = at_index == 0 ?
+                          conf->start_time :
+                          end_time(at_index-1) + conf->uav.travel_time(traj[at_index-1].end, seg.start);
+
+        const double added_delay = insertion_duration_cost(at_index, seg);
+        traj.insert(traj.begin()+at_index, seg);
+        start_times.insert(start_times.begin()+at_index, start);
+
+        for(size_t i=at_index+1; i<start_times.size(); i++) {
+            start_times[i] += added_delay;
+        }
+
+        check_validity();
     }
 
     /** Returns a new trajectory without the segment at the given index */
     Trajectory without_segment(size_t index) const {
-        std::vector<Segment> newTraj(traj);
-        newTraj.erase(newTraj.begin()+index);
-        return Trajectory(conf, newTraj, length() - removal_length_gain(index));
+        Trajectory newTraj(*this);
+        newTraj.erase_segment(index);
+        return newTraj;
+    }
+
+    /** Removes the segment at the given index. */
+    void erase_segment(size_t at_index) {
+        const double gained_delay = removal_duration_gain(at_index);
+        traj.erase(traj.begin()+at_index);
+        start_times.erase(start_times.begin()+at_index);
+        for(size_t i=at_index; i<start_times.size(); i++) {
+            start_times[i] -= gained_delay;
+        }
+        check_validity();
     }
 
     /** In a new trajectory, replaces the N segments at [index, index+N] with the N segments given in parameter. */
     Trajectory with_replaced_section(size_t index, const std::vector<Segment>& segments) const {
-        const unsigned long end_index = index + segments.size() - 1;
-        ASSERT(index >= 0 && end_index < traj.size())
-        std::vector<Segment> newTraj(traj);
-        for(unsigned long i=0; i<segments.size(); i++) {
-           newTraj[index+i] = segments[i];
-        }
-        Trajectory t(conf, newTraj, length() + replacement_length_cost(index, segments));
-        t.length();
-        return t;
+        Trajectory newTraj(*this);
+        newTraj.replace_section(index, segments);
+        return newTraj;
     }
+    void replace_section(size_t index, const std::vector<Segment>& segments) {
+        ASSERT(index >= 0 && index+segments.size()-1 < traj.size())
+        for(size_t i=0; i<segments.size(); i++) {
+            erase_segment(index);
+        }
+        for(size_t i=0; i<segments.size(); i++) {
+            insert_segment(segments[i], index+1);
+        }
+        check_validity();
+    }
+
 
     std::string to_string() const {
         std::stringstream repr;
@@ -242,6 +286,17 @@ public:
     }
 
 private:
+    double length() const {
+        return segments_length(traj, 0, traj.size());
+    }
+
+    /** Functions that asserts invariants of a trajectory.
+     * This is for debugging purpose only and the function content should be commented out. */
+    void check_validity() const {
+//        ASSERT(fabs(length() / conf->uav.max_air_speed - (end_time() - start_time())) < 0.001)
+        ASSERT(matches_configuration())
+    }
+
     /** Converts a vector of waypoints to a vector of segments. */
     static std::vector<Segment> segments_from_waypoints(std::vector<Waypoint> waypoints) {
         std::vector<Segment> segments;
@@ -251,7 +306,8 @@ private:
     }
 
     /** Computes the cost of a sub-trajectory composed of the given segments. */
-    double segments_cost(const std::vector<Segment>& segments, unsigned long start, unsigned long length) const {
+    double segments_length(const std::vector<Segment>& segments, size_t start, size_t length) const {
+        ASSERT(start+length <= segments.size());
         double cost = 0.;
         auto end_it = segments.begin() + start + length;
         for(auto it=segments.begin()+start; it!=end_it; it++) {

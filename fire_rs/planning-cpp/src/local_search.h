@@ -112,13 +112,13 @@ public:
 
 Trajectory
 first_improvement_search(const Trajectory &traj, Neighborhood<Trajectory> &neighborhood, unsigned int max_failures) {
-    printf("Initial cost: %f\n", traj.length());
+    printf("Initial cost: %f\n", traj.duration());
     std::unique_ptr<Trajectory> b(new Trajectory(traj));
     unsigned int num_failures = 0;
     while (num_failures < max_failures) {
         Trajectory candidate = neighborhood.random_neighbor(*b);
-        if (candidate.length() < b->length()) {
-            printf("Improved cost: %f (previous: %f) (num try: %d)\n", candidate.length(), b->length(),
+        if (candidate.duration() < b->duration()) {
+            printf("Improved cost: %f (previous: %f) (num try: %d)\n", candidate.duration(), b->duration(),
                    num_failures);
             b.reset(new Trajectory(candidate));
             num_failures = 0;
@@ -127,7 +127,7 @@ first_improvement_search(const Trajectory &traj, Neighborhood<Trajectory> &neigh
         }
     }
     Trajectory result(*b);
-    printf("Final cost:    %f  (num try: %d)\n", result.length(), num_failures);
+    printf("Final cost:    %f  (num try: %d)\n", result.duration(), num_failures);
     return result;
 }
 
