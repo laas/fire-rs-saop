@@ -105,7 +105,7 @@ public:
         ASSERT(matches_configuration());
     }
 
-    /** Accesses the index-th segement of the trajectory */
+    /** Accesses the index-th segment of the trajectory */
     const Segment& operator[] (unsigned long index) const { return traj[index]; }
 
     /** Returns the trajectory as a set of waypoints.
@@ -130,7 +130,6 @@ public:
             }
             return sampled;
         }
-
     }
 
     /** Returns a new Trajectory with the given segment appended. */
