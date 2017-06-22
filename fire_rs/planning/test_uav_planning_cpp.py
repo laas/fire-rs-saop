@@ -9,7 +9,7 @@ uav = up.UAV(18., 32.*np.pi/180)
 
 
 def get_trajectory(waypoints):
-    traj = up.Trajectory(uav)
+    traj = up.Trajectory(up.TrajectoryConfig.build(uav))
     for wp in waypoints:
         traj = traj.with_waypoint_at_end(up.Waypoint(wp.x * uav.min_turn_radius, wp.y * uav.min_turn_radius, wp.dir))
     return traj
@@ -46,7 +46,7 @@ class TestUAV(unittest.TestCase):
 
     def test_straight_line_dubins(self):
         self.assertAlmostEquals(4, uav.travel_distance(self.wp1, self.wp2))
-        traj = up.Trajectory(uav)
+        traj = up.Trajectory(up.TrajectoryConfig.build(uav))
         for wp in [self.wp1, self.wp2]:
             traj = traj.with_waypoint_at_end(wp)
             print(traj)
@@ -143,7 +143,7 @@ class TestUAV(unittest.TestCase):
         ax = pr(plan.visibility.visibility)
         plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
         ax = pr(plan.visibility.interest)
-        plot_trajectory(plan.trajectories[0], axes=ax, blocking=True)
+        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
 
         print(res.final_plan())
         print(res.final_plan().trajectories)

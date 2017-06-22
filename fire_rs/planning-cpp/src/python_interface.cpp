@@ -84,7 +84,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("travel_time", &UAV::travel_time, py::arg("origin"), py::arg("destination"));
 
     py::class_<Trajectory>(m, "Trajectory") 
-            .def(py::init<const UAV&>())
+            .def(py::init<const TrajectoryConfig&>())
             .def("length", &Trajectory::length)
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints, py::arg("step_size")= -1)
@@ -101,12 +101,12 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("interest", &Visibility::interest);
 
     py::class_<TrajectoryConfig>(m, "TrajectoryConfig")
-            .def(py::init<UAV, Waypoint, Waypoint, double>())
+            .def(py::init<UAV, Waypoint, Waypoint, double, double>())
             .def_readonly("uav", &TrajectoryConfig::uav)
             .def_readonly("max_flight_time", &TrajectoryConfig::max_flight_time)
-            .def_static("build", [](UAV uav, double max_flight_time) -> TrajectoryConfig {
-                return TrajectoryConfig(uav, max_flight_time);
-            });
+            .def_static("build", [](UAV uav, double start_time, double max_flight_time) -> TrajectoryConfig {
+                return TrajectoryConfig(uav, start_time, max_flight_time);
+            }, "Constructor", py::arg("uav"), py::arg("start_time") = 0, py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
             .def(py::init<vector<TrajectoryConfig>, Visibility>())
@@ -119,7 +119,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans);
 
     m.def("make_plan_vns", [](UAV uav, Raster ignitions, double min_time, double max_time) -> SearchResult {
-        TrajectoryConfig conf(uav, max_time - min_time);
+        TrajectoryConfig conf(uav, min_time, max_time - min_time);
         Visibility vis(ignitions, min_time, max_time);
         Plan p(vector<TrajectoryConfig> { conf }, vis);
 

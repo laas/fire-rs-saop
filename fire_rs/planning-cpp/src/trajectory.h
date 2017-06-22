@@ -32,24 +32,26 @@ struct Segment {
 
 struct TrajectoryConfig {
     const UAV uav;
+    const double start_time;
     const std::experimental::optional<Waypoint> start_position;
     const std::experimental::optional<Waypoint> end_position;
     const double max_flight_time;
 
-    constexpr TrajectoryConfig(const UAV& uav)
-            : uav(uav), start_position({}), end_position({}), max_flight_time(std::numeric_limits<double>::max()) {}
+    constexpr TrajectoryConfig(const UAV& uav, double start_time = 0, double max_flight_time = std::numeric_limits<double>::max())
+            : uav(uav), start_time(start_time), start_position({}), end_position({}), max_flight_time(max_flight_time) {}
 
-    constexpr TrajectoryConfig(const UAV& uav, double max_flight_time)
-            : uav(uav), start_position({}), end_position({}), max_flight_time(max_flight_time) {}
+    constexpr TrajectoryConfig(const UAV& uav,
+                               const Waypoint& start_position,
+                               double start_time = 0,
+                               double max_flight_time = std::numeric_limits<double>::max())
+            : uav(uav), start_time(start_time), start_position(start_position), end_position({}), max_flight_time(std::numeric_limits<double>::max()) {}
 
-    constexpr TrajectoryConfig(const UAV& uav, const Waypoint& start_position)
-            : uav(uav), start_position(start_position), end_position({}), max_flight_time(std::numeric_limits<double>::max()) {}
-
-    constexpr TrajectoryConfig(const UAV& uav, const Waypoint& start_position, const Waypoint& end_position)
-            : uav(uav), start_position(start_position), end_position(end_position), max_flight_time(std::numeric_limits<double>::max()) {}
-
-    constexpr TrajectoryConfig(const UAV& uav, const Waypoint& start_position, const Waypoint& end_position, double max_flight_time)
-            : uav(uav), start_position(start_position), end_position(end_position),
+    constexpr TrajectoryConfig(const UAV& uav,
+                               const Waypoint& start_position,
+                               const Waypoint& end_position,
+                               double start_time = 0,
+                               double max_flight_time = std::numeric_limits<double>::max())
+            : uav(uav), start_time(start_time), start_position(start_position), end_position(end_position),
               max_flight_time(max_flight_time) {}
 };
 
