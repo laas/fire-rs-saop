@@ -83,6 +83,11 @@ public:
         return end_time() - start_time();
     }
 
+    /** Length of the path. */
+    double length() const {
+        return conf->uav.max_air_speed * duration();
+    }
+
     /** Empty trajectory constructor */
     Trajectory(std::shared_ptr<TrajectoryConfig> _config)
             : conf(_config)
@@ -224,6 +229,7 @@ public:
 
     /** Inserts the given segment at the given index */
     void insert_segment(const Segment& seg, size_t at_index) {
+        ASSERT(at_index >= 0 && at_index <= traj.size())
         const double start = at_index == 0 ?
                           conf->start_time :
                           end_time(at_index-1) + conf->uav.travel_time(traj[at_index-1].end, seg.start);
@@ -269,7 +275,7 @@ public:
             erase_segment(index);
         }
         for(size_t i=0; i<segments.size(); i++) {
-            insert_segment(segments[i], index+1);
+            insert_segment(segments[i], index+i);
         }
         check_validity();
     }
@@ -286,14 +292,15 @@ public:
     }
 
 private:
-    double length() const {
+    /** Recomputes length from scratch and returns it. */
+    double non_incremental_length() const {
         return segments_length(traj, 0, traj.size());
     }
 
     /** Functions that asserts invariants of a trajectory.
      * This is for debugging purpose only and the function content should be commented out. */
     void check_validity() const {
-//        ASSERT(fabs(length() / conf->uav.max_air_speed - (end_time() - start_time())) < 0.001)
+//        ASSERT(fabs(non_incremental_length() / conf->uav.max_air_speed - (end_time() - start_time())) < 0.001)
         ASSERT(matches_configuration())
     }
 

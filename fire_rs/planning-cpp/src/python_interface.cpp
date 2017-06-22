@@ -85,6 +85,7 @@ PYBIND11_PLUGIN(uav_planning) {
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const TrajectoryConfig&>())
+            .def("length", &Trajectory::length)
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints, py::arg("step_size")= -1)
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
