@@ -1,24 +1,23 @@
 #include <pybind11/pybind11.h>
 
-// for conversions between c++ and python collections
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
+#include <pybind11/stl.h> // for conversions between c++ and python collections
+#include <pybind11/numpy.h> // support for numpy arrays
 #include "trajectory.h"
 #include "local_search.h"
 #include "raster.h"
 #include "visibility.h"
 #include "planning.h"
-#include "debug.h"
 
 namespace py = pybind11;
 
 /** Converts a nupy array to a vector */
 template<class T>
-std::vector<T> as_vector(py::array_t<T> array) {
+std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
     std::vector<T> data(array.size());
-    T* array_start = array.mutable_data(0, 0); 
-    for(size_t i=0; i<array.size(); i++) {
-        data[i] = *(array_start+i);
+    for(size_t x=0; x<array.shape(0); x++) {
+        for(size_t y=0; y<array.shape(1); y++) {
+            data[x + y*array.shape(0)] = *(array.data(x, y));
+        }
     }
     return data;
 }
@@ -27,10 +26,11 @@ std::vector<T> as_vector(py::array_t<T> array) {
 template<class T>
 py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
     ASSERT(vec.size() == x_width * y_height)
-    py::array_t<T> array(std::vector<size_t> {x_width, y_height});
-    T* array_start = array.mutable_data(0, 0);
-    for(size_t i=0; i<array.size(); i++) {
-        *(array_start+i) = vec[i];
+    py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> {x_width, y_height});
+    for(size_t x=0; x<x_width; x++) {
+        for (size_t y = 0; y < y_height; y++) {
+            *(array.mutable_data(x, y)) = vec[x + y*x_width];
+        }
     }
     return array;
 }
@@ -110,7 +110,8 @@ PYBIND11_PLUGIN(uav_planning) {
 
     py::class_<Plan>(m, "Plan")
             .def(py::init<vector<TrajectoryConfig>, Visibility>())
-            .def_readonly("trajectories", &Plan::trajectories);
+            .def_readonly("trajectories", &Plan::trajectories)
+            .def_readonly("visibility", &Plan::visibility);
 
     py::class_<SearchResult>(m, "SearchResult")
             .def("initial_plan", &SearchResult::initial)
