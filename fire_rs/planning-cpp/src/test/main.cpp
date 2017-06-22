@@ -26,7 +26,7 @@ int main()
 
     Raster ignitions(100, 100, 0, 0, 25);
     Visibility visibility(ignitions, 0, 100);
-    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 200) };
+    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 150) };
     Plan p(confs, visibility);
 
 
@@ -36,6 +36,7 @@ int main()
     VariableNeighborhoodSearch vns(neighborhoods);
 
     auto res = vns.search(p, 0, 1);
+    Plan solution = res.final();
 
 
     return 0;

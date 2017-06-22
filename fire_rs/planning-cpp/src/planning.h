@@ -17,7 +17,6 @@ using opt = experimental::optional<T>;
 struct Plan {
     vector<Trajectory> trajectories;
     Visibility visibility;
-    vector<double> max_durations;
 
     double cost = -1;
     double length = -1;
@@ -187,14 +186,8 @@ struct VariableNeighborhoodSearch {
                 PLocalMove best_move = no_move;
                 for(size_t i=0; i<neighborhood->max_neighbors; i++) {
                     const opt<PLocalMove> move = neighborhood->get_move(best_plan);
-                    if(move)
-                        printf("  Some\n");
-                    else
-                        printf("  None\n");
                     if(move) {
-                        printf("    %f  %f\n", best_move->cost(), (*move)->cost());
                         if ((*move)->is_better_than(*best_move)) {
-                            printf("    better\n");
                             if (best_move == no_move && neighborhood->stop_on_first_improvement) {
                                 best_move = *move;
                                 break;
@@ -266,9 +259,11 @@ struct Insert : public LocalMove {
             Trajectory& traj = base->trajectories[traj_id];
             for(size_t i=0; i<=traj.traj.size(); i++) {
                 const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
-                if(best_dur > dur) {
-                    best_dur = dur;
-                    best_loc = i;
+                if(dur <=  traj.conf->max_flight_time) {
+                    if (best_dur > dur) {
+                        best_dur = dur;
+                        best_loc = i;
+                    }
                 }
             }
             if(best_loc < 0) {
@@ -309,9 +304,7 @@ struct OneInsertNbhd : public Neighborhood {
 
         /** Waypoint and segment resulting from the random picks */
         const Waypoint wp = Waypoint(p->visibility.ignitions.x_coords(pt.x), p->visibility.ignitions.y_coords(pt.y), angle);
-        const Segment seg = Segment(wp.forward(-30));
-
-        cout << seg << "\n";
+        const Segment seg = Segment(wp.forward(-30), 30);
 
         opt<Insert> best_insert = {};
 
