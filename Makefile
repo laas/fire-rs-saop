@@ -11,11 +11,11 @@ autobuild: FORCE
 
 # launches the docker container
 docker: FORCE
-	docker/run.sh run
+	docker/run.sh start
 
 # Rebuilds the docker container (needed only on modification of 
-docker-build-container: docker/Dockerfile
-	docker/run.sh make_container
+docker_build_container:
+	docker/run.sh build
 
 # Run all unittests
 test: FORCE
