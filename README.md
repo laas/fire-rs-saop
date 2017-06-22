@@ -19,14 +19,22 @@ A Dockerfile is provided to set up an environment with windninja and all python 
 
 To build the container:
 
-    ./docker/run.sh make_container
+    ./docker/run.sh build
 
 To start a shell in the container with the the code repository and the data repository mounted:
 
-    ./docker/run.sh [run]
+    ./docker/run.sh [start]
     
-Other options to the `run.sh` script include:
+Makefile
+--------
+
+All most commons operations are available in the Makefile. Targets include
 
 - `build`: compile the project
-- `autobuild`: Recompile the project each time a source file is changed
+- `autobuild`: Recompile the project each time a source file is changed (requires "when-changed")
 - `test`: Run unit tests
+- `test-cpp`: Run unittests for the C++ module only
+- `docker`: starts a shell in the docker container.
+- `docker_build_container`: Build/rebuild the docker image. 
+
+A typical workflow would be to start 

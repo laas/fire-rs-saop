@@ -18,11 +18,11 @@ docker_build_container:
 	docker/run.sh build
 
 # Run all unittests
-test: FORCE
+test: build FORCE
 	python3 -m unittest
 
 # Run test for "planning-cpp"
-test-cpp: FORCE
+test-cpp: build FORCE
 	python3 -m unittest fire_rs.planning.test_uav_planning_cpp
 
 
