@@ -138,7 +138,6 @@ struct Neighborhood {
 };
 
 struct SearchResult {
-private:
     shared_ptr<Plan> init_plan;
     shared_ptr<Plan> final_plan;
 
@@ -295,6 +294,10 @@ struct Insert : public LocalMove {
 struct OneInsertNbhd : public Neighborhood {
 
     opt<PLocalMove> get_move(PPlan p) override {
+        if(p->visibility.interesting_pending.size() == 0) {
+            // no candidates left
+            return {};
+        }
         /** Select a random point in the pending list */
         const size_t index = rand() % p->visibility.interesting_pending.size();
         const Point pt = p->visibility.interesting_pending[index];

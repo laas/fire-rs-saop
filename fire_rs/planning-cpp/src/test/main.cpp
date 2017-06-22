@@ -11,21 +11,16 @@ int printConfiguration(double q[3], double x, void* user_data) {
     return 0;
 }
 
-int main()
-{
-    srand(time(0));
+UAV uav(18., 32.*M_PI/180);
 
-    UAV uav(18., 32.*M_PI/180);
+void test_single_point_to_observe() {
 
-    double q0[] = { 0,0,0 };
-    double q1[] = { 4, 0, 0 };
-    DubinsPath path;
-    dubins_init( q0, q1, 1.0, &path);
-
-    printf("%f \n", dubins_path_length(&path));
-
+    // all points ignited at time 0, except ont at time 100
     Raster ignitions(100, 100, 0, 0, 25);
-    Visibility visibility(ignitions, 0, 100);
+    ignitions.set(10, 10, 100);
+
+    // only interested in the point ignited at time 100
+    Visibility visibility(ignitions, 90, 110);
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 150) };
     Plan p(confs, visibility);
 
@@ -36,8 +31,24 @@ int main()
     VariableNeighborhoodSearch vns(neighborhoods);
 
     auto res = vns.search(p, 0, 1);
+    ASSERT(res.final_plan)
     Plan solution = res.final();
+}
 
+int main()
+{
+    srand(time(0));
+
+
+
+    double q0[] = { 0,0,0 };
+    double q1[] = { 4, 0, 0 };
+    DubinsPath path;
+    dubins_init( q0, q1, 1.0, &path);
+
+    printf("%f \n", dubins_path_length(&path));
+
+    test_single_point_to_observe();
 
     return 0;
 }

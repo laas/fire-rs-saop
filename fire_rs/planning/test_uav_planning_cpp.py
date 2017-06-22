@@ -132,7 +132,7 @@ class TestUAV(unittest.TestCase):
         prop = propagation.propagate(env, 10, 20, horizon=3600)
         prop.plot()
         ignitions = prop.ignitions()
-        ignitions.plot(blocking=True)
+        ignitions.plot(blocking=False)
         res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 0, 2700)
 
         print(res.final_plan())
