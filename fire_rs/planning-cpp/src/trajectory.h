@@ -319,7 +319,7 @@ private:
         ASSERT(traj.size() == start_times.size())
 //        ASSERT(fabs(non_incremental_length() / conf->uav.max_air_speed - (end_time() - start_time())) < 0.001)
         for(size_t i=0; i<start_times.size(); i++) {
-            ASSERT(start_times[i] >= conf->start_time)
+            ASSERT(ALMOST_GREATER_EQUAL(start_times[i], conf->start_time))
         }
         ASSERT(matches_configuration())
     }
