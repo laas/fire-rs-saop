@@ -3,6 +3,7 @@
 
 #include "../trajectory.h"
 #include "../planning.h"
+#include "../vns_interface.h"
 
 Segment rotate_on_visibility_center(const Segment& segment, const UAV& uav, double target_dir) {
     const double visibility_depth = segment.length + uav.view_depth;
@@ -31,10 +32,36 @@ struct SegmentRotation final : public LocalMove {
         // minimize the impact on visibility window
         _cost = base->cost;
         _duration = base->duration + base->trajectories[traj_id].replacement_duration_cost(segment_index, newSegment);
+        ASSERT(_duration >= 0)
     }
 
     void apply_on(PPlan p) override {
         p->trajectories[traj_id].replace_segment(segment_index, newSegment);
+    }
+
+    bool applicable() const {
+        Trajectory& t = base_plan->trajectories[traj_id];
+        return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf->max_flight_time;
+    }
+};
+
+struct RandomOrientationChangeNbhd final : public Neighborhood {
+
+    opt<PLocalMove> get_move(PPlan plan) {
+        ASSERT(!plan->trajectories.empty())
+        const size_t rand_traj = rand(0, plan->trajectories.size());
+        if(plan->trajectories[rand_traj].empty()) {
+            return {};
+        } else {
+            const size_t rand_seg = rand(0, plan->trajectories[rand_traj].size());
+            const double rand_dir = drand(0, 2*M_PI);
+            SegmentRotation move(plan, rand_traj, rand_seg, rand_dir);
+            if(move.applicable()) {
+                return opt<PLocalMove>(make_shared<SegmentRotation>(move));
+            } else {
+                return {};
+            }
+        }
     }
 };
 

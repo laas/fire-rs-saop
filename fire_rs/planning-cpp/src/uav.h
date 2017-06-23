@@ -5,7 +5,8 @@
 #include <cassert>
 #include "ext/dubins.h"
 #include "waypoint.h"
-#include "debug.h"
+#include "utils.h"
+#include "trajectory.h"
 
 
 struct UAV {
@@ -13,7 +14,7 @@ struct UAV {
     double max_air_speed;
     double min_turn_radius;
     double view_width = 100;
-    double view_depth = 100;
+    double view_depth = 70;
 
 
      UAV(const double max_air_speed, const double max_angular_velocity) :

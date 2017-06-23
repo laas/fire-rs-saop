@@ -11,7 +11,7 @@
 #include "ext/dubins.h"
 #include "waypoint.h"
 #include "uav.h"
-#include "debug.h"
+#include "utils.h"
 #include "ext/optional.h"
 
 struct Segment {
@@ -68,6 +68,8 @@ public:
     Trajectory(const Trajectory& trajectory) = default;
 
 public:
+    bool empty() const { return traj.empty(); }
+    size_t size() const { return traj.size(); }
     double start_time() const { return conf->start_time; }
     double end_time() const { return traj.size() == 0 ? start_time() : end_time(traj.size()-1); }
 

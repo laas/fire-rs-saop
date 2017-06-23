@@ -2,7 +2,7 @@
 #define PLANNING_CPP_WAYPOINT_H
 
 #include <sstream>
-#include "debug.h"
+#include "utils.h"
 
 struct Waypoint final {
     // order and length is important for compatibility with dubins.cpp, allowing to simply cast a Waypoint* to a double*

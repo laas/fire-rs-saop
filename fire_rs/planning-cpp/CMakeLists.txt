@@ -10,7 +10,9 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/trajectory.h src/local_search.h src/uav.h
-    src/waypoint.h src/raster.h src/visibility.h src/planning.h src/ext/optional.h src/debug.h src/neighborhoods/dubins_optimization.h)
+        src/waypoint.h src/raster.h src/visibility.h src/planning.h src/ext/optional.h src/utils.h
+        src/neighborhoods/dubins_optimization.h src/neighborhoods/insertions.h src/vns_interface.h
+        src/plan.h)
 
 add_executable(planning_cpp ${SOURCE_FILES} src/test/main.cpp)
 

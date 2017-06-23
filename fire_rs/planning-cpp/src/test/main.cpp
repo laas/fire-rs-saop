@@ -9,11 +9,6 @@
 
 UAV uav(10., 32.*M_PI/180);
 
-double drand(double min, double max) {
-    const double base = (double) rand() / RAND_MAX;
-    return min + base * (max-min);
-}
-
 void test_single_point_to_observe() {
 
     // all points ignited at time 0, except ont at time 100
@@ -26,10 +21,7 @@ void test_single_point_to_observe() {
     Plan p(confs, visibility);
 
 
-    vector<shared_ptr<Neighborhood>> neighborhoods;
-    neighborhoods.push_back(make_shared<OneInsertNbhd>());
-
-    VariableNeighborhoodSearch vns(neighborhoods);
+    DefaultVnsSearch vns;
 
     auto res = vns.search(p, 0, 1);
     ASSERT(res.final_plan)
@@ -47,11 +39,7 @@ void test_many_points_to_observe() {
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 150) };
     Plan p(confs, visibility);
 
-
-    vector<shared_ptr<Neighborhood>> neighborhoods;
-    neighborhoods.push_back(make_shared<OneInsertNbhd>());
-
-    VariableNeighborhoodSearch vns(neighborhoods);
+    DefaultVnsSearch vns;
 
     auto res = vns.search(p, 0, 1);
     ASSERT(res.final_plan)

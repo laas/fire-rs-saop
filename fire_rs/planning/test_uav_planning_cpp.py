@@ -96,7 +96,7 @@ class TestUAV(unittest.TestCase):
 
         # pr(v.interest, blocking=False)
         c1 = v.cost()
-        pr(v.visibility)
+        # pr(v.visibility)
         v.add_segment(uav, bl)
         # pr(v.visibility, blocking=False)
         self.assertLess(v.cost(), c1, "cost should have decreased")
@@ -105,7 +105,7 @@ class TestUAV(unittest.TestCase):
         self.assertEquals(c2, v.cost(), "Cost should have been identical")
         v.remove_segment(uav, bl)
         self.assertAlmostEqual(c1, v.cost(), msg="Cost should have came back to its original value")
-        pr(v.visibility)
+        # pr(v.visibility)
         # prop.plot(blocking=False)
 
     def test_smart_insertion(self):
