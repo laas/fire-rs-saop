@@ -26,7 +26,7 @@ class Environment:
         slope = world.get_slope(area)
         wind = world.get_wind(area, domain_average=(wind_speed, wind_dir))
         moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
-        fuel = slope.clone(fill_value=env.get_fuel_model_id('SH5'), dtype=[('fuel', 'int32')])
+        fuel = world.get_fuel_type(area)
         self.raster = slope.combine(wind).combine(moisture).combine(fuel).combine(elevation)
         self._clustering = None
 
@@ -138,6 +138,10 @@ class FirePropagation:
 
         d = self.prop_data.data
 
+        # Assert the ignition point can burn
+        t, (x, y) = self._pick_from_propagation_queue()
+        assert self.environment.get_fuel_type(x, y)[:2] != "NB"
+
         # Dijkstra propagation of fire
         while not len(self._propagation_queue) == 0:
             # peek top value
@@ -146,6 +150,9 @@ class FirePropagation:
                 break
             # select current point
             (t, (x, y)) = self._pop_from_propagation_queue()
+            neighbor_fuel_type = self.environment.get_fuel_type(x, y)
+            if neighbor_fuel_type[:2] == "NB":
+                continue
             # neighbors in the grid
             accessible_neighbors = [(dx, dy) for (dx, dy) in neighborhood
                                     if 0 <= x + dx < self.max_x and 0 <= y + dy < self.max_y]
