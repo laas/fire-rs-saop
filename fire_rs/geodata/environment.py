@@ -4,8 +4,11 @@ import numbers
 import numpy as np
 
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
+from fire_rs.geodata.landcover import LandCoverMap, LandCoverTile
 from fire_rs.geodata.wind import WindMap, WindNinjaCLI
 from fire_rs.geodata.geo_data import GeoData
+
+import fire_rs.firemodel.environment as fire_env
 
 # Set default data folders as the one given in the environment variable $FIRERS_DATA or
 # to Rafael's home if not set
@@ -16,15 +19,76 @@ DEFAULT_FIRERS_DEM_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER,
                                        'dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
 DEFAULT_FIRERS_WIND_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER,
                                         'wind/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
+DEFAULT_FIRERS_LANDCOVER_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER,
+                                             'landcover/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
+
+CORINELANDCOVER_TO_FUELMODEL_REMAP = { 1: 'NB1', 2: 'NB1', 3: 'NB1', 4: 'NB1', 5: 'NB1',
+                                       6: 'NB1', 7: 'NB1', 8: 'NB1', 9: 'NB1', 10: 'NB1', 11: 'NB1',
+                                       12: 'GR4', # Non-irrigated arable land -> Moderate Load, Dry Climate Grass
+                                       13: 'NB8',
+                                       14: 'NB8',
+                                       15: 'SH2', # Vineyards -> Moderate Load Dry Climate Shrub
+                                       16: 'SH2', # Olive groves -> Moderate Load Dry Climate Shrub
+                                       17: 'SH2', # Fruit trees and berry plantations -> Moderate Load Dry Climate Shrub
+                                       18: 'GR8', # Pastures -> High Load, Very Coarse, Humid Climate Grass
+                                       19: 'SH5', # No actual reason for this relation
+                                       20: 'SH7', # No actual reason for this relation
+                                       21: 'SH5', # No actual reason for this relation
+                                       22: 'SH7', # No actual reason for this relation
+                                       23: 'TL6', # Broad-leaved forest -> Moderate Load Broadleaf Litter
+                                       24: 'TL8', # Coniferous forest -> Long-Needle Litter
+                                       25: 'TU1', # Mixed forest -> Low Load Dry Climate Timber-Grass-Shrub (Doesn't correspond in fact)
+                                       26: 'GR9', # Natural grasslands -> Very High Load, Humid Climate Grass
+                                       27: 'GS4', # Moors and heathland -> High Load, Humid Climate Grass-Shrub
+                                       28: 'SH7',
+                                       29: 'SH4',
+                                       30: 'NB9',
+                                       31: 'NB9',
+                                       32: 'GR1', # Sparsely vegetated areas -> Short, Sparse Dry Climate Grass
+                                       33: 'NB9',
+                                       34: 'NB9',
+                                       35: 'NB2',
+                                       36: 'NB8', 37: 'NB8', 38: 'NB8', 39: 'NB8', 40: 'NB8', 41: 'NB8', 42: 'NB8',
+                                       43: 'NB8', 44: 'NB8', 48: 'NB9', 49: 'NB9', 50: 'NB8', 255: 'NB9' }
+
+_C_FUEL = 'SH7' # Very High Load, Dry Climate Shrub
+CONSTANT_FUELMODEL_REMAP = { 1: 'NB1', 2: 'NB1', 3: 'NB1', 4: 'NB1', 5: 'NB1',
+                             6: 'NB1', 7: 'NB1', 8: 'NB1', 9: 'NB1', 10: 'NB1',
+                             11: 'NB1', 12: _C_FUEL, 13: _C_FUEL, 14: _C_FUEL, 15: _C_FUEL,
+                             16: _C_FUEL, 17: _C_FUEL, 18: _C_FUEL, 19: _C_FUEL, 20: _C_FUEL,
+                             21: _C_FUEL, 22: _C_FUEL, 23: _C_FUEL, 24: _C_FUEL, 25: _C_FUEL,
+                             26: _C_FUEL, 27: _C_FUEL, 28: _C_FUEL, 29: _C_FUEL, 30: 'NB9',
+                             31: 'NB9', 32: _C_FUEL, 33: 'NB9', 34: 'NB2', 35: 'NB8',
+                             36: 'NB8', 37: 'NB8', 38: 'NB8', 39: 'NB8', 40: 'NB8',
+                             41: 'NB8', 42: 'NB8', 43: 'NB8', 44: 'NB8', 48: 'NB9',
+                             49: 'NB9', 50: 'NB8', 255: 'NB9' }
+
+EVERYTHING_FUELMODEL_REMAP = { 1: _C_FUEL, 2: _C_FUEL, 3: _C_FUEL, 4: _C_FUEL, 5: _C_FUEL,
+                               6: _C_FUEL, 7: _C_FUEL, 8: _C_FUEL, 9: _C_FUEL, 10: _C_FUEL,
+                               11: _C_FUEL, 12: _C_FUEL, 13: _C_FUEL, 14: _C_FUEL, 15: _C_FUEL,
+                               16: _C_FUEL, 17: _C_FUEL, 18: _C_FUEL, 19: _C_FUEL, 20: _C_FUEL,
+                               21: _C_FUEL, 22: _C_FUEL, 23: _C_FUEL, 24: _C_FUEL, 25: _C_FUEL,
+                               26: _C_FUEL, 27: _C_FUEL, 28: _C_FUEL, 29: _C_FUEL, 30: _C_FUEL,
+                               31: _C_FUEL, 32: _C_FUEL, 33: _C_FUEL, 34: _C_FUEL, 35: _C_FUEL,
+                               36: _C_FUEL, 37: _C_FUEL, 38: _C_FUEL, 39: _C_FUEL, 40: _C_FUEL,
+                               41: _C_FUEL, 42: _C_FUEL, 43: _C_FUEL, 44: _C_FUEL, 48: _C_FUEL,
+                               49: _C_FUEL, 50: _C_FUEL, 255: _C_FUEL }
 
 
 class World:
     """Class providing access to environment data."""
 
-    def __init__(self, elevation_path=DEFAULT_FIRERS_DEM_DATA, wind_path=DEFAULT_FIRERS_WIND_DATA):
+    def __init__(self, elevation_path=DEFAULT_FIRERS_DEM_DATA, wind_path=DEFAULT_FIRERS_WIND_DATA,
+                 landcover_path=DEFAULT_FIRERS_LANDCOVER_DATA, landcover_to_fuel_remap=CONSTANT_FUELMODEL_REMAP):
         self._elevation_path = os.path.abspath(elevation_path)
         self._elevation_map = ElevationMap([])
         self._load_elevation_tiles()
+
+        self._landcover_path = os.path.abspath(landcover_path)
+        self._landcover_map = LandCoverMap([])
+        self._load_landcover_tiles()
+
+        self._default_landcover_to_fuel_remap = landcover_to_fuel_remap
 
         self._wind_path = os.path.abspath(wind_path)
         self._wind_maps = {'domainAverageInitialization': {},
@@ -47,6 +111,45 @@ class World:
                     self._elevation_map.add_tile(tile)
                 except RuntimeError as e:
                     logging.warning(e.msg)
+
+    def _load_landcover_tiles(self):
+        for f in os.scandir(self._landcover_path):
+            if f.is_file():
+                try:
+                    tile = LandCoverTile(f.path)
+                    self._landcover_map.add_tile(tile)
+                except RuntimeError as e:
+                    logging.warning(e.msg)
+
+    def get_fuel_type(self, position, remap=None) -> 'GeoData':
+        """Retrieves the fuel type of a given point/area of the map.
+        Position is either a point [x, y] or an area [[x_min, x_max], [y_min, y_max]]
+        """
+
+        if remap is None:
+            remap = self._default_landcover_to_fuel_remap
+
+        landcover = self.get_landcover_class(position)
+        if isinstance(landcover, numbers.Number):
+            return remap[landcover]
+
+        landcover_array = landcover['landcover']
+        landcover_array_copy = landcover_array.copy()
+        for k, v in remap.items():
+            landcover_array_copy[landcover_array == k] = fire_env.get_fuel_model_id(v)
+        return landcover.clone(data_array=landcover_array_copy, dtype=[('fuel', 'int32')])
+
+    def get_landcover_class(self, position) -> 'GeoData':
+        """Retrieves the land cover class of a given point/area of the map.
+        Position is either a point [x, y] or an area [[x_min, x_max], [y_min, y_max]]
+        """
+        assert len(position) == 2, "Need coordinates for x and y"
+
+        if isinstance(position[0], numbers.Number) and isinstance(position[1], numbers.Number):  # point
+            return self._landcover_map.get_class(position)
+        else:  # position is a rectangle
+            assert len(position[0]) == 2 and len(position[1]) == 2
+            return self._landcover_map.get_values(position)
 
     def get_elevation(self, position) -> 'GeoData':
         """Retrieves elevation of a given point/area of the map.

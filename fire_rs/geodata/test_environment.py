@@ -3,7 +3,7 @@ import unittest
 import gdal
 import numpy as np
 
-from fire_rs.geodata.environment import World
+from fire_rs.geodata.environment import World, CORINELANDCOVER_TO_FUELMODEL_REMAP
 
 
 class WorldTest(unittest.TestCase):
@@ -31,6 +31,21 @@ class WorldTest(unittest.TestCase):
         world = World()
         res = world.get_slope([[475060.0, 476060.0], [6200074.0, 6200174.0]])
 
+    def test_get_landcover_class(self):
+        world = World()
+        res =world.get_landcover_class([475060.0, 6200074.0])
+
+    def test_get_landcover_class_on_area(self):
+        world = World()
+        res = world.get_landcover_class([[475060.0,485060], [6200074.0, 6210074]])
+
+    def test_get_fuel_type(self):
+        world = World()
+        res = world.get_fuel_type([475060.0, 6200074.0], CORINELANDCOVER_TO_FUELMODEL_REMAP)
+
+    def test_get_fuel_type_on_area(self):
+        world = World()
+        res = world.get_fuel_type([[475060.0,485060], [6200074.0, 6210074]], CORINELANDCOVER_TO_FUELMODEL_REMAP)
 
     def test_get_wind_elevation_on_area(self):
         world = World()

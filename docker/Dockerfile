@@ -74,6 +74,8 @@ ENV FIRERS_DATA /home/saop/data
 
 # create a saop user
 RUN useradd -ms /bin/bash saop
+# Ugly hack in order to be able to call WindNinja
+RUN chmod -R 777 /root
 USER saop
 
 # code directory, needs to be mounted to the the root of of the git repository
