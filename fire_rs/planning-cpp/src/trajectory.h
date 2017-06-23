@@ -28,6 +28,10 @@ struct Segment {
     friend std::ostream& operator<< (std::ostream& stream, const Segment& s) {
         return stream << "<" << s.start << ", " << s.length << ">";
     }
+
+    bool operator==(const Segment& o) const {
+        return start == o.start && end == o.end && ALMOST_EQUAL(length, o.length);
+    }
 };
 
 struct TrajectoryConfig {
@@ -211,6 +215,9 @@ public:
 
         return cost;
     }
+    double replacement_duration_cost(size_t index, const Segment& segment) const {
+        return replacement_duration_cost(index, std::vector<Segment>{ segment });
+    }
     double replacement_duration_cost(size_t index, const std::vector<Segment>& segments) const {
         return replacement_length_cost(index, segments) / conf->uav.max_air_speed;
     }
@@ -268,6 +275,12 @@ public:
         Trajectory newTraj(*this);
         newTraj.replace_section(index, segments);
         return newTraj;
+    }
+    void replace_segment(size_t at_index, const Segment& by_segment) {
+        ASSERT(at_index >= 0 && at_index < traj.size())
+        erase_segment(at_index);
+        insert_segment(by_segment, at_index);
+        check_validity();
     }
     void replace_section(size_t index, const std::vector<Segment>& segments) {
         ASSERT(index >= 0 && index+segments.size()-1 < traj.size())

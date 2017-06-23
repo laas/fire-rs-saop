@@ -2,6 +2,7 @@
 #define PLANNING_CPP_WAYPOINT_H
 
 #include <sstream>
+#include "debug.h"
 
 struct Waypoint final {
     // order and length is important for compatibility with dubins.cpp, allowing to simply cast a Waypoint* to a double*
@@ -12,8 +13,8 @@ struct Waypoint final {
     constexpr Waypoint(const Waypoint &wp) : x(wp.x), y(wp.y), dir(wp.dir) {}
     constexpr Waypoint(const double x, const double y, const double dir) : x(x), y(y), dir(dir) {};
 
-    constexpr bool operator==(const Waypoint& o) const {
-        return x == o.x && y == o.y && dir == o.dir;
+    bool operator==(const Waypoint& o) const {
+        return ALMOST_EQUAL(x,o.x) && ALMOST_EQUAL(y, o.y) && ALMOST_EQUAL(dir, o.dir);
     }
 
     std::string to_string() const {

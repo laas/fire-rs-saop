@@ -11,6 +11,9 @@
 #include <zconf.h>
 #include <cstdlib>
 
+/** Macro that test equality of to floating point number, disregarding rounding errors. */
+#define ALMOST_EQUAL(x, y) fabs(x - y) < 0.000001
+
 #define ASSERT(test)                  \
 if(!(test)) {                         \
   fprintf(stderr, "Failed assert\n"); \
