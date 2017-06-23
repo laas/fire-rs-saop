@@ -123,10 +123,7 @@ PYBIND11_PLUGIN(uav_planning) {
         Visibility vis(ignitions, min_time, max_time);
         Plan p(vector<TrajectoryConfig> { conf }, vis);
 
-        vector<shared_ptr<Neighborhood>> neighborhoods;
-        neighborhoods.push_back(make_shared<OneInsertNbhd>());
-
-        VariableNeighborhoodSearch vns(neighborhoods);
+        DefaultVnsSearch vns;
 
         auto res = vns.search(p, 0, 1);
         return res;
