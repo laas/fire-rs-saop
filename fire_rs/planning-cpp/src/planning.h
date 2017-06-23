@@ -295,7 +295,7 @@ struct OneInsertNbhd : public Neighborhood {
         }
         /** Select a random point in the pending list */
         const size_t index = rand() % p->visibility.interesting_pending.size();
-        const Point pt = p->visibility.interesting_pending[index];
+        const Cell pt = p->visibility.interesting_pending[index];
 
         /** Pick an angle randomly */
         const double angle = ((double) rand() / RAND_MAX) * (M_PI * 2);

@@ -6,13 +6,13 @@
 
 using namespace std;
 
-struct Point final {
+struct Cell final {
     size_t x;
     size_t y;
 
-    bool operator!=(Point& pt) { return x != pt.x || y != pt.y; }
+    bool operator!=(Cell& pt) { return x != pt.x || y != pt.y; }
 
-    friend std::ostream& operator<< (std::ostream& stream, const Point& pt) {
+    friend std::ostream& operator<< (std::ostream& stream, const Cell& pt) {
         return stream << "(" << pt.x << ", " << pt.y <<")";
     }
 };
@@ -24,8 +24,8 @@ public:
     LRaster visibility;
     LRaster interest;
 
-    vector<Point> interesting_visited;
-    vector<Point> interesting_pending;
+    vector<Cell> interesting_visited;
+    vector<Cell> interesting_pending;
     vector<double> pending_costs;
 
     Visibility(const Raster& ignitions, double time_window_min, double time_window_max)
@@ -51,9 +51,9 @@ public:
                 if(min <= t && t <= max) {
                     interest.set(x, y, 1);
                     if(is_visible(x, y))
-                        add_visited(Point{x, y});
+                        add_visited(Cell{x, y});
                     else
-                        add_pending(Point{x, y});
+                        add_pending(Cell{x, y});
                 }
             }
         }
@@ -111,7 +111,7 @@ private:
     const double MAX_INFORMATIVE_DISTANCE = 500.;
     const double MAX_INDIVIDUAL_COST = 1.;
 
-    inline double cost_by_dist(const Point pt1, const Point pt2) const {
+    inline double cost_by_dist(const Cell pt1, const Cell pt2) const {
         const double dist = sqrt(pow((double) pt1.x - pt2.x, 2.) + pow((double) pt1.y - pt2.y, 2.)) * cell_width;
         const double cost = min(MAX_INFORMATIVE_DISTANCE, dist) / MAX_INFORMATIVE_DISTANCE * MAX_INDIVIDUAL_COST;
         assert(cost <= MAX_INDIVIDUAL_COST);
@@ -124,7 +124,7 @@ private:
         interesting_visited.clear();
     }
 
-    void add_visited(Point pt) {
+    void add_visited(Cell pt) {
         assert(visibility(pt.x, pt.y) == 1 && is_of_interest(pt.x, pt.y));
         interesting_visited.push_back(pt);
 
@@ -136,14 +136,14 @@ private:
         }
     }
 
-    void remove_visited(Point pt) {
+    void remove_visited(Cell pt) {
         assert(visibility(pt.x, pt.y) == 0 || !is_of_interest(pt.x, pt.y));
 
         // delete visited
         size_t index = 0;
         while(interesting_visited[index] != pt) {
             index++;
-            assert(index < interesting_visited.size());  //Point is not in the visited list
+            assert(index < interesting_visited.size());  // Cell is not in the visited list
         }
         interesting_visited.erase(interesting_visited.begin()+index);
 
@@ -163,7 +163,7 @@ private:
         }
     }
 
-    void add_pending(Point pt) {
+    void add_pending(Cell pt) {
         assert(visibility(pt.x, pt.y) == 0 && is_of_interest(pt.x, pt.y));
         interesting_pending.push_back(pt);
 
@@ -178,12 +178,12 @@ private:
         assert(pending_costs.size() == interesting_pending.size());
     }
 
-    void remove_pending(Point pt) {
+    void remove_pending(Cell pt) {
         ASSERT(visibility(pt.x, pt.y) == 1 || !is_of_interest(pt.x, pt.y));
         size_t index = 0;
         while(interesting_pending[index] != pt) {
             index++;
-            ASSERT(index < interesting_pending.size());  //Point is not in the pending list
+            ASSERT(index < interesting_pending.size());  // Cell is not in the pending list
         }
         interesting_pending.erase(interesting_pending.begin()+index);
         pending_costs.erase(pending_costs.begin()+index);
@@ -225,7 +225,7 @@ private:
            for(double iy=start_y; iy<=max_y; iy+=cell_width) {
                if(in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
                    // corresponding point in matrix coordinates
-                   const Point pt{ ignitions.x_index(ix), ignitions.y_index(iy) };
+                   const Cell pt{ ignitions.x_index(ix), ignitions.y_index(iy) };
 
                    visibility.set(pt.x, pt.y, visibility(pt.x, pt.y) + increment);
                    if(is_of_interest(pt.x, pt.y)) {

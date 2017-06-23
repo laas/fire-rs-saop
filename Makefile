@@ -7,7 +7,7 @@ build: FORCE
 # this requires the "when-changed" program" that is installed in the docker container
 # look in docker/Dockerfile to see how to install it.
 autobuild: FORCE
-	when-changed fire_rs/planning-cpp/src/* -c python3 setup.py build_ext --inplace
+	when-changed fire_rs/planning-cpp/src/* -c "python3 setup.py build_ext --inplace && echo 'BUILT\n\nWaiting for changes...'"
 
 # launches the docker container
 docker: FORCE
