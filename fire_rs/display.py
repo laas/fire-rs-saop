@@ -72,3 +72,64 @@ def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25):
 
 def plot3d_wind_arrows(ax, x, y, z, wx, wy, wz):
     return ax.quiver(x, y, z, wx, wy, wz, pivot='middle', cmap=cm.viridis)
+
+
+if __name__ == '__main__':
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as animation
+
+    Lx=401
+    Ly=401
+    Nx=401
+    Ny=401
+    Nt=200
+
+    import os
+    from fire_rs.geodata import environment
+    import fire_rs.firemodel.propagation as propagation
+    import fire_rs.geodata.geo_data
+
+    def burn(area_bounds, ignition_point, wind):
+        """Burn some area from an ignition point with given wind conditions"""
+        env = propagation.Environment(area_bounds, wind_speed=wind[0], wind_dir=wind[1])
+        f_propagation = propagation.propagate(env, *ignition_point)
+        return f_propagation.ignitions()
+
+    area = [[480060.0, 490060.0], [6210074.0, 6220074.0]]
+    ignition_point = (10, 20)
+    area_wind = (4.11, 3/4*np.pi)
+    ignition_times = None
+    if not os.path.exists('/tmp/ignition.tif'):
+        ignition_times = burn(area, ignition_point, area_wind)
+        ignition_times.write_to_file('/tmp/ignition.tif')
+    else:
+        ignition_times = fire_rs.geodata.geo_data.GeoData.load_from_file('/tmp/ignition.tif')
+
+    world = environment.World()
+    some_area = world.get_elevation(area)
+
+    # Generate grid for plotting
+    x = np.linspace(0, Lx, Nx)
+    y = np.linspace(0, Ly, Ny)
+    x, y = np.meshgrid(x, y)
+
+    fig = plt.figure()
+    ax = plt.axes(xlim=(0, Lx), ylim=(0, Ly))
+    plt.xlabel(r'x')
+    plt.ylabel(r'y')
+
+    z = ignition_times.data_display['ignition'] / 60
+    print(z)
+
+    # animation function
+    def animate(i):
+        print("frame {}".format(i))
+        cont = plt.contourf(x, y, z, [0, i+1, i+10])
+        plt.title(r't = %i' % i)
+
+        return cont
+
+    anim = animation.FuncAnimation(fig, animate, frames=Nt)
+    anim.save('animation.mp4')
+    plt.show()
