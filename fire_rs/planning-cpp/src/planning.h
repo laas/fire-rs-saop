@@ -40,10 +40,10 @@ struct Plan {
         cost = visibility.cost();
     }
 
-    void add_segment(size_t traj_id, Segment seg, size_t insert_loc) {
+    void add_segment(size_t traj_id, const Segment& seg, size_t insert_loc) {
         ASSERT(traj_id < trajectories.size());
         ASSERT(insert_loc <= trajectories[traj_id].traj.size());
-        trajectories[traj_id] = trajectories[traj_id].with_additional_segment(insert_loc, seg);
+        trajectories[traj_id].insert_segment(seg, insert_loc);
         visibility.add_segment(trajectories[traj_id].conf->uav, seg);
         compute_duration_and_cost();
     }
