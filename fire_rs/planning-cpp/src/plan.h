@@ -12,9 +12,6 @@ struct Plan {
     vector<Trajectory> trajectories;
     Visibility visibility;
 
-    double cost = -1;
-    double duration = -1;
-
     Plan(const Plan& plan) = default;
 
     Plan(vector<TrajectoryConfig> traj_confs, Visibility visibility) :
@@ -24,24 +21,41 @@ struct Plan {
             auto traj = Trajectory(*conf);
             trajectories.push_back(traj);
         }
-        compute_duration_and_cost();
     }
 
-    void compute_duration_and_cost() {
-        duration = 0;
+    double duration() const {
+        double duration = 0;
         for(auto it=trajectories.begin(); it!=trajectories.end(); it++) {
             duration += it->duration();
         }
-
-        cost = visibility.cost();
+        return duration;
     }
 
-    void add_segment(size_t traj_id, const Segment& seg, size_t insert_loc) {
+    double cost() const {
+        return visibility.cost();
+    }
+
+    void insert_segment(size_t traj_id, const Segment& seg, size_t insert_loc) {
         ASSERT(traj_id < trajectories.size());
         ASSERT(insert_loc <= trajectories[traj_id].traj.size());
         trajectories[traj_id].insert_segment(seg, insert_loc);
         visibility.add_segment(trajectories[traj_id].conf->uav, seg);
-        compute_duration_and_cost();
+    }
+
+    void erase_segment(size_t traj_id, size_t at_index) {
+        ASSERT(traj_id < trajectories.size());
+        ASSERT(at_index < trajectories[traj_id].traj.size());
+        Segment deleted = trajectories[traj_id][at_index];
+        trajectories[traj_id].erase_segment(at_index);
+        visibility.remove_segment(trajectories[traj_id].conf->uav, deleted);
+    }
+
+    void replace_segment(size_t traj_id, size_t at_index, const Segment& by_segment) {
+        ASSERT(traj_id < trajectories.size());
+        ASSERT(at_index <= trajectories[traj_id].traj.size());
+        erase_segment(traj_id, at_index);
+        insert_segment(traj_id, by_segment, at_index);
+
     }
 
 };

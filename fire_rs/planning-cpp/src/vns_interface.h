@@ -57,8 +57,8 @@ typedef shared_ptr<LocalMove> PLocalMove;
 class IdentityMove final : public LocalMove {
 public:
     IdentityMove(PPlan p) : LocalMove(p) {
-        this->_cost = p->cost;
-        this->_duration = p->duration;
+        this->_cost = p->cost();
+        this->_duration = p->duration();
     }
     /** does nothing */
     void apply_on(PPlan p) override {
@@ -164,7 +164,7 @@ struct VariableNeighborhoodSearch {
                 best_move->apply();
 
                 if(best_move == no_move) {
-                    printf("Improvement: %f\n", best_plan->cost);
+                    printf("Improvement: %f\n", best_plan->cost());
                     current_neighborhood += 1;
                 } else {
                     current_neighborhood = 0;

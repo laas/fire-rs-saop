@@ -30,13 +30,13 @@ struct SegmentRotation final : public LocalMove {
     {
         // assume that cost is not going to change meaningfully since the rotation is designed to
         // minimize the impact on visibility window
-        _cost = base->cost;
-        _duration = base->duration + base->trajectories[traj_id].replacement_duration_cost(segment_index, newSegment);
+        _cost = base->cost();
+        _duration = base->duration() + base->trajectories[traj_id].replacement_duration_cost(segment_index, newSegment);
         ASSERT(_duration >= 0)
     }
 
     void apply_on(PPlan p) override {
-        p->trajectories[traj_id].replace_segment(segment_index, newSegment);
+        p->replace_segment(traj_id, segment_index, newSegment);
     }
 
     bool applicable() const {

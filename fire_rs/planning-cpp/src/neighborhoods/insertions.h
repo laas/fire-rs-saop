@@ -24,11 +24,11 @@ struct Insert final : public LocalMove {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
         _cost = base->visibility.cost_given_addition(base->trajectories[traj_id].conf->uav, seg);
-        _duration = base->duration + base->trajectories[traj_id].insertion_duration_cost(insert_loc, seg);
+        _duration = base->duration() + base->trajectories[traj_id].insertion_duration_cost(insert_loc, seg);
     }
 
     void apply_on(PPlan p) override {
-        p->add_segment(traj_id, seg, insert_loc);
+        p->insert_segment(traj_id, seg, insert_loc);
     }
 
     /** Generates an insert move that include the segment at the best place in the given trajectory.
