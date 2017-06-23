@@ -105,7 +105,7 @@ public:
     }
 
     Trajectory(const TrajectoryConfig& c) : Trajectory(std::make_shared<TrajectoryConfig>(c)) {
-        ASSERT(matches_configuration());
+        check_validity();
     }
 
     Trajectory(std::shared_ptr<TrajectoryConfig> conf, std::vector<Segment> traj)
@@ -113,7 +113,7 @@ public:
     {
         for(auto it=traj.begin(); it!=traj.end(); it++)
             append_segment(*it);
-        ASSERT(matches_configuration());
+        check_validity();
     }
 
     Trajectory(std::shared_ptr<TrajectoryConfig> conf, std::vector<Waypoint> waypoints)
@@ -121,7 +121,7 @@ public:
     {
         for(auto it=waypoints.begin(); it!=waypoints.end(); it++)
             append_segment(Segment(*it));
-        ASSERT(matches_configuration());
+        check_validity();
     }
 
     /** Accesses the index-th segment of the trajectory */
@@ -183,16 +183,17 @@ public:
 
     /** Decrease of length as result of removing the segment at the given position */
     double removal_length_gain(size_t index) const {
+        ASSERT(index >= 0 && index < traj.size())
         const Segment segment = traj[index];
         if(index == 0)
-            return segment.length + conf->uav.travel_distance(segment.end, traj[index].start);
+            return segment.length + conf->uav.travel_distance(segment.end, traj[index+1].start);
         else if(index == traj.size()-1)
             return conf->uav.travel_distance(traj[index - 1].end, segment.start) + segment.length;
         else {
             return conf->uav.travel_distance(traj[index - 1].end, segment.start)
                    + segment.length
-                   + conf->uav.travel_distance(segment.end, traj[index].start)
-                   - conf->uav.travel_distance(traj[index - 1].end, traj[index].start);
+                   + conf->uav.travel_distance(segment.end, traj[index+1].start)
+                   - conf->uav.travel_distance(traj[index - 1].end, traj[index+1].start);
         }
     }
     double removal_duration_gain(size_t index) const {
@@ -315,7 +316,11 @@ private:
     /** Functions that asserts invariants of a trajectory.
      * This is for debugging purpose only and the function content should be commented out. */
     void check_validity() const {
+        ASSERT(traj.size() == start_times.size())
 //        ASSERT(fabs(non_incremental_length() / conf->uav.max_air_speed - (end_time() - start_time())) < 0.001)
+        for(size_t i=0; i<start_times.size(); i++) {
+            ASSERT(start_times[i] >= conf->start_time)
+        }
         ASSERT(matches_configuration())
     }
 
