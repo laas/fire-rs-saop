@@ -20,9 +20,9 @@ struct Segment {
     double length;
 
     constexpr Segment(const Waypoint& wp1) : start(wp1), end(wp1), length(0) {}
-    constexpr Segment(const Waypoint& wp1, const Waypoint& wp2)
+    Segment(const Waypoint& wp1, const Waypoint& wp2)
             : start(wp1), end(wp2), length(sqrt(pow(wp1.x-wp2.x, 2) + pow(wp1.y-wp2.y, 2))) {}
-    constexpr Segment(const Waypoint& wp1, const double length)
+    Segment(const Waypoint& wp1, const double length)
             : start(wp1), end(Waypoint(wp1.x +cos(wp1.dir)*length, wp1.y + sin(wp1.dir)*length, wp1.dir)), length(length) {}
 
     friend std::ostream& operator<< (std::ostream& stream, const Segment& s) {
@@ -37,16 +37,16 @@ struct TrajectoryConfig {
     const opt<Waypoint> end_position;
     const double max_flight_time;
 
-    constexpr TrajectoryConfig(const UAV& uav, double start_time = 0, double max_flight_time = std::numeric_limits<double>::max())
+    TrajectoryConfig(const UAV& uav, double start_time = 0, double max_flight_time = std::numeric_limits<double>::max())
             : uav(uav), start_time(start_time), start_position({}), end_position({}), max_flight_time(max_flight_time) {}
 
-    constexpr TrajectoryConfig(const UAV& uav,
+    TrajectoryConfig(const UAV& uav,
                                const Waypoint& start_position,
                                double start_time = 0,
                                double max_flight_time = std::numeric_limits<double>::max())
             : uav(uav), start_time(start_time), start_position(start_position), end_position({}), max_flight_time(std::numeric_limits<double>::max()) {}
 
-    constexpr TrajectoryConfig(const UAV& uav,
+    TrajectoryConfig(const UAV& uav,
                                const Waypoint& start_position,
                                const Waypoint& end_position,
                                double start_time = 0,

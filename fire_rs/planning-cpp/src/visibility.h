@@ -10,7 +10,7 @@ struct Point final {
     size_t x;
     size_t y;
 
-    constexpr bool operator!=(Point& pt) { return x != pt.x || y != pt.y; }
+    bool operator!=(Point& pt) { return x != pt.x || y != pt.y; }
 
     friend std::ostream& operator<< (std::ostream& stream, const Point& pt) {
         return stream << "(" << pt.x << ", " << pt.y <<")";
