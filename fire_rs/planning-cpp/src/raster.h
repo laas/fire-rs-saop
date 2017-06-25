@@ -4,6 +4,18 @@
 #include <valarray>
 
 
+struct Cell final {
+    size_t x;
+    size_t y;
+
+    bool operator!=(Cell& pt) { return x != pt.x || y != pt.y; }
+
+    friend std::ostream& operator<< (std::ostream& stream, const Cell& pt) {
+        return stream << "(" << pt.x << ", " << pt.y <<")";
+    }
+};
+
+
 struct Raster {
     std::vector<double> data;
 
@@ -30,7 +42,12 @@ struct Raster {
             data[i] = 0;
     }
 
+    inline double operator()(Cell cell) const {
+        return (*this)(cell.x, cell.y);
+    }
     inline double operator()(size_t x, size_t y) const {
+        ASSERT(x >= 0 && x < x_width);
+        ASSERT(y >= 0 && y <= y_height);
         return data[x + y*x_width];
     }
 
@@ -38,9 +55,15 @@ struct Raster {
         data[x + y*x_width] = value;
     }
 
+    bool is_in(Cell cell) const {
+        return cell.x < x_width && cell.y < y_height;
+    }
     double x_coords(size_t x_index) const { return x_offset + cell_width * x_index; }
     double y_coords(size_t y_index) const { return y_offset + cell_width * y_index; }
 
+    bool is_in(const Waypoint& wp) const {
+        return is_x_in(wp.x) && is_y_in(wp.y);
+    }
     bool is_x_in(double x_coord) const {
         return x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width-cell_width/2;
     }
@@ -48,6 +71,10 @@ struct Raster {
         return y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height-cell_width/2;
     }
 
+    Cell as_cell(const Waypoint& wp) const {
+        ASSERT(is_in(wp));
+        return Cell{ x_index(wp.x), y_index(wp.y) };
+    }
     size_t x_index(double x_coord) const {
         ASSERT(is_x_in(x_coord));
         return (size_t) lround((x_coord - x_offset) / cell_width);

@@ -21,6 +21,14 @@ size_t rand(size_t min, size_t non_inclusive_max) {
     return (rand() % (non_inclusive_max-min)) + min;
 }
 
+double positive_modulo(double left, double right) {
+    const double base = fmod(left, right);
+    if(base >= 0)
+        return base;
+    else
+        return base + right;
+}
+
 /** Macro that test equality of to floating point number, disregarding rounding errors. */
 #define ALMOST_EQUAL(x, y) fabs(x - y) < 0.000001
 
