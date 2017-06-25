@@ -14,26 +14,6 @@
 #include "utils.h"
 #include "ext/optional.h"
 
-struct Segment {
-    Waypoint start;
-    Waypoint end;
-    double length;
-
-    constexpr Segment(const Waypoint& wp1) : start(wp1), end(wp1), length(0) {}
-    Segment(const Waypoint& wp1, const Waypoint& wp2)
-            : start(wp1), end(wp2), length(sqrt(pow(wp1.x-wp2.x, 2) + pow(wp1.y-wp2.y, 2))) {}
-    Segment(const Waypoint& wp1, const double length)
-            : start(wp1), end(Waypoint(wp1.x +cos(wp1.dir)*length, wp1.y + sin(wp1.dir)*length, wp1.dir)), length(length) {}
-
-    friend std::ostream& operator<< (std::ostream& stream, const Segment& s) {
-        return stream << "<" << s.start << ", " << s.length << ">";
-    }
-
-    bool operator==(const Segment& o) const {
-        return start == o.start && end == o.end && ALMOST_EQUAL(length, o.length);
-    }
-};
-
 struct TrajectoryConfig {
     const UAV uav;
     const double start_time;

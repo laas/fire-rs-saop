@@ -53,8 +53,8 @@ void test_segment_rotation() {
         Waypoint wp(drand(-100000, 10000), drand(-100000, 100000), drand(-10*M_PI, 10*M_PI));
         Segment seg(wp, drand(0, 1000));
 
-        Segment seg_rotated = rotate_on_visibility_center(seg, uav, drand(-10*M_PI, 10*M_PI));
-        Segment seg_back = rotate_on_visibility_center(seg_rotated, uav, wp.dir);
+        Segment seg_rotated = uav.rotate_on_visibility_center(seg, drand(-10*M_PI, 10*M_PI));
+        Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
         ASSERT(seg == seg_back)
     }
 
@@ -66,11 +66,11 @@ void test_segment_rotation() {
     Waypoint wp(0, 0, 0);
     Segment seg(wp, 0);
 
-    Segment seg_rotated = rotate_on_visibility_center(seg, uav, M_PI/2);
+    Segment seg_rotated = uav.rotate_on_visibility_center(seg, M_PI/2);
     ASSERT(ALMOST_EQUAL(seg_rotated.start.x, 0.5))
     ASSERT(ALMOST_EQUAL(seg_rotated.start.y, -0.5))
     ASSERT(ALMOST_EQUAL(seg_rotated.start.dir, M_PI/2))
-    Segment seg_back = rotate_on_visibility_center(seg_rotated, uav, wp.dir);
+    Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
     ASSERT(seg == seg_back)
 }
 

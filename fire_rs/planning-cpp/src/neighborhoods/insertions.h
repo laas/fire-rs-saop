@@ -76,8 +76,10 @@ struct Insert final : public LocalMove {
  * the best insertion for this point.
  */
 struct OneInsertNbhd : public Neighborhood {
+    const double default_segment_length = 30;
 
     opt<PLocalMove> get_move(PPlan p) override {
+        ASSERT(!p->trajectories.empty())
         if(p->visibility.interesting_pending.size() == 0) {
             // no candidates left
             return {};
@@ -87,11 +89,11 @@ struct OneInsertNbhd : public Neighborhood {
         const Cell pt = p->visibility.interesting_pending[index];
 
         /** Pick an angle randomly */
-        const double angle = ((double) rand() / RAND_MAX) * (M_PI * 2);
+        const double angle = drand(0, 2*M_PI);
 
         /** Waypoint and segment resulting from the random picks */
         const Waypoint wp = Waypoint(p->visibility.ignitions.x_coords(pt.x), p->visibility.ignitions.y_coords(pt.y), angle);
-        const Segment seg = Segment(wp.forward(-30), 30);
+        const Segment seg = p->uav(0).observation_segment(wp.x, wp.y, angle, default_segment_length);
 
         opt<Insert> best_insert = {};
 

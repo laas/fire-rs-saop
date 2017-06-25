@@ -35,6 +35,12 @@ struct Plan {
         return visibility.cost();
     }
 
+    /** Returns the UAV performing the given trajectory */
+    UAV uav(size_t traj_id) const {
+        ASSERT(traj_id < trajectories.size())
+        return trajectories[traj_id].conf->uav;
+    }
+
     void insert_segment(size_t traj_id, const Segment& seg, size_t insert_loc) {
         ASSERT(traj_id < trajectories.size());
         ASSERT(insert_loc <= trajectories[traj_id].traj.size());
@@ -57,7 +63,6 @@ struct Plan {
         insert_segment(traj_id, by_segment, at_index);
 
     }
-
 };
 
 
