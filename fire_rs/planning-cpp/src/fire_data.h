@@ -5,6 +5,7 @@
 #include "raster.h"
 #include "waypoint.h"
 #include "ext/optional.h"
+#include "uav.h"
 
 using namespace std;
 
@@ -68,14 +69,14 @@ public:
             if(time > traversal_end(cell)) {
                 // move towards propagation direction
                 next_cell = { cell.x+dx, cell.y + dy };
-                if(ignitions(cell) > ignitions(next_cell))
+                if(!ignitions.is_in(next_cell) || ignitions(cell) > ignitions(next_cell))
                     // ignitions are not growing, we are in strange geometrical pattern inducing a local maximum, abandon
                     return {};
             } else {
                 // move backwards the propagation direction
                 ASSERT(time < ignitions(cell))
                 next_cell = { cell.x-dx, cell.y-dy };
-                if(ignitions(cell) < ignitions(next_cell))
+                if(!ignitions.is_in(next_cell) || ignitions(cell) < ignitions(next_cell))
                     // ignitions are not decreasing, we are in strange geometrical pattern inducing a local minimum, abandon
                     return {};
             }
@@ -87,6 +88,17 @@ public:
         }
     }
 
+    opt<Segment> project_on_firefront(const Segment& seg, const UAV& uav, double time) const {
+        const Waypoint center = uav.visibilty_center(seg);
+        if(!ignitions.is_in(center))
+            return {};
+        const Cell cell = ignitions.as_cell(center);
+        auto projected_cell = project_on_fire_front(cell, time);
+        if(projected_cell)
+            return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y), seg.start.dir, seg.length);
+        else
+            return {};
+    }
 
 private:
     /** Builds a rast*/

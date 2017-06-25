@@ -12,6 +12,8 @@ protected:
     /** Total duration (sum of all subplans durations) that would result in applying the move*/
     double _duration = -1;
 
+    bool _compulsory = false;
+
     static constexpr double INF = 9999999999999999;
 
 public:
@@ -24,6 +26,8 @@ public:
 
     /** Total duration that would result in applying the move */
     inline double duration() const { ASSERT(_duration >= 0); return _duration; };
+
+    inline bool is_compulsory() const { return _compulsory; }
 
     /** Applies the move on the inner plan */
     void apply() {
@@ -151,7 +155,7 @@ struct VariableNeighborhoodSearch {
                 for(size_t i=0; i<neighborhood->max_neighbors; i++) {
                     const opt<PLocalMove> move = neighborhood->get_move(best_plan);
                     if(move) {
-                        if ((*move)->is_better_than(*best_move)) {
+                        if ((*move)->is_compulsory() || (*move)->is_better_than(*best_move)) {
                             if (best_move == no_move && neighborhood->stop_on_first_improvement) {
                                 best_move = *move;
                                 break;

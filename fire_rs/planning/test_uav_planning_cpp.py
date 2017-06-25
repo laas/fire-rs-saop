@@ -127,11 +127,11 @@ class TestUAV(unittest.TestCase):
 
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 483060.0], [6210074.0, 6212074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 40, 40, horizon=8000)
+        prop = propagation.propagate(env, 40, 40, horizon=20000)
         ax = prop.plot()
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 7000, 7300)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 7000, 800)
 
         plan = res.final_plan()
         plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)

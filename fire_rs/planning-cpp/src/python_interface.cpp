@@ -125,7 +125,7 @@ PYBIND11_PLUGIN(uav_planning) {
 
         DefaultVnsSearch vns;
 
-        auto res = vns.search(p, 0, 1);
+        auto res = vns.search(p, 0, 0);
         return res;
     });
 

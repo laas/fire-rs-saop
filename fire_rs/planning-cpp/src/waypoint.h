@@ -16,6 +16,9 @@ struct Waypoint final {
     bool operator==(const Waypoint& o) const {
         return ALMOST_EQUAL(x,o.x) && ALMOST_EQUAL(y, o.y) && ALMOST_EQUAL(dir, o.dir);
     }
+    bool operator!=(const Waypoint& o) const {
+        return !ALMOST_EQUAL(x,o.x) || !ALMOST_EQUAL(y, o.y) || !ALMOST_EQUAL(dir, o.dir);
+    }
 
     std::string to_string() const {
         std::stringstream repr;
@@ -60,6 +63,10 @@ struct Segment final {
 
     bool operator==(const Segment& o) const {
         return start == o.start && end == o.end && ALMOST_EQUAL(length, o.length);
+    }
+
+    bool operator!=(const Segment& o) const {
+        return start != o.start || end != o.end || !ALMOST_EQUAL(length, o.length);
     }
 };
 

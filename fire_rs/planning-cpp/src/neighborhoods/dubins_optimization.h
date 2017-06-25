@@ -4,35 +4,8 @@
 #include "../trajectory.h"
 #include "../planning.h"
 #include "../vns_interface.h"
+#include "moves.h"
 
-
-struct SegmentRotation final : public LocalMove {
-    const size_t traj_id;
-    const size_t segment_index;
-    const Segment newSegment;
-    SegmentRotation(const PPlan &base, size_t traj_id, size_t segment_index, double target_dir)
-            : LocalMove(base),
-              traj_id(traj_id),
-              segment_index(segment_index),
-              newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
-                                                                        target_dir))
-    {
-        // assume that cost is not going to change meaningfully since the rotation is designed to
-        // minimize the impact on visibility window
-        _cost = base->cost();
-        _duration = base->duration() + base->trajectories[traj_id].replacement_duration_cost(segment_index, newSegment);
-        ASSERT(_duration >= 0)
-    }
-
-    void apply_on(PPlan p) override {
-        p->replace_segment(traj_id, segment_index, newSegment);
-    }
-
-    bool applicable() const {
-        Trajectory& t = base_plan->trajectories[traj_id];
-        return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf->max_flight_time;
-    }
-};
 
 struct RandomOrientationChangeNbhd final : public Neighborhood {
 

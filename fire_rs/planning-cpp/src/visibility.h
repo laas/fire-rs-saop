@@ -3,12 +3,13 @@
 
 #include "raster.h"
 #include "trajectory.h"
+#include "fire_data.h"
 
 using namespace std;
 
 class Visibility {
 public:
-    const Raster ignitions;
+    const FireData fire;
     const double cell_width;
     LRaster visibility;
     LRaster interest;
@@ -18,9 +19,8 @@ public:
     vector<double> pending_costs;
 
     Visibility(const Raster& ignitions, double time_window_min, double time_window_max)
-            : ignitions(ignitions),
+            : fire(ignitions),
               cell_width(ignitions.cell_width),
-
               visibility(LRaster(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width)),
               interest(LRaster(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width))
     {
@@ -34,9 +34,9 @@ public:
     void set_time_window_of_interest(double min, double max) {
         reset();
 
-        for(size_t x=0; x<ignitions.x_width; x++) {
-            for(size_t y=0; y<ignitions.y_height; y++) {
-                const double t = ignitions(x, y);
+        for(size_t x=0; x<fire.ignitions.x_width; x++) {
+            for(size_t y=0; y<fire.ignitions.y_height; y++) {
+                const double t = fire.ignitions(x, y);
                 if(min <= t && t <= max) {
                     interest.set(x, y, 1);
                     if(is_visible(x, y))
@@ -72,6 +72,12 @@ public:
 
     double cost_given_addition(const UAV& uav, Segment addition) {
         return cost_given(uav, vector<Segment> {addition}, vector<Segment> {});
+    }
+    double cost_given_removal(const UAV& uav, Segment removed) {
+        return cost_given(uav, vector<Segment> {}, vector<Segment> {removed});
+    }
+    double cost_given_swap(const UAV& uav, const Segment& added, const Segment& removed) {
+        return cost_given(uav, vector<Segment> { added }, vector<Segment> { removed });
     }
     double cost_given(const UAV& uav, const vector<Segment> additions, const vector<Segment> removal) {
         const double init_cost = cost();
@@ -200,21 +206,21 @@ private:
 
         // limits of the area in which to search for visible points
         // this is a subset of the raster that strictly contains the visibility rectangle
-        const double min_x = max(min(min(ax, bx), min(cx, dx)) - cell_width, ignitions.x_offset);
-        const double max_x = min(max(max(ax, bx), max(cx, dx)) + cell_width, ignitions.x_offset + ignitions.x_width*cell_width-ignitions.cell_width/2);
-        const double min_y = max(min(min(ay, by), min(cy, dy)) - cell_width, ignitions.y_offset);
-        const double max_y = min(max(max(ay, by), max(cy, dy)) + cell_width, ignitions.y_offset + ignitions.y_height*cell_width -ignitions.cell_width/2);
+        const double min_x = max(min(min(ax, bx), min(cx, dx)) - cell_width, fire.ignitions.x_offset);
+        const double max_x = min(max(max(ax, bx), max(cx, dx)) + cell_width, fire.ignitions.x_offset + fire.ignitions.x_width*cell_width-fire.ignitions.cell_width/2);
+        const double min_y = max(min(min(ay, by), min(cy, dy)) - cell_width, fire.ignitions.y_offset);
+        const double max_y = min(max(max(ay, by), max(cy, dy)) + cell_width, fire.ignitions.y_offset + fire.ignitions.y_height*cell_width -fire.ignitions.cell_width/2);
 
         // coordinates of where to start the search, centered on a cell
-        const double start_x = ignitions.x_coords(ignitions.x_index(min_x));
-        const double start_y = ignitions.y_coords(ignitions.y_index(min_y));
+        const double start_x = fire.ignitions.x_coords(fire.ignitions.x_index(min_x));
+        const double start_y = fire.ignitions.y_coords(fire.ignitions.y_index(min_y));
 
         // for each point possibly in the rectangle check if it is in the visible area and mark it as pending/visible when necessary
         for(double ix=start_x; ix<=max_x; ix+=cell_width) {
            for(double iy=start_y; iy<=max_y; iy+=cell_width) {
                if(in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
                    // corresponding point in matrix coordinates
-                   const Cell pt{ ignitions.x_index(ix), ignitions.y_index(iy) };
+                   const Cell pt{ fire.ignitions.x_index(ix), fire.ignitions.y_index(iy) };
 
                    visibility.set(pt.x, pt.y, visibility(pt.x, pt.y) + increment);
                    if(is_of_interest(pt.x, pt.y)) {

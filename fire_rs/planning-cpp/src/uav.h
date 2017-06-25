@@ -54,7 +54,7 @@ struct UAV {
     }
 
     /** Rotates the given segment on the center of the visibility area. */
-    Segment rotate_on_visibility_center(const Segment& segment, double target_dir) {
+    Segment rotate_on_visibility_center(const Segment& segment, double target_dir) const {
         const double visibility_depth = segment.length + view_depth;
         const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth/2;
         const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth/2;
@@ -66,11 +66,18 @@ struct UAV {
 
     /** Builds a new segment of the given length and direction,
      *  such that (x_coords, y_coords) is at the center of the visibility area. */
-    Segment observation_segment(double x_coords, double y_coords, double dir, double length) {
+    Segment observation_segment(double x_coords, double y_coords, double dir, double length) const {
         const double visibility_depth = length + view_depth;
         const double segment_start_x = x_coords - cos(dir) * visibility_depth/2;
         const double segment_start_y = y_coords - sin(dir) * visibility_depth/2;
         return Segment(Waypoint(segment_start_x, segment_start_y, dir), length);
+    }
+
+    Waypoint visibilty_center(const Segment& segment) const {
+        const double visibility_depth = segment.length + view_depth;
+        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth/2;
+        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth/2;
+        return Waypoint(vis_center_x, vis_center_y, segment.start.dir);
     }
 
 
