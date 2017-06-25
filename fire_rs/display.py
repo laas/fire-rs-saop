@@ -79,11 +79,11 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import matplotlib.animation as animation
 
-    Lx=401
-    Ly=401
-    Nx=401
-    Ny=401
-    Nt=200
+    Lx = 401
+    Ly = 401
+    Nx = 401
+    Ny = 401
+    Nt = 200
 
     import os
     from fire_rs.geodata import environment
@@ -93,7 +93,8 @@ if __name__ == '__main__':
     def burn(area_bounds, ignition_point, wind):
         """Burn some area from an ignition point with given wind conditions"""
         env = propagation.Environment(area_bounds, wind_speed=wind[0], wind_dir=wind[1])
-        f_propagation = propagation.propagate(env, *ignition_point)
+        f_propagation = propagation.propagate(env, *ignition_point, horizon=5*3600)  # limit propagation to 5 hours
+        f_propagation.plot(blocking=False)
         return f_propagation.ignitions()
 
     area = [[480060.0, 490060.0], [6210074.0, 6220074.0]]
