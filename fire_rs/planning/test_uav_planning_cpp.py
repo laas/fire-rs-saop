@@ -8,13 +8,6 @@ from fire_rs.geodata.geo_data import GeoData
 uav = up.UAV(18., 32.*np.pi/180)
 
 
-def get_trajectory(waypoints):
-    traj = up.Trajectory(up.TrajectoryConfig.build(uav))
-    for wp in waypoints:
-        traj = traj.with_waypoint_at_end(up.Waypoint(wp.x * uav.min_turn_radius, wp.y * uav.min_turn_radius, wp.dir))
-    return traj
-
-
 def plot_trajectory(traj, axes=None, blocking=False):
     import matplotlib.pyplot as plt
     if not axes:
@@ -37,6 +30,7 @@ class TestUAV(unittest.TestCase):
     def setUp(self):
         self.wp1 = up.Waypoint(0, 0, 0)
         self.wp2 = up.Waypoint(4, 0, 0)
+        self.test_area = [[480060.0, 490060.0], [6210074.0, 6220074.0]]
 
     def test_waypoint(self):
         wp1 = up.Waypoint(4, 3, 2)
@@ -52,12 +46,14 @@ class TestUAV(unittest.TestCase):
             print(traj)
         self.assertAlmostEquals(4, traj.length())
 
-    def test_trajectory_plotting(self):
-        traj = get_trajectory([up.Waypoint(0, 0, 0), up.Waypoint(1, 1, 0), up.Waypoint(10, 10, 3.14), up.Waypoint(6, 0, 0),
-                     up.Waypoint(7, 1, 0)])
-        # plot_trajectory(traj)
-
     def test_trajectory_mutations(self):
+        # builds a trajectory, makeing sure points are sufficiently spaced to allow interesting solutions
+        def get_trajectory(waypoints):
+            traj = up.Trajectory(up.TrajectoryConfig.build(uav))
+            for wp in waypoints:
+                traj = traj.with_waypoint_at_end(
+                    up.Waypoint(wp.x * uav.min_turn_radius, wp.y * uav.min_turn_radius, wp.dir))
+            return traj
         traj = get_trajectory([up.Waypoint(0, 0, 4.5), up.Waypoint(1.4, 4.4, 0), up.Waypoint(10, 10, 3.14),
                                up.Waypoint(5, 0, 0), up.Waypoint(7, 1, 0), up.Waypoint(15, 9, 2), up.Waypoint(15, 5, 0),
                                up.Waypoint(0, 10, 3.14), up.Waypoint(1, 9, 3.14)])
@@ -71,7 +67,7 @@ class TestUAV(unittest.TestCase):
     def test_geodata_conversion(self):
         from fire_rs.geodata.environment import World
         world = World()
-        gd = world.get_elevation([[475060.0,485060], [6200074.0, 6210074]])
+        gd = world.get_elevation([[475060.0, 485060], [6200074.0, 6210074]])
         raster = gd.as_cpp_raster()
         print(raster)
         gd2 = GeoData.from_cpp_raster(raster, "elevation_cpp")
@@ -84,12 +80,12 @@ class TestUAV(unittest.TestCase):
 
     def test_visibility(self):
         from fire_rs.firemodel import propagation
-        env = propagation.Environment([[475060.0, 477060.0], [6200074.0, 6202074.0]], wind_speed=4.11, wind_dir=0)
+        env = propagation.Environment(self.test_area, wind_speed=4.11, wind_dir=0)
         prop = propagation.propagate(env, 10, 20, horizon=3600)
         ignitions = prop.ignitions()
-        v = up.Visibility(ignitions.as_cpp_raster(), 1800, 2700)
-        bl = up.Segment(up.Waypoint(475160.0, 6200174, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
-        tr = up.Segment(up.Waypoint(476500, 6201500, 0), 100)  # top right segment non-overlapping the fire zone
+        v = up.Visibility(ignitions.as_cpp_raster(), 0, 2700)
+        bl = up.Segment(up.Waypoint(self.test_area[0][0] + 10*25, self.test_area[1][0] + 20*25, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
+        tr = up.Segment(up.Waypoint(self.test_area[0][1], self.test_area[1][1], 0), 100)  # top right segment non-overlapping the fire zone
 
         def pr(cpp_raster, blocking=False):  # plots a cpp raster
             GeoData.from_cpp_long_raster(cpp_raster, "xx").plot(blocking=blocking)
@@ -110,7 +106,7 @@ class TestUAV(unittest.TestCase):
 
     def test_smart_insertion(self):
         from fire_rs.firemodel import propagation
-        env = propagation.Environment([[475060.0, 477060.0], [6200074.0, 6202074.0]], wind_speed=4.11, wind_dir=0)
+        env = propagation.Environment(self.test_area, wind_speed=4.11, wind_dir=0)
         prop = propagation.propagate(env, 10, 20, horizon=3600)
         ignitions = prop.ignitions()
         v = up.Visibility(ignitions.as_cpp_raster(), 1800, 2700)
@@ -130,7 +126,7 @@ class TestUAV(unittest.TestCase):
             return GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
 
         from fire_rs.firemodel import propagation
-        env = propagation.Environment([[475060.0, 478060.0], [6200074.0, 6203074.0]], wind_speed=4.11, wind_dir=0)
+        env = propagation.Environment(self.test_area, wind_speed=4.11, wind_dir=0)
         prop = propagation.propagate(env, 40, 40, horizon=5000)
         ax = prop.plot()
         ignitions = prop.ignitions()
