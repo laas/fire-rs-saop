@@ -19,7 +19,7 @@ struct CloneBasedLocalMove : public LocalMove {
     /** Total duration that would result in applying the move */
     virtual double duration() const override { return _duration; };
 
-    virtual int additional_segments() const override { return _additional_segments; };
+    virtual size_t num_segments() const override { return _num_segments; };
 
     virtual bool is_valid() const override { return _valid; }
 
@@ -28,14 +28,14 @@ protected:
         PPlan clone = apply_on_new();
         _cost = clone->cost();
         _duration = clone->duration();
-        _additional_segments = (int) clone->num_segments() - (int) base_plan->num_segments();
+        _num_segments = clone->num_segments();
         _valid = clone->is_valid();
     }
 
 private:
     double _cost;
     double _duration;
-    int _additional_segments;
+    size_t _num_segments;
     bool _valid;
 };
 

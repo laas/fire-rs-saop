@@ -35,6 +35,9 @@ double positive_modulo(double left, double right) {
 /** Macro that test whether x >= y with tolerance to rounding errors. */
 #define ALMOST_GREATER_EQUAL(x, y) (x >= (y - 0.000001))
 
+/** Macro that test whether x >= y with tolerance to rounding errors. */
+#define ALMOST_LESSER_EQUAL(x, y) (x <= (y + 0.000001))
+
 #define ASSERT(test)                  \
 if(!(test)) {                         \
   fprintf(stderr, "Failed assert\n"); \

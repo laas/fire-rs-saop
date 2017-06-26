@@ -17,7 +17,7 @@ public:
     /** Total duration that would result in applying the move */
     virtual double duration() const = 0;
 
-    virtual int additional_segments() const = 0;
+    virtual size_t num_segments() const = 0;
 
     virtual bool is_valid() const = 0;
 
@@ -35,7 +35,14 @@ public:
 
     /** this move is better than another if it has a better cost or if it has a similar cost but a strictly better duration */
     bool is_better_than(const LocalMove& other) const {
-        return cost() < other.cost() || (abs(cost() - other.cost()) < 0.0001 && duration() < other.duration());
+        if(num_segments() > other.num_segments()) {
+            // segments inserted, is better if there is significant cost improvement or if cost is equivalent but durations improves
+            return cost() < other.cost() -0.5 ||
+                    (ALMOST_LESSER_EQUAL(cost(), other.cost()) &&  duration() < other.duration());
+        } else {
+            return cost() < other.cost() ||
+                    (ALMOST_LESSER_EQUAL(cost(), other.cost()) &&  duration() < other.duration());
+        }
     }
 
 protected:
@@ -60,7 +67,7 @@ public:
     /** Total duration that would result in applying the move */
     virtual double duration() const override { return base_plan->duration(); };
 
-    virtual int additional_segments() const override { return 0; };
+    virtual size_t num_segments() const override { return base_plan->num_segments(); };
 
     virtual bool is_valid() const override { return base_plan->is_valid(); }
 
