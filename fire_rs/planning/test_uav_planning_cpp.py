@@ -6,7 +6,7 @@ import numpy as np
 from fire_rs.geodata.geo_data import GeoData
 
 uav = up.UAV(18., 32.*np.pi/180)
-
+uav = up.UAV(7., 10.*np.pi/180)
 
 def plot_trajectory(traj, axes=None, blocking=False):
     import matplotlib.pyplot as plt
@@ -104,45 +104,27 @@ class TestUAV(unittest.TestCase):
         # pr(v.visibility)
         # prop.plot(blocking=False)
 
-    def test_smart_insertion(self):
-        from fire_rs.firemodel import propagation
-        env = propagation.Environment(self.test_area, wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 10, 20, horizon=3600)
-        ignitions = prop.ignitions()
-        v = up.Visibility(ignitions.as_cpp_raster(), 1800, 2700)
-        bl = up.Segment(up.Waypoint(475060.0, 6200074, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
-        tr = up.Segment(up.Waypoint(476500, 6201500, 0), 100)  # top right segment non-overlapping the fire zone
-        segments = [
-            up.Segment(up.Waypoint(475060.0, 6200074, np.pi/2), 300),
-            up.Segment(up.Waypoint(476500, 6201500, 0), 100),
-            up.Segment(up.Waypoint(475160.0, 6201074, np.pi/2), 300),
-            up.Segment(up.Waypoint(476700, 6201400, 0), 100)
-        ]
-        p = up.make_plan(uav, segments, v)
-        # plot_trajectory(p.trajectories[0], blocking=False)
-
     def test_vns(self):
         def pr(cpp_raster, blocking=False):  # plots a cpp raster
             return GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
 
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 483060.0], [6210074.0, 6212074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 40, 40, horizon=20000)
+        prop = propagation.propagate(env, 40, 40, horizon=10000)
         ax = prop.plot()
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 7000, 800)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 7000, 9000)
 
         plan = res.final_plan()
-        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
-
-        ax = pr(plan.visibility.visibility)
-        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
-        ax = pr(plan.visibility.interest)
         plot_trajectory(plan.trajectories[0], axes=ax, blocking=True)
 
-        print(res.final_plan())
-        print(res.final_plan().trajectories)
+        # plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
+        # plot_trajectory(plan.trajectories[0], axes=ax, blocking=True)
+
+        print("durations: ")
+        for traj in plan.trajectories:
+            print(traj.duration())
 
 
 

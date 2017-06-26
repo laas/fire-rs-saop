@@ -38,11 +38,12 @@ public:
             for(size_t y=0; y<fire.ignitions.y_height; y++) {
                 const double t = fire.ignitions(x, y);
                 if(min <= t && t <= max) {
+                    Cell c{x, y};
                     interest.set(x, y, 1);
                     if(is_visible(x, y))
-                        add_visited(Cell{x, y});
+                        add_visited(c);
                     else
-                        add_pending(Cell{x, y});
+                        add_pending(c);
                 }
             }
         }

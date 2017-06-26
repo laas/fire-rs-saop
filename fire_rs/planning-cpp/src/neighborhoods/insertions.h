@@ -16,38 +16,71 @@ struct OneInsertNbhd : public Neighborhood {
 
     opt<PLocalMove> get_move(PPlan p) override {
         ASSERT(!p->trajectories.empty())
-        if(p->visibility.interesting_pending.size() == 0) {
-            // no candidates left
+        if(p->possible_observations.empty())
             return {};
-        }
+
         /** Select a random point in the pending list */
-        const size_t index = rand() % p->visibility.interesting_pending.size();
-        const Cell pt = p->visibility.interesting_pending[index];
+        const size_t index = rand() % p->possible_observations.size();
+        const PointTimeWindow pt = p->possible_observations[index];
 
         /** Pick an angle randomly */
         const double angle = drand(0, 2*M_PI);
 
         /** Waypoint and segment resulting from the random picks */
-        const Waypoint wp = Waypoint(p->visibility.fire.ignitions.x_coords(pt.x), p->visibility.fire.ignitions.y_coords(pt.y), angle);
-        const Segment seg = p->uav(0).observation_segment(wp.x, wp.y, angle, default_segment_length);
+        const Segment seg = p->uav(0).observation_segment(pt.pt.x, pt.pt.y, angle, default_segment_length);
 
-        opt<Insert> best_insert = {};
+        opt<Candidate> best;
 
         /** Try best insert for each subtrajectory in the plan */
         for(size_t i=0; i< p->trajectories.size(); i++) {
-            auto candidate = Insert::best_insert(p, i, seg);
-            if(candidate) {
-                if(!best_insert || candidate->is_better_than(*best_insert))
-                    best_insert = candidate;
+            const Trajectory& traj = p->trajectories[i];
+
+            for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
+                // estimated time at which the move can be inserted
+                const double time = insert_loc == 0 ? traj.start_time() : traj.end_time(insert_loc-1);
+
+                // project the random segment on the firefront for this time
+                auto segmentOpt = p->fire->project_on_firefront(seg, traj.conf.uav, time);
+                if(!segmentOpt)
+                    continue; // no projection, go to next candidate
+                auto segment = *segmentOpt;
+
+                // Set a default orientation of the segment base preceding/following segment.
+                // TODO: provide better default for those orientations
+                if(insert_loc >= 1) {
+                    // align on previous segment
+                    segment = traj.conf.uav.rotate_on_visibility_center(segment, traj[insert_loc-1].start.dir);
+                } else if(traj.size() > 0){
+                    // align on next segment
+                    segment = traj.conf.uav.rotate_on_visibility_center(segment, traj[insert_loc].start.dir);
+                }
+                double additional_flight_time = traj.insertion_duration_cost(insert_loc, segment);
+
+                // discard candidate that would go over the max flight time.
+                if(traj.duration() + additional_flight_time > traj.conf.max_flight_time)
+                    continue;
+
+                if(!best || additional_flight_time < best->additional_flight_time) {
+                    best = Candidate { i, insert_loc, segment, additional_flight_time };
+                }
             }
         }
 
+
         /** Return the best, if any */
-        if(best_insert)
-            return opt<PLocalMove>(make_shared<Insert>(*best_insert));
+        if(best)
+            return opt<PLocalMove>(make_shared<Insert>(p, best->traj_id, best->segment, best->insert_loc));
         else
             return {};
     }
+
+private:
+    struct Candidate {
+        size_t traj_id;
+        size_t insert_loc;
+        Segment segment;
+        double additional_flight_time;
+    };
 };
 
 

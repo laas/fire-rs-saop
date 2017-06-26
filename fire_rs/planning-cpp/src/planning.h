@@ -8,7 +8,6 @@
 #include "neighborhoods/dubins_optimization.h"
 #include "vns_interface.h"
 #include "neighborhoods/insertions.h"
-#include "neighborhoods/contour_following.h"
 
 using namespace std;
 
@@ -25,7 +24,6 @@ private:
 
 vector<shared_ptr<Neighborhood>> DefaultVnsSearch::defaults = {
         make_shared<RandomOrientationChangeNbhd>(),
-        make_shared<ProjectOnFrontNbhd>(),
         make_shared<OneInsertNbhd>()
 };
 

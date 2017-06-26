@@ -58,6 +58,10 @@ struct Raster {
     bool is_in(Cell cell) const {
         return cell.x < x_width && cell.y < y_height;
     }
+    Point as_point(Cell cell) const {
+        ASSERT(is_in(cell));
+        return Point{ x_coords(cell.x), y_coords(cell.y) };
+    }
     double x_coords(size_t x_index) const { return x_offset + cell_width * x_index; }
     double y_coords(size_t y_index) const { return y_offset + cell_width * y_index; }
 

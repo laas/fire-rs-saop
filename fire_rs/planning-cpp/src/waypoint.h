@@ -70,5 +70,31 @@ struct Segment final {
     }
 };
 
+struct Point final {
+    double x;
+    double y;
+
+    double dist(const Point& pt) const {
+        return sqrt(pow(x-pt.x, 2) + pow(y-pt.y, 2));
+    }
+};
+
+struct PointTime final {
+    Point pt;
+    double time;
+};
+
+struct TimeWindow final {
+    double start;
+    double end;
+};
+
+struct PointTimeWindow final {
+    Point pt;
+    TimeWindow tw;
+};
+
+
+
 
 #endif //PLANNING_CPP_WAYPOINT_H

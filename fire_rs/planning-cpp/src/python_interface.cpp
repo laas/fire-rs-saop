@@ -109,9 +109,7 @@ PYBIND11_PLUGIN(uav_planning) {
             }, "Constructor", py::arg("uav"), py::arg("start_time") = 0, py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
-            .def(py::init<vector<TrajectoryConfig>, Visibility>())
-            .def_readonly("trajectories", &Plan::trajectories)
-            .def_readonly("visibility", &Plan::visibility);
+            .def_readonly("trajectories", &Plan::trajectories);
 
     py::class_<SearchResult>(m, "SearchResult")
             .def("initial_plan", &SearchResult::initial)
@@ -119,20 +117,15 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans);
 
     m.def("make_plan_vns", [](UAV uav, Raster ignitions, double min_time, double max_time) -> SearchResult {
+        auto fire_data = make_shared<FireData>(ignitions);
         TrajectoryConfig conf(uav, min_time, max_time - min_time);
         Visibility vis(ignitions, min_time, max_time);
-        Plan p(vector<TrajectoryConfig> { conf }, vis);
+        Plan p(vector<TrajectoryConfig> { conf }, fire_data, TimeWindow{min_time, max_time});
 
         DefaultVnsSearch vns;
 
         auto res = vns.search(p, 0, 0);
         return res;
-    });
-
-    m.def("make_plan", [](UAV uav, vector<Segment> segments, Visibility visibility) -> Plan {
-        PPlan p = make_shared<Plan>(vector<TrajectoryConfig> { TrajectoryConfig(uav) }, visibility);
-        PPlan ret = Insert::smart_insert(p, 0, segments);
-        return *ret;
     });
 
     m.def("improve", [](const Trajectory& traj) {

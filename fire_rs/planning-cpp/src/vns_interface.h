@@ -17,6 +17,8 @@ protected:
     static constexpr double INF = 9999999999999999;
 
 public:
+    bool is_valid = true;
+
     /** Reference to the plan this move is created for. */
     PPlan base_plan;
     LocalMove(PPlan base) : base_plan(base) {}
@@ -154,7 +156,7 @@ struct VariableNeighborhoodSearch {
                 PLocalMove best_move = no_move;
                 for(size_t i=0; i<neighborhood->max_neighbors; i++) {
                     const opt<PLocalMove> move = neighborhood->get_move(best_plan);
-                    if(move) {
+                    if(move && (*move)->is_valid) {
                         if ((*move)->is_compulsory() || (*move)->is_better_than(*best_move)) {
                             if (best_move == no_move && neighborhood->stop_on_first_improvement) {
                                 best_move = *move;
@@ -168,10 +170,10 @@ struct VariableNeighborhoodSearch {
                 best_move->apply();
 
                 if(best_move == no_move) {
-                    printf("Improvement: %f\n", best_plan->cost());
                     current_neighborhood += 1;
                 } else {
                     current_neighborhood = 0;
+                    printf("Improvement: %f\n", best_plan->cost());
                 }
 
                 if(save_every != 0 && (current_iter % save_every) == 0) {

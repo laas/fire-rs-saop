@@ -15,10 +15,11 @@ void test_single_point_to_observe() {
     Raster ignitions(100, 100, 0, 0, 25);
     ignitions.set(10, 10, 100);
 
+    auto fd = make_shared<FireData>(ignitions);
+
     // only interested in the point ignited at time 100
-    Visibility visibility(ignitions, 90, 110);
-    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 150) };
-    Plan p(confs, visibility);
+    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 100) };
+    Plan p(confs, fd, TimeWindow{90, 110});
 
 
     DefaultVnsSearch vns;
@@ -31,13 +32,17 @@ void test_single_point_to_observe() {
 }
 
 void test_many_points_to_observe() {
-    // all points ignited at time 0, except ont at time 100
-    Raster ignitions(10, 10, 0, 0, 25);
+    // circular fire spread
+    Raster ignitions(100, 100, 0, 0, 1);
+    for (size_t x = 0; x < 100; x++) {
+        for (size_t y = 0; y < 100; y++) {
+            ignitions.set(x, y, sqrt(pow((double) x-50,2) + pow((double) y-50, 2)));
+        }
+    }
 
-    // only interested in the point ignited at time 100
-    Visibility visibility(ignitions, 0, 110);
-    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 150) };
-    Plan p(confs, visibility);
+    auto fd = make_shared<FireData>(ignitions);
+    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 10) };
+    Plan p(confs, fd, TimeWindow{0, 110});
 
     DefaultVnsSearch vns;
 

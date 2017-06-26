@@ -41,7 +41,7 @@ struct TrajectoryConfig {
 
 class Trajectory {
 public:
-    std::shared_ptr<TrajectoryConfig> conf;
+    TrajectoryConfig conf;
     std::vector<Segment> traj;
     std::vector<double> start_times;
 
@@ -50,7 +50,7 @@ public:
 public:
     bool empty() const { return traj.empty(); }
     size_t size() const { return traj.size(); }
-    double start_time() const { return conf->start_time; }
+    double start_time() const { return conf.start_time; }
     double end_time() const { return traj.size() == 0 ? start_time() : end_time(traj.size()-1); }
 
     double start_time(size_t segment_index) const {
@@ -62,7 +62,7 @@ public:
     double end_time(size_t segment_index) const {
         ASSERT(traj.size() == start_times.size())
         ASSERT(segment_index >= 0 && segment_index < traj.size())
-        return start_time(segment_index) + traj[segment_index].length / conf->uav.max_air_speed;
+        return start_time(segment_index) + traj[segment_index].length / conf.uav.max_air_speed;
     }
 
     double duration() const {
@@ -71,24 +71,43 @@ public:
 
     /** Length of the path. */
     double length() const {
-        return conf->uav.max_air_speed * duration();
+        return conf.uav.max_air_speed * duration();
+    }
+
+    /** Returns true if this trajectory is valid wrt the given configuration (has the right start/end points and is not to long. */
+    bool is_valid() const {
+        const bool start_valid = !conf.start_position ||
+                                 (traj.size() >= 1 && traj[0].start == *conf.start_position &&
+                                  traj[0].end == *conf.start_position && traj[0].length == 0);
+        const size_t last_index = traj.size()-1;
+        const bool end_valid = !conf.end_position ||
+                               (traj.size() >= 1 && traj[last_index].start == *conf.end_position &&
+                                traj[last_index].end == *conf.end_position && traj[last_index].length == 0);
+        const bool duration_valid = duration() <= conf.max_flight_time;
+
+        return start_valid && end_valid && duration_valid;
+    }
+
+    size_t first_modifiable() const {
+        return conf.start_position ? 1 : 0;
+    }
+
+    size_t last_modifiable() const {
+        return conf.end_position ? traj.size()-2 : traj.size() -1;
     }
 
     /** Empty trajectory constructor */
-    Trajectory(std::shared_ptr<TrajectoryConfig> _config)
+    Trajectory(const TrajectoryConfig& _config)
             : conf(_config)
     {
-        if(conf->start_position)
-            append_segment(Segment(*conf->start_position));
-        if(conf->end_position)
-            append_segment(Segment(*conf->end_position));
+        if(conf.start_position)
+            append_segment(Segment(*conf.start_position));
+        if(conf.end_position)
+            append_segment(Segment(*conf.end_position));
     }
 
-    Trajectory(const TrajectoryConfig& c) : Trajectory(std::make_shared<TrajectoryConfig>(c)) {
-        check_validity();
-    }
 
-    Trajectory(std::shared_ptr<TrajectoryConfig> conf, std::vector<Segment> traj)
+    Trajectory(TrajectoryConfig conf, std::vector<Segment> traj)
             : conf(conf)
     {
         for(auto it=traj.begin(); it!=traj.end(); it++)
@@ -96,7 +115,7 @@ public:
         check_validity();
     }
 
-    Trajectory(std::shared_ptr<TrajectoryConfig> conf, std::vector<Waypoint> waypoints)
+    Trajectory(TrajectoryConfig conf, std::vector<Waypoint> waypoints)
             : conf(conf)
     {
         for(auto it=waypoints.begin(); it!=waypoints.end(); it++)
@@ -124,7 +143,7 @@ public:
             if(waypoints.size() == 1)
                 sampled.push_back(waypoints[0]);
             for(unsigned i=0; i<waypoints.size()-1; i++) {
-                auto local_sampled = conf->uav.path_sampling(waypoints[i], waypoints[i+1], step_size);
+                auto local_sampled = conf.uav.path_sampling(waypoints[i], waypoints[i+1], step_size);
                 sampled.insert(sampled.end(), local_sampled.begin(), local_sampled.end());
             }
             return sampled;
@@ -147,18 +166,18 @@ public:
         if(traj.size() == 0)
             return segment.length;
         else if(insert_loc == 0)
-            return segment.length + conf->uav.travel_distance(segment.end, traj[insert_loc].start);
+            return segment.length + conf.uav.travel_distance(segment.end, traj[insert_loc].start);
         else if(insert_loc == traj.size())
-            return conf->uav.travel_distance(traj[insert_loc - 1].end, segment.start) + segment.length;
+            return conf.uav.travel_distance(traj[insert_loc - 1].end, segment.start) + segment.length;
         else {
-            return conf->uav.travel_distance(traj[insert_loc - 1].end, segment.start)
+            return conf.uav.travel_distance(traj[insert_loc - 1].end, segment.start)
                    + segment.length
-                   + conf->uav.travel_distance(segment.end, traj[insert_loc].start)
-                   - conf->uav.travel_distance(traj[insert_loc - 1].end, traj[insert_loc].start);
+                   + conf.uav.travel_distance(segment.end, traj[insert_loc].start)
+                   - conf.uav.travel_distance(traj[insert_loc - 1].end, traj[insert_loc].start);
         }
     }
     double insertion_duration_cost(size_t insert_loc, const Segment segment) const {
-        return insertion_length_cost(insert_loc, segment) / conf->uav.max_air_speed;
+        return insertion_length_cost(insert_loc, segment) / conf.uav.max_air_speed;
     }
 
     /** Decrease of length as result of removing the segment at the given position */
@@ -166,18 +185,18 @@ public:
         ASSERT(index >= 0 && index < traj.size())
         const Segment segment = traj[index];
         if(index == 0)
-            return segment.length + conf->uav.travel_distance(segment.end, traj[index+1].start);
+            return segment.length + conf.uav.travel_distance(segment.end, traj[index+1].start);
         else if(index == traj.size()-1)
-            return conf->uav.travel_distance(traj[index - 1].end, segment.start) + segment.length;
+            return conf.uav.travel_distance(traj[index - 1].end, segment.start) + segment.length;
         else {
-            return conf->uav.travel_distance(traj[index - 1].end, segment.start)
+            return conf.uav.travel_distance(traj[index - 1].end, segment.start)
                    + segment.length
-                   + conf->uav.travel_distance(segment.end, traj[index+1].start)
-                   - conf->uav.travel_distance(traj[index - 1].end, traj[index+1].start);
+                   + conf.uav.travel_distance(segment.end, traj[index+1].start)
+                   - conf.uav.travel_distance(traj[index - 1].end, traj[index+1].start);
         }
     }
     double removal_duration_gain(size_t index) const {
-        return removal_length_gain(index) / conf->uav.max_air_speed;
+        return removal_length_gain(index) / conf.uav.max_air_speed;
     }
 
     /** Computes the cost of replacing the N segments at [index, index+N] with the N segments given in parameter. */
@@ -189,12 +208,12 @@ public:
                 - segments_length(traj, index, segments.size());
         if(index > 0)
             cost = cost
-                   + conf->uav.travel_distance(traj[index-1].end, segments[0].start)
-                   - conf->uav.travel_distance(traj[index-1].end, traj[index].start);
+                   + conf.uav.travel_distance(traj[index-1].end, segments[0].start)
+                   - conf.uav.travel_distance(traj[index-1].end, traj[index].start);
         if(end_index+1 < traj.size())
             cost = cost
-                   + conf->uav.travel_distance(segments[segments.size()-1].end, traj[end_index+1].start)
-                   - conf->uav.travel_distance(traj[end_index].end, traj[end_index+1].start);
+                   + conf.uav.travel_distance(segments[segments.size()-1].end, traj[end_index+1].start)
+                   - conf.uav.travel_distance(traj[end_index].end, traj[end_index+1].start);
 
         return cost;
     }
@@ -202,7 +221,7 @@ public:
         return replacement_duration_cost(index, std::vector<Segment>{ segment });
     }
     double replacement_duration_cost(size_t index, const std::vector<Segment>& segments) const {
-        return replacement_length_cost(index, segments) / conf->uav.max_air_speed;
+        return replacement_length_cost(index, segments) / conf.uav.max_air_speed;
     }
 
     /** Returns a new trajectory with an additional segment at the given index */
@@ -221,8 +240,8 @@ public:
     void insert_segment(const Segment& seg, size_t at_index) {
         ASSERT(at_index >= 0 && at_index <= traj.size())
         const double start = at_index == 0 ?
-                          conf->start_time :
-                          end_time(at_index-1) + conf->uav.travel_time(traj[at_index-1].end, seg.start);
+                          conf.start_time :
+                          end_time(at_index-1) + conf.uav.travel_time(traj[at_index-1].end, seg.start);
 
         const double added_delay = insertion_duration_cost(at_index, seg);
         traj.insert(traj.begin()+at_index, seg);
@@ -297,11 +316,10 @@ private:
      * This is for debugging purpose only and the function content should be commented out. */
     void check_validity() const {
         ASSERT(traj.size() == start_times.size())
-//        ASSERT(fabs(non_incremental_length() / conf->uav.max_air_speed - (end_time() - start_time())) < 0.001)
+//        ASSERT(fabs(non_incremental_length() / conf.uav.max_air_speed - (end_time() - start_time())) < 0.001)
         for(size_t i=0; i<start_times.size(); i++) {
-            ASSERT(ALMOST_GREATER_EQUAL(start_times[i], conf->start_time))
+            ASSERT(ALMOST_GREATER_EQUAL(start_times[i], conf.start_time))
         }
-        ASSERT(matches_configuration())
     }
 
     /** Converts a vector of waypoints to a vector of segments. */
@@ -320,23 +338,9 @@ private:
         for(auto it=segments.begin()+start; it!=end_it; it++) {
             cost += it->length;
             if((it+1) != end_it)
-                cost += conf->uav.travel_distance(it->end, (it+1)->start);
+                cost += conf.uav.travel_distance(it->end, (it+1)->start);
         }
         return cost;
-    }
-
-    /** Returns true if this trajectory is valid wrt the given configuration (has the right start/end points and is not to long. */
-    bool matches_configuration() const {
-        const bool start_valid = !conf->start_position ||
-                (traj.size() >= 1 && traj[0].start == *conf->start_position &&
-                        traj[0].end == *conf->start_position && traj[0].length == 0);
-        const size_t last_index = traj.size()-1;
-        const bool end_valid = !conf->end_position ||
-                (traj.size() >= 1 && traj[last_index].start == *conf->end_position &&
-                        traj[last_index].end == *conf->end_position && traj[last_index].length == 0);
-        const bool duration_valid = duration() <= conf->max_flight_time;
-
-        return start_valid && end_valid && duration_valid;
     }
 };
 

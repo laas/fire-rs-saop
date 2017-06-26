@@ -24,8 +24,12 @@ struct Insert final : public LocalMove {
     {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
-        _cost = base->visibility.cost_given_addition(base->trajectories[traj_id].conf->uav, seg);
-        _duration = base->duration() + base->trajectories[traj_id].insertion_duration_cost(insert_loc, seg);
+        Plan clone(*base);
+        clone.insert_segment(traj_id, seg, insert_loc);
+
+        _cost = clone.cost();
+        _duration = clone.duration();
+        is_valid = clone.is_valid();
     }
 
     void apply_on(PPlan p) override {
@@ -34,30 +38,26 @@ struct Insert final : public LocalMove {
 
     /** Generates an insert move that include the segment at the best place in the given trajectory.
      * Currently, this does not checks the trajectory constraints. */
-    static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment seg, double max_cost=INF) {
+    static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment seg) {
         ASSERT(traj_id < base->trajectories.size());
 
-        if(max_cost == INF || max_cost >= base->visibility.cost_given_addition(base->trajectories[traj_id].conf->uav, seg)) {
-            long best_loc = -1;
-            double best_dur = INF;
-            Trajectory& traj = base->trajectories[traj_id];
-            for(size_t i=0; i<=traj.traj.size(); i++) {
-                const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
-                if(dur <=  traj.conf->max_flight_time) {
-                    if (best_dur > dur) {
-                        best_dur = dur;
-                        best_loc = i;
-                    }
+        long best_loc = -1;
+        double best_dur = INF;
+        Trajectory& traj = base->trajectories[traj_id];
+        for(size_t i=0; i<=traj.traj.size(); i++) {
+            const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
+            if(dur <=  traj.conf.max_flight_time) {
+                if (best_dur > dur) {
+                    best_dur = dur;
+                    best_loc = i;
                 }
             }
-            if(best_loc < 0) {
-                return {};
-            }
-            else {
-                return Insert(base, traj_id, seg, (size_t) best_loc);
-            }
-        } else {
+        }
+        if(best_loc < 0) {
             return {};
+        }
+        else {
+            return Insert(base, traj_id, seg, (size_t) best_loc);
         }
     }
 
@@ -85,9 +85,11 @@ struct Remove : public LocalMove {
               rm_id(rm_id) {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(rm_id <= base->trajectories[traj_id].traj.size());
+        Plan clone(*base);
         auto seg = base->trajectories[traj_id][rm_id];
-        _cost = base->visibility.cost_given_removal(base->uav(traj_id), seg);
-        _duration = base->duration() - base->trajectories[traj_id].removal_duration_gain(rm_id);
+        _cost = clone.cost();
+        _duration = clone.duration();
+        is_valid = clone.is_valid();
     }
 
     void apply_on(PPlan p) override {
@@ -108,8 +110,11 @@ struct SegmentSwap : public LocalMove {
     {
         // assume that cost is not going to change meaningfully since the rotation is designed to
         // minimize the impact on visibility window
-        _cost = base->visibility.cost_given_swap(base->uav(traj_id), newSegment, base->trajectories[traj_id][segment_index]);
-        _duration = base->duration() + base->trajectories[traj_id].replacement_duration_cost(segment_index, newSegment);
+        Plan clone(*base);
+        clone.replace_segment(traj_id, segment_index, newSegment);
+        _cost = clone.cost();
+        _duration = clone.duration();
+        is_valid = clone.is_valid();
         ASSERT(_duration >= 0)
     }
 
@@ -119,7 +124,7 @@ struct SegmentSwap : public LocalMove {
 
     bool applicable() const {
         Trajectory& t = base_plan->trajectories[traj_id];
-        return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf->max_flight_time;
+        return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf.max_flight_time;
     }
 };
 
@@ -135,10 +140,11 @@ struct SegmentRotation final : public LocalMove {
               newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
                                                                         target_dir))
     {
-        // assume that cost is not going to change meaningfully since the rotation is designed to
-        // minimize the impact on visibility window
+        Plan clone(*base);
+        clone.replace_segment(traj_id, segment_index, newSegment);
         _cost = base->cost();
-        _duration = base->duration() + base->trajectories[traj_id].replacement_duration_cost(segment_index, newSegment);
+        _duration = clone.duration();
+        is_valid = clone.is_valid();
         ASSERT(_duration >= 0)
     }
 
@@ -148,7 +154,7 @@ struct SegmentRotation final : public LocalMove {
 
     bool applicable() const {
         Trajectory& t = base_plan->trajectories[traj_id];
-        return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf->max_flight_time;
+        return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf.max_flight_time;
     }
 };
 
