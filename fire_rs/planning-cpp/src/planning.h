@@ -23,7 +23,7 @@ private:
 };
 
 vector<shared_ptr<Neighborhood>> DefaultVnsSearch::defaults = {
-        make_shared<RandomOrientationChangeNbhd>(),
+        make_shared<DubinsOptNeighborhood>(),
         make_shared<OneInsertNbhd>()
 };
 
