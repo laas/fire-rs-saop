@@ -5,31 +5,21 @@
 #include "plan.h"
 
 class LocalMove {
-protected:
-    /** Cost that would result in applying the move. To be filled at instantiation */
-    double _cost = -1;
-
-    /** Total duration (sum of all subplans durations) that would result in applying the move*/
-    double _duration = -1;
-
-    bool _compulsory = false;
-
-    static constexpr double INF = 9999999999999999;
 
 public:
-    bool is_valid = true;
-
     /** Reference to the plan this move is created for. */
     PPlan base_plan;
     LocalMove(PPlan base) : base_plan(base) {}
 
     /** Cost that would result in applying the move. */
-    inline double cost() const { ASSERT(_cost >= 0); return _cost; };
+    virtual double cost() const = 0;
 
     /** Total duration that would result in applying the move */
-    inline double duration() const { ASSERT(_duration >= 0); return _duration; };
+    virtual double duration() const = 0;
 
-    inline bool is_compulsory() const { return _compulsory; }
+    virtual int additional_segments() const = 0;
+
+    virtual bool is_valid() const = 0;
 
     /** Applies the move on the inner plan */
     void apply() {
@@ -62,10 +52,18 @@ typedef shared_ptr<LocalMove> PLocalMove;
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
 class IdentityMove final : public LocalMove {
 public:
-    IdentityMove(PPlan p) : LocalMove(p) {
-        this->_cost = p->cost();
-        this->_duration = p->duration();
-    }
+    IdentityMove(PPlan p) : LocalMove(p) {}
+
+    /** Cost that would result in applying the move. */
+    virtual double cost() const override { return base_plan->cost(); };
+
+    /** Total duration that would result in applying the move */
+    virtual double duration() const override { return base_plan->duration(); };
+
+    virtual int additional_segments() const override { return 0; };
+
+    virtual bool is_valid() const override { return base_plan->is_valid(); }
+
     /** does nothing */
     void apply_on(PPlan p) override {
     }
@@ -156,8 +154,8 @@ struct VariableNeighborhoodSearch {
                 PLocalMove best_move = no_move;
                 for(size_t i=0; i<neighborhood->max_neighbors; i++) {
                     const opt<PLocalMove> move = neighborhood->get_move(best_plan);
-                    if(move && (*move)->is_valid) {
-                        if ((*move)->is_compulsory() || (*move)->is_better_than(*best_move)) {
+                    if(move && (*move)->is_valid()) {
+                        if ((*move)->is_better_than(*best_move)) {
                             if (best_move == no_move && neighborhood->stop_on_first_improvement) {
                                 best_move = *move;
                                 break;
@@ -173,7 +171,7 @@ struct VariableNeighborhoodSearch {
                     current_neighborhood += 1;
                 } else {
                     current_neighborhood = 0;
-                    printf("Improvement: %f\n", best_plan->cost());
+                    printf("Improvement: cost: %f -- duration: %f\n", best_plan->cost(), best_plan->duration());
                 }
 
                 if(save_every != 0 && (current_iter % save_every) == 0) {

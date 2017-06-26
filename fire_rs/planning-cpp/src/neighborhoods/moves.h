@@ -5,8 +5,42 @@
 #include "../plan.h"
 #include "../vns_interface.h"
 
+/** A convenience abstract implementation of LocalMove that will compute cost, duration and additional segments
+ * by applying the move an a new plan.
+ *
+ * Subclassses only need to implement the apply_on() method and invoke the init() method in there constructor. */
+struct CloneBasedLocalMove : public LocalMove {
+    CloneBasedLocalMove(const PPlan base) : LocalMove(base) {
+    }
+
+    /** Cost that would result in applying the move. */
+    virtual double cost() const override { return _cost; };
+
+    /** Total duration that would result in applying the move */
+    virtual double duration() const override { return _duration; };
+
+    virtual int additional_segments() const override { return _additional_segments; };
+
+    virtual bool is_valid() const override { return _valid; }
+
+protected:
+    void init() {
+        PPlan clone = apply_on_new();
+        _cost = clone->cost();
+        _duration = clone->duration();
+        _additional_segments = (int) clone->num_segments() - (int) base_plan->num_segments();
+        _valid = clone->is_valid();
+    }
+
+private:
+    double _cost;
+    double _duration;
+    int _additional_segments;
+    bool _valid;
+};
+
 /** Local move that insert a segment at given place in the plan. */
-struct Insert final : public LocalMove {
+struct Insert final : public CloneBasedLocalMove {
     /** Index of the trajectory in which to perform the insertion. */
     size_t traj_id;
 
@@ -17,19 +51,14 @@ struct Insert final : public LocalMove {
     size_t insert_loc;
 
     Insert(PPlan base, size_t traj_id, Segment seg, size_t insert_loc)
-            : LocalMove(base),
+            : CloneBasedLocalMove(base),
               traj_id(traj_id),
               seg(seg),
               insert_loc(insert_loc)
     {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
-        Plan clone(*base);
-        clone.insert_segment(traj_id, seg, insert_loc);
-
-        _cost = clone.cost();
-        _duration = clone.duration();
-        is_valid = clone.is_valid();
+        init();
     }
 
     void apply_on(PPlan p) override {
@@ -42,7 +71,7 @@ struct Insert final : public LocalMove {
         ASSERT(traj_id < base->trajectories.size());
 
         long best_loc = -1;
-        double best_dur = INF;
+        double best_dur = 999999;
         Trajectory& traj = base->trajectories[traj_id];
         for(size_t i=0; i<=traj.traj.size(); i++) {
             const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
@@ -72,7 +101,7 @@ struct Insert final : public LocalMove {
 };
 
 /** Local move that insert a segment at given place in the plan. */
-struct Remove : public LocalMove {
+struct Remove final : public CloneBasedLocalMove {
     /** Index of the trajectory in which to perform the removal. */
     size_t traj_id;
 
@@ -80,16 +109,13 @@ struct Remove : public LocalMove {
     size_t rm_id;
 
     Remove(PPlan base, size_t traj_id, size_t rm_id)
-            : LocalMove(base),
+            : CloneBasedLocalMove(base),
               traj_id(traj_id),
               rm_id(rm_id) {
         ASSERT(traj_id < base->trajectories.size());
-        ASSERT(rm_id <= base->trajectories[traj_id].traj.size());
-        Plan clone(*base);
-        auto seg = base->trajectories[traj_id][rm_id];
-        _cost = clone.cost();
-        _duration = clone.duration();
-        is_valid = clone.is_valid();
+        ASSERT(rm_id < base->trajectories[traj_id].traj.size());
+
+        init();
     }
 
     void apply_on(PPlan p) override {
@@ -97,55 +123,43 @@ struct Remove : public LocalMove {
     }
 };
 
-struct SegmentSwap : public LocalMove {
+struct SegmentSwap : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
     const Segment newSegment;
 
     SegmentSwap(const PPlan &base, size_t traj_id, size_t segment_index, const Segment& replacement)
-            : LocalMove(base),
+            : CloneBasedLocalMove(base),
               traj_id(traj_id),
               segment_index(segment_index),
               newSegment(replacement)
     {
-        // assume that cost is not going to change meaningfully since the rotation is designed to
-        // minimize the impact on visibility window
-        Plan clone(*base);
-        clone.replace_segment(traj_id, segment_index, newSegment);
-        _cost = clone.cost();
-        _duration = clone.duration();
-        is_valid = clone.is_valid();
-        ASSERT(_duration >= 0)
+
+        ASSERT(traj_id < base->trajectories.size());
+        ASSERT(segment_index < base->trajectories[traj_id].traj.size());
+        init();
+        ASSERT(duration() >= 0)
     }
 
     void apply_on(PPlan p) override {
         p->replace_segment(traj_id, segment_index, newSegment);
     }
-
-    bool applicable() const {
-        Trajectory& t = base_plan->trajectories[traj_id];
-        return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf.max_flight_time;
-    }
 };
 
 
-struct SegmentRotation final : public LocalMove {
+struct SegmentRotation final : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
     const Segment newSegment;
     SegmentRotation(const PPlan &base, size_t traj_id, size_t segment_index, double target_dir)
-            : LocalMove(base),
+            : CloneBasedLocalMove(base),
               traj_id(traj_id),
               segment_index(segment_index),
               newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
                                                                         target_dir))
     {
-        Plan clone(*base);
-        clone.replace_segment(traj_id, segment_index, newSegment);
-        _cost = base->cost();
-        _duration = clone.duration();
-        is_valid = clone.is_valid();
-        ASSERT(_duration >= 0)
+        init();
+        ASSERT(duration() >= 0)
     }
 
     void apply_on(PPlan p) override {

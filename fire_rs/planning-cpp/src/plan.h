@@ -76,6 +76,13 @@ struct Plan {
         return global_cost;
     }
 
+    size_t num_segments() const {
+        size_t total = 0;
+        for(auto traj : trajectories)
+            total += traj.traj.size();
+        return total;
+    }
+
     /** Returns the UAV performing the given trajectory */
     UAV uav(size_t traj_id) const {
         ASSERT(traj_id < trajectories.size())
