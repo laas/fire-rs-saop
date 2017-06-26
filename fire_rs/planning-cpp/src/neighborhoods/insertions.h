@@ -24,10 +24,10 @@ struct OneInsertNbhd : public Neighborhood {
         const PointTimeWindow pt = p->possible_observations[index];
 
         /** Pick an angle randomly */
-        const double angle = drand(0, 2*M_PI);
+        const double random_angle = drand(0, 2*M_PI);
 
         /** Waypoint and segment resulting from the random picks */
-        const Segment seg = p->uav(0).observation_segment(pt.pt.x, pt.pt.y, angle, default_segment_length);
+        const Segment random_observation = p->uav(0).observation_segment(pt.pt.x, pt.pt.y, random_angle, default_segment_length);
 
         opt<Candidate> best;
 
@@ -36,42 +36,54 @@ struct OneInsertNbhd : public Neighborhood {
             const Trajectory& traj = p->trajectories[i];
 
             for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
-                // estimated time at which the move can be inserted
-                const double time = insert_loc == 0 ? traj.start_time() : traj.end_time(insert_loc-1);
 
-                // project the random segment on the firefront for this time
-                auto segmentOpt = p->fire->project_on_firefront(seg, traj.conf.uav, time);
-                if(!segmentOpt)
-                    continue; // no projection, go to next candidate
-                auto segment = *segmentOpt;
+                opt<Segment> current_segment = random_observation;
+                bool updated = true;
+                size_t num_iter = 0;
 
-                // Set a default orientation of the segment base preceding/following segment.
-                // TODO: provide better default for those orientations
-                if(insert_loc >= 1) {
-                    // align on previous segment
-                    auto dx = segment.start.x - traj[insert_loc-1].end.x;
-                    auto dy = segment.start.y - traj[insert_loc-1].end.y;
-                    auto angle = atan2(dy, dx);
-                    segment = traj.conf.uav.rotate_on_visibility_center(segment, angle);
-                } else if(traj.size() > 0){
-                    // align on next segment
-                    auto dx = traj[insert_loc].start.x - segment.end.x;
-                    auto dy = traj[insert_loc].start.y - segment.end.y;
-                    auto angle = atan2(dy, dx);
-                    segment = traj.conf.uav.rotate_on_visibility_center(segment, angle);
+                // project the segment on firefront until we converge or are enable to project the segment anymore.
+                while(current_segment && updated) {
+                    // time at which the uav will reach the segment
+                    const double time = insert_loc==0 ?
+                                            traj.start_time() :
+                                            traj.end_time(insert_loc-1) +
+                                                        traj.conf.uav.travel_time(traj[insert_loc-1].end, random_observation.start);
+                    // back up current segment
+                    const Segment previous = *current_segment;
+
+                    // project the segment on the firefront.
+                    current_segment = p->fire->project_on_firefront(previous, traj.conf.uav, time);
+                    ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
+
+                    if(current_segment && previous != *current_segment) {
+                        // segment has changed due to projection,
+                        // set the default orientation to the segment
+                        const double direction = default_insertion_angle(traj, insert_loc, *current_segment);
+                        current_segment = traj.conf.uav.rotate_on_visibility_center(*current_segment, direction);
+
+                        // start over since the time at which we reach the segment might have changed as well
+                        updated = true;
+                    } else {
+                        updated = false;
+                    }
+                    ASSERT(num_iter++ <1000); // I assumed that this always converges (very quickly). One can safely put a bound on the number of iterations.
                 }
-                double additional_flight_time = traj.insertion_duration_cost(insert_loc, segment);
+                if(current_segment) {
+                    // current segment is valid (i.e. successfully projected on firefront,
+                    // create a candidate for it
 
-                // discard candidate that would go over the max flight time.
-                if(traj.duration() + additional_flight_time > traj.conf.max_flight_time)
-                    continue;
+                    const double additional_flight_time = traj.insertion_duration_cost(insert_loc, *current_segment);
 
-                if(!best || additional_flight_time < best->additional_flight_time) {
-                    best = Candidate { i, insert_loc, segment, additional_flight_time };
+                    // discard candidate that would go over the max flight time.
+                    if (traj.duration() + additional_flight_time > traj.conf.max_flight_time)
+                        continue;
+
+                    if (!best || additional_flight_time < best->additional_flight_time) {
+                        best = Candidate {i, insert_loc, *current_segment, additional_flight_time};
+                    }
                 }
             }
         }
-
 
         /** Return the best, if any */
         if(best)
@@ -87,6 +99,27 @@ private:
         Segment segment;
         double additional_flight_time;
     };
+
+    double default_insertion_angle(const Trajectory& traj, size_t insertion_loc, const Segment& segment) const {
+        if(traj.size() == 0) {
+            return segment.start.dir;
+        } else if(insertion_loc == 0) {
+            // align on next segment
+            auto dx = traj[insertion_loc].start.x - segment.end.x;
+            auto dy = traj[insertion_loc].start.y - segment.end.y;
+            return atan2(dy, dx);
+        } else if(insertion_loc == traj.size()) {
+            // align on previous segment
+            auto dx = segment.start.x - traj[insertion_loc-1].end.x;
+            auto dy = segment.start.y - traj[insertion_loc-1].end.y;
+            return atan2(dy, dx);
+        } else {
+            // take direction from prev to next segment
+            auto dx = traj[insertion_loc].start.x - traj[insertion_loc-1].end.x;
+            auto dy = traj[insertion_loc].start.y - traj[insertion_loc-1].end.y;
+            return atan2(dy, dx);
+        }
+    }
 };
 
 
