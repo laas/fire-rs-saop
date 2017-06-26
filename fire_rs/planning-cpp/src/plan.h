@@ -134,7 +134,7 @@ struct Plan {
     }
 
     void project_on_firefront() {
-        for(auto traj : trajectories) {
+        for(auto &traj : trajectories) {
             size_t seg_id = 0;
             while(seg_id < traj.size()) {
                 const Segment& seg = traj[seg_id];
@@ -142,11 +142,23 @@ struct Plan {
                 opt<Segment> projected = fire->project_on_firefront(seg, traj.conf.uav, t);
                 if(projected) {
                     if(*projected != seg) {
-                        // projection is different that original, replace it
+                        // projection is different than original, replace it if the projection is not to close to the previous/next segment
+                        auto curr_pt =  traj.conf.uav.visibilty_center(*projected).as_point();
+                        // distance to previous/next observations (large number if there are no previous/next)
+                        const double prev_point_dist = seg_id == 0 ? 999999 :
+                                                       curr_pt.dist(traj.conf.uav.visibilty_center(traj[seg_id-1]).as_point());
+                        const double next_point_dist = seg_id >= traj.size()-1 ? 999999
+                                                                               : curr_pt.dist(traj.conf.uav.visibilty_center(traj[seg_id+1]).as_point());
                         traj.erase_segment(seg_id);
-                        traj.insert_segment(*projected, seg_id);
+                        // only reinsert, if it is not to close to the next/previous
+                        if(prev_point_dist > 49. && next_point_dist > 49.) {
+                            traj.insert_segment(*projected, seg_id);
+                            seg_id++;
+                        }
+                    } else {
+                        // nothing change for this segment, go to next
+                        seg_id++;
                     }
-                    seg_id++;
                 } else {
                     // segment has no projection, remove it
                     traj.erase_segment(seg_id);
@@ -163,7 +175,7 @@ private:
 
     /** If a point is less than REDUNDANT_OBS_DIST aways from another observation, it useless to observe it.
      * This is defined such that those point are in the visible area when pictured. */
-    const double REDUNDANT_OBS_DIST = 40.;
+    const double REDUNDANT_OBS_DIST = 0.;
 };
 
 
