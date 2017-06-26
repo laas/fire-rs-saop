@@ -93,7 +93,7 @@ public:
         if(!ignitions.is_in(center))
             return {};
         const Cell cell = ignitions.as_cell(center);
-        auto projected_cell = project_on_fire_front(cell, time);
+        const opt<Cell> projected_cell = project_on_fire_front(cell, time);
         if(projected_cell)
             return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y), seg.start.dir, seg.length);
         else
