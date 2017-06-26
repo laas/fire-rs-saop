@@ -37,7 +37,7 @@ public:
     bool is_better_than(const LocalMove& other) const {
         if(num_segments() > other.num_segments()) {
             // segments inserted, is better if there is significant cost improvement or if cost is equivalent but durations improves
-            return cost() < other.cost() -0.5 ||
+            return cost() < other.cost() -0.3 ||
                     (ALMOST_LESSER_EQUAL(cost(), other.cost()) &&  duration() < other.duration());
         } else {
             return cost() < other.cost() ||
@@ -177,8 +177,8 @@ struct VariableNeighborhoodSearch {
                 if(best_move == no_move) {
                     current_neighborhood += 1;
                 } else {
+                    printf("Improvement (lvl: %d): cost: %f -- duration: %f\n", (int)current_neighborhood, best_plan->cost(), best_plan->duration());
                     current_neighborhood = 0;
-                    printf("Improvement: cost: %f -- duration: %f\n", best_plan->cost(), best_plan->duration());
                 }
 
                 if(save_every != 0 && (current_iter % save_every) == 0) {

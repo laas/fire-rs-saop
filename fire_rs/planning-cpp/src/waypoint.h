@@ -4,6 +4,16 @@
 #include <sstream>
 #include "utils.h"
 
+
+struct Point final {
+    double x;
+    double y;
+
+    double dist(const Point& pt) const {
+        return sqrt(pow(x-pt.x, 2) + pow(y-pt.y, 2));
+    }
+};
+
 struct Waypoint final {
     // order and length is important for compatibility with dubins.cpp, allowing to simply cast a Waypoint* to a double*
     double x;
@@ -43,6 +53,10 @@ struct Waypoint final {
     friend std::ostream& operator<< (std::ostream& stream, const Waypoint& w) {
         return stream << "(" << w.x << ", " << w.y << ", " << w.dir <<")";
     }
+
+    Point as_point() const {
+        return Point{x, y};
+    }
 };
 
 
@@ -67,15 +81,6 @@ struct Segment final {
 
     bool operator!=(const Segment& o) const {
         return start != o.start || end != o.end || !ALMOST_EQUAL(length, o.length);
-    }
-};
-
-struct Point final {
-    double x;
-    double y;
-
-    double dist(const Point& pt) const {
-        return sqrt(pow(x-pt.x, 2) + pow(y-pt.y, 2));
     }
 };
 

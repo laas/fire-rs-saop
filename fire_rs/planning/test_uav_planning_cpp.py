@@ -6,7 +6,7 @@ import numpy as np
 from fire_rs.geodata.geo_data import GeoData
 
 uav = up.UAV(18., 32.*np.pi/180)
-uav = up.UAV(7., 10.*np.pi/180)
+uav = up.UAV(9., 10.*np.pi/180)
 
 def plot_trajectory(traj, axes=None, blocking=False):
     import matplotlib.pyplot as plt
@@ -110,11 +110,11 @@ class TestUAV(unittest.TestCase):
 
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 485060.0], [6210074.0, 6214074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 100, 100, horizon=14000)
+        prop = propagation.propagate(env, 80, 80, horizon=14000)
         ax = prop.plot()
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 11500, 13500)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 9500, 12000, 1500)
 
         plan = res.final_plan()
         plot_trajectory(plan.trajectories[0], axes=ax, blocking=True)
