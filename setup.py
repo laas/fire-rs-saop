@@ -24,7 +24,7 @@ setup(
         Extension(
             name='fire_rs.uav_planning',
             sources=['fire_rs/planning-cpp/src/ext/dubins.cpp', 'fire_rs/planning-cpp/src/python_interface.cpp'],
-            depends=glob.glob(os.path.join('fire_rs', 'planning-cpp', 'src', '*.h')),
+            depends=glob.glob(os.path.join('fire_rs', 'planning-cpp', 'src', '**', '*.h'), recursive=True),
             include_dirs=[pybind11.get_include(False), pybind11.get_include(True)],  # Path to pybind11 headers
             extra_compile_args=["-std=c++11",  "-Wall", "-Wno-deprecated"],
             language='c++',

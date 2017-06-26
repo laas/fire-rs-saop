@@ -49,10 +49,16 @@ struct OneInsertNbhd : public Neighborhood {
                 // TODO: provide better default for those orientations
                 if(insert_loc >= 1) {
                     // align on previous segment
-                    segment = traj.conf.uav.rotate_on_visibility_center(segment, traj[insert_loc-1].start.dir);
+                    auto dx = segment.start.x - traj[insert_loc-1].end.x;
+                    auto dy = segment.start.y - traj[insert_loc-1].end.y;
+                    auto angle = atan2(dy, dx);
+                    segment = traj.conf.uav.rotate_on_visibility_center(segment, angle);
                 } else if(traj.size() > 0){
                     // align on next segment
-                    segment = traj.conf.uav.rotate_on_visibility_center(segment, traj[insert_loc].start.dir);
+                    auto dx = traj[insert_loc].start.x - segment.end.x;
+                    auto dy = traj[insert_loc].start.y - segment.end.y;
+                    auto angle = atan2(dy, dx);
+                    segment = traj.conf.uav.rotate_on_visibility_center(segment, angle);
                 }
                 double additional_flight_time = traj.insertion_duration_cost(insert_loc, segment);
 
