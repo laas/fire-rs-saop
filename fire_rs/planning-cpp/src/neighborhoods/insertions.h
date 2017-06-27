@@ -14,7 +14,39 @@
 struct OneInsertNbhd : public Neighborhood {
     const double default_segment_length = 30;
 
+    const double max_trials;
+    OneInsertNbhd(double max_trials = 50) : max_trials(max_trials) {}
+
     opt<PLocalMove> get_move(PPlan p) override {
+        IdentityMove no_move(p);
+        opt<PLocalMove> best = {};
+
+        size_t num_tries = 0;
+        while(num_tries++ < max_trials) {
+            opt<PLocalMove> candidateOpt = get_move_for_random_possible_observation(p);
+            if(candidateOpt) {
+                // a move was generated
+                PLocalMove candidate_move = *candidateOpt;
+
+                if(!candidate_move->is_valid())
+                    // move is not valid, discard it
+                    continue;
+
+                if(!best && candidate_move->is_better_than(no_move)) {
+                    // no best move, and better than doing nothing
+                    best = candidate_move;
+                } else if(best && candidate_move->is_better_than(**best)) {
+                    // better than the best move
+                    best = candidate_move;
+                }
+            }
+        }
+        return best;
+    }
+
+private:
+    /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
+    opt<PLocalMove> get_move_for_random_possible_observation(PPlan p) {
         ASSERT(!p->trajectories.empty())
         if(p->possible_observations.empty())
             return {};

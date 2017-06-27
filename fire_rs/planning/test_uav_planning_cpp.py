@@ -47,7 +47,7 @@ class TestUAV(unittest.TestCase):
         self.assertAlmostEquals(4, traj.length())
 
     def test_trajectory_mutations(self):
-        # builds a trajectory, makeing sure points are sufficiently spaced to allow interesting solutions
+        # builds a trajectory, making sure points are sufficiently spaced to allow interesting solutions
         def get_trajectory(waypoints):
             traj = up.Trajectory(up.TrajectoryConfig.build(uav))
             for wp in waypoints:
@@ -104,6 +104,25 @@ class TestUAV(unittest.TestCase):
         # pr(v.visibility)
         # prop.plot(blocking=False)
 
+    def test_vns_small(self):
+        def pr(cpp_raster, blocking=False):  # plots a cpp raster
+            return GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
+
+        from fire_rs.firemodel import propagation
+        env = propagation.Environment([[480060.0, 481060.0], [6210074.0, 6211074.0]], wind_speed=4.11, wind_dir=0)
+        prop = propagation.propagate(env, 10, 10, horizon=3000)
+        ax = prop.plot()
+        ignitions = prop.ignitions()
+        # ax = ignitions.plot(blocking=False)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 2500, 3000, 150)
+
+        plan = res.final_plan()
+        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
+
+        print("durations: ")
+        for traj in plan.trajectories:
+            print(traj.duration())
+
     def test_vns(self):
         def pr(cpp_raster, blocking=False):  # plots a cpp raster
             return GeoData.from_cpp_raster(cpp_raster, "xx").plot(blocking=blocking)
@@ -117,10 +136,7 @@ class TestUAV(unittest.TestCase):
         res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 9500, 12000, 1500)
 
         plan = res.final_plan()
-        plot_trajectory(plan.trajectories[0], axes=ax, blocking=True)
-
-        # plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
-        # plot_trajectory(plan.trajectories[0], axes=ax, blocking=True)
+        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
 
         print("durations: ")
         for traj in plan.trajectories:

@@ -5,6 +5,29 @@
 #include "../plan.h"
 #include "../vns_interface.h"
 
+
+
+/** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
+class IdentityMove final : public LocalMove {
+public:
+    IdentityMove(PPlan p) : LocalMove(p) {}
+
+    /** Cost that would result in applying the move. */
+    virtual double cost() override { return base_plan->cost(); };
+
+    /** Total duration that would result in applying the move */
+    virtual double duration() override { return base_plan->duration(); };
+
+    virtual size_t num_segments() override { return base_plan->num_segments(); };
+
+    virtual bool is_valid() override { return base_plan->is_valid(); }
+
+    /** does nothing */
+    void apply_on(PPlan p) override {
+    }
+};
+
+
 /** A convenience abstract implementation of LocalMove that will compute cost, duration and additional segments
  * by applying the move an a new plan.
  *
@@ -14,29 +37,32 @@ struct CloneBasedLocalMove : public LocalMove {
     }
 
     /** Cost that would result in applying the move. */
-    virtual double cost() const override { return _cost; };
+    virtual double cost() override { init(); return _cost; };
 
     /** Total duration that would result in applying the move */
-    virtual double duration() const override { return _duration; };
+    virtual double duration() override { init(); return _duration; };
 
-    virtual size_t num_segments() const override { return _num_segments; };
+    virtual size_t num_segments() override { init(); return _num_segments; };
 
-    virtual bool is_valid() const override { return _valid; }
-
-protected:
-    void init() {
-        PPlan clone = apply_on_new();
-        _cost = clone->cost();
-        _duration = clone->duration();
-        _num_segments = clone->num_segments();
-        _valid = clone->is_valid();
-    }
+    virtual bool is_valid() override { init(); return _valid; }
 
 private:
-    double _cost;
-    double _duration;
-    size_t _num_segments;
-    bool _valid;
+    void init() {
+        if(!lazily_initialized) {
+            PPlan clone = apply_on_new();
+            _cost = clone->cost();
+            _duration = clone->duration();
+            _num_segments = clone->num_segments();
+            _valid = clone->is_valid();
+            lazily_initialized = true;
+        }
+    }
+
+    mutable bool lazily_initialized = false;
+    mutable double _cost;
+    mutable double _duration;
+    mutable size_t _num_segments;
+    mutable bool _valid;
 };
 
 /** Local move that insert a segment at given place in the plan. */
@@ -58,7 +84,6 @@ struct Insert final : public CloneBasedLocalMove {
     {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
-        init();
     }
 
     void apply_on(PPlan p) override {
@@ -114,8 +139,6 @@ struct Remove final : public CloneBasedLocalMove {
               rm_id(rm_id) {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(rm_id < base->trajectories[traj_id].traj.size());
-
-        init();
     }
 
     void apply_on(PPlan p) override {
@@ -137,7 +160,6 @@ struct SegmentSwap : public CloneBasedLocalMove {
 
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(segment_index < base->trajectories[traj_id].traj.size());
-        init();
         ASSERT(duration() >= 0)
     }
 
@@ -158,7 +180,6 @@ struct SegmentRotation final : public CloneBasedLocalMove {
               newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
                                                                         target_dir))
     {
-        init();
         ASSERT(duration() >= 0)
     }
 

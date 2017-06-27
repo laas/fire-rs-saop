@@ -12,14 +12,14 @@ public:
     LocalMove(PPlan base) : base_plan(base) {}
 
     /** Cost that would result in applying the move. */
-    virtual double cost() const = 0;
+    virtual double cost() = 0;
 
     /** Total duration that would result in applying the move */
-    virtual double duration() const = 0;
+    virtual double duration() = 0;
 
-    virtual size_t num_segments() const = 0;
+    virtual size_t num_segments() = 0;
 
-    virtual bool is_valid() const = 0;
+    virtual bool is_valid() = 0;
 
     /** Applies the move on the inner plan */
     void apply() {
@@ -34,7 +34,7 @@ public:
     }
 
     /** this move is better than another if it has a better cost or if it has a similar cost but a strictly better duration */
-    bool is_better_than(const LocalMove& other) const {
+    bool is_better_than(LocalMove& other) {
         if(num_segments() > other.num_segments()) {
             // segments inserted, is better if there is significant cost improvement or if cost is equivalent but durations improves
             return cost() < other.cost() -0.3 ||
@@ -56,62 +56,21 @@ private:
 typedef shared_ptr<LocalMove> PLocalMove;
 
 
-/** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
-class IdentityMove final : public LocalMove {
-public:
-    IdentityMove(PPlan p) : LocalMove(p) {}
-
-    /** Cost that would result in applying the move. */
-    virtual double cost() const override { return base_plan->cost(); };
-
-    /** Total duration that would result in applying the move */
-    virtual double duration() const override { return base_plan->duration(); };
-
-    virtual size_t num_segments() const override { return base_plan->num_segments(); };
-
-    virtual bool is_valid() const override { return base_plan->is_valid(); }
-
-    /** does nothing */
-    void apply_on(PPlan p) override {
-    }
-};
-
-
 /** Interface for generating local move in local search.
  *
  * A neighborhood provides a single method get_move() that optionally generates a new move.
  * It also contains several parameters, with defaults, that can be overriden by subclasses.*/
 struct Neighborhood {
-    /** Should be set to true, if local search should apply should stop on the first move that */
-    bool stop_on_first_improvement;
 
-    /** Maximum number of neighbors to generate.
-     * The contract is that local search algorithms should invoke the "get_move()" method at most
-     * "max_neighbors" on a given plan.*/
-    size_t max_neighbors;
-
-    Neighborhood(bool stop_on_first_improvement = false, size_t max_neighbors = 50)
-            : stop_on_first_improvement(stop_on_first_improvement), max_neighbors(max_neighbors) {}
-
-    /** Generate a new move for the given plan.
+    /** Generates a new move for the given plan.
+     * The optional might be empty if this neighborhood failed to generate a valid move.
      *
-     * The optional might be empty if this neighborhood failed to generate a valid move. */
+     * If the optional return is non-empty, local search will apply this move regardless of its cost.
+     * Hence subclasses should make sure the returned values contribute to the overall quality of the plan.
+     * */
     virtual opt<PLocalMove> get_move(PPlan plan) = 0;
 };
 
-struct CombinedNeighborhood : public Neighborhood {
-    vector<shared_ptr<Neighborhood>> subneighborhoods;
-
-    CombinedNeighborhood(const vector<shared_ptr<Neighborhood>>& subneighborhoods)
-            : subneighborhoods(subneighborhoods) {
-        ASSERT(!subneighborhoods.empty())
-    }
-
-    opt<PLocalMove> get_move(PPlan plan) override {
-        const size_t i = rand() % subneighborhoods.size();
-        return subneighborhoods[i]->get_move(plan);
-    }
-};
 
 struct SearchResult {
     shared_ptr<Plan> init_plan;
@@ -157,30 +116,21 @@ struct VariableNeighborhoodSearch {
             while(current_neighborhood < neighborhoods.size()) {
                 shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 
-                const PLocalMove no_move = make_shared<IdentityMove>(best_plan);
-                PLocalMove best_move = no_move;
-                for(size_t i=0; i<neighborhood->max_neighbors; i++) {
-                    const opt<PLocalMove> move = neighborhood->get_move(best_plan);
-                    if(move && (*move)->is_valid()) {
-                        if ((*move)->is_better_than(*best_move)) {
-                            if (best_move == no_move && neighborhood->stop_on_first_improvement) {
-                                best_move = *move;
-                                break;
-                            } else {
-                                best_move = *move;
-                            }
-                        }
-                    }
-                }
-                best_move->apply();
+                const opt<PLocalMove> move = neighborhood->get_move(best_plan);
+                if(move) {
+                    // neighborhood generate a move, apply it
+                    LocalMove& m = **move;
+                    ASSERT(m.is_valid());
+                    m.apply();
 
-                if(best_move == no_move) {
-                    current_neighborhood += 1;
-                } else {
                     printf("Improvement (lvl: %d): cost: %f -- duration: %f\n", (int)current_neighborhood, best_plan->cost(), best_plan->duration());
-                    current_neighborhood = 0;
-                }
 
+                    // plan change, go back to first neighborhood
+                    current_neighborhood = 0;
+                } else {
+                    // no move
+                    current_neighborhood += 1;
+                }
                 if(save_every != 0 && (current_iter % save_every) == 0) {
                     result.intermediate_plans.push_back(*best_plan);
                 }
