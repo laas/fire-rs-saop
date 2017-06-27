@@ -47,7 +47,6 @@ public:
 
     Trajectory(const Trajectory& trajectory) = default;
 
-public:
     bool empty() const { return traj.empty(); }
     size_t size() const { return traj.size(); }
     double start_time() const { return conf.start_time; }
@@ -124,17 +123,17 @@ public:
     }
 
     /** Accesses the index-th segment of the trajectory */
-    const Segment& operator[] (unsigned long index) const { return traj[index]; }
+    const Segment& operator[] (size_t index) const { return traj[index]; }
 
     /** Returns the trajectory as a set of waypoints.
      * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
      * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
     std::vector<Waypoint> as_waypoints(const double step_size = -1) const {
         std::vector<Waypoint> waypoints;
-        for(auto it = traj.begin(); it!=traj.end(); it++) {
-            waypoints.push_back(it->start);
-            if(it->length > 0)
-                waypoints.push_back(it->end);
+        for(auto& segment : traj) {
+            waypoints.push_back(segment.start);
+            if(segment.length > 0)
+                waypoints.push_back(segment.end);
         }
         if(step_size < 0) {
             return waypoints;
@@ -142,7 +141,7 @@ public:
             std::vector<Waypoint> sampled;
             if(waypoints.size() == 1)
                 sampled.push_back(waypoints[0]);
-            for(unsigned i=0; i<waypoints.size()-1; i++) {
+            for(int i=0; i<(int)waypoints.size()-1; i++) {
                 auto local_sampled = conf.uav.path_sampling(waypoints[i], waypoints[i+1], step_size);
                 sampled.insert(sampled.end(), local_sampled.begin(), local_sampled.end());
             }
