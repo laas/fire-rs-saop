@@ -114,7 +114,7 @@ struct Plan {
         ASSERT(traj_id < trajectories.size());
         ASSERT(insert_loc <= trajectories[traj_id].traj.size());
         trajectories[traj_id].insert_segment(seg, insert_loc);
-        project_on_firefront();
+        post_process();
     }
 
     void erase_segment(size_t traj_id, size_t at_index) {
@@ -122,7 +122,7 @@ struct Plan {
         ASSERT(at_index < trajectories[traj_id].traj.size());
         Segment deleted = trajectories[traj_id][at_index];
         trajectories[traj_id].erase_segment(at_index);
-        project_on_firefront();
+        post_process();
     }
 
     void replace_segment(size_t traj_id, size_t at_index, const Segment& by_segment) {
@@ -130,39 +130,57 @@ struct Plan {
         ASSERT(at_index <= trajectories[traj_id].traj.size());
         erase_segment(traj_id, at_index);
         insert_segment(traj_id, by_segment, at_index);
-        project_on_firefront();
+        post_process();
     }
 
-    void project_on_firefront() {
+    void post_process() {
+        project_on_fire_front();
+        smooth_trajectory();
+    }
+
+    /** Make sure every segment makes an observation, i.e., that the picture will be taken when the fire in traversing the main cell.
+     *
+     * If this is not the case for a given segment, its is projected on the firefront.
+     * */
+    void project_on_fire_front() {
         for(auto &traj : trajectories) {
-            size_t seg_id = 0;
-            while(seg_id < traj.size()) {
+            size_t seg_id = traj.first_modifiable();
+            while(seg_id <= traj.last_modifiable()) {
                 const Segment& seg = traj[seg_id];
                 const double t = traj.start_time(seg_id);
                 opt<Segment> projected = fire->project_on_firefront(seg, traj.conf.uav, t);
                 if(projected) {
                     if(*projected != seg) {
-                        // projection is different than original, replace it if the projection is not to close to the previous/next segment
-                        auto curr_pt =  traj.conf.uav.visibilty_center(*projected).as_point();
-                        // distance to previous/next observations (large number if there are no previous/next)
-                        const double prev_point_dist = seg_id == 0 ? 999999 :
-                                                       curr_pt.dist(traj.conf.uav.visibilty_center(traj[seg_id-1]).as_point());
-                        const double next_point_dist = seg_id >= traj.size()-1 ? 999999
-                                                                               : curr_pt.dist(traj.conf.uav.visibilty_center(traj[seg_id+1]).as_point());
+                        // original is different than projection, replace it
                         traj.erase_segment(seg_id);
-                        // only reinsert, if it is not to close to the next/previous
-                        if(prev_point_dist > 49. && next_point_dist > 49.) {
-                            traj.insert_segment(*projected, seg_id);
-                            seg_id++;
-                        }
-                    } else {
-                        // nothing change for this segment, go to next
-                        seg_id++;
+                        traj.insert_segment(*projected, seg_id);
                     }
+                    seg_id++;
                 } else {
                     // segment has no projection, remove it
                     traj.erase_segment(seg_id);
                 }
+            }
+        }
+    }
+
+    /** Goes through all trajectories and erase segments causing very tight loops. */
+     void smooth_trajectory() {
+        for(auto &traj : trajectories) {
+            size_t seg_id = traj.first_modifiable();
+            while(seg_id < traj.last_modifiable()) {
+                const Segment& current = traj[seg_id];
+                const Segment& next = traj[seg_id+1];
+
+                const double euclidian_dist_to_next = current.end.as_point().dist(next.start.as_point());
+                const double dubins_dist_to_next = traj.conf.uav.travel_distance(current.end, next.start);
+
+                if(dubins_dist_to_next / euclidian_dist_to_next > 2.)
+                    // tight loop, erase next and stay on this segment to check for tight loops on the new next.
+                    traj.erase_segment(seg_id+1);
+                else
+                    // no loop detected, go to next
+                    seg_id++;
             }
         }
     }

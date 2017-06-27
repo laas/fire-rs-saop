@@ -47,7 +47,7 @@ struct OneInsertNbhd : public Neighborhood {
 private:
     /** this move is better than another if it has a significantly better cost or if it has a similar cost but a strictly better duration */
     bool is_better_than(LocalMove& first, LocalMove& other) {
-        return first.cost() < other.cost() -5.
+        return first.cost() < other.cost() -.7
                    || (ALMOST_LESSER_EQUAL(first.cost(), other.cost()) &&  first.duration() < other.duration());
     }
 

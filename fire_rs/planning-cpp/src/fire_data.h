@@ -42,10 +42,12 @@ public:
         } else {
             const double dir = positive_modulo(propagation_directions(cell), 2*M_PI);
 
-            /** Make it discrete, a value of N means the angle was rounded to N*PI/4 */
+            /** Make it discrete, a value of 0<= N <8 means the angle was rounded to N*PI/4 */
             long discrete_dir = lround(dir / (M_PI /4));
             ASSERT(discrete_dir >= 0 && discrete_dir <= 8)
             discrete_dir = discrete_dir % 8;  // 2PI == 0
+
+            // compute relative coordinates of the cell in the main fire direction.
             int dx = -100;
             if(discrete_dir == 0 || discrete_dir == 1 || discrete_dir == 7)
                 dx = 1;
@@ -88,6 +90,12 @@ public:
         }
     }
 
+    /** Returns a segment whose visibility center is on cell on the firefront of the given time.
+     *
+     * This essentially projects a segment on the firefront, non-touching its orientation.
+     *
+     * The returned optional is empty if the projection failed.
+     **/
     opt<Segment> project_on_firefront(const Segment& seg, const UAV& uav, double time) const {
         const Waypoint center = uav.visibilty_center(seg);
         if(!ignitions.is_in(center))
@@ -101,7 +109,7 @@ public:
     }
 
 private:
-    /** Builds a rast*/
+    /** Builds a raster containing the times at which the firefront leaves the cells. */
     static Raster compute_traversal_ends(const Raster &ignitions) {
         Raster ie(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width);
 

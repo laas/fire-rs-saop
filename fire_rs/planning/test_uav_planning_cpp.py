@@ -135,13 +135,13 @@ class TestUAV(unittest.TestCase):
 
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 9500, 12000, 1500, save_every=10)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 9500, 12000, 1500, save_every=50)
 
         ax = prop.plot()
         plan = res.final_plan()
         plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
 
-        self.plot_search_result(prop, res, blocking=True)
+        self.plot_search_result(prop, res, blocking=False)
 
 
         print("durations: ")
@@ -177,7 +177,7 @@ class TestUAV(unittest.TestCase):
         for patch in patches:
             patch.set_visible(False)
         propagation.plot(axes=ax)
-        plot_plan(result.final_plan(), ax, blocking=True)
+        plot_plan(result.final_plan(), ax, blocking=blocking)
 
 
 
