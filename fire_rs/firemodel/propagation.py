@@ -20,6 +20,8 @@ class Environment:
         """Abstract class providing access to the main properties of the environment
 
         :param area: ((x_min, x_max), (y_min, y_max))
+        :param wind_speed: wind speed in km/h
+        :param wind_dir: wind direction in radians
         """
         world = World()
         elevation = world.get_elevation(area)
