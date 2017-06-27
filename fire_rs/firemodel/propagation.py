@@ -230,7 +230,7 @@ class FirePropagation:
         else:
             return cluster_of(x, y), propagation_angle(x, y), np.nan, np.nan
 
-    def plot(self, blocking=False):
+    def plot(self, axes=None, blocking=False):
         import matplotlib
         import matplotlib.pyplot as plt
         from matplotlib.colors import LightSource
@@ -264,14 +264,20 @@ class FirePropagation:
         def plot_wind_arrows(ax, x, y, wx, wy):
             ax.quiver(x, y, wx, wy, pivot='middle', color='dimgrey')
 
-        fire_fig = plt.figure()
-        fire_ax = fire_fig.gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
+        if axes:
+            fire_ax = axes
+            fire_fig = None
+        else:
+            fire_fig = plt.figure()
+            fire_ax = fire_fig.gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
 
         ax_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
         fire_ax.yaxis.set_major_formatter(ax_formatter)
         fire_ax.xaxis.set_major_formatter(ax_formatter)
         shade = plot_elevation_shade(fire_ax, X, Y, Z.T[::-1, ...])
-        cbar = fire_fig.colorbar(shade, shrink=0.5, aspect=2)
+        if fire_fig:
+            cbar = fire_fig.colorbar(shade, shrink=0.5, aspect=2)
+            cbar.set_label("Height [m]")
 
         wind_vel = world['wind_velocity']
         wind_ang = world['wind_angle']
@@ -291,8 +297,6 @@ class FirePropagation:
         for ignition_point in self._ignition_points:
             coords = self.prop_data.coordinates(ignition_point)
             fire_ax.plot(*coords, 'or', linewidth=5)
-
-        cbar.set_label("Height [m]")
 
         plt.show(block=blocking)
         return fire_ax

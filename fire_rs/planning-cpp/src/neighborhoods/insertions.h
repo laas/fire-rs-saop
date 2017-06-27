@@ -32,10 +32,10 @@ struct OneInsertNbhd : public Neighborhood {
                     // move is not valid, discard it
                     continue;
 
-                if(!best && candidate_move->is_better_than(no_move)) {
+                if(!best && is_better_than(*candidate_move, no_move)) {
                     // no best move, and better than doing nothing
                     best = candidate_move;
-                } else if(best && candidate_move->is_better_than(**best)) {
+                } else if(best && is_better_than(*candidate_move, **best)) {
                     // better than the best move
                     best = candidate_move;
                 }
@@ -45,6 +45,12 @@ struct OneInsertNbhd : public Neighborhood {
     }
 
 private:
+    /** this move is better than another if it has a significantly better cost or if it has a similar cost but a strictly better duration */
+    bool is_better_than(LocalMove& first, LocalMove& other) {
+        return first.cost() < other.cost() -5.
+                   || (ALMOST_LESSER_EQUAL(first.cost(), other.cost()) &&  first.duration() < other.duration());
+    }
+
     /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
     opt<PLocalMove> get_move_for_random_possible_observation(PPlan p) {
         ASSERT(!p->trajectories.empty())

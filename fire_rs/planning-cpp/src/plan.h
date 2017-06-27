@@ -175,7 +175,7 @@ private:
 
     /** If a point is less than REDUNDANT_OBS_DIST aways from another observation, it useless to observe it.
      * This is defined such that those point are in the visible area when pictured. */
-    const double REDUNDANT_OBS_DIST = 0.;
+    const double REDUNDANT_OBS_DIST = 50.;
 };
 
 

@@ -15,14 +15,14 @@ def plot_trajectory(traj, axes=None, blocking=False):
     sampled_waypoints = traj.as_waypoints(step_size=2)
     x = [wp.x for wp in sampled_waypoints]
     y = [wp.y for wp in sampled_waypoints]
-    axes.scatter(x, y, s=0.1, c='b')
+    path_patch = axes.scatter(x, y, s=0.1, c='b')
 
     waypoints = traj.as_waypoints()
     x = [wp.x for wp in waypoints]
     y = [wp.y for wp in waypoints]
-    axes.scatter(x, y, c='r')
+    waypoints_patch = axes.scatter(x, y, c='r')
     plt.show(block=blocking)
-    return axes
+    return axes, [waypoints_patch, path_patch]
 
 
 class TestUAV(unittest.TestCase):
@@ -111,16 +111,18 @@ class TestUAV(unittest.TestCase):
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 481060.0], [6210074.0, 6211074.0]], wind_speed=4.11, wind_dir=0)
         prop = propagation.propagate(env, 10, 10, horizon=3000)
-        ax = prop.plot()
+
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 2500, 3000, 150)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 2500, 3000, 150, save_every=5)
 
-        plan = res.final_plan()
-        plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
+        # ax = prop.plot()
+        # plan = res.final_plan()
+        # plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
+        self.plot_search_result(prop, res)
 
         print("durations: ")
-        for traj in plan.trajectories:
+        for traj in res.final_plan().trajectories:
             print(traj.duration())
 
     def test_vns(self):
@@ -130,18 +132,52 @@ class TestUAV(unittest.TestCase):
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 485060.0], [6210074.0, 6214074.0]], wind_speed=4.11, wind_dir=0)
         prop = propagation.propagate(env, 80, 80, horizon=14000)
-        ax = prop.plot()
+
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 9500, 12000, 1500)
+        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), 9500, 12000, 1500, save_every=10)
 
+        ax = prop.plot()
         plan = res.final_plan()
         plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
+
+        self.plot_search_result(prop, res, blocking=True)
+
 
         print("durations: ")
         for traj in plan.trajectories:
             print(traj.duration())
 
+
+
+    def plot_search_result(self, propagation, result, blocking=False):
+        import matplotlib.pyplot as plt
+
+        def plot_plan(plan, axes, blocking=False):
+            patches_of_plan = []
+            for traj in plan.trajectories:
+                _, traj_patches = plot_trajectory(traj, axes=axes, blocking=blocking)
+                for tp in traj_patches:
+                    patches_of_plan.append(tp)
+            return patches_of_plan
+
+        ax = propagation.plot()
+        plot_plan(result.initial_plan(), ax)
+        plt.show(block=False)
+        plt.pause(0.0001)
+        patches = []
+        for intermediate_plan in result.intermediate_plans:
+            # propagation.plot(axes=ax)
+            for patch in patches:
+                patch.set_visible(False)
+            patches = plot_plan(intermediate_plan, ax)
+            plt.show(block=False)
+            plt.pause(0.0001)
+
+        for patch in patches:
+            patch.set_visible(False)
+        propagation.plot(axes=ax)
+        plot_plan(result.final_plan(), ax, blocking=True)
 
 
 

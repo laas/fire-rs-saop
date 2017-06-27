@@ -33,18 +33,6 @@ public:
         return ret;
     }
 
-    /** this move is better than another if it has a better cost or if it has a similar cost but a strictly better duration */
-    bool is_better_than(LocalMove& other) {
-        if(num_segments() > other.num_segments()) {
-            // segments inserted, is better if there is significant cost improvement or if cost is equivalent but durations improves
-            return cost() < other.cost() -0.3 ||
-                    (ALMOST_LESSER_EQUAL(cost(), other.cost()) &&  duration() < other.duration());
-        } else {
-            return cost() < other.cost() ||
-                    (ALMOST_LESSER_EQUAL(cost(), other.cost()) &&  duration() < other.duration());
-        }
-    }
-
 protected:
     /** Internal method that applies the move on a given plan.
      * This should not be used directly. Instead you should the apply/apply_on_new public methods. */
@@ -101,7 +89,7 @@ struct VariableNeighborhoodSearch {
     VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods) :
             neighborhoods(neighborhoods) {}
 
-    SearchResult search(Plan p, size_t max_restarts, int save_every=0, bool verbose = true) {
+    SearchResult search(Plan p, size_t max_restarts, size_t save_every=0) {
         ASSERT(max_restarts == 0) // currently no shaking function
 
         SearchResult result(p);

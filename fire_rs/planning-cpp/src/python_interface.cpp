@@ -116,17 +116,17 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("final_plan", &SearchResult::final)
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans);
 
-    m.def("make_plan_vns", [](UAV uav, Raster ignitions, double min_time, double max_time, double max_flight_time) -> SearchResult {
+    m.def("make_plan_vns", [](UAV uav, Raster ignitions, double min_time, double max_time,
+                              double max_flight_time, size_t save_every) -> SearchResult {
         auto fire_data = make_shared<FireData>(ignitions);
         TrajectoryConfig conf(uav, min_time, max_flight_time);
-        Visibility vis(ignitions, min_time, max_time);
         Plan p(vector<TrajectoryConfig> { conf }, fire_data, TimeWindow{min_time, max_time});
 
         DefaultVnsSearch vns;
 
-        auto res = vns.search(p, 0, 0);
+        auto res = vns.search(p, 0, save_every);
         return res;
-    });
+    }, py::arg("uav"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"), py::arg("save_every") = 0);
 
     m.def("improve", [](const Trajectory& traj) {
         auto n1 = std::make_shared<dubins::AlignTwoConsecutiveNeighborhood>();

@@ -135,10 +135,16 @@ void test_projection_on_firefront() {
     }
 }
 
+void test_trajectory_as_waypoints() {
+    Trajectory traj((TrajectoryConfig(uav)));
+    traj.as_waypoints(2);
+}
+
 int main()
 {
     srand(time(0));
 
+    test_trajectory_as_waypoints();
     test_segment_rotation();
     test_single_point_to_observe();
     test_many_points_to_observe();
