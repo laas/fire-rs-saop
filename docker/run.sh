@@ -18,6 +18,11 @@ case $1 in
         echo ""
         docker build -t ${CONTAINER_NAME} ${DOCKER_DIR}
         ;;
+    'rebuild')
+        echo "Building container $CONTAINER_NAME from directory $DOCKER_DIR"
+        echo ""
+        docker build --no-cache=true -t ${CONTAINER_NAME} ${DOCKER_DIR}
+        ;;
     'start'|'')
         echo "Running container ${CONTAINER_NAME} using:"
         echo "  ${ROOT_DIR} as source directory (mapped to /home/saop/code)"
