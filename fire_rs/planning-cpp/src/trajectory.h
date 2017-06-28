@@ -47,6 +47,18 @@ public:
 
     Trajectory(const Trajectory& trajectory) = default;
 
+    /** Empty trajectory constructor */
+    Trajectory(const TrajectoryConfig& _config)
+            : conf(_config)
+    {
+        if(conf.start_position)
+            append_segment(Segment(*conf.start_position));
+        if(conf.end_position)
+            append_segment(Segment(*conf.end_position));
+        is_set_up = true;
+        check_validity();
+    }
+
     bool empty() const { return traj.empty(); }
     size_t size() const { return traj.size(); }
     double start_time() const { return conf.start_time; }
@@ -96,33 +108,6 @@ public:
 
     size_t last_modifiable() const {
         return conf.end_position ? traj.size()-2 : traj.size() -1;
-    }
-
-    /** Empty trajectory constructor */
-    Trajectory(const TrajectoryConfig& _config)
-            : conf(_config)
-    {
-        if(conf.start_position)
-            append_segment(Segment(*conf.start_position));
-        if(conf.end_position)
-            append_segment(Segment(*conf.end_position));
-    }
-
-
-    Trajectory(TrajectoryConfig conf, std::vector<Segment> traj)
-            : conf(conf)
-    {
-        for(auto it=traj.begin(); it!=traj.end(); it++)
-            append_segment(*it);
-        check_validity();
-    }
-
-    Trajectory(TrajectoryConfig conf, std::vector<Waypoint> waypoints)
-            : conf(conf)
-    {
-        for(auto it=waypoints.begin(); it!=waypoints.end(); it++)
-            append_segment(Segment(*it));
-        check_validity();
     }
 
     /** Accesses the index-th segment of the trajectory */
@@ -309,6 +294,10 @@ public:
     }
 
 private:
+    /** Boolean flag that is set to true once the trajectory is initialized.
+     * Validity checks are only performed when this flag is true. */
+    bool is_set_up = false;
+
     /** Recomputes length from scratch and returns it. */
     double non_incremental_length() const {
         return segments_length(traj, 0, traj.size());
@@ -317,12 +306,14 @@ private:
     /** Functions that asserts invariants of a trajectory.
      * This is for debugging purpose only and the function content should be commented out. */
     void check_validity() const {
-        ASSERT(traj.size() == start_times.size())
+        if(is_set_up) {
+            ASSERT(traj.size() == start_times.size())
 //        ASSERT(fabs(non_incremental_length() / conf.uav.max_air_speed - (end_time() - start_time())) < 0.001)
-        for(size_t i=0; i<start_times.size(); i++) {
-            ASSERT(ALMOST_GREATER_EQUAL(start_times[i], conf.start_time))
+            for (size_t i = 0; i < start_times.size(); i++) {
+                ASSERT(ALMOST_GREATER_EQUAL(start_times[i], conf.start_time))
+            }
+            ASSERT(start_and_end_positions_respected())
         }
-        ASSERT(start_and_end_positions_respected())
     }
 
     /** Converts a vector of waypoints to a vector of segments. */

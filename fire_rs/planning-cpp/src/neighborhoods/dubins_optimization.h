@@ -65,7 +65,7 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
             const size_t traj_id = rand(0, plan->trajectories.size());
             const Trajectory& traj = plan->trajectories[traj_id];
 
-            if(traj.empty())
+            if(traj.first_modifiable() > traj.last_modifiable())
                 continue; // nothing in this trajectory, go to next trial
 
             // pick a random segment in the trajectory

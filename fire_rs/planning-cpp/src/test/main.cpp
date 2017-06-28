@@ -53,6 +53,42 @@ void test_many_points_to_observe() {
     cout << "SUCCESS" << endl;
 }
 
+void test_many_points_to_observe_with_start_end_positions() {
+    Waypoint start(5,5,0);
+    Waypoint end(11,11,0);
+
+    // circular fire spread
+    Raster ignitions(100, 100, 0, 0, 1);
+    for (size_t x = 0; x < 100; x++) {
+        for (size_t y = 0; y < 100; y++) {
+            ignitions.set(x, y, sqrt(pow((double) x-50,2) + pow((double) y-50, 2)));
+        }
+    }
+
+    auto fd = make_shared<FireData>(ignitions);
+    vector<TrajectoryConfig> confs { TrajectoryConfig(
+            uav,
+            start,
+            end,
+            10) };
+    Plan p(confs, fd, TimeWindow{0, 110});
+
+    DefaultVnsSearch vns;
+
+    auto res = vns.search(p, 0, 1);
+    ASSERT(res.final_plan)
+    Plan solution = res.final();
+
+    auto& traj = solution.trajectories[0];
+    ASSERT(traj[0] == start);
+    ASSERT(traj[traj.size()-1] == end);
+    ASSERT(traj.first_modifiable() == 1);
+    ASSERT(traj.last_modifiable() == traj.size()-2);
+
+    cout << "SUCCESS" << endl;
+}
+
+
 void test_segment_rotation() {
     for(size_t i=0; i<100; i++) {
         Waypoint wp(drand(-100000, 10000), drand(-100000, 100000), drand(-10*M_PI, 10*M_PI));
@@ -148,6 +184,7 @@ int main()
     test_segment_rotation();
     test_single_point_to_observe();
     test_many_points_to_observe();
+    test_many_points_to_observe_with_start_end_positions();
     test_projection_on_firefront();
     return 0;
 }
