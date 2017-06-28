@@ -49,30 +49,6 @@ class WindNinjaCLITest(unittest.TestCase):
                     completed.returncode))
 
 
-class WindTileTest(unittest.TestCase):
-
-    def setUp(self):
-        cli = WindNinjaCLI()
-        cli.add_arguments(**WindNinjaCLI.domain_average_args(3.0, 0))
-        cli.add_arguments(mesh_resolution=100)
-        cli.set_elevation_file(os.path.join(DEFAULT_FIRERS_DEM_DATA,
-                                            'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69.tif'))
-
-        self.wind_path = tempfile.gettempdir()
-        self.windvel_file = os.path.join(
-            self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_vel.asc')
-        self.windang_file = os.path.join(
-            self.wind_path, 'BDALTIV2_25M_FXX_0500_6225_MNT_LAMB93_IGN69_0_3_100m_ang.asc')
-
-        cli.set_output_path(self.wind_path)
-        cli.run_blocking()
-
-    def test_access(self):
-        tile = WindTile([self.windvel_file, self.windang_file])
-        w = tile.get_wind(np.array([512748, 6211766]))
-        self.assertEqual(len(w), 2)
-
-
 class WindMapTest(unittest.TestCase):
 
     def setUp(self):
