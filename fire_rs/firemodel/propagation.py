@@ -70,6 +70,9 @@ class Environment:
         wind_speed, wind_dir = self.get_wind(x, y)
         summary = rothermel.ros(fuel_type, moisture, wind_speed, slope_percent)
         ros = summary.ros
+        if np.isnan(ros):
+            print("WARNING: RoS is NaN from fuel_type:{} moisture:{} slope:{} wind_speed:{} wind_dir:{}",
+                  fuel_type, moisture, slope_percent, wind_speed, wind_dir)
         slope_equivalent = summary.equivalent_slope
         x_w_eff = wind_speed * np.cos(wind_dir) + slope_equivalent * np.cos(slope_dir)
         y_w_eff = wind_speed * np.sin(wind_dir) + slope_equivalent * np.sin(slope_dir)
