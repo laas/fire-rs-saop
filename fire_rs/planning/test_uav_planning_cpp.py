@@ -46,24 +46,6 @@ class TestUAV(unittest.TestCase):
             print(traj)
         self.assertAlmostEquals(4, traj.length())
 
-    def test_trajectory_mutations(self):
-        # builds a trajectory, making sure points are sufficiently spaced to allow interesting solutions
-        def get_trajectory(waypoints):
-            traj = up.Trajectory(up.TrajectoryConfig.build(uav))
-            for wp in waypoints:
-                traj = traj.with_waypoint_at_end(
-                    up.Waypoint(wp.x * uav.min_turn_radius, wp.y * uav.min_turn_radius, wp.dir))
-            return traj
-        traj = get_trajectory([up.Waypoint(0, 0, 4.5), up.Waypoint(1.4, 4.4, 0), up.Waypoint(10, 10, 3.14),
-                               up.Waypoint(5, 0, 0), up.Waypoint(7, 1, 0), up.Waypoint(15, 9, 2), up.Waypoint(15, 5, 0),
-                               up.Waypoint(0, 10, 3.14), up.Waypoint(1, 9, 3.14)])
-        print(traj.length())
-        # plot_trajectory(traj, blocking=False)
-        traj = up.improve(traj)
-        print(traj.length())
-        # plot_trajectory(traj, blocking=False)
-        print(traj)
-
     def test_geodata_conversion(self):
         from fire_rs.geodata.environment import World
         world = World()
@@ -142,7 +124,6 @@ class TestUAV(unittest.TestCase):
         plot_trajectory(plan.trajectories[0], axes=ax, blocking=False)
 
         self.plot_search_result(prop, res, blocking=False)
-
 
         print("durations: ")
         for traj in plan.trajectories:

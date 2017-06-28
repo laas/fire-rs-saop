@@ -3,7 +3,6 @@
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
 #include "trajectory.h"
-#include "local_search.h"
 #include "raster.h"
 #include "visibility.h"
 #include "planning.h"
@@ -127,18 +126,6 @@ PYBIND11_PLUGIN(uav_planning) {
         auto res = vns.search(p, 0, save_every);
         return res;
     }, py::arg("uav"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"), py::arg("save_every") = 0);
-
-    m.def("improve", [](const Trajectory& traj) {
-        auto n1 = std::make_shared<dubins::AlignTwoConsecutiveNeighborhood>();
-        auto n2 = std::make_shared<dubins::OrientationChangeNeighborhood>();
-        auto n3 = std::make_shared<dubins::TwoOrientationChangeNeighborhood>();
-        auto n4 = std::make_shared<dubins::AlignOnNextNeighborhood>();
-        auto n5 = std::make_shared<dubins::AlignOnPrevNeighborhood>();
-        auto ns = std::make_shared<dubins::CombinedNeighborhood<Trajectory>>(
-                std::vector<std::shared_ptr<dubins::Neighborhood<Trajectory>>> { n1, n2, n3, n4, n5 });
-        Trajectory t_res = dubins::first_improvement_search(traj, *ns, 5000);
-        return t_res;
-    });
 
     return m.ptr();
 }
