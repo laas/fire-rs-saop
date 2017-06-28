@@ -79,8 +79,6 @@ public:
 
     Plan initial() const { return *init_plan; }
     Plan final() const { return *final_plan; }
-
-
 };
 
 struct VariableNeighborhoodSearch {

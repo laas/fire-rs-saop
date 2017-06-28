@@ -23,7 +23,7 @@ private:
 };
 
 vector<shared_ptr<Neighborhood>> DefaultVnsSearch::defaults = {
-        make_shared<DubinsOptNeighborhood>(),
+        make_shared<DubinsOptimizationNeighborhood>(),
         make_shared<OneInsertNbhd>()
 };
 

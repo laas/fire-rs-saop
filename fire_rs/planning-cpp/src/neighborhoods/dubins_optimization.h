@@ -40,7 +40,7 @@ struct RandomOrientationChangeGenerator final : public OrientationChangeGenerato
 };
 
 /** Combination of all neighborhoods intended to smooth dubins trajectories. */
-struct DubinsOptNeighborhood final : public Neighborhood {
+struct DubinsOptimizationNeighborhood final : public Neighborhood {
 
     /** Angle generators to be considered. */
     const vector<shared_ptr<OrientationChangeGenerator>> generators;
@@ -48,7 +48,7 @@ struct DubinsOptNeighborhood final : public Neighborhood {
     /** Maximum number of changes to try before returning. */
     const size_t max_trials;
 
-    DubinsOptNeighborhood(vector<shared_ptr<OrientationChangeGenerator>> generators = default_generators(), size_t max_trials = 100) :
+    DubinsOptimizationNeighborhood(vector<shared_ptr<OrientationChangeGenerator>> generators = default_generators(), size_t max_trials = 100) :
             generators(generators),
             max_trials(max_trials) {
         ASSERT(!generators.empty());
@@ -59,8 +59,8 @@ struct DubinsOptNeighborhood final : public Neighborhood {
             return {};
 
         // Generates local moves until one is improves duration and is valid or the maximum number of trials is reached.
-        int num_tries = 0;
-        while(num_tries++ < max_trials) {
+        int num_trials = 0;
+        while(num_trials++ < max_trials) {
             // pick a random trajectory in plan.
             const size_t traj_id = rand(0, plan->trajectories.size());
             const Trajectory& traj = plan->trajectories[traj_id];

@@ -48,9 +48,8 @@ struct Plan {
     /** SUm of all trajectory durations. */
     double duration() const {
         double duration = 0;
-        for(auto it=trajectories.begin(); it!=trajectories.end(); it++) {
-            duration += it->duration();
-        }
+        for(auto& traj : trajectories)
+            duration += traj.duration();
         return duration;
     }
 
@@ -67,7 +66,7 @@ struct Plan {
                 min_dist = min(min_dist, possible_obs.pt.dist(obs.pt));
             }
             // cost is based on the minimal distance to the observation and normalized such that
-            // cost = 0 if min_dist <= REDUNDANT_OBS_DIT
+            // cost = 0 if min_dist <= REDUNDANT_OBS_DIST
             // cost = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
             // evolves linearly in between.
             const double self_cost = (max(min_dist, REDUNDANT_OBS_DIST)-REDUNDANT_OBS_DIST) / (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST);
