@@ -23,17 +23,11 @@ cdef inline double div(double num, double denum):
 cdef RothermelResult ros_detailed(FuelModel fuel, MoistureScenario moistures, double wind, double slope):
     """Computes the Rate of Spread of a wildfire using the Rothermel model.
 
-    :param modeltype: Either environment.STATIC_FUEL_MODEL or environment.DYNAMIC_FUEL_MODEL
-    :param loads: fuel loads (t/ha) for fuel classes [1-hr, 10-hr, 100-hr, live-herbs, live-woody]
-    :param savs: surface to volume ratios (m2/m3) for the five fuel classes
-    :param depth: fuel depth (cm)
-    :param mx_dead: value of dead fuel moisture of extinction (percent)
-    :param heat_contents: heat content (kJ/kg) for the five fuel classes
+    :param fuel: Fuel model 
     :param moistures: percent of moisture on a dry weight basis (percent) for the five fuel classes
     :param wind: midflame wind speed (km/h)
     :param slope: value of site slope (percent)
-    :return: A tuple (ros, summary) where ros is the rate of spread in [m/s] and summary is a dictionary
-     containing intermediate values in the computation of the rate of spread.
+    :return: A tuple RothermelResult object containing the rate of spread (ros) in [m/s].
     """
 
     cdef double[5] m, w, s, h
@@ -187,7 +181,7 @@ cdef RothermelResult ros_detailed(FuelModel fuel, MoistureScenario moistures, do
     r = 0.3048 * r / 60  # change to m/s
 
     # summary = {
-    #     'ROS [m/min]': r,
+    #     'ROS [m/s]': r,
     #     'Wind Factor': fw,
     #     'Slope Factor': fs,
     #     # Factor applied to (1 + slope_factor + wind_factor) to get the ROS
