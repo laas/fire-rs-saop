@@ -73,8 +73,8 @@ public:
         return conf.uav.max_air_speed * duration();
     }
 
-    /** Returns true if this trajectory is valid wrt the given configuration (has the right start/end points and is not to long. */
-    bool is_valid() const {
+    /** Returns true if the first/last segments matches the ones given in the configuration of the trajectory. */
+    bool start_and_end_positions_respected() const {
         const bool start_valid = !conf.start_position ||
                                  (traj.size() >= 1 && traj[0].start == *conf.start_position &&
                                   traj[0].end == *conf.start_position && traj[0].length == 0);
@@ -82,9 +82,12 @@ public:
         const bool end_valid = !conf.end_position ||
                                (traj.size() >= 1 && traj[last_index].start == *conf.end_position &&
                                 traj[last_index].end == *conf.end_position && traj[last_index].length == 0);
-        const bool duration_valid = duration() <= conf.max_flight_time;
+        return start_valid && end_valid;
+    }
 
-        return start_valid && end_valid && duration_valid;
+    /** Returns true if this trajectory does not go over the maximum flight time given in configuration. */
+    bool has_valid_flight_time() const {
+        return ALMOST_LESSER_EQUAL(duration(), conf.max_flight_time);
     }
 
     size_t first_modifiable() const {
@@ -319,6 +322,7 @@ private:
         for(size_t i=0; i<start_times.size(); i++) {
             ASSERT(ALMOST_GREATER_EQUAL(start_times[i], conf.start_time))
         }
+        ASSERT(start_and_end_positions_respected())
     }
 
     /** Converts a vector of waypoints to a vector of segments. */

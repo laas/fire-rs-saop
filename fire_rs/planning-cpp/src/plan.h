@@ -40,7 +40,7 @@ struct Plan {
     /** A plan is valid iff all trajectories are valid (match their configuration. */
     bool is_valid() const {
         for(auto traj : trajectories)
-            if(!traj.is_valid())
+            if(!traj.has_valid_flight_time())
                 return false;
         return true;
     }
@@ -107,7 +107,6 @@ struct Plan {
         }
         return obs;
     }
-
 
     void insert_segment(size_t traj_id, const Segment& seg, size_t insert_loc) {
         ASSERT(traj_id < trajectories.size());
