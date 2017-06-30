@@ -198,8 +198,8 @@ class World:
 
         keyword arguments:
             domain_average: (speed, direction)
-                speed is rounded to the units
-                direction is rounded to degree precision
+                speed in km/h (it is rounded to units precision)
+                direction in radians (Then is rounded to degree precision)
         """
         assert len(position) == 2, "Need coordinates for x and y"
         dom_av = kwargs.get('domain_average')
