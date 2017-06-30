@@ -5,7 +5,7 @@ import fire_rs.uav_planning as up
 import numpy as np
 import time
 
-from fire_rs.geodata.geo_data import TimedPoint
+from fire_rs.geodata.geo_data import TimedPoint, Area
 
 
 class UAV:
