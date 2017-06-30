@@ -115,25 +115,31 @@ private:
 
         for(size_t x=0; x<ignitions.x_width; x++) {
             for(size_t y=0; y<ignitions.y_height; y++) {
-                // find the neighbor with highest ignition time
-                double max_neighbor = 0;
-                for(int dx=-1; dx<=1; dx++) {
-                    for(int dy=-1; dy<=1; dy++) {
-                        // exclude any neighbor that is of the grid or is never ignited.
-                        if(dx == 0 && dy == 0) continue;
-                        if(x == 0 && dx < 0) continue;
-                        if(x+dx >= ignitions.x_width) continue;
-                        if(y == 0 && dy < 0) continue;
-                        if(y+dy >= ignitions.y_height) continue;
-                        if(ignitions(x+dx, y+dy) >= numeric_limits<double>::max() /2) continue;
+                if(ignitions(x, y) < numeric_limits<double>::max() /2) {
+                    // cell is ignited
+                    // find the neighbor with highest ignition time
+                    double max_neighbor = 0;
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            // exclude any neighbor that is of the grid or is never ignited.
+                            if (dx == 0 && dy == 0) continue;
+                            if (x == 0 && dx < 0) continue;
+                            if (x + dx >= ignitions.x_width) continue;
+                            if (y == 0 && dy < 0) continue;
+                            if (y + dy >= ignitions.y_height) continue;
+                            if (ignitions(x + dx, y + dy) >= numeric_limits<double>::max() / 2) continue;
 
-                        max_neighbor = max(max_neighbor, ignitions(x+dx, y+dy));
+                            max_neighbor = max(max_neighbor, ignitions(x + dx, y + dy));
+                        }
                     }
+                    if (max_neighbor <= ignitions(x, y))
+                        ie.set(x, y, ignitions(x, y) + 180);  // propagation border, set traversal time to 3 minutes
+                    else
+                        ie.set(x, y, max_neighbor);
+                } else {
+                    // cell is never ignited, use same "infinite" value
+                    ie.set(x, y, ignitions(x, y));
                 }
-                if(max_neighbor <= ignitions(x,y))
-                    ie.set(x, y, ignitions(x, y) + 180);  // propagation border, set traversal time to 3 minutes
-                else
-                    ie.set(x, y, max_neighbor);
             }
         }
         return ie;
@@ -156,11 +162,19 @@ private:
 
         for(size_t x=0; x<ignitions.x_width; x++) {
             for(size_t y=0; y<ignitions.y_height; y++) {
-                auto ign = [x,y,default_ignition](int dx, int dy) { return default_ignition(x, y, dx, dy); };
-                const double prop_dx = ign(1, -1) + 2* ign(1, 0) + ign(1, 1) - ign(-1, -1) - 2*ign(-1,0) - ign(-1,1);
-                const double prop_dy = ign(1,1) + 2*ign(0,1) + ign(-1, 1) - ign(1,-1) - 2*ign(0,-1) - ign(-1,-1);
-                const double prop_dir = atan2(prop_dy, prop_dx);
-                pd.set(x, y, prop_dir);
+                if(ignitions(x, y) < numeric_limits<double>::max() /2) {
+                    // cell is ignited, compute slope
+                    auto ign = [x, y, default_ignition](int dx, int dy) { return default_ignition(x, y, dx, dy); };
+                    const double prop_dx =
+                            ign(1, -1) + 2 * ign(1, 0) + ign(1, 1) - ign(-1, -1) - 2 * ign(-1, 0) - ign(-1, 1);
+                    const double prop_dy =
+                            ign(1, 1) + 2 * ign(0, 1) + ign(-1, 1) - ign(1, -1) - 2 * ign(0, -1) - ign(-1, -1);
+                    const double prop_dir = atan2(prop_dy, prop_dx);
+                    pd.set(x, y, prop_dir);
+                } else {
+                    // cell is never ignited, set to default value
+                    pd.set(x, y, 0);
+                }
             }
         }
         return pd;
