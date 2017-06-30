@@ -44,40 +44,41 @@ RUN ./configure --prefix=$PREFIX --with-poppler=$PREFIX &&\
     make clean
 
 
+# create a saop user
+RUN useradd -ms /bin/bash saop
+USER saop
+WORKDIR /home/saop
+
 ## Clone and build windninja client
-RUN git clone https://github.com/firelab/windninja.git /root/windninja
-RUN mkdir /root/windninja/build &&\
-    cd /root/windninja/build &&\
+RUN git clone --depth 1 https://github.com/firelab/windninja.git /home/saop/windninja
+RUN mkdir /home/saop/windninja/build &&\
+    cd /home/saop/windninja/build &&\
     cmake -DNINJA_CLI=ON -DNINJAFOAM=ON -DNINJA_QTGUI=OFF .. &&\
     make -j8
 
 
 ##### SAOP
 
+USER root
+
 # install SAOP dependencies
-RUN apt-get update && apt-get install -y gdb python3 cython3 python3-gdal python3-setuptools python3-affine python3-tz python3-pandas python3-matplotlib python3-sklearn python3-pip
+RUN apt-get update && apt-get install -y gdb python3 cython3 python3-gdal python3-setuptools python3-affine python3-tz python3-pandas python3-matplotlib python3-sklearn python3-pip ffmpeg clang
 RUN pip3 install pybind11
-RUN apt-get install -y ffmpeg  # required fire propagation as movies
-
-# install and use CLang by default
-RUN apt-get install -y clang
-ENV CC /usr/bin/clang
-ENV CXX /usr/bin/clang++
-
 # install "when-changed"
 RUN pip3 install https://github.com/joh/when-changed/archive/master.zip
 
-ENV WINDNINJA_CLI_PATH /root/windninja/build/src/cli
+USER saop
+
+# use CLang by default
+ENV CC /usr/bin/clang
+ENV CXX /usr/bin/clang++
+
+
+ENV WINDNINJA_CLI_PATH /home/saop/windninja/build/src/cli
 
 # set data directory, this directory needs to be mounted with actual data
 ENV FIRERS_DATA /home/saop/data
 
-
-# create a saop user
-RUN useradd -ms /bin/bash saop
-# Ugly hack in order to be able to call WindNinja
-RUN chmod -R 777 /root
-USER saop
 
 # code directory, needs to be mounted to the the root of of the git repository
 WORKDIR /home/saop/code
