@@ -3,7 +3,7 @@ import unittest
 import gdal
 import numpy as np
 
-from fire_rs.geodata.geo_data import GeoData
+from fire_rs.geodata.geo_data import GeoData, Area
 
 
 class WorldTest(unittest.TestCase):
@@ -41,7 +41,7 @@ class WorldTest(unittest.TestCase):
         np.testing.assert_allclose(self.gd.data, combined.data)
 
     def test_subset(self):
-        res = self.gd.subset([[1, 1], [0, 1]])
+        res = self.gd.subset(Area(1, 1, 0, 1))
         self.assertEqual(res.data.shape, (1, 2))
 
 

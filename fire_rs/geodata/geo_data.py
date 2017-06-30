@@ -1,3 +1,4 @@
+from collections import namedtuple
 from functools import reduce
 
 import gdal
@@ -6,6 +7,17 @@ from typing import List, Tuple
 from osgeo import osr
 import matplotlib
 import matplotlib.pyplot as plt
+
+# A georeferenced point
+Point = namedtuple('Point', 'x, y')
+
+# Indexes of a cell in a raster
+Cell = namedtuple('Cell', 'x, y')
+
+# Georeferenced point with timestamp
+TimedPoint = namedtuple('TimedPoint', 'x, y, time')
+
+Area = namedtuple('Area', 'xmin, xmax, ymin, ymax')
 
 
 class GeoData:
@@ -77,24 +89,23 @@ class GeoData:
             unary_slices = [self.slice([l]) for l in layers]
             return reduce(lambda x, y: x.combine(y), unary_slices[1:], unary_slices[0])
 
-    def subset(self, area: Tuple[Tuple[float, float], Tuple[float, float]]) -> 'GeoData':
-        ((x_min, x_max), (y_min, y_max)) = area
-        (xi_min, yi_min) = self.array_index((x_min, y_min))
-        (xi_max, yi_max) = self.array_index((x_max, y_max))
+    def subset(self, area: Area) -> 'GeoData':
+        (xi_min, yi_min) = self.array_index(Point(area.xmin, area.ymin))
+        (xi_max, yi_max) = self.array_index(Point(area.xmax, area.ymax))
         ary = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
-        return GeoData(ary, *self.coordinates((xi_min, yi_min)), self.cell_width, self.cell_height)
+        return GeoData(ary, *self.coordinates(Cell(xi_min, yi_min)), self.cell_width, self.cell_height)
 
-    def array_index(self, coordinates: Tuple[float, float]) -> Tuple[int, int]:
+    def array_index(self, coordinates: Point) -> Cell:
         (x, y) = coordinates
         xi = int(round((x - self.x_offset) / self.cell_width))
         yi = int(round((y - self.y_offset) / self.cell_height))
-        return xi, yi
+        return Cell(xi, yi)
 
-    def coordinates(self, indices: Tuple[int, int]) -> Tuple[float, float]:
+    def coordinates(self, indices: Cell) -> Point:
         (xi, yi) = indices
         x = self.x_offset + xi * self.cell_width
         y = self.y_offset + yi * self.cell_height
-        return x, y
+        return Point(x, y)
 
     def append_right(self, other: 'GeoData') -> 'GeoData':
         assert self.data.dtype == other.data.dtype

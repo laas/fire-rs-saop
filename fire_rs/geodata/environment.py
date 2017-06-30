@@ -6,7 +6,7 @@ import numpy as np
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
 from fire_rs.geodata.landcover import LandCoverMap, LandCoverTile
 from fire_rs.geodata.wind import WindMap, WindNinjaCLI
-from fire_rs.geodata.geo_data import GeoData
+from fire_rs.geodata.geo_data import GeoData, Area
 
 import fire_rs.firemodel.environment as fire_env
 
@@ -190,7 +190,7 @@ class World:
         rd = dem.clone(np.array(raise_dir, dtype=[('raise_dir', 'float32')]))
 
         # combine slope and raise direction into one GeoData and fit it to the area originally asked
-        return sp.combine(rd).subset(area)
+        return sp.combine(rd).subset(Area(x_min, x_max, y_min, y_max))
 
     def get_wind(self, position, **kwargs) -> 'GeoData':
         """Get wind for a specific wind scenario.

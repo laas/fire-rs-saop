@@ -63,7 +63,8 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("cell_width", &LRaster::cell_width);
 
     py::class_<Waypoint>(m, "Waypoint")
-            .def(py::init<const double, const double, const double>())
+            .def(py::init<const double, const double, const double>(),
+                 py::arg("x"), py::arg("y"), py::arg("direction"))
             .def_readonly("x", &Waypoint::x)
             .def_readonly("y", &Waypoint::y) 
             .def_readonly("dir", &Waypoint::dir)
@@ -108,12 +109,16 @@ PYBIND11_PLUGIN(uav_planning) {
             }, "Constructor", py::arg("uav"), py::arg("start_time") = 0, py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
-            .def_readonly("trajectories", &Plan::trajectories);
+            .def_readonly("trajectories", &Plan::trajectories)
+            .def("cost", &Plan::cost)
+            .def("duration", &Plan::duration);
 
     py::class_<SearchResult>(m, "SearchResult")
             .def("initial_plan", &SearchResult::initial)
             .def("final_plan", &SearchResult::final)
-            .def_readonly("intermediate_plans", &SearchResult::intermediate_plans);
+            .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
+            .def_readonly("planning_time", &SearchResult::planning_time)
+            .def_readonly("preprocessing_time", &SearchResult::preprocessing_time);
 
     m.def("make_plan_vns", [](UAV uav, Raster ignitions, double min_time, double max_time,
                               double max_flight_time, size_t save_every) -> SearchResult {
@@ -126,6 +131,32 @@ PYBIND11_PLUGIN(uav_planning) {
         auto res = vns.search(p, 0, save_every);
         return res;
     }, py::arg("uav"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"), py::arg("save_every") = 0);
+
+    m.def("plan_vns", [](vector<TrajectoryConfig> configs, Raster ignitions, double min_time, double max_time, size_t save_every) -> SearchResult {
+        auto time = []() {
+            struct timeval tp;
+            gettimeofday(&tp, NULL);
+            return (double) tp.tv_sec + ((double)(tp.tv_usec / 1000) /1000.);
+        };
+
+        printf("Processing fire data\n");
+        double preprocessing_start = time();
+        auto fire_data = make_shared<FireData>(ignitions);
+        double preprocessing_end = time();
+
+        printf("Building initial plan\n");
+        Plan p(configs, fire_data, TimeWindow{min_time, max_time});
+
+        printf("Planning\n");
+        DefaultVnsSearch vns;
+        const double planning_start = time();
+        auto res = vns.search(p, 0, save_every);
+        const double planning_end = time();
+        printf("Plan found\n");
+        res.planning_time = planning_end - planning_start;
+        res.preprocessing_time = preprocessing_end - preprocessing_start;
+        return res;
+    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("save_every") = 0);
 
     return m.ptr();
 }

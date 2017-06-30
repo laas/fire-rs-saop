@@ -66,6 +66,8 @@ struct SearchResult {
 
 public:
     vector<Plan> intermediate_plans;
+    double planning_time = -1;
+    double preprocessing_time = -1;
 
     SearchResult(Plan& init_plan)
             : init_plan(shared_ptr<Plan>(new Plan(init_plan))),

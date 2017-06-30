@@ -25,6 +25,9 @@ test: build FORCE
 test-cpp: build FORCE
 	python3 -m unittest fire_rs.planning.test_uav_planning_cpp
 
+benchmark: build FORCE
+	PYTHONPATH="${PYTHONPATH}:." python3 fire_rs/planning/benchmark.py
+
 
 
 # phantom task that always need to be run

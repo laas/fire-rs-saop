@@ -3,26 +3,11 @@ import fire_rs.uav_planning as up
 import numpy as np
 
 # X8 UAS from Porto University
-from fire_rs.geodata.geo_data import GeoData
+from fire_rs.geodata.geo_data import GeoData, TimedPoint
+from fire_rs.planning.benchmark import plot_trajectory, plot_plan
 
 uav = up.UAV(18., 32.*np.pi/180)
 uav = up.UAV(9., 10.*np.pi/180)
-
-def plot_trajectory(traj, axes=None, blocking=False):
-    import matplotlib.pyplot as plt
-    if not axes:
-        axes = plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
-    sampled_waypoints = traj.as_waypoints(step_size=2)
-    x = [wp.x for wp in sampled_waypoints]
-    y = [wp.y for wp in sampled_waypoints]
-    path_patch = axes.scatter(x, y, s=0.1, c='b')
-
-    waypoints = traj.as_waypoints()
-    x = [wp.x for wp in waypoints]
-    y = [wp.y for wp in waypoints]
-    waypoints_patch = axes.scatter(x, y, c='r')
-    plt.show(block=blocking)
-    return axes, [waypoints_patch, path_patch]
 
 
 class TestUAV(unittest.TestCase):
@@ -63,7 +48,7 @@ class TestUAV(unittest.TestCase):
     def test_visibility(self):
         from fire_rs.firemodel import propagation
         env = propagation.Environment(self.test_area, wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 10, 20, horizon=3600)
+        prop = propagation.propagate_from_points(env, [TimedPoint(self.test_area[0][0]+250, self.test_area[1][0]+500, 0)], horizon=3600)
         ignitions = prop.ignitions()
         v = up.Visibility(ignitions.as_cpp_raster(), 0, 2700)
         bl = up.Segment(up.Waypoint(self.test_area[0][0] + 10*25, self.test_area[1][0] + 20*25, np.pi/2), 300)  # bottom left segment overlapping the interesting fire area
@@ -92,7 +77,7 @@ class TestUAV(unittest.TestCase):
 
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 481060.0], [6210074.0, 6211074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 10, 10, horizon=3000)
+        prop = propagation.propagate_from_points(env, TimedPoint(480460, 6210374, 0), horizon=3000)
 
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
@@ -113,7 +98,7 @@ class TestUAV(unittest.TestCase):
 
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 485060.0], [6210074.0, 6214074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate(env, 80, 80, horizon=14000)
+        prop = propagation.propagate_from_points(env, TimedPoint(482060, 6211074, 0), horizon=14000)
 
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
@@ -129,18 +114,8 @@ class TestUAV(unittest.TestCase):
         for traj in plan.trajectories:
             print(traj.duration())
 
-
-
     def plot_search_result(self, propagation, result, blocking=False):
         import matplotlib.pyplot as plt
-
-        def plot_plan(plan, axes, blocking=False):
-            patches_of_plan = []
-            for traj in plan.trajectories:
-                _, traj_patches = plot_trajectory(traj, axes=axes, blocking=blocking)
-                for tp in traj_patches:
-                    patches_of_plan.append(tp)
-            return patches_of_plan
 
         ax = propagation.plot()
         plot_plan(result.initial_plan(), ax)

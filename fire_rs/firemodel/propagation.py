@@ -3,12 +3,13 @@
 # Provides a simple binary heap. An optimized binary heap with update capabilities is available at:
 # https://mail.scipy.org/pipermail/scipy-user/2009-December/023539.html
 import heapq
+from typing import List, Union
 
 import numpy as np
 
 from fire_rs.geodata.clustering import cluster_multi_layer
 from fire_rs.geodata.environment import World
-from fire_rs.geodata.geo_data import GeoData
+from fire_rs.geodata.geo_data import GeoData, Cell, TimedPoint
 
 import fire_rs.firemodel.fireshapes as fireshapes
 import fire_rs.firemodel.rothermel as rothermel
@@ -105,17 +106,18 @@ class FirePropagation:
         (self.max_x, self.max_y) = self.prop_data.data.shape
         self._ignition_points = []
 
-    def set_ignition_point(self, x, y, time):
+    def set_ignition_point(self, ignition_point: TimedPoint):
         """Sets the given (x, y) point as on fire at the given time.
         Multiple ignition points can be provided.
         """
+        (xi, yi) = self.environment.raster.array_index((ignition_point.x, ignition_point.y))
         # ignition time of (x, y) is time
-        self.prop_data.data[x, y][0] = time
+        self.prop_data.data[xi, yi][0] = ignition_point.time
         # predecessor of (x, y) is itself (i.e. meaning no predecessor)
-        self.prop_data.data[x, y][1] = x
-        self.prop_data.data[x, y][2] = y
-        self._push_to_propagation_queue(x, y, time)
-        self._ignition_points.append((x, y))
+        self.prop_data.data[xi, yi][1] = xi
+        self.prop_data.data[xi, yi][2] = yi
+        self._push_to_propagation_queue(xi, yi, ignition_point.time)
+        self._ignition_points.append((xi, yi))
 
     def ignitions(self) -> GeoData:
         return self.prop_data.slice(['ignition'])
@@ -233,7 +235,7 @@ class FirePropagation:
         else:
             return cluster_of(x, y), propagation_angle(x, y), np.nan, np.nan
 
-    def plot(self, axes=None, blocking=False):
+    def plot(self, axes=None, blocking=False, display=True):
         import matplotlib
         import matplotlib.pyplot as plt
         from matplotlib.colors import LightSource
@@ -301,21 +303,40 @@ class FirePropagation:
             coords = self.prop_data.coordinates(ignition_point)
             fire_ax.plot(*coords, 'or', linewidth=5)
 
-        plt.show(block=blocking)
+        if display:
+            plt.show(block=blocking)
         return fire_ax
 
 
-def propagate(env: Environment, x: int, y: int, horizon=np.inf) -> 'FirePropagation':
+def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, List[TimedPoint]], horizon: float=np.inf) -> FirePropagation:
+    """Simulate a fire from all ignition points until the 
+    
+    :param env: Environment model.
+    :param ignitions_points: Fire start points, giving for each one (x,y) coordinates and fire start time.
+    :param horizon: Absolute time at which the propagation stops.
+    :return: 
+    """
+    fp = FirePropagation(env)
+    if isinstance(ignitions_points, list):
+        for tp in ignitions_points:
+            fp.set_ignition_point(tp)
+    else:
+        fp.set_ignition_point(ignitions_points)
+    fp.propagate(horizon=horizon)
+    return fp
+
+
+def propagate_from_cell(env: Environment, cell: Cell, horizon=np.inf) -> 'FirePropagation':
     """Set the environment on fire in (x, y) at time 0 and returns the ignition times of other points of the environment.
 
     :param env: Environment model
-    :param x: X coordinate of ignition point
-    :param y: Y coordinate of ignition point
+    :param cell: (x,y) coordinates of the ignition point (as array index)
     :param horizon: Wall-clock time at which to stop the propagation
     :return: A matrix of ignition time. The size of the matrix is given by the size of the environment
     """
     fp = FirePropagation(env)
-    fp.set_ignition_point(x, y, 0)
+    pt = env.raster.coordinates(cell)
+    fp.set_ignition_point(TimedPoint(pt.x, pt.y, 0))
     fp.propagate(horizon=horizon)
     return fp
 
