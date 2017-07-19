@@ -3,6 +3,8 @@
 # Provides a simple binary heap. An optimized binary heap with update capabilities is available at:
 # https://mail.scipy.org/pipermail/scipy-user/2009-December/023539.html
 import heapq
+import logging
+
 from typing import List, Union
 
 import numpy as np
@@ -147,7 +149,9 @@ class FirePropagation:
 
         # Assert the ignition point can burn
         t, (x, y) = self._pick_from_propagation_queue()
-        assert self.environment.get_fuel_type(x, y)[:2] != "NB"
+        igni_point_fuel_type = self.environment.get_fuel_type(x, y)
+        if igni_point_fuel_type[:2] == "NB":
+            logging.warning("Ignition point %s is set in a nonburnable cell (%s). Fire won't propagate.", str((x, y)), str(igni_point_fuel_type))
 
         # Dijkstra propagation of fire
         while not len(self._propagation_queue) == 0:
