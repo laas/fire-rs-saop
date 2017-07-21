@@ -10,7 +10,7 @@ ROOT_DIR="$(realpath $(dirname ${DOCKER_DIR}))"
 
 CONTAINER_NAME='saop'
 
-CONTAINER_START_CMD="docker run -it --cap-add=SYS_PTRACE -v ${ROOT_DIR}:/home/saop/code -v ${FIRERS_DATA}:/home/saop/data -e DISPLAY=${DISPLAY} -v /tmp/.X11-unix:/tmp/.X11-unix ${CONTAINER_NAME}"
+CONTAINER_START_CMD="docker run -it --cap-add=SYS_PTRACE -v ${ROOT_DIR}:/home/saop/code:z -v ${FIRERS_DATA}:/home/saop/data:z -e DISPLAY=${DISPLAY} -v /tmp/.X11-unix:/tmp/.X11-unix ${CONTAINER_NAME}"
 
 case $1 in
     'build')
