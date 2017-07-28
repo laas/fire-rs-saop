@@ -17,8 +17,7 @@ public:
     /** Total duration that would result in applying the move */
     virtual double duration() = 0;
 
-    virtual size_t num_segments() = 0;
-
+    /** True if applying this move on the base plan results in a valid plan. */
     virtual bool is_valid() = 0;
 
     /** Applies the move on the inner plan */
@@ -39,6 +38,7 @@ protected:
     virtual void apply_on(PPlan target) = 0;
 
 private:
+    /** NEVER ACCESS. This is only to make the plan visible in gdb which has problems with shared points. */
     Plan* plan_raw = base_plan.get();
 };
 typedef shared_ptr<LocalMove> PLocalMove;
@@ -84,26 +84,38 @@ public:
 };
 
 struct VariableNeighborhoodSearch {
+    /** Sequence of neighborhoods to be considered by VNS. */
     vector<shared_ptr<Neighborhood>> neighborhoods;
 
     VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods) :
             neighborhoods(neighborhoods) {}
 
+    /** Refines an initial plan with Variable Neighborhood Search.
+     *
+     * @param p: Initial plan.
+     * @param max_restarts: Number of allowed restarts (currently only 0 is supported).
+     * @param save_every: If >0, the Search result will contain snapshots of the search every N iterations.
+     *                    Warning: this is very heavy on memory usage.
+     * @return
+     */
     SearchResult search(Plan p, size_t max_restarts, size_t save_every=0) {
         ASSERT(max_restarts == 0) // currently no shaking function
 
         SearchResult result(p);
-
         PPlan best_plan = make_shared<Plan>(p);
 
         size_t current_iter = 0;
-
         size_t num_restarts = 0;
+
         while(num_restarts <= max_restarts) {
+            // choose first neighborhood
             size_t current_neighborhood = 0;
+
             while(current_neighborhood < neighborhoods.size()) {
+                // current neighborhood
                 shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 
+                // get move for current neighborhood
                 const opt<PLocalMove> move = neighborhood->get_move(best_plan);
                 if(move) {
                     // neighborhood generate a move, apply it
@@ -113,7 +125,7 @@ struct VariableNeighborhoodSearch {
 
                     printf("Improvement (lvl: %d): cost: %f -- duration: %f\n", (int)current_neighborhood, best_plan->cost(), best_plan->duration());
 
-                    // plan change, go back to first neighborhood
+                    // plan changed, go back to first neighborhood
                     current_neighborhood = 0;
                 } else {
                     // no move
@@ -124,7 +136,7 @@ struct VariableNeighborhoodSearch {
                 }
                 current_iter += 1;
             }
-
+            // no neighborhood provides improvements, restart or exit.
             num_restarts += 1;
         }
         result.set_final_plan(*best_plan);

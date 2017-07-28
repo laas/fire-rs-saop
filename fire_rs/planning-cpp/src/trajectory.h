@@ -59,28 +59,35 @@ public:
         check_validity();
     }
 
-    bool empty() const { return traj.empty(); }
+    /** Number of segments in the trajectory. */
     size_t size() const { return traj.size(); }
+
+    /** Time (s) at which the trajectory starts. */
     double start_time() const { return conf.start_time; }
+
+    /** Time (s) at which the trajectory ends. */
     double end_time() const { return traj.size() == 0 ? start_time() : end_time(traj.size()-1); }
 
+    /** Time (s) at which the UAV reaches the start waypoint of a given segment. */
     double start_time(size_t segment_index) const {
         ASSERT(traj.size() == start_times.size())
         ASSERT(segment_index >= 0 && segment_index < traj.size())
         return start_times[segment_index];
     }
 
+    /** Time (s) at which the UAV reaches the end waypoint of a given segment. */
     double end_time(size_t segment_index) const {
         ASSERT(traj.size() == start_times.size())
         ASSERT(segment_index >= 0 && segment_index < traj.size())
         return start_time(segment_index) + traj[segment_index].length / conf.uav.max_air_speed;
     }
 
+    /** Duration (s) of the path. */
     double duration() const {
         return end_time() - start_time();
     }
 
-    /** Length of the path. */
+    /** Length (m) of the path. */
     double length() const {
         return conf.uav.max_air_speed * duration();
     }
@@ -102,10 +109,12 @@ public:
         return ALMOST_LESSER_EQUAL(duration(), conf.max_flight_time);
     }
 
+    /** Index of the first modifiable segment. */
     size_t first_modifiable() const {
         return conf.start_position ? 1 : 0;
     }
 
+    /** Index of the last modifiable segment */
     size_t last_modifiable() const {
         return conf.end_position ? traj.size()-2 : traj.size() -1;
     }
@@ -167,7 +176,7 @@ public:
         return insertion_length_cost(insert_loc, segment) / conf.uav.max_air_speed;
     }
 
-    /** Decrease of length as result of removing the segment at the given position */
+    /** Decrease of length as result of removing the segment at the given position. */
     double removal_length_gain(size_t index) const {
         ASSERT(index >= 0 && index < traj.size())
         const Segment segment = traj[index];
@@ -204,9 +213,13 @@ public:
 
         return cost;
     }
+
+    /** Increase in time (s) as a result of replacing the segment at the given index by the one provided.*/
     double replacement_duration_cost(size_t index, const Segment& segment) const {
         return replacement_duration_cost(index, std::vector<Segment>{ segment });
     }
+
+    /** Increase in time (s) as a result of replacing the N segments at the given index by the N segemnts provided.*/
     double replacement_duration_cost(size_t index, const std::vector<Segment>& segments) const {
         return replacement_length_cost(index, segments) / conf.uav.max_air_speed;
     }

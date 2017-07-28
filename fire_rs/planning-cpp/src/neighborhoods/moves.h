@@ -18,8 +18,6 @@ public:
     /** Total duration that would result in applying the move */
     virtual double duration() override { return base_plan->duration(); };
 
-    virtual size_t num_segments() override { return base_plan->num_segments(); };
-
     virtual bool is_valid() override { return base_plan->is_valid(); }
 
     /** does nothing */
@@ -41,8 +39,6 @@ struct CloneBasedLocalMove : public LocalMove {
 
     /** Total duration that would result in applying the move */
     virtual double duration() override { init(); return _duration; };
-
-    virtual size_t num_segments() override { init(); return _num_segments; };
 
     virtual bool is_valid() override { init(); return _valid; }
 
