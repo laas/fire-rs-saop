@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(planning_cpp)
 
-add_subdirectory(pybind11)
+find_package(pybind11)
 
 set(CMAKE_CXX_STANDARD 11)
 
