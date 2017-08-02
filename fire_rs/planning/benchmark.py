@@ -125,7 +125,7 @@ def generate_scenario():
     # 9 by 7 km area
     area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
     uav_speed = 18.  # m/s
-    uav_max_turn_rate = 32. * np.pi / 180
+    uav_max_turn_rate = 32. * np.pi / 180 /32
     uav_bases = [  # four corners of the map
         Waypoint(area.xmin +100, area.ymin+100, 0),
         Waypoint(area.xmin+100, area.ymax-100, 0),
