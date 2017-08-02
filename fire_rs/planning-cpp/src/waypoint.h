@@ -12,6 +12,10 @@ struct Point final {
     double dist(const Point& pt) const {
         return sqrt(pow(x-pt.x, 2) + pow(y-pt.y, 2));
     }
+
+    double angle_to(const Point& pt) const {
+        return atan2(y-pt.y, x-pt.x);
+    }
 };
 
 struct Waypoint final {
