@@ -68,10 +68,11 @@ def plot_trajectory(traj, axes=None, blocking=False, display=True, color='r'):
     waypoints = traj.as_waypoints()
     x = [wp.x for wp in waypoints]
     y = [wp.y for wp in waypoints]
-    waypoints_patch = axes.scatter(x, y, c=color)
+    waypoints_patch_a = axes.scatter(x[::2], y[::2], c=color, marker='D')
+    waypoints_patch_b = axes.scatter(x[1::2], y[1::2], c=color, marker='>')
     if display:
         plt.show(block=blocking)
-    return axes, [waypoints_patch, path_patch]
+    return axes, [waypoints_patch_a, waypoints_patch_b, path_patch]
 
 
 def plot_plan(plan, axes, blocking=False, display=True):
