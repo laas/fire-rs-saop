@@ -17,6 +17,8 @@ import fire_rs.firemodel.fireshapes as fireshapes
 import fire_rs.firemodel.rothermel as rothermel
 import fire_rs.firemodel.environment as env
 
+from fire_rs.deprecation import deprecated
+
 
 class Environment:
     def __init__(self, area, wind_speed, wind_dir):
@@ -241,6 +243,7 @@ class FirePropagation:
         else:
             return cluster_of(x, y), propagation_angle(x, y), np.nan, np.nan
 
+    @deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
     def plot(self, axes=None, blocking=False, display=True):
         import matplotlib
         import matplotlib.pyplot as plt

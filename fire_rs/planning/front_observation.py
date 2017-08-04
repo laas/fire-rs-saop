@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from fire_rs.geodata import environment
 import fire_rs.firemodel.propagation as propagation
-import fire_rs.display
+import fire_rs.geodata.display
 import fire_rs.planning.observation_path_search
 import fire_rs.geodata.geo_data
 import os
@@ -40,8 +40,8 @@ def main():
 
     X, Y = np.meshgrid(x, y)
 
-    figure, axis = fire_rs.display.get_default_figure_and_axis()
-    fire_rs.display.plot_firefront_contour(axis, X, Y, ignition_times.data['ignition']/60, nfronts=50)
+    figure, axis = fire_rs.geodata.display.get_pyplot_figure_and_axis()
+    fire_rs.geodata.display.plot_ignition_contour(axis, X, Y, ignition_times.data['ignition']/60, nfronts=50)
     print("")
 
     for low, high in [[60, 61], [70, 71], [100, 101]]:
