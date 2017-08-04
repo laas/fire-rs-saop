@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.datasets.samples_generator import make_blobs
 import logging
 from fire_rs.planning.uav import FixedWing, wrap_angle_rad
-from fire_rs.display import plot_uav
+from fire_rs.geodata.display import plot_uav
 
 # Faster way to advance iterators
 def consume(iterator, n=None):
@@ -214,7 +214,6 @@ def demo_firefornt_observation():
     import matplotlib.cm
     from fire_rs.geodata import environment
     import fire_rs.firemodel.propagation as propagation
-    import fire_rs.display
     import fire_rs.planning.observation_path_search
     import fire_rs.geodata.geo_data
     import os

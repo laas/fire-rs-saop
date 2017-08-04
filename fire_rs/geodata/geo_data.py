@@ -8,6 +8,8 @@ from osgeo import osr
 import matplotlib
 import matplotlib.pyplot as plt
 
+from fire_rs.deprecation import deprecated
+
 # A georeferenced point
 Point = namedtuple('Point', 'x, y')
 
@@ -198,6 +200,7 @@ class GeoData:
         image_scale = (x[0], x[-1], y[0], y[-1])
         return ax, data, x, y, image_scale
 
+    @deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
     def plot_vector(self, dir_layer, length_layer, downscale=1, blocking=False):
         ax, data, x, y, image_scale = self._get_plot_data(downscale)
 
@@ -209,7 +212,8 @@ class GeoData:
         ax.quiver(*np.meshgrid(x, y), wx, wy, pivot='middle', color='dimgrey')
         plt.show(block=blocking)
 
-    def plot(self, layer=None, downscale=1, blocking=False, **kwargs):
+    @deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
+    def plot(self, layer=None, downscale=1, blocking=False, show=True, **kwargs):
         ax, data, x, y, image_scale = self._get_plot_data(downscale)
         if layer is None:
             assert len(self.data.dtype) == 1
@@ -219,7 +223,8 @@ class GeoData:
 
         ax.imshow(z, extent=image_scale, vmin=z.min(), vmax=z.max(),
                   cmap=kwargs.get('cmap', matplotlib.cm.terrain), interpolation='none')
-        plt.show(block=blocking)
+        if show:
+            plt.show(block=blocking)
         return ax
 
     def write_to_separate_files(self, parameterized_filename: str):
