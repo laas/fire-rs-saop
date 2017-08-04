@@ -9,7 +9,9 @@ from matplotlib.colors import LightSource
 from matplotlib.ticker import FuncFormatter
 from matplotlib import cm
 
+from fire_rs.deprecation import deprecated
 
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def get_default_figure_and_axis():
     fire_fig = plt.figure()
     fire_ax = fire_fig.gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
@@ -19,7 +21,7 @@ def get_default_figure_and_axis():
     fire_ax.xaxis.set_major_formatter(ax_formatter)
     return fire_fig, fire_ax
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwargs):
     plane_vertices = (np.array([[3.5, 6], [4, 5], [4, 4], [7, 4], [7, 3],
                       [4,   3], [4, 1], [5, 1], [5, 0], [2, 0],
@@ -32,19 +34,19 @@ def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwarg
                                                facecolor=facecolor, edgecolor=edgecolor, **kwargs)
     return ax.add_patch(plane_polygon)
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot_firefront_contour(ax, x, y, firefront, nfronts=20):
     fronts = ax.contour(x, y, firefront, nfronts, cmap=cm.Set1)
     labels = ax.clabel(fronts, inline=True, fontsize='smaller', inline_spacing=1, linewidth=2, fmt='%.0f')
     return fronts, labels
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot_elevation_contour(ax, x, y, z):
     contour = ax.contour(x, y, z, 15, cmap=cm.gist_earth)
     labels = plt.clabel(contour, inline=1, fontsize=10)
     return contour, labels
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot_elevation_shade(ax, x, y, z, dx=25, dy=25):
     cbar_lim = (z.min(), z.max())
 
@@ -55,21 +57,21 @@ def plot_elevation_shade(ax, x, y, z, dx=25, dy=25):
                               vmin=cbar_lim[0], vmax=cbar_lim[1]),
                      extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1], cmap=cm.terrain)
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot_wind_flow(ax, x, y, wx, wy, wvel):
     return ax.streamplot(x, y, wx, wy, density=1, linewidth=1, color='dimgrey')
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot_wind_arrows(ax, x, y, wx, wy):
     return ax.quiver(x, y, wx, wy, pivot='middle', color='dimgrey')
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25):
     ls = LightSource(azdeg=120, altdeg=45)
     rgb = ls.shade(z, cmap=cm.terrain, vert_exag=0.1, blend_mode='overlay')
     return ax.plot_surface(x, y, z, facecolors=rgb, rstride=5, cstride=5, linewidth=0, antialiased=True, shade=True)
 
-
+@deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
 def plot3d_wind_arrows(ax, x, y, z, wx, wy, wz):
     return ax.quiver(x, y, z, wx, wy, wz, pivot='middle', cmap=cm.viridis)
 
