@@ -89,10 +89,11 @@ public:
 };
 
 struct VariableNeighborhoodSearch {
+    shared_ptr<Shuffler> shuffler;
     /** Sequence of neighborhoods to be considered by VNS. */
     vector<shared_ptr<Neighborhood>> neighborhoods;
 
-    VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods) :
+    explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler> shuffler) :
             neighborhoods(neighborhoods) {}
 
     /** Refines an initial plan with Variable Neighborhood Search.
