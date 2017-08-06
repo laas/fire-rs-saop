@@ -18,7 +18,7 @@ public:
     vector<Cell> interesting_pending;
     vector<double> pending_costs;
 
-    Visibility(const Raster& ignitions, double time_window_min, double time_window_max)
+    Visibility(const DRaster& ignitions, double time_window_min, double time_window_max)
             : fire(ignitions),
               cell_width(ignitions.cell_width),
               visibility(LRaster(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width)),

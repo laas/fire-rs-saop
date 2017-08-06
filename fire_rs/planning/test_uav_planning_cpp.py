@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # set backend so that an X display is not required
 import unittest
 import fire_rs.uav_planning as up
 import numpy as np
@@ -134,8 +136,3 @@ class TestUAV(unittest.TestCase):
             patch.set_visible(False)
         propagation.plot(axes=ax)
         plot_plan(result.final_plan(), ax, blocking=blocking)
-
-
-
-
-
