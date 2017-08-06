@@ -59,6 +59,11 @@ struct Neighborhood {
     virtual opt<PLocalMove> get_move(PPlan plan) = 0;
 };
 
+struct Shuffler {
+public:
+    virtual void suffle(shared_ptr<Plan> plan) = 0;
+};
+
 
 struct SearchResult {
     shared_ptr<Plan> init_plan;
