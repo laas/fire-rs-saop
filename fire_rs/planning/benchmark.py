@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
 import random
 from collections import namedtuple
 
