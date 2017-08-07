@@ -120,6 +120,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
             geodatadisplay.draw_ignition_shade(with_colorbar=True)
         elif layer == 'ignition_contour':
             geodatadisplay.draw_ignition_contour(with_labels=True)
+        elif layer == 'wind_quiver':
+            geodatadisplay.draw_wind_quiver()
     plot_plan(res.final_plan(), axes=geodatadisplay.axis, blocking=True, display=plot)
     print("saving as: " + str(os.path.join(save_directory, instance_name + ".png")))
     geodatadisplay.axis.get_figure().set_size_inches(20, 15)
@@ -224,8 +226,8 @@ def main():
                         help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
     parser.add_argument("--background", nargs='+',
                         help="list of background layers for the output figures, from bottom to top.",
-                        choices=['elevation_shade', 'ignition_shade', 'ignition_contour'],
-                        default=['elevation_shade', 'ignition_contour'])
+                        choices=['elevation_shade', 'ignition_shade', 'ignition_contour', 'wind_quiver'],
+                        default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument("--format",
                         help="format of the output figures",
                         choices=['png', 'svg'],
