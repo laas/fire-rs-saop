@@ -8,13 +8,14 @@
 #include "neighborhoods/dubins_optimization.h"
 #include "vns_interface.h"
 #include "neighborhoods/insertions.h"
+#include "neighborhoods/shuffling.h"
 
 using namespace std;
 
 
 struct DefaultVnsSearch : public VariableNeighborhoodSearch {
 
-    DefaultVnsSearch() : VariableNeighborhoodSearch(defaults)
+    DefaultVnsSearch() : VariableNeighborhoodSearch(defaults, make_shared<PlanPortionRemover>(0., 1.))
     {}
 
 

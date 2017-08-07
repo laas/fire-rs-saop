@@ -14,15 +14,15 @@ public:
 
     /** Time at which the firefront reaches each cell.
      * MAX_DOUBLE, if it is never ignited (not burnable or propagation stopped early). */
-    const Raster ignitions;
+    const DRaster ignitions;
 
     /** Time at which the firefront has entirely traversed each cell. */
-    const Raster traversal_end;
+    const DRaster traversal_end;
 
     /** Main fire propagation direction in each cell. */
-    const Raster propagation_directions;
+    const DRaster propagation_directions;
 
-    FireData(const Raster& ignitions)
+    FireData(const DRaster& ignitions)
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)) {}
@@ -110,8 +110,8 @@ public:
 
 private:
     /** Builds a raster containing the times at which the firefront leaves the cells. */
-    static Raster compute_traversal_ends(const Raster &ignitions) {
-        Raster ie(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width);
+    static DRaster compute_traversal_ends(const DRaster &ignitions) {
+        DRaster ie(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width);
 
         for(size_t x=0; x<ignitions.x_width; x++) {
             for(size_t y=0; y<ignitions.y_height; y++) {
@@ -147,8 +147,8 @@ private:
 
     /** Computes local fire propagation direction. This is done by looking at the ignitions raster as an elevation raster
      * and finding main raising direction as it is done for computing slope.*/
-    static Raster compute_propagation_direction(const Raster& ignitions) {
-        Raster pd(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width);
+    static DRaster compute_propagation_direction(const DRaster& ignitions) {
+        DRaster pd(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width);
         /** Returns the ignitions time of (x+dx, y+dy). If it is out of the raster, or not ignited, it defaults to the ignition of (x,y).*/
         auto default_ignition = [ignitions](size_t x, size_t y, int dx, int dy) {
             const double def = ignitions(x, y);

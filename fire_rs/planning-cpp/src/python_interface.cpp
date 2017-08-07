@@ -39,17 +39,17 @@ PYBIND11_PLUGIN(uav_planning) {
 
     srand(time(0));
 
-    py::class_<Raster>(m, "Raster")
-            .def("__init__", [](Raster& self, py::array_t<double, py::array::c_style | py::array::forcecast> arr, double x_offset, double y_offset, double cell_width)  {
+    py::class_<DRaster>(m, "DRaster")
+            .def("__init__", [](DRaster& self, py::array_t<double, py::array::c_style | py::array::forcecast> arr, double x_offset, double y_offset, double cell_width)  {
                 // create a new object and sibstitute to the given self
-                new (&self) Raster(as_vector<double>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
+                new (&self) DRaster(as_vector<double>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
             })
-            .def("as_numpy", [](Raster& self) {
+            .def("as_numpy", [](DRaster& self) {
                 return as_nparray<double>(self.data, self.x_width, self.y_height);
             })
-            .def_readonly("x_offset", &Raster::x_offset)
-            .def_readonly("y_offset", &Raster::y_offset)
-            .def_readonly("cell_width", &Raster::cell_width);
+            .def_readonly("x_offset", &DRaster::x_offset)
+            .def_readonly("y_offset", &DRaster::y_offset)
+            .def_readonly("cell_width", &DRaster::cell_width);
 
     py::class_<LRaster>(m, "LRaster")
             .def("__init__", [](LRaster& self, py::array_t<long, py::array::c_style | py::array::forcecast> arr, double x_offset, double y_offset, double cell_width) {
@@ -92,7 +92,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("__repr__", &Trajectory::to_string);
 
     py::class_<Visibility>(m, "Visibility")
-            .def(py::init<Raster, double, double>())
+            .def(py::init<DRaster, double, double>())
             .def("set_time_window_of_interest", &Visibility::set_time_window_of_interest)
             .def("add_segment", &Visibility::add_segment)
             .def("remove_segment", &Visibility::remove_segment)
@@ -120,7 +120,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("planning_time", &SearchResult::planning_time)
             .def_readonly("preprocessing_time", &SearchResult::preprocessing_time);
 
-    m.def("make_plan_vns", [](UAV uav, Raster ignitions, double min_time, double max_time,
+    m.def("make_plan_vns", [](UAV uav, DRaster ignitions, double min_time, double max_time,
                               double max_flight_time, size_t save_every) -> SearchResult {
         auto fire_data = make_shared<FireData>(ignitions);
         TrajectoryConfig conf(uav, min_time, max_flight_time);
@@ -132,7 +132,7 @@ PYBIND11_PLUGIN(uav_planning) {
         return res;
     }, py::arg("uav"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"), py::arg("save_every") = 0);
 
-    m.def("plan_vns", [](vector<TrajectoryConfig> configs, Raster ignitions, double min_time, double max_time, size_t save_every) -> SearchResult {
+    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, double min_time, double max_time, size_t save_every) -> SearchResult {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);

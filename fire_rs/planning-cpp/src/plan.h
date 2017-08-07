@@ -94,8 +94,8 @@ struct Plan {
         vector<PointTime> obs;
         for(auto traj : trajectories) {
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
-                auto seg = traj[seg_id];
-                auto wp = traj.conf.uav.visibilty_center(seg);
+                const Segment& seg = traj[seg_id];
+                const Waypoint wp = traj.conf.uav.visibilty_center(seg);
                 double obs_time = traj.start_time(seg_id);
                 Cell c = fire->ignitions.as_cell(wp);
                 if(fire->ignitions(c) <= obs_time && obs_time <= fire->traversal_end(c)) {

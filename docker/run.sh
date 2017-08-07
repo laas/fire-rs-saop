@@ -8,9 +8,11 @@
 DOCKER_DIR="$(realpath $(dirname ${BASH_SOURCE[0]}))"
 ROOT_DIR="$(realpath $(dirname ${DOCKER_DIR}))"
 
+XSOCK=/tmp/.X11-unix
+
 CONTAINER_NAME='saop'
 
-CONTAINER_START_CMD="docker run -it --cap-add=SYS_PTRACE -v ${ROOT_DIR}:/home/saop/code -v ${FIRERS_DATA}:/home/saop/data -e DISPLAY=${DISPLAY} -v /tmp/.X11-unix:/tmp/.X11-unix ${CONTAINER_NAME}"
+CONTAINER_START_CMD="docker run -it --cap-add=SYS_PTRACE -v ${ROOT_DIR}:/home/saop/code:z -v ${FIRERS_DATA}:/home/saop/data:z -e DISPLAY=${DISPLAY} -v ${XSOCK} ${CONTAINER_NAME}"
 
 case $1 in
     'build')
@@ -28,11 +30,10 @@ case $1 in
         echo "  ${ROOT_DIR} as source directory (mapped to /home/saop/code)"
         echo "  ${FIRERS_DATA} as data directory (mapped to /home/saop/data)"
         echo ""
+        echo ${CONTAINER_START_CMD}
         eval ${CONTAINER_START_CMD}
         ;;
     *)
         echo "Error: Expected 'make_container', 'start' or 'build' as parameter. Got: $1"
         ;;
 esac
-
-

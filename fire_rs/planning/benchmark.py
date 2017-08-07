@@ -1,4 +1,5 @@
-import matplotlib.cm
+import matplotlib
+matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
 import numpy as np
 import random
 import time

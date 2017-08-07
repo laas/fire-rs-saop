@@ -42,7 +42,7 @@ class GeoData:
         assert len(self.layers) == 1
         assert self.cell_width == self.cell_height
         import fire_rs.uav_planning as up
-        return up.Raster(self.data, self.x_offset, self.y_offset, self.cell_height)
+        return up.DRaster(self.data, self.x_offset, self.y_offset, self.cell_height)
 
     @staticmethod
     def from_cpp_raster(raster, layer_name):
