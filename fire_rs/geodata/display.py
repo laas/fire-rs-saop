@@ -76,12 +76,13 @@ def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
     return ax.streamplot(x, y, wx, wy, density=1, linewidth=1, color='dimgrey')
 
 
-def plot_wind_arrows(ax, x, y, wx, wy, **kwargs):
-    return ax.quiver(x, y, wx, wy, pivot='middle', color='dimgrey')
+def plot_wind_quiver(ax, x, y, wx, wy, **kwargs):
+    return ax.quiver(x, y, wx, wy, pivot=kwargs.get('pivot','middle'), color=kwargs.get('color','dimgrey'), **kwargs)
 
 
 def plot_ignition_point(ax, point, **kwargs):
-    return ax.plot(*point, 'or', linewidth=5, **kwargs)
+    return ax.plot(*point, linestyle=kwargs.get('linestyle','o'), color=kwargs.get('color','r'),
+                   linewidth=kwargs.get('linewidth',5), **kwargs)
 
 
 class GeoDataDisplay:
@@ -124,13 +125,13 @@ class GeoDataDisplay:
         cb.set_label("Height [m]")
         self._colorbars.append(cb)
 
-    def draw_wind_arrows(self, **kwargs):
+    def draw_wind_quiver(self, **kwargs):
         wind_vel = self._geodata['wind_velocity']
         wind_ang = self._geodata['wind_angle']
         WX = wind_vel * np.cos(wind_ang)
         WY = wind_vel * np.sin(wind_ang)
 
-        self._drawings.append(plot_wind_arrows(self.axis, *np.meshgrid(self._x_ticks[::10], self._y_ticks[::10]),
+        self._drawings.append(plot_wind_quiver(self.axis, *np.meshgrid(self._x_ticks[::10], self._y_ticks[::10]),
                                                WX[::10, ::10], WY[::10, ::10], **kwargs))
 
     def draw_ignition_contour(self, with_labels=True, **kwargs):
