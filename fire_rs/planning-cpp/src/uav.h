@@ -39,7 +39,7 @@ struct UAV {
 
     /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
     std::vector<Waypoint> path_sampling(const Waypoint &origin, const Waypoint &target, const double step_size) const {
-        assert(step_size > 0);
+        ASSERT(step_size > 0);
         const double length = travel_distance(origin, target);
         DubinsPath path = dubins_path(origin, target);
         std::vector<Waypoint> waypoints;

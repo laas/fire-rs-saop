@@ -89,6 +89,74 @@ struct GenRaster {
         ASSERT(is_y_in(y_coord));
         return (size_t) lround((y_coord - y_offset) / cell_width);
     }
+
+//    std::vector<Point> points_around(Point center, long distance) const {
+//        /*TODO: Test this function*/
+//        std::vector<Point> circle_points;
+//
+//        /** Bresenham algorithm for circles http://members.chello.at/~easyfilter/bresenham.html*/
+//        long delta_x = -distance;
+//        long delta_y = 0;
+//        long err = 2 - 2 * distance;
+//        do{
+//            if(is_x_in(center.x - delta_x) && is_y_in(center.y + delta_y)) {
+//                circle_points.push_back(Point{center.x - delta_x, center.y + delta_y});
+//            }
+//            if(is_x_in(center.x - delta_y) && is_y_in(center.y - delta_x)) {
+//                circle_points.push_back(Point{center.x - delta_y, center.y - delta_x});
+//            }
+//            if(is_x_in(center.x + delta_x) && is_y_in(center.y - delta_y)) {
+//                circle_points.push_back(Point{center.x + delta_x, center.y - delta_y});
+//            }
+//            if(is_x_in(center.x + delta_y) && is_y_in(center.y + delta_x)) {
+//                circle_points.push_back(Point{center.x + delta_y, center.y + delta_x});
+//            }
+//
+//            distance = err;
+//            if(distance <= delta_y) {
+//                err += ++delta_y*2+1;
+//            }
+//            if (distance > delta_x || err > delta_y) {
+//                err += ++delta_x*2+1;
+//            }
+//        }while (delta_x < 0);
+//
+//        return circle_points;
+//    }
+//
+//    std::vector<Cell> cells_around(Cell center, long distance) const {
+//        /*TODO: Test this function*/
+//        std::vector<Cell> circle_cells;
+//
+//        /** Bresenham algorithm for circles http://members.chello.at/~easyfilter/bresenham.html*/
+//        long delta_x = -distance;
+//        long delta_y = 0;
+//        long err = 2 - 2 * distance;
+//        do{
+//            if(is_x_in(center.x - delta_x) && is_y_in(center.y + delta_y)) {
+//                circle_cells.push_back(Cell{center.x - delta_x, center.y + delta_y});
+//            }
+//            if(is_x_in(center.x - delta_y) && is_y_in(center.y - delta_x)) {
+//                circle_cells.push_back(Cell{center.x - delta_y, center.y - delta_x});
+//            }
+//            if(is_x_in(center.x + delta_x) && is_y_in(center.y - delta_y)) {
+//                circle_cells.push_back(Cell{center.x + delta_x, center.y - delta_y});
+//            }
+//            if(is_x_in(center.x + delta_y) && is_y_in(center.y + delta_x)) {
+//                circle_cells.push_back(Cell{center.x + delta_y, center.y + delta_x});
+//            }
+//
+//            distance = err;
+//            if(distance <= delta_y) {
+//                err += ++delta_y*2+1;
+//            }
+//            if (distance > delta_x || err > delta_y) {
+//                err += ++delta_x*2+1;
+//            }
+//        }while (delta_x < 0);
+//
+//        return circle_cells;
+//    }
 };
 
 typedef GenRaster<double> DRaster;

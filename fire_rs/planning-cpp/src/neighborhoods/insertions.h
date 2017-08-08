@@ -8,8 +8,8 @@
 struct SegementInsertNeighborhood : public Neighborhood{
 
     // Segment sampling constraints
-    const double min_segment_length = 200;
-    const double max_segment_length = 1000;
+    const double min_segment_length = 50;
+    const double max_segment_length = 500;
 
     const double max_trials;
     SegementInsertNeighborhood(double max_trials = 50) : max_trials(max_trials) {}
@@ -54,36 +54,43 @@ private:
         if(p->possible_observations.empty())
             return {};
 
-        /** Select a random point in the pending list */
-        const size_t index = rand() % p->possible_observations.size();
-        const PointTimeWindow pt = p->possible_observations[index];
+        /** Select a random isochrone */
+        const size_t iso_cluster_ind = rand() % p->fire->isochrones.size();
+        const shared_ptr<IsochroneCluster> iso_cluster = p->fire->isochrones[iso_cluster_ind];
 
-        /** Select a random length*/
-        const double segment_length = drand(min_segment_length, max_segment_length);
+        /** Pick two points from the isochrone */
+        size_t pt1_ind = rand() % iso_cluster->cells.size();
+        Point pt1 = p->fire->ignitions.as_point(iso_cluster->cells[pt1_ind]);
+        size_t pt2_ind = rand() % iso_cluster->cells.size();
+        Point pt2 = p->fire->ignitions.as_point(iso_cluster->cells[pt2_ind]);
 
-        /** Select another point in the pending list*/
-        size_t index_dest = rand() % p->possible_observations.size();
-        PointTimeWindow pt2 = p->possible_observations[index_dest];
-        double angle = pt.pt.angle_to(pt2.pt);
-        Segment random_segment = Segment(Waypoint(pt.pt.x, pt.pt.y, angle), Waypoint(pt2.pt.x, pt2.pt.y, angle));
+        /** Build a candidate segment*/
+        double angle = pt1.angle_to(pt2);
+        Segment random_segment = Segment(Waypoint(pt1.x, pt2.y, angle), Waypoint(pt2.x, pt2.y, angle));
 
-        bool segment_is_ok = false;
+        bool segment_is_ok = min_segment_length <= random_segment.length && random_segment.length <= max_segment_length;
         int acceptable_segment_trials = 0;
 
-        while(!segment_is_ok) {
-            if(random_segment.length <= min_segment_length && random_segment.length <= max_segment_length){
+        while (!segment_is_ok){
+            /** Build another candidate*/
+            pt1_ind = rand() % iso_cluster->cells.size();
+            pt1 = p->fire->ignitions.as_point(iso_cluster->cells[pt1_ind]);
+            pt2_ind = rand() % iso_cluster->cells.size();
+            pt2 = p->fire->ignitions.as_point(iso_cluster->cells[pt2_ind]);
+            angle = pt1.angle_to(pt2);
+            random_segment = Segment(Waypoint(pt1.x, pt1.y, angle), Waypoint(pt2.x, pt2.y, angle));
+
+            if(min_segment_length <= random_segment.length && random_segment.length <= max_segment_length){
                 segment_is_ok = true;
-            }else {
-                ASSERT(++acceptable_segment_trials < max_trials)
-                /** Select another point in the pending list*/
-                index_dest = rand() % p->possible_observations.size();
-                pt2 = p->possible_observations[index];
-                angle = pt.pt.angle_to(pt2.pt);
-                random_segment = Segment(Waypoint(pt.pt.x, pt.pt.y, angle), Waypoint(pt2.pt.x, pt2.pt.y, angle));
-                cout << "trial:" << std::to_string(acceptable_segment_trials) << " " << random_segment << endl;
+            }else{
+                acceptable_segment_trials++;
             }
 
+            if (acceptable_segment_trials < max_trials) {
+                segment_is_ok = true;
+            }
         }
+
 
         cout << "trial:" << std::to_string(acceptable_segment_trials) << " " << random_segment << endl;
         opt<Candidate> best;

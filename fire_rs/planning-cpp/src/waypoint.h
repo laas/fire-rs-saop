@@ -71,7 +71,7 @@ struct Segment final {
 
     constexpr Segment(const Waypoint& wp1) : start(wp1), end(wp1), length(0) {}
     Segment(const Waypoint& wp1, const Waypoint& wp2)
-            : start(wp1), end(wp2), length(sqrt(pow(wp1.x-wp2.x, 2) + pow(wp1.y-wp2.y, 2))) {}
+            : start(wp1), end(wp2), length(sqrt(pow(wp2.x-wp1.x, 2) + pow(wp2.y-wp1.y, 2))) {}
     Segment(const Waypoint& wp1, const double length)
             : start(wp1), end(Waypoint(wp1.x +cos(wp1.dir)*length, wp1.y + sin(wp1.dir)*length, wp1.dir)), length(length) {}
 
@@ -96,6 +96,22 @@ struct PointTime final {
 struct TimeWindow final {
     double start;
     double end;
+
+    friend std::ostream& operator<<(std::ostream& os, const TimeWindow& time_window) {
+        return os << "[" << time_window.start << ", " << time_window.end << ")";
+    }
+
+    double center() const {
+        return (start+end)/2;
+    }
+
+    bool contains(const double time) const {
+        return time >= start && time < end;
+    }
+
+    bool is_within(const TimeWindow& time_window) const {
+        return start <= time_window.start && end < time_window.end;
+    }
 };
 
 struct PointTimeWindow final {

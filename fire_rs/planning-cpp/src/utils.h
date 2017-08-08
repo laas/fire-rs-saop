@@ -66,6 +66,15 @@ double positive_modulo(double left, double right) {
         return base + right;
 }
 
+/*Compare dereferenced values. From https://stackoverflow.com/a/19381106*/
+template <typename T>
+struct PComp
+{
+    bool operator ()(const T* a, const T* b) const
+    {
+        return *a < *b;
+    }
+};
 
 
 #endif //PLANNING_CPP_DEBUG_H
