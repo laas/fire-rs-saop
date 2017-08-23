@@ -95,13 +95,16 @@ struct Plan {
         for(auto traj : trajectories) {
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
                 const Segment& seg = traj[seg_id];
-                const Waypoint wp = traj.conf.uav.visibilty_center(seg);
+
                 double obs_time = traj.start_time(seg_id);
-                Cell c = fire->ignitions.as_cell(wp);
-                if(fire->ignitions(c) <= obs_time && obs_time <= fire->traversal_end(c)) {
-                    // this observation overlaps the firefront, add it to the valid observations.
-                    PointTime ptt{Point{wp.x, wp.y}, traj.start_time(seg_id)};
-                    obs.push_back(ptt);
+                opt<std::vector<Cell>> opt_cells = segment_trace(seg, fire->ignitions);
+                if (opt_cells) {
+                    for (const auto &c : *opt_cells) {
+                        if (fire->ignitions(c) <= obs_time && obs_time <= fire->traversal_end(c)) {
+                            // If the cell is observable, add it to the observations list
+                            obs.push_back(PointTime {fire->ignitions.as_point(c), traj.start_time(seg_id)});
+                        }
+                    }
                 }
             }
         }
@@ -180,6 +183,44 @@ struct Plan {
                     seg_id++;
             }
         }
+    }
+
+    /* Get the cells of the Raster
+     * */
+    template <typename GenRaster>
+    static opt<std::vector<Cell>> segment_trace(const Segment& segment, const GenRaster& raster) {
+        std::vector<Cell> trace = {};
+
+        /* If part of the segment is out of raster bounds, we do nothing.*/
+        if (!raster.is_in(segment.start) || !raster.is_in(segment.end) ) {
+            return {};
+        }
+
+        Cell cell_start = raster.as_cell(segment.start);
+        Cell cell_end = raster.as_cell(segment.end);
+
+        size_t c_x = cell_start.x;
+        size_t c_y = cell_start.y;
+
+        long dx = abs(static_cast<long>(cell_end.x) - static_cast<long>(cell_start.x));
+        long sx = cell_start.x<cell_end.x ? 1 : -1;
+        long dy = -abs(static_cast<long>(cell_end.y) - static_cast<long>(cell_start.y));
+        long sy = cell_start.y<cell_end.y ? 1 : -1;
+        long err = dx + dy;
+        long e2 = 0;
+
+        trace.push_back(Cell{c_x, c_y});
+        while(c_x != cell_end.x || c_y != cell_end.y) {
+            e2 = 2*err;
+            if (e2 >= dy) {
+                err += dy; c_x += sx;
+            }
+            if (e2 <= dx) {
+                err += dx; c_y += sy;
+            }
+            trace.push_back(Cell{c_x, c_y});
+        }
+        return trace;
     }
 
 private:

@@ -8,6 +8,10 @@ struct Cell final {
     size_t x;
     size_t y;
 
+    Cell() = default;
+
+    Cell(const size_t x, const size_t y) : x(x), y(y) {}
+
     bool operator!=(Cell& pt) { return x != pt.x || y != pt.y; }
 
     friend std::ostream& operator<< (std::ostream& stream, const Cell& pt) {

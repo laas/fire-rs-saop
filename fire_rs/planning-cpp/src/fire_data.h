@@ -17,6 +17,8 @@ struct IsochroneCluster final {
     const TimeWindow time_window; /* Time span of this cluster. End time is excluded of the range: t ∈ [t_start, t_end)*/
     vector<Cell> cells; /* Cells belonging to this cluster */
 
+    IsochroneCluster(const TimeWindow tw, vector<Cell> cell_vector) : time_window(tw), cells(cell_vector) {}
+
     /* IsochroneCluster "less than" comparison by center of time*/
     friend bool operator< (const IsochroneCluster& isochroneClusterA, const IsochroneCluster& isochroneClusterB){
         return isochroneClusterA.time_window.center() < isochroneClusterB.time_window.center();
@@ -40,7 +42,7 @@ public:
 
     /** Cells within the same timespan. */
     const vector<shared_ptr<IsochroneCluster>> isochrones;
-    static constexpr double isochrone_timespan = 60.0;
+    static constexpr double isochrone_timespan = 300.0;
 
     FireData(const DRaster& ignitions)
             : ignitions(ignitions),
@@ -236,6 +238,10 @@ private:
 
                     if (!isochrone_found) {
                         long range_index = static_cast<long>(cellTimeWindow.center() / cluster_timespan);
+                        if (range_index <= 0) {
+                            cout << "ERROR: range_index = " << range_index << " < 0." << endl;
+                            cout << '\t' << "cellTimeWindow = " << cellTimeWindow << endl;
+                        }
                         ASSERT(range_index > 0);
 
                         double t_start = range_index*cluster_timespan;
@@ -254,12 +260,12 @@ private:
                       return a->time_window.center() < b->time_window.center();});
 
         /* Print the resulting isochrone vector */
-        for(auto iso : isochrones) {
-            cout << "Isochrone: " << iso->time_window << endl;
-            for (auto c : iso->cells) {
-                cout << '\t' << c << endl;
-            }
-        }
+//        for(auto iso : isochrones) {
+//            cout << "Isochrone: " << '(' << iso->time_window.start/60 << ", " << iso->time_window.end/60 << ')' << endl;
+//            for (auto c : iso->cells) {
+//                cout << '\t' << c << endl;
+//            }
+//        }
 
         return isochrones;
     }

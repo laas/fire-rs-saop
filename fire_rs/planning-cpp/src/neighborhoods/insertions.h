@@ -5,14 +5,14 @@
 #include "../planning.h"
 #include "moves.h"
 
-struct SegementInsertNeighborhood : public Neighborhood{
+struct SegmentInsertNeighborhood : public Neighborhood{
 
     // Segment sampling constraints
-    const double min_segment_length = 50;
-    const double max_segment_length = 500;
+    const double min_segment_length = 100;
+    const double max_segment_length = 1000;
 
     const double max_trials;
-    SegementInsertNeighborhood(double max_trials = 50) : max_trials(max_trials) {}
+    SegmentInsertNeighborhood(double max_trials = 50) : max_trials(max_trials) {}
 
     opt<PLocalMove> get_move(PPlan p) override {
         IdentityMove no_move(p);
@@ -20,7 +20,13 @@ struct SegementInsertNeighborhood : public Neighborhood{
 
         size_t num_tries = 0;
         while(num_tries++ < max_trials) {
-            opt<PLocalMove> candidateOpt = get_move_for_random_possible_observation(p);
+            opt<Segment> segmentOpt= generate_random_segment(p);
+            if (!segmentOpt) {
+                continue;
+            }
+            Segment random_segment = *segmentOpt;
+
+            opt<PLocalMove> candidateOpt = get_move_for_segment(p, random_segment);
             if(candidateOpt) {
                 // a move was generated
                 PLocalMove candidate_move = *candidateOpt;
@@ -38,6 +44,7 @@ struct SegementInsertNeighborhood : public Neighborhood{
                 }
             }
         }
+
         return best;
     }
 
@@ -48,8 +55,7 @@ private:
                || (ALMOST_LESSER_EQUAL(first.cost(), other.cost()) && first.duration() < other.duration());
     }
 
-    /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
-    opt<PLocalMove> get_move_for_random_possible_observation(PPlan p) {
+    opt<Segment> generate_random_segment(PPlan p) {
         ASSERT(!p->trajectories.empty())
         if(p->possible_observations.empty())
             return {};
@@ -65,7 +71,7 @@ private:
         Point pt2 = p->fire->ignitions.as_point(iso_cluster->cells[pt2_ind]);
 
         /** Build a candidate segment*/
-        double angle = pt1.angle_to(pt2);
+        double angle = pt2.angle_to(pt1);
         Segment random_segment = Segment(Waypoint(pt1.x, pt2.y, angle), Waypoint(pt2.x, pt2.y, angle));
 
         bool segment_is_ok = min_segment_length <= random_segment.length && random_segment.length <= max_segment_length;
@@ -77,22 +83,25 @@ private:
             pt1 = p->fire->ignitions.as_point(iso_cluster->cells[pt1_ind]);
             pt2_ind = rand() % iso_cluster->cells.size();
             pt2 = p->fire->ignitions.as_point(iso_cluster->cells[pt2_ind]);
-            angle = pt1.angle_to(pt2);
+            angle = pt2.angle_to(pt1);
             random_segment = Segment(Waypoint(pt1.x, pt1.y, angle), Waypoint(pt2.x, pt2.y, angle));
-
+            acceptable_segment_trials++;
             if(min_segment_length <= random_segment.length && random_segment.length <= max_segment_length){
                 segment_is_ok = true;
-            }else{
-                acceptable_segment_trials++;
-            }
+            }else
 
-            if (acceptable_segment_trials < max_trials) {
-                segment_is_ok = true;
+            if (acceptable_segment_trials > max_trials) {
+                return {};
             }
         }
 
-
         cout << "trial:" << std::to_string(acceptable_segment_trials) << " " << random_segment << endl;
+        return random_segment;
+    }
+
+    /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
+    opt<PLocalMove> get_move_for_segment(PPlan p, Segment s) {
+
         opt<Candidate> best;
 
         /** Try best insert for each subtrajectory in the plan */
@@ -101,7 +110,7 @@ private:
 
             for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
 
-                opt<Segment> current_segment = random_segment;
+                opt<Segment> current_segment = s;
                 bool updated = true;
                 size_t num_iter = 0;
 
@@ -111,11 +120,11 @@ private:
                     const double time = insert_loc==0 ?
                                         traj.start_time() :
                                         traj.end_time(insert_loc-1) +
-                                        traj.conf.uav.travel_time(traj[insert_loc-1].end, random_segment.start);
+                                        traj.conf.uav.travel_time(traj[insert_loc-1].end, s.start);
                     // back up current segment
                     const Segment previous = *current_segment;
 
-                    // project the segment on the firefront.
+//                     project the segment on the firefront.
                     current_segment = p->fire->project_on_firefront(previous, traj.conf.uav, time);
                     ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
 
@@ -139,8 +148,9 @@ private:
                     const double additional_flight_time = traj.insertion_duration_cost(insert_loc, *current_segment);
 
                     // discard candidate that would go over the max flight time.
-                    if (traj.duration() + additional_flight_time > traj.conf.max_flight_time)
+                    if (traj.duration() + additional_flight_time > traj.conf.max_flight_time) {
                         continue;
+                    }
 
                     if (!best || additional_flight_time < best->additional_flight_time) {
                         best = Candidate {i, insert_loc, *current_segment, additional_flight_time};
@@ -150,10 +160,11 @@ private:
         }
 
         /** Return the best, if any */
-        if(best)
+        if(best) {
             return opt<PLocalMove>(make_shared<Insert>(p, best->traj_id, best->segment, best->insert_loc));
-        else
+        }else {
             return {};
+        }
     }
 
 private:

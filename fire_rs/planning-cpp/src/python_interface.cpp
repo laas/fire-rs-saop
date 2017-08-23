@@ -34,13 +34,16 @@ py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
     return array;
 }
 
+PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
+
 PYBIND11_PLUGIN(uav_planning) {
     py::module m("uav_planning", "Python module for AUV trajectory planning");
 
     srand(time(0));
 
     py::class_<DRaster>(m, "DRaster")
-            .def("__init__", [](DRaster& self, py::array_t<double, py::array::c_style | py::array::forcecast> arr, double x_offset, double y_offset, double cell_width)  {
+            .def("__init__", [](DRaster& self, py::array_t<double, py::array::c_style | py::array::forcecast> arr,
+                                double x_offset, double y_offset, double cell_width)  {
                 // create a new object and sibstitute to the given self
                 new (&self) DRaster(as_vector<double>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
             })
@@ -52,7 +55,8 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("cell_width", &DRaster::cell_width);
 
     py::class_<LRaster>(m, "LRaster")
-            .def("__init__", [](LRaster& self, py::array_t<long, py::array::c_style | py::array::forcecast> arr, double x_offset, double y_offset, double cell_width) {
+            .def("__init__", [](LRaster& self, py::array_t<long, py::array::c_style | py::array::forcecast> arr,
+                                double x_offset, double y_offset, double cell_width) {
                 new (&self) LRaster(as_vector<long>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
             })
             .def("as_numpy", [](LRaster& self) {
@@ -62,13 +66,56 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("y_offset", &LRaster::y_offset)
             .def_readonly("cell_width", &LRaster::cell_width);
 
+    py::class_<TimeWindow>(m, "TimeWindow")
+            .def(py::init<const double, const double>(),
+                 py::arg("start"), py::arg("end"))
+            .def_readonly("start", &TimeWindow::start)
+            .def_readonly("end", &TimeWindow::end)
+            .def("__repr__",
+                 [](const TimeWindow &tw) {
+                     std::stringstream repr;
+                     repr << "TimeWindow(" << tw.start << ", " << tw.end << ")";
+                     return repr.str();
+                 }
+            );
+
+    py::class_<Cell>(m, "Cell")
+            .def(py::init<const size_t, const size_t>(),
+                 py::arg("x"), py::arg("y"))
+            .def_readonly("x", &Cell::x)
+            .def_readonly("y", &Cell::y)
+            .def("__repr__",
+                 [](const Cell &c) {
+                     std::stringstream repr;
+                     repr << "Cell(" << c.x << ", " << c.y << ")";
+                     return repr.str();
+                 }
+            );
+
+    py::class_<IsochroneCluster, shared_ptr<IsochroneCluster>>(m, "IsochroneCluster")
+            .def("__init__", [](IsochroneCluster& self, const TimeWindow& tw, vector<Cell> cell_vector) {
+                new (&self) IsochroneCluster(tw, cell_vector);
+            })
+            .def_readonly("time_window", &IsochroneCluster::time_window)
+            .def_readonly("cells", &IsochroneCluster::cells);
+
+    py::class_<FireData>(m, "FireData")
+            .def("__init__", [](FireData& self, DRaster& ignitions) {
+                new (&self) FireData(ignitions);
+            })
+            .def_readonly("ignitions", &FireData::ignitions)
+            .def_readonly("traversal_end", &FireData::traversal_end)
+            .def_readonly("propagation_directions", &FireData::propagation_directions)
+//            .def_readonly_static("isochrone_timespan", &FireData::isochrone_timespan)
+            .def_readonly("isochrones", &FireData::isochrones);
+
     py::class_<Waypoint>(m, "Waypoint")
             .def(py::init<const double, const double, const double>(),
                  py::arg("x"), py::arg("y"), py::arg("direction"))
             .def_readonly("x", &Waypoint::x)
             .def_readonly("y", &Waypoint::y) 
             .def_readonly("dir", &Waypoint::dir)
-            .def("__repr__", &Waypoint::to_string); 
+            .def("__repr__", &Waypoint::to_string);
 
     py::class_<Segment>(m, "Segment")
             .def(py::init<const Waypoint, const double>())
@@ -85,6 +132,9 @@ PYBIND11_PLUGIN(uav_planning) {
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const TrajectoryConfig&>())
+            .def("start_time", (double (Trajectory::*)() const)&Trajectory::start_time)
+            .def("end_time", (double (Trajectory::*)() const)&Trajectory::end_time)
+            .def_readonly("segments", &Trajectory::traj)
             .def("length", &Trajectory::length)
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints, py::arg("step_size")= -1)
@@ -106,12 +156,14 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("max_flight_time", &TrajectoryConfig::max_flight_time)
             .def_static("build", [](UAV uav, double start_time, double max_flight_time) -> TrajectoryConfig {
                 return TrajectoryConfig(uav, start_time, max_flight_time);
-            }, "Constructor", py::arg("uav"), py::arg("start_time") = 0, py::arg("max_flight_time") = std::numeric_limits<double>::max());
+            }, "Constructor", py::arg("uav"), py::arg("start_time") = 0,
+                        py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
             .def_readonly("trajectories", &Plan::trajectories)
             .def("cost", &Plan::cost)
-            .def("duration", &Plan::duration);
+            .def("duration", &Plan::duration)
+            .def_readonly("firedata", &Plan::fire);
 
     py::class_<SearchResult>(m, "SearchResult")
             .def("initial_plan", &SearchResult::initial)
@@ -130,9 +182,11 @@ PYBIND11_PLUGIN(uav_planning) {
 
         auto res = vns.search(p, 0, save_every);
         return res;
-    }, py::arg("uav"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"), py::arg("save_every") = 0);
+    }, py::arg("uav"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"),
+          py::arg("save_every") = 0);
 
-    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, double min_time, double max_time, size_t save_every) -> SearchResult {
+    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, double min_time, double max_time,
+                         size_t save_every) -> SearchResult {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -156,7 +210,8 @@ PYBIND11_PLUGIN(uav_planning) {
         res.planning_time = planning_end - planning_start;
         res.preprocessing_time = preprocessing_end - preprocessing_start;
         return res;
-    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("save_every") = 0);
+    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"),
+          py::arg("save_every") = 0);
 
     return m.ptr();
 }

@@ -1,6 +1,7 @@
 #ifndef PLANNING_CPP_WAYPOINT_H
 #define PLANNING_CPP_WAYPOINT_H
 
+#include <cmath>
 #include <sstream>
 #include "utils.h"
 
@@ -86,6 +87,10 @@ struct Segment final {
     bool operator!=(const Segment& o) const {
         return start != o.start || end != o.end || !ALMOST_EQUAL(length, o.length);
     }
+
+    Segment reversed() const {
+        return Segment{this->end.rotate(M_PI), this->start.rotate(M_PI)};
+    }
 };
 
 struct PointTime final {
@@ -96,6 +101,10 @@ struct PointTime final {
 struct TimeWindow final {
     double start;
     double end;
+
+    TimeWindow() = default;
+
+    TimeWindow(const double start, const double end) : start(start), end(end) {}
 
     friend std::ostream& operator<<(std::ostream& os, const TimeWindow& time_window) {
         return os << "[" << time_window.start << ", " << time_window.end << ")";
