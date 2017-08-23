@@ -169,7 +169,7 @@ class World:
 
         # extract DEM on a slightly large area to avoid border effects
         dem = self.get_elevation([[x_min-25, x_max+25], [y_min-25, y_max+25]])
-        z = dem.data.view(np.float32)
+        z = dem.data.view(np.float64)
         assert dem.data.shape == z.shape, 'Apparently, the returned DEM is not an array of float'
 
         def rolled(x_roll, y_roll):
@@ -186,8 +186,8 @@ class World:
         # get percentage of slope and the direction of raise and save them as GeoData
         slope_percent = np.sqrt(np.power(dzdx, 2) + np.power(dzdy, 2)) * 100
         raise_dir = np.arctan2(dzdy, dzdx)
-        sp = dem.clone(np.array(slope_percent, dtype=[('slope', 'float32')]))
-        rd = dem.clone(np.array(raise_dir, dtype=[('raise_dir', 'float32')]))
+        sp = dem.clone(np.array(slope_percent, dtype=[('slope', 'float64')]))
+        rd = dem.clone(np.array(raise_dir, dtype=[('raise_dir', 'float64')]))
 
         # combine slope and raise direction into one GeoData and fit it to the area originally asked
         return sp.combine(rd).subset(Area(x_min, x_max, y_min, y_max))

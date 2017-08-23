@@ -45,9 +45,9 @@ def regular_partition_clustering(arr, max_error):
     """
     if isinstance(arr, GeoData):
         assert len(arr.layers) == 1, "Cannot cluster a GeoData with more than 1 layer"
-        x = arr.data.reshape(arr.data.size).astype('float32')
+        x = arr.data.reshape(arr.data.size).astype('float64')
     else:
-        x = arr.reshape(arr.size).astype('float32')
+        x = arr.reshape(arr.size).astype('float64')
     # modify x so that (1) the smallest value is 0 and (2) a variation of max_error becomes a variation of 1
     x = (x - np.min(x)) / max_error
     # clustering is simply done by rounding and casting to int

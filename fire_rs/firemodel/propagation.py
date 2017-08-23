@@ -103,7 +103,7 @@ class FirePropagation:
     def __init__(self, environment: 'Environment'):
         self.environment = environment
         # build internal data structure compose of three layers ['ignition', 'x_pred', 'y_pred']
-        self.prop_data = environment.raster.clone(fill_value=2**63-1, dtype=[('ignition', 'float32')])
+        self.prop_data = environment.raster.clone(fill_value=np.finfo(np.float64).max, dtype=[('ignition', 'float64')])
         tmp2 = environment.raster.clone(fill_value=-1, dtype=[('x_pred', 'int32'), ('y_pred', 'int32')])
         self.prop_data = self.prop_data.combine(tmp2)
 
@@ -184,8 +184,8 @@ class FirePropagation:
                     self._push_to_propagation_queue(x + dx, y + dy, t + dt)
 
     def information_matrix(self):
-        d = self.prop_data.clone(fill_value=0, dtype=[('env_cluster', 'int32'), ('propagation_angle', 'float32'),
-                                                      ('propagation_speed', 'float32'), ('error_on_speed', 'float32')])
+        d = self.prop_data.clone(fill_value=0, dtype=[('env_cluster', 'int32'), ('propagation_angle', 'float64'),
+                                                      ('propagation_speed', 'float64'), ('error_on_speed', 'float64')])
         for x in range(0, d.max_x):
             for y in range(0, d.max_y):
                 dxy = d.data[x, y]

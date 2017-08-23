@@ -259,7 +259,7 @@ class GeoData:
         origin_x = self.x_offset - self.cell_width / 2
 
         driver = gdal.GetDriverByName('GTiff')
-        out_raster = driver.Create(filename, cols, rows, len(layers), gdal.GDT_Float32)
+        out_raster = driver.Create(filename, cols, rows, len(layers), gdal.GDT_Float64)
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
         for i, layer in enumerate(layers):
             outband = out_raster.GetRasterBand(i+1)
@@ -289,7 +289,7 @@ class GeoData:
             band_name = raster_band.GetDescription()
             if not band_name:
                 band_name = "band {}".format(i + 1)
-            layer = np.array(raster_band.ReadAsArray(), dtype=[(band_name, np.float32)])
+            layer = np.array(raster_band.ReadAsArray(), dtype=[(band_name, np.float64)])
             layers.append(layer)
 
         array = join_structured_arrays(layers)

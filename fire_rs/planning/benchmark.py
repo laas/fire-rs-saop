@@ -17,7 +17,7 @@ import fire_rs.uav_planning as up
 from fire_rs.geodata.geo_data import TimedPoint, Area
 
 
-_DBL_MAX = np.finfo(np.float32).max # FIXME: _DBL_MAX should be set to double max when ignitions is no longer float32
+_DBL_MAX = np.finfo(np.float64).max
 
 
 class UAV:

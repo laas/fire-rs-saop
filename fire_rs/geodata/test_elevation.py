@@ -79,7 +79,7 @@ class IGNElevationMap(unittest.TestCase):
 
     def test_array_extraction(self):
         elevation = self.elevation_map.get_values([[474987.5, 507900.5], [6175012.5, 6209012.5]])
-        z = elevation.data.view('float32')
+        z = elevation.data.view('float64')
         (x_size, y_size) = z.shape
         for x in range(0, x_size, 10):
             for y in range(0, y_size, 10):

@@ -13,7 +13,7 @@ class ElevationTile(RasterTile):
 
     def __init__(self, filename, nodata_fill=None):
         """Initialise ElevationTile."""
-        super().__init__(filename, [('elevation', 'float32')], nodata_fill)
+        super().__init__(filename, [('elevation', 'float64')], nodata_fill)
 
     def get_elevation(self, location):
         """Get height of projected location."""
@@ -22,7 +22,7 @@ class ElevationTile(RasterTile):
     @property
     def z(self):
         """Return a 2D array of elevations."""
-        return self.data.view('float32')
+        return self.data.view('float64')
 
     def __getitem__(self, key):
         """Get height of projected location."""

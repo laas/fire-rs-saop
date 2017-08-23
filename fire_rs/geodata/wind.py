@@ -155,7 +155,7 @@ class WindMap(DigitalMap):
 class WindTile(RasterTile):
 
     def __init__(self, windfile_paths):
-        super().__init__(windfile_paths, [('wind_velocity', 'float32'), ('wind_angle', 'float32')])
+        super().__init__(windfile_paths, [('wind_velocity', 'float64'), ('wind_angle', 'float64')])
 
     def _load_data(self):
         super()._load_data()
