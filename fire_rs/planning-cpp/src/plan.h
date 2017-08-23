@@ -118,7 +118,6 @@ struct Plan {
     void erase_segment(size_t traj_id, size_t at_index) {
         ASSERT(traj_id < trajectories.size());
         ASSERT(at_index < trajectories[traj_id].traj.size());
-        Segment deleted = trajectories[traj_id][at_index];
         trajectories[traj_id].erase_segment(at_index);
         post_process();
     }

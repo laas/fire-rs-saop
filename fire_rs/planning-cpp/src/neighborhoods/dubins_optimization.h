@@ -59,7 +59,7 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
             return {};
 
         // Generates local moves until one is improves duration and is valid or the maximum number of trials is reached.
-        int num_trials = 0;
+        size_t num_trials = 0;
         while(num_trials++ < max_trials) {
             // pick a random trajectory in plan.
             const size_t traj_id = rand(0, plan->trajectories.size());
