@@ -236,6 +236,8 @@ def main():
                         help="resolution of the output figures",
                         type=int,
                         default=150)
+    parser.add_argument("--wait", action="store_true",
+                        help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
     args = parser.parse_args()
 
     # Set-up output options
@@ -269,7 +271,6 @@ def main():
     else:
         logging.info("Running default benchmark from '%s'", benchmark_dir)
 
-
     # Current date and time string
     run_id = time.strftime("%Y-%m-%d--%H:%M:%S")
 
@@ -277,6 +278,9 @@ def main():
     run_dir = os.path.join(benchmark_dir, run_id)
     if not os.path.exists(run_dir):
         os.makedirs(run_dir)
+
+    if args.wait:
+        input("Press enter to continue...")
 
     i=0
     for scenario in scenarios:
