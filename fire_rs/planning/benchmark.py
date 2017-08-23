@@ -1,15 +1,23 @@
 import matplotlib
 matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
+import matplotlib.cm
+import matplotlib.colors
+import matplotlib.pyplot
 import numpy as np
 import random
 import time
+import types
 
 from collections import namedtuple
+from typing import Optional, Tuple
 
 import fire_rs.geodata.display
 import fire_rs.uav_planning as up
 
 from fire_rs.geodata.geo_data import TimedPoint, Area
+
+
+_DBL_MAX = np.finfo(np.float32).max # FIXME: _DBL_MAX should be set to double max when ignitions is no longer float32
 
 
 class UAV:
@@ -21,6 +29,10 @@ class UAV:
 
     def as_cpp(self):
         return up.UAV(self.max_air_speed, self.max_angular_velocity)
+
+    def __repr__(self):
+        return "".join(("UAV(max_air_speed=", repr(self.max_air_speed), ", max_angular_velocity=", repr(self.max_angular_velocity),
+                        ", base_waypoint=", repr(self.base_waypoint), ")"))
 
 
 class Flight:
@@ -36,6 +48,10 @@ class Flight:
         x = self.uav.base_waypoint
         wp = up.Waypoint(x[0], x[1], x[2])
         return up.TrajectoryConfig(self.uav.as_cpp(), wp, wp, self.start_time, self.max_flight_time)
+
+    def __repr__(self):
+        return "".join(("Flight(uav=", repr(self.uav), ", start_time=", repr(self.start_time),
+                        ", max_flight_time=", repr(self.max_flight_time), ")"))
 
 
 class Scenario:
@@ -59,39 +75,73 @@ class Scenario:
             self.time_window_start = min(self.time_window_start, flight.start_time - 180)
             self.time_window_end = max(self.time_window_end, flight.start_time+flight.max_flight_time + 180)
 
-
-def plot_trajectory(traj, axes=None, blocking=False, display=True, color='r'):
-    import matplotlib.pyplot as plt
-    if not axes:
-        axes = plt.figure().gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
-    sampled_waypoints = traj.as_waypoints(step_size=2)
-    x = [wp.x for wp in sampled_waypoints]
-    y = [wp.y for wp in sampled_waypoints]
-    path_patch = axes.scatter(x, y, s=0.1, c=color, edgecolor=color)
-
-    waypoints = traj.as_waypoints()
-    x = [wp.x for wp in waypoints]
-    y = [wp.y for wp in waypoints]
-    waypoints_patch_a = axes.scatter(x[::2], y[::2], c=color, marker='D')
-    waypoints_patch_b = axes.scatter(x[1::2], y[1::2], c=color, marker='>')
-    if display:
-        plt.show(block=blocking)
-    return axes, [waypoints_patch_a, waypoints_patch_b, path_patch]
+    def __repr__(self):
+        return "".join(["Scenario(area=", repr(self.area), ", wind_speed=", repr(self.wind_speed),
+                        ", wind_direction=", repr(self.wind_direction), ", ignitions=", repr(self.ignitions),
+                        ", flights=", repr(self.flights), ")"])
 
 
-def plot_plan(plan, axes, blocking=False, display=True):
-    colors = ['r', 'b', 'g', 'c', 'w']
-    import matplotlib.pyplot as plt
-    patches_of_plan = []
-    print(len(plan.trajectories))
-    for i in range(len(plan.trajectories)):
-        traj = plan.trajectories[i]
-        _, traj_patches = plot_trajectory(traj, axes=axes, blocking=False, display=display, color=colors[i])
-        for tp in traj_patches:
-            patches_of_plan.append(tp)
-    if display:
-        plt.show(block=blocking)
-    return patches_of_plan
+class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
+    """Extension to GeoDataDisplay that an observation plan."""
+
+    def __init__(self, plan_trajectory):
+        self.plan_trajectory = plan_trajectory
+
+    def extend(self, geodatadisplay):
+        '''Bounds drawing methods to a GeoDataDisplayInstance.'''
+        geodatadisplay.plan_trajectory = self.plan_trajectory
+        geodatadisplay.draw_waypoints = types.MethodType(PlanDisplayExtension._draw_waypoints_extension, geodatadisplay)
+        geodatadisplay.draw_path = types.MethodType(PlanDisplayExtension._draw_path_extension, geodatadisplay)
+        geodatadisplay.draw_segments = types.MethodType(PlanDisplayExtension._draw_segments_extension, geodatadisplay)
+
+    def _draw_waypoints_extension(self, *args, **kwargs):
+        '''Draw path waypoints in a GeoDataDisplay figure.'''
+        color = kwargs.get('color', 'C0')
+        waypoints = self.plan_trajectory.as_waypoints()
+        x = [wp.x for wp in waypoints]
+        y = [wp.y for wp in waypoints]
+        self._drawings.append(self.axis.scatter(x[::2], y[::2], s=7, c=color, marker='D'))
+        self._drawings.append(self.axis.scatter(x[1::2], y[1::2], s=7, c=color, marker='>'))
+
+    def _draw_path_extension(self, *args, colorbar_time_range: 'Optional[Tuple[float, float]]' = None, **kwargs):
+        '''Draw trajectory in a GeoDataDisplay figure.
+        
+        Optional argument colorbar_time_range may be a tuple of start and end times in seconds.'''
+        sampled_waypoints = self.plan_trajectory.as_waypoints(step_size=5)
+        x = [wp.x for wp in sampled_waypoints]
+        y = [wp.y for wp in sampled_waypoints]
+        color_range = np.linspace(self.plan_trajectory.start_time() / 60, self.plan_trajectory.end_time() / 60, len(x))
+        color_norm = matplotlib.colors.Normalize(vmin=color_range[0], vmax=color_range[-1])
+        if colorbar_time_range is not None:
+            color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0]/60, vmax=colorbar_time_range[1]/60)
+        self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
+                                       norm=color_norm, cmap=matplotlib.cm.gist_rainbow, zorder=2))
+        if kwargs.get('with_colorbar', False):
+            cb = self._figure.colorbar(self._drawings[-1], ax=self.axis, shrink=0.65, aspect=20)
+            cb.set_label("Flight time [min]")
+            self._colorbars.append(cb)
+
+    def _draw_segments_extension(self, *args, **kwargs):
+        '''Draw path segments in a GeoDataDisplay figure.'''
+        color = kwargs.get('color', 'C0')
+        segments = self.plan_trajectory.segments
+        start_x = [s.start.x for s in segments]
+        start_y = [s.start.y for s in segments]
+        end_x = [s.end.x for s in segments]
+        end_y = [s.end.y for s in segments]
+        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, c=color, marker='D', zorder=2))
+        self._drawings.append(self.axis.scatter(end_x, end_y, s=10, c=color, marker='>', zorder=2))
+
+
+def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
+    gdisplay = PlanDisplayExtension(None).extend(geodatadisplay)
+    colors = ['C'+str(i) for i in range(len(plan.trajectories))]
+    for traj, color in zip(plan.trajectories, colors):
+        geodatadisplay.plan_trajectory = traj
+        geodatadisplay.draw_path(colorbar_time_range=time_range, with_colorbar=True)
+        geodatadisplay.draw_segments(color=color)
+    if show:
+        geodatadisplay.axis.get_figure().show()
 
 
 def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, plot=False):
@@ -109,8 +159,15 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
                       scenario.time_window_start, scenario.time_window_end, save_every=0)
     plan = res.final_plan()
 
-    # Draw the final plan on a figure
 
+    # Representation of unburned cells using max double is not suitable for display,
+    # so those values must be converted to NaN
+    ignitions_nan = ignitions['ignition'].copy()
+    ignitions_nan[ignitions_nan == _DBL_MAX] = np.nan
+    first_ignition = np.nanmin(ignitions_nan)
+    last_ignition = np.nanmax(ignitions_nan)
+
+    # Draw the final plan on a figure
     geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
 
     for layer in output_options_plot['background']:
@@ -122,12 +179,15 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
             geodatadisplay.draw_ignition_contour(with_labels=True)
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
-    plot_plan(res.final_plan(), axes=geodatadisplay.axis, blocking=True, display=plot)
+
+    plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
     print("saving as: " + str(os.path.join(save_directory, instance_name + ".png")))
     geodatadisplay.axis.get_figure().set_size_inches(20, 15)
     geodatadisplay.axis.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
+
+    matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
 
     # Save plan statistics
     summary_file = os.path.join(save_directory, "summary.csv")
@@ -180,7 +240,7 @@ def generate_scenario():
     uav_speed = 18.  # m/s
     uav_max_turn_rate = 32. * np.pi / 180
     uav_bases = [  # four corners of the map
-        Waypoint(area.xmin +100, area.ymin+100, 0),
+        Waypoint(area.xmin+100, area.ymin+100, 0),
         Waypoint(area.xmin+100, area.ymax-100, 0),
         Waypoint(area.xmax-100, area.ymin+100, 0),
         Waypoint(area.xmax-100, area.ymax-100, 0)

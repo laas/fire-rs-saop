@@ -2,6 +2,7 @@
 
 __all__ = ['GeoDataDisplay', 'IgnitionPointDisplayExtension', 'UAVDisplayExtension']
 
+import abc
 import types
 
 import matplotlib
@@ -52,7 +53,7 @@ def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):
     if not nfronts:
         lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
         nfronts = int(np.clip(int((lim[1]-lim[0])/60)*10, 3, 20))
-    return ax.contour(x, y, ignition_times, nfronts, cmap=matplotlib.cm.Set1, **kwargs)
+    return ax.contour(x, y, ignition_times, nfronts, cmap=matplotlib.cm.gist_rainbow, **kwargs)
 
 
 def plot_elevation_contour(ax, x, y, z, **kwargs):
@@ -163,12 +164,19 @@ class GeoDataDisplay:
 
     def _add_ignition_shade_colorbar(self, shade, **kwargs):
         cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20)
-        cb.set_label("Time [min]")
+        cb.set_label("Ignition time [min]")
         self._colorbars.append(cb)
 
 
 # "DisplayExtension" classes attach new member functions to a GeoDataDisplay to make it able to display other data
-class IgnitionPointDisplayExtension:
+class DisplayExtension(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def extend(self, geodatadisplay):
+        pass
+
+
+class IgnitionPointDisplayExtension(DisplayExtension):
     """Extension to GeoDataDisplay that draws ignition points"""
 
     def __init__(self, ignition_points):
@@ -177,7 +185,7 @@ class IgnitionPointDisplayExtension:
     def extend(self, geodatadisplay):
         '''Bounds draw_ignition_points to a GeoDataDisplayInstance.'''
         geodatadisplay.ignition_points = self.ignition_points
-        geodatadisplay.draw_ignition_points = types.MethodType(self._draw_ignition_points_extension, geodatadisplay)
+        geodatadisplay.draw_ignition_points = types.MethodType(IgnitionPointDisplayExtension._draw_ignition_points_extension, geodatadisplay)
 
     def _draw_ignition_points_extension(self, *args, **kwargs):
         '''Draw ignition point in a GeoDataDisplay figure.'''
@@ -185,7 +193,7 @@ class IgnitionPointDisplayExtension:
             self.drawings = plot_ignition_point(self.axis, p)
 
 
-class UAVDisplayExtension:
+class UAVDisplayExtension(DisplayExtension):
     """Extension to GeoDataDisplay that draws small uavs"""
 
     def __init__(self, uav_state):
@@ -194,7 +202,7 @@ class UAVDisplayExtension:
     def extend(self, geodatadisplay):
         '''Bounds draw_ignition_points to a GeoDataDisplayInstance.'''
         geodatadisplay.uav_state = self.uav_state
-        geodatadisplay.draw_uav = types.MethodType(self._draw_uav_extension, geodatadisplay)
+        geodatadisplay.draw_uav = types.MethodType(UAVDisplayExtension._draw_uav_extension, geodatadisplay)
 
     def _draw_uav_extension(self, *args, **kwargs):
         '''Draw ignition point in a GeoDataDisplay figure.'''
