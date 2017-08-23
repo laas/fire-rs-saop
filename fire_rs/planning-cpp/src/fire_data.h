@@ -224,8 +224,7 @@ private:
 
                 bool isochrone_found = false;
                 /*If eventually ignited*/
-                if(abs(ign_start) < 999999.0 && abs(ign_end-ign_start) < 999999.0) {
-                    #warning "if(abs(ign_start) < 999999.0 && abs(ign_end-ign_start) < 999999.0) { should be using a more robust constant"
+                if(abs(ign_start) < std::numeric_limits<double>::max() && abs(ign_end-ign_start) < std::numeric_limits<double>::max() ) {
                     TimeWindow cellTimeWindow = TimeWindow{ign_start, ign_end};
                     for (auto c : isochrones) {
                         if (c->time_window.contains(cellTimeWindow.center())) {

@@ -302,7 +302,7 @@ class FirePropagation:
 
         # mask all cells whose ignition has not been computed
         igni = np.array(self.ignitions().data['ignition'])
-        igni[igni >= 99999999999] = np.nan
+        igni[igni >= np.finfo(np.float64).max] = np.nan
 
         # plot fire front with contour lines in minutes
         fronts = fire_ax.contour(x, y, igni.T / 60, 10, cmap=cm.Set1)

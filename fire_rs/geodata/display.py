@@ -138,7 +138,7 @@ class GeoDataDisplay:
     def draw_ignition_contour(self, with_labels=True, **kwargs):
         # mask all cells whose ignition has not been computed
         igni = np.array(self._geodata['ignition'])
-        igni[igni >= 99999999999] = np.nan  # FIXME: this threshold is weakly defined
+        igni[igni >= np.finfo(np.float64).max] = np.nan
 
         # plot fire front with contour lines in minutes
         self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks, igni.T / 60.),
@@ -153,7 +153,7 @@ class GeoDataDisplay:
     def draw_ignition_shade(self, with_colorbar=True, **kwargs):
         # mask all cells whose ignition has not been computed
         igni = np.array(self._geodata['ignition'])
-        igni[igni >= 99999999999] = np.nan  # FIXME: this threshold is weakly defined
+        igni[igni >= np.finfo(np.float64).max] = np.nan
 
         shade = plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh, np.around(igni.T[::-1, ...]/60., 1),
                                     dx=self._geodata.cell_width, dy=self._geodata.cell_height,
