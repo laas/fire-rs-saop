@@ -242,7 +242,7 @@ private:
                             cout << "ERROR: range_index = " << range_index << " < 0." << endl;
                             cout << '\t' << "cellTimeWindow = " << cellTimeWindow << endl;
                         }
-                        ASSERT(range_index > 0);
+                        ASSERT(range_index >= 0);
 
                         double t_start = range_index*cluster_timespan;
                         double t_end = (range_index+1)*cluster_timespan;
