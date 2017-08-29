@@ -12,7 +12,7 @@ public:
     LocalMove(PPlan base) : base_plan(base) {}
 
     /** Cost that would result in applying the move. */
-    virtual double cost() = 0;
+    virtual double utility() = 0;
 
     /** Total duration that would result in applying the move */
     virtual double duration() = 0;
@@ -129,7 +129,8 @@ struct VariableNeighborhoodSearch {
                     ASSERT(m.is_valid());
                     m.apply();
 
-                    printf("Improvement (lvl: %d): cost: %f -- duration: %f\n", (int)current_neighborhood, best_plan->cost(), best_plan->duration());
+                    printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int)current_neighborhood,
+                           best_plan->utility(), best_plan->duration());
 
                     // plan changed, go back to first neighborhood
                     current_neighborhood = 0;

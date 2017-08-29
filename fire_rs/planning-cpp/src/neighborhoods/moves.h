@@ -13,7 +13,7 @@ public:
     IdentityMove(PPlan p) : LocalMove(p) {}
 
     /** Cost that would result in applying the move. */
-    virtual double cost() override { return base_plan->cost(); };
+    virtual double utility() override { return base_plan->utility(); };
 
     /** Total duration that would result in applying the move */
     virtual double duration() override { return base_plan->duration(); };
@@ -35,7 +35,7 @@ struct CloneBasedLocalMove : public LocalMove {
     }
 
     /** Cost that would result in applying the move. */
-    virtual double cost() override { init(); return _cost; };
+    virtual double utility() override { init(); return _cost; };
 
     /** Total duration that would result in applying the move */
     virtual double duration() override { init(); return _duration; };
@@ -46,7 +46,7 @@ private:
     void init() {
         if(!lazily_initialized) {
             PPlan clone = apply_on_new();
-            _cost = clone->cost();
+            _cost = clone->utility();
             _duration = clone->duration();
             _num_segments = clone->num_segments();
             _valid = clone->is_valid();

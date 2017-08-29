@@ -32,7 +32,7 @@ void test_single_point_to_observe() {
 }
 
 void test_many_points_to_observe() {
-    // circular fire spread
+    // circular firedata spread
     DRaster ignitions(100, 100, 0, 0, 1);
     for (size_t x = 0; x < 100; x++) {
         for (size_t y = 0; y < 100; y++) {
@@ -57,7 +57,7 @@ void test_many_points_to_observe_with_start_end_positions() {
     Waypoint start(5,5,0);
     Waypoint end(11,11,0);
 
-    // circular fire spread
+    // circular firedata spread
     DRaster ignitions(100, 100, 0, 0, 1);
     for (size_t x = 0; x < 100; x++) {
         for (size_t y = 0; y < 100; y++) {

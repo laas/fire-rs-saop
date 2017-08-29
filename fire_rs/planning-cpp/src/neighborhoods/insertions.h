@@ -5,14 +5,14 @@
 #include "../planning.h"
 #include "moves.h"
 
-struct SegmentInsertNeighborhood : public Neighborhood{
+struct SegmentInsertNeighborhood : public Neighborhood {
 
     // Segment sampling constraints
     const double min_segment_length = 100;
     const double max_segment_length = 1000;
 
     const double max_trials;
-    SegmentInsertNeighborhood(double max_trials = 50) : max_trials(max_trials) {}
+    explicit SegmentInsertNeighborhood(double max_trials = 50) : max_trials(max_trials) {}
 
     opt<PLocalMove> get_move(PPlan p) override {
         IdentityMove no_move(p);
@@ -51,8 +51,8 @@ struct SegmentInsertNeighborhood : public Neighborhood{
 private:
     /** this move is better than another if it has a significantly better cost or if it has a similar cost but a strictly better duration */
     bool is_better_than(LocalMove& first, LocalMove& other) {
-        return first.cost() < other.cost() -.7
-               || (ALMOST_LESSER_EQUAL(first.cost(), other.cost()) && first.duration() < other.duration());
+        return first.utility() < other.utility() -.7
+               || (ALMOST_LESSER_EQUAL(first.utility(), other.utility()) && first.duration() < other.duration());
     }
 
     opt<Segment> generate_random_segment(PPlan p) {
@@ -61,14 +61,14 @@ private:
             return {};
 
         /** Select a random isochrone */
-        const size_t iso_cluster_ind = rand() % p->fire->isochrones.size();
-        const shared_ptr<IsochroneCluster> iso_cluster = p->fire->isochrones[iso_cluster_ind];
+        const size_t iso_cluster_ind = rand() % p->firedata->isochrones.size();
+        const shared_ptr<IsochroneCluster> iso_cluster = p->firedata->isochrones[iso_cluster_ind];
 
         /** Pick two points from the isochrone */
         size_t pt1_ind = rand() % iso_cluster->cells.size();
-        Point pt1 = p->fire->ignitions.as_point(iso_cluster->cells[pt1_ind]);
+        Point pt1 = p->firedata->ignitions.as_point(iso_cluster->cells[pt1_ind]);
         size_t pt2_ind = rand() % iso_cluster->cells.size();
-        Point pt2 = p->fire->ignitions.as_point(iso_cluster->cells[pt2_ind]);
+        Point pt2 = p->firedata->ignitions.as_point(iso_cluster->cells[pt2_ind]);
 
         /** Build a candidate segment*/
         double angle = pt2.angle_to(pt1);
@@ -80,9 +80,9 @@ private:
         while (!segment_is_ok){
             /** Build another candidate*/
             pt1_ind = rand() % iso_cluster->cells.size();
-            pt1 = p->fire->ignitions.as_point(iso_cluster->cells[pt1_ind]);
+            pt1 = p->firedata->ignitions.as_point(iso_cluster->cells[pt1_ind]);
             pt2_ind = rand() % iso_cluster->cells.size();
-            pt2 = p->fire->ignitions.as_point(iso_cluster->cells[pt2_ind]);
+            pt2 = p->firedata->ignitions.as_point(iso_cluster->cells[pt2_ind]);
             angle = pt2.angle_to(pt1);
             random_segment = Segment(Waypoint(pt1.x, pt1.y, angle), Waypoint(pt2.x, pt2.y, angle));
             acceptable_segment_trials++;
@@ -125,7 +125,7 @@ private:
                     const Segment previous = *current_segment;
 
 //                     project the segment on the firefront.
-                    current_segment = p->fire->project_on_firefront(previous, traj.conf.uav, time);
+                    current_segment = p->firedata->project_on_firefront(previous, traj.conf.uav, time);
                     ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
 
                     if(current_segment && previous != *current_segment) {
@@ -240,8 +240,8 @@ struct OneInsertNbhd : public Neighborhood {
 private:
     /** this move is better than another if it has a significantly better cost or if it has a similar cost but a strictly better duration */
     bool is_better_than(LocalMove& first, LocalMove& other) {
-        return first.cost() < other.cost() -.7
-                   || (ALMOST_LESSER_EQUAL(first.cost(), other.cost()) &&  first.duration() < other.duration());
+        return first.utility() < other.utility() -.7
+                   || (ALMOST_LESSER_EQUAL(first.utility(), other.utility()) &&  first.duration() < other.duration());
     }
 
     /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
@@ -283,7 +283,7 @@ private:
                     const Segment previous = *current_segment;
 
                     // project the segment on the firefront.
-                    current_segment = p->fire->project_on_firefront(previous, traj.conf.uav, time);
+                    current_segment = p->firedata->project_on_firefront(previous, traj.conf.uav, time);
                     ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
 
                     if(current_segment && previous != *current_segment) {

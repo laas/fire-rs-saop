@@ -199,9 +199,9 @@ PYBIND11_PLUGIN(uav_planning) {
 
     py::class_<Plan>(m, "Plan")
             .def_readonly("trajectories", &Plan::trajectories)
-            .def("cost", &Plan::cost)
+            .def("utility", &Plan::utility)
             .def("duration", &Plan::duration)
-            .def_readonly("firedata", &Plan::fire);
+            .def_readonly("firedata", &Plan::firedata)
             .def("observations", &Plan::observations);
 
     py::class_<SearchResult>(m, "SearchResult")
@@ -232,7 +232,7 @@ PYBIND11_PLUGIN(uav_planning) {
             return (double) tp.tv_sec + ((double)(tp.tv_usec / 1000) /1000.);
         };
 
-        printf("Processing fire data\n");
+        printf("Processing firedata data\n");
         double preprocessing_start = time();
         auto fire_data = make_shared<FireData>(ignitions);
         double preprocessing_end = time();

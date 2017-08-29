@@ -124,7 +124,7 @@ private:
         assert(visibility(pt.x, pt.y) == 1 && is_of_interest(pt.x, pt.y));
         interesting_visited.push_back(pt);
 
-        // update costs of pending points if this new visited provides a better cost
+        // update costs of pending points if this new visited provides a better utility
         for(size_t i=0; i<interesting_pending.size(); i++) {
             const double cost_with_new = cost_by_dist(pt, interesting_pending[i]);
             if(cost_with_new < pending_costs[i])
@@ -143,10 +143,10 @@ private:
         }
         interesting_visited.erase(interesting_visited.begin()+index);
 
-        // update the cost of any pending whose cost was based on the presence of pt.
+        // update the utility of any pending whose utility was based on the presence of pt.
         for(size_t i=0; i<interesting_pending.size(); i++) {
             if(abs(pending_costs[i] - cost_by_dist(pt, interesting_pending[i])) < 0.0001) {
-                // recompute cost of pending
+                // recompute utility of pending
                 double best_cost = MAX_INDIVIDUAL_COST;
                 for(auto it=interesting_visited.begin(); it!=interesting_visited.end(); it++) {
                     const double cost = cost_by_dist(interesting_pending[i], *it);
@@ -163,7 +163,7 @@ private:
         assert(visibility(pt.x, pt.y) == 0 && is_of_interest(pt.x, pt.y));
         interesting_pending.push_back(pt);
 
-        // compute the cost of this point and store it
+        // compute the utility of this point and store it
         double best_cost = MAX_INDIVIDUAL_COST;
         for(auto it=interesting_visited.begin(); it!=interesting_visited.end(); it++) {
             const double cost = cost_by_dist(pt, *it);

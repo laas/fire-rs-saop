@@ -11,13 +11,14 @@ typedef shared_ptr<Plan> PPlan;
 struct Plan {
     const TimeWindow time_window;
     vector<Trajectory> trajectories;
-    shared_ptr<FireData> fire;
+    shared_ptr<FireData> firedata;
     vector<PointTimeWindow> possible_observations;
+
 
     Plan(const Plan& plan) = default;
 
     Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
-            : time_window(tw), fire(fire_data)
+            : time_window(tw), firedata(fire_data)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
@@ -25,13 +26,13 @@ struct Plan {
             trajectories.push_back(traj);
         }
 
-        for(size_t x=0; x<fire->ignitions.x_width; x++) {
-            for (size_t y = 0; y < fire->ignitions.y_height; y++) {
-                const double t = fire->ignitions(x, y);
+        for(size_t x=0; x<firedata->ignitions.x_width; x++) {
+            for (size_t y = 0; y < firedata->ignitions.y_height; y++) {
+                const double t = firedata->ignitions(x, y);
                 if (time_window.start <= t && t <= time_window.end) {
                     Cell c{x, y};
                     possible_observations.push_back(
-                            PointTimeWindow{fire->ignitions.as_point(c), {fire->ignitions(c), fire->traversal_end(c)}});
+                            PointTimeWindow{firedata->ignitions.as_point(c), {firedata->ignitions(c), firedata->traversal_end(c)}});
                 }
             }
         }
@@ -45,7 +46,7 @@ struct Plan {
         return true;
     }
 
-    /** SUm of all trajectory durations. */
+    /** Sum of all trajectory durations. */
     double duration() const {
         double duration = 0;
         for(auto& traj : trajectories)
@@ -56,7 +57,7 @@ struct Plan {
     /** Cost of the plan.
      * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
      **/
-    double cost() const {
+    double utility() const {
         vector<PointTime> done_obs = observations();
         double global_cost = 0;
         for(PointTimeWindow possible_obs : possible_observations) {
@@ -65,9 +66,9 @@ struct Plan {
             for(PointTime obs : done_obs) {
                 min_dist = min(min_dist, possible_obs.pt.dist(obs.pt));
             }
-            // cost is based on the minimal distance to the observation and normalized such that
-            // cost = 0 if min_dist <= REDUNDANT_OBS_DIST
-            // cost = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
+            // utility is based on the minimal distance to the observation and normalized such that
+            // utility = 0 if min_dist <= REDUNDANT_OBS_DIST
+            // utility = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
             // evolves linearly in between.
             const double self_cost = (max(min_dist, REDUNDANT_OBS_DIST)-REDUNDANT_OBS_DIST) / (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST);
             global_cost += self_cost;
@@ -148,7 +149,7 @@ struct Plan {
             while(seg_id <= traj.last_modifiable()) {
                 const Segment& seg = traj[seg_id];
                 const double t = traj.start_time(seg_id);
-                opt<Segment> projected = fire->project_on_firefront(seg, traj.conf.uav, t);
+                opt<Segment> projected = firedata->project_on_firefront(seg, traj.conf.uav, t);
                 if(projected) {
                     if(*projected != seg) {
                         // original is different than projection, replace it

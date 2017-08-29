@@ -201,11 +201,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     summary_file = os.path.join(save_directory, "summary.csv")
     if not os.path.exists(summary_file):
         with open(summary_file, "a") as summary:
-            summary.write("instance,planning-time,preprocessing-time,cost,duration\n")
+            summary.write("instance,planning-time,preprocessing-time,utility,duration\n")
 
     with open(summary_file, "a") as summary:
         summary.write("{},{},{},{},{}\n".format(
-            instance_name, res.planning_time, res.preprocessing_time, plan.cost(), plan.duration()))
+            instance_name, res.planning_time, res.preprocessing_time, plan.utility(), plan.duration()))
 
 
 Waypoint = namedtuple('Waypoint', 'x, y, dir')
@@ -294,7 +294,6 @@ def main():
                         help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
     parser.add_argument("--background", nargs='+',
                         help="list of background layers for the output figures, from bottom to top.",
-                        choices=['elevation_shade', 'ignition_shade', 'ignition_contour', 'wind_quiver'],
                         choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument("--format",

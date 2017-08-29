@@ -78,7 +78,7 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
             if(!optAngle)
                 continue; // generator not adapted to current segment, go to next trial
 
-            // compute the cost of the change
+            // compute the utility of the change
             const Segment replacement_segment = plan->uav(traj_id).rotate_on_visibility_center(traj[seg_id], *optAngle);
             const double local_duration_cost = traj.replacement_duration_cost(seg_id, replacement_segment);
 
