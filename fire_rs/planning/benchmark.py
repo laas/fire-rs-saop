@@ -125,13 +125,21 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
     def _draw_segments_extension(self, *args, **kwargs):
         '''Draw path segments in a GeoDataDisplay figure.'''
         color = kwargs.get('color', 'C0')
-        segments = self.plan_trajectory.segments
+        segments = self.plan_trajectory.segments[1:-1]
         start_x = [s.start.x for s in segments]
         start_y = [s.start.y for s in segments]
         end_x = [s.end.x for s in segments]
         end_y = [s.end.y for s in segments]
-        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, c=color, marker='D', zorder=2))
-        self._drawings.append(self.axis.scatter(end_x, end_y, s=10, c=color, marker='>', zorder=2))
+        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='D', zorder=2))
+        self._drawings.append(self.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>', zorder=2))
+
+        start_base = self.plan_trajectory.segments[0]
+        finish_base = self.plan_trajectory.segments[-1]
+
+        self._drawings.append(
+            self.axis.scatter(start_base.start.x, start_base.start.y, s=10, edgecolor='black', c=color, marker='o', zorder=2))
+        self._drawings.append(
+            self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10, edgecolor='black', c=color, marker='o', zorder=2))
 
     def _draw_observedcells(self, observations, **kwargs):
         for ptt in observations:
