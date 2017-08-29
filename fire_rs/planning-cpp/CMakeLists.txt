@@ -12,7 +12,7 @@ endif()
 set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/trajectory.h src/uav.h
         src/waypoint.h src/raster.h src/visibility.h src/planning.h src/ext/optional.h src/utils.h
         src/neighborhoods/dubins_optimization.h src/neighborhoods/insertions.h src/vns_interface.h
-        src/plan.h src/fire_data.h src/neighborhoods/moves.h src/neighborhoods/shuffling.h)
+        src/plan.h src/fire_data.h src/neighborhoods/moves.h src/neighborhoods/shuffling.h src/neighborhoods/smoothing.h)
 
 add_executable(planning_cpp ${SOURCE_FILES} src/test/main.cpp)
 

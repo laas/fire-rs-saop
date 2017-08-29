@@ -9,6 +9,7 @@
 #include "vns_interface.h"
 #include "neighborhoods/insertions.h"
 #include "neighborhoods/shuffling.h"
+#include "neighborhoods/smoothing.h"
 
 using namespace std;
 
@@ -24,9 +25,10 @@ private:
 };
 
 vector<shared_ptr<Neighborhood>> DefaultVnsSearch::defaults = {
+        make_shared<TrajectorySmoothingNeighborhood>(),
         make_shared<DubinsOptimizationNeighborhood>(),
 //        make_shared<SegmentInsertNeighborhood>(),
-        make_shared<OneInsertNbhd>()
+        make_shared<OneInsertNbhd>(),
 };
 
 

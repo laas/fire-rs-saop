@@ -205,7 +205,7 @@ private:
  * the best insertion for this point.
  */
 struct OneInsertNbhd : public Neighborhood {
-    const double default_segment_length = 30;
+    const double default_segment_length = 100;
 
     const double max_trials;
     OneInsertNbhd(double max_trials = 50) : max_trials(max_trials) {}
