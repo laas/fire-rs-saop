@@ -77,7 +77,10 @@ PYBIND11_PLUGIN(uav_planning) {
                      repr << "TimeWindow(" << tw.start << ", " << tw.end << ")";
                      return repr.str();
                  }
-            );
+            )
+            .def("as_tuple", [](TimeWindow &self) {
+                return py::make_tuple(self.start, self.end);
+            } );
 
     py::class_<Cell>(m, "Cell")
             .def(py::init<const size_t, const size_t>(),
@@ -90,7 +93,42 @@ PYBIND11_PLUGIN(uav_planning) {
                      repr << "Cell(" << c.x << ", " << c.y << ")";
                      return repr.str();
                  }
-            );
+            )
+            .def("as_tuple", [](Cell &self) {
+                return py::make_tuple(self.x, self.y);
+            } );
+
+    py::class_<Point>(m, "Point")
+            .def(py::init<double, double>(),
+                 py::arg("x"), py::arg("y"))
+            .def_readonly("x", &Point::x)
+            .def_readonly("y", &Point::y)
+            .def("__repr__",
+                 [](const Point &p) {
+                     std::stringstream repr;
+                     repr << "Point(" << p.x << ", " << p.y << ")";
+                     return repr.str();
+                 }
+            )
+            .def("as_tuple", [](Point &self) {
+                return py::make_tuple(self.x, self.y);
+            } );
+
+    py::class_<PointTime>(m, "PointTime")
+            .def(py::init<Point, double>(),
+                 py::arg("point"), py::arg("time"))
+            .def_readonly("pt", &PointTime::pt)
+            .def_readonly("y", &PointTime::time)
+            .def("__repr__",
+                 [](const PointTime &p) {
+                     std::stringstream repr;
+                     repr << "PointTime(" << p.pt.x <<", " << p.pt.y << ", " << p.time << ")";
+                     return repr.str();
+                 }
+            )
+            .def("as_tuple", [](PointTime &self) {
+                return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y), self.time);
+            } );
 
     py::class_<IsochroneCluster, shared_ptr<IsochroneCluster>>(m, "IsochroneCluster")
             .def("__init__", [](IsochroneCluster& self, const TimeWindow& tw, vector<Cell> cell_vector) {
@@ -164,6 +202,7 @@ PYBIND11_PLUGIN(uav_planning) {
             .def("cost", &Plan::cost)
             .def("duration", &Plan::duration)
             .def_readonly("firedata", &Plan::fire);
+            .def("observations", &Plan::observations);
 
     py::class_<SearchResult>(m, "SearchResult")
             .def("initial_plan", &SearchResult::initial)

@@ -93,6 +93,7 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         geodatadisplay.draw_waypoints = types.MethodType(PlanDisplayExtension._draw_waypoints_extension, geodatadisplay)
         geodatadisplay.draw_path = types.MethodType(PlanDisplayExtension._draw_path_extension, geodatadisplay)
         geodatadisplay.draw_segments = types.MethodType(PlanDisplayExtension._draw_segments_extension, geodatadisplay)
+        geodatadisplay.draw_observedcells = types.MethodType(PlanDisplayExtension._draw_observedcells, geodatadisplay)
 
     def _draw_waypoints_extension(self, *args, **kwargs):
         '''Draw path waypoints in a GeoDataDisplay figure.'''
@@ -132,9 +133,13 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         self._drawings.append(self.axis.scatter(start_x, start_y, s=10, c=color, marker='D', zorder=2))
         self._drawings.append(self.axis.scatter(end_x, end_y, s=10, c=color, marker='>', zorder=2))
 
+    def _draw_observedcells(self, observations, **kwargs):
+        for ptt in observations:
+            self.axis.scatter(ptt.as_tuple()[0][0], ptt.as_tuple()[0][1], s=4, c=(0., 1., 0., .5),
+                              zorder=2, edgecolors='none', marker='s')
+
 
 def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
-    gdisplay = PlanDisplayExtension(None).extend(geodatadisplay)
     colors = ['C'+str(i) for i in range(len(plan.trajectories))]
     for traj, color in zip(plan.trajectories, colors):
         geodatadisplay.plan_trajectory = traj
@@ -169,12 +174,15 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     # Draw the final plan on a figure
     geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
+    PlanDisplayExtension(None).extend(geodatadisplay)
 
     for layer in output_options_plot['background']:
         if layer == 'elevation_shade':
             geodatadisplay.draw_elevation_shade(with_colorbar=True)
         elif layer == 'ignition_shade':
             geodatadisplay.draw_ignition_shade(with_colorbar=True)
+        elif layer == 'observedcells':
+            geodatadisplay.draw_observedcells(res.final_plan().observations())
         elif layer == 'ignition_contour':
             geodatadisplay.draw_ignition_contour(with_labels=True)
         elif layer == 'wind_quiver':
@@ -287,6 +295,7 @@ def main():
     parser.add_argument("--background", nargs='+',
                         help="list of background layers for the output figures, from bottom to top.",
                         choices=['elevation_shade', 'ignition_shade', 'ignition_contour', 'wind_quiver'],
+                        choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument("--format",
                         help="format of the output figures",
