@@ -119,6 +119,14 @@ public:
         return conf.end_position ? traj.size()-2 : traj.size() -1;
     }
 
+    /* Random segment index selected among modifiable segments */
+    opt<size_t> random_modifiable_id () const {
+        if (first_modifiable() > last_modifiable()) {
+            return {};
+        }
+        return rand(first_modifiable(), last_modifiable() + 1);
+    }
+
     /** Accesses the index-th segment of the trajectory */
     const Segment& operator[] (size_t index) const { return traj[index]; }
 
