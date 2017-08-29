@@ -203,13 +203,19 @@ public:
         return removal_length_gain(index) / conf.uav.max_air_speed;
     }
 
-    /** Computes the cost of replacing the N segments at [index, index+N] with the N segments given in parameter. */
+    /** Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
     double replacement_length_cost(size_t index, const std::vector<Segment>& segments) const {
-        const unsigned long end_index = index + segments.size() - 1;
+        return replacement_length_cost(index, segments.size(), segments);
+    }
+
+    /** Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
+    double replacement_length_cost(size_t index, size_t n_replaced, const std::vector<Segment>& segments) const {
+        ASSERT(n_replaced > 0);
+        const unsigned long end_index = index + n_replaced - 1;
         ASSERT(index >= 0 && end_index < traj.size())
         double cost =
                 segments_length(segments, 0, segments.size())
-                - segments_length(traj, index, segments.size());
+                - segments_length(traj, index, n_replaced);
         if(index > 0)
             cost = cost
                    + conf.uav.travel_distance(traj[index-1].end, segments[0].start)
@@ -230,6 +236,11 @@ public:
     /** Increase in time (s) as a result of replacing the N segments at the given index by the N segemnts provided.*/
     double replacement_duration_cost(size_t index, const std::vector<Segment>& segments) const {
         return replacement_length_cost(index, segments) / conf.uav.max_air_speed;
+    }
+
+    /** Increase in time (s) as a result of replacing n segments at the given index by the N segments provided.*/
+    double replacement_duration_cost(size_t index, size_t n_replaced, const std::vector<Segment>& segments) const {
+        return replacement_length_cost(index, n_replaced, segments) / conf.uav.max_air_speed;
     }
 
     /** Returns a new trajectory with an additional segment at the given index */
@@ -272,8 +283,8 @@ public:
     /** Removes the segment at the given index. */
     void erase_segment(size_t at_index) {
         const double gained_delay = removal_duration_gain(at_index);
-        traj.erase(traj.begin()+at_index);
-        start_times.erase(start_times.begin()+at_index);
+        traj.erase(traj.begin() + at_index);
+        start_times.erase(start_times.begin() + at_index);
         for(size_t i=at_index; i<start_times.size(); i++) {
             start_times[i] -= gained_delay;
         }
@@ -286,23 +297,24 @@ public:
         newTraj.replace_section(index, segments);
         return newTraj;
     }
+
     void replace_segment(size_t at_index, const Segment& by_segment) {
         ASSERT(at_index >= 0 && at_index < traj.size())
         erase_segment(at_index);
         insert_segment(by_segment, at_index);
         check_validity();
     }
+
     void replace_section(size_t index, const std::vector<Segment>& segments) {
         ASSERT(index >= 0 && index+segments.size()-1 < traj.size())
-        for(size_t i=0; i<segments.size(); i++) {
+        for(size_t i=0; i < segments.size(); i++) {
             erase_segment(index);
         }
-        for(size_t i=0; i<segments.size(); i++) {
+        for(size_t i=0; i < segments.size(); i++) {
             insert_segment(segments[i], index+i);
         }
         check_validity();
     }
-
 
     std::string to_string() const {
         std::stringstream repr;
