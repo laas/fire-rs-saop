@@ -94,16 +94,18 @@ struct Plan {
     vector<PointTime> observations() const {
         vector<PointTime> obs;
         for(auto traj : trajectories) {
+            UAV drone = traj.conf.uav;
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
                 const Segment& seg = traj[seg_id];
 
                 double obs_time = traj.start_time(seg_id);
-                opt<std::vector<Cell>> opt_cells = segment_trace(seg, fire->ignitions);
+                opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
+                                                                 firedata->ignitions);
                 if (opt_cells) {
                     for (const auto &c : *opt_cells) {
-                        if (fire->ignitions(c) <= obs_time && obs_time <= fire->traversal_end(c)) {
+                        if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
                             // If the cell is observable, add it to the observations list
-                            obs.push_back(PointTime {fire->ignitions.as_point(c), traj.start_time(seg_id)});
+                            obs.push_back(PointTime {firedata->ignitions.as_point(c), traj.start_time(seg_id)});
                         }
                     }
                 }
@@ -126,10 +128,22 @@ struct Plan {
     }
 
     void replace_segment(size_t traj_id, size_t at_index, const Segment& by_segment) {
+        replace_segment(traj_id, at_index, 1, std::vector<Segment>({by_segment}));
+    }
+
+    void replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment>& segments) {
+        ASSERT(n_replaced > 0);
         ASSERT(traj_id < trajectories.size());
-        ASSERT(at_index <= trajectories[traj_id].traj.size());
-        erase_segment(traj_id, at_index);
-        insert_segment(traj_id, by_segment, at_index);
+        ASSERT(at_index + n_replaced - 1 < trajectories[traj_id].traj.size());
+
+        for (size_t i = 0; i < n_replaced; ++i) {
+            erase_segment(traj_id, at_index);
+        }
+
+        for (size_t i = 0; i < segments.size(); ++i) {
+            insert_segment(traj_id, segments.at(i), at_index + i);
+        }
+
         post_process();
     }
 
@@ -221,6 +235,69 @@ struct Plan {
             trace.push_back(Cell{c_x, c_y});
         }
         return trace;
+    }
+
+    /* Get the cells of the Raster
+     * */
+    template <typename GenRaster>
+    static opt<std::vector<Cell>> segment_trace(const Segment& segment, const double view_width,
+                                                const double view_depth, const GenRaster& raster) {
+        std::vector<Cell> trace = {};
+
+        // computes visibility rectangle
+        // the rectangle is placed right in front of the plane. Its width is given by the view width of the UAV
+        // (half of it on each side) and as length equal to the length of the segment + the view depth of the UAV
+        const double w = view_width; // width of rect
+        const double l = view_depth + segment.length; // length of rect
+
+        // coordinates of A, B and C corners, where AB and BC are perpendicular. D is the corner opposing A
+        // UAV is at the center of AB
+        const double ax = segment.start.x + cos(segment.start.dir + M_PI/2) * w/2;
+        const double ay = segment.start.y + sin(segment.start.dir + M_PI/2) * w/2;
+        const double bx = segment.start.x - cos(segment.start.dir + M_PI/2) * w/2;
+        const double by = segment.start.y - sin(segment.start.dir + M_PI/2) * w/2;
+        const double cx = ax + cos(segment.start.dir) * l;
+        const double cy = ay + sin(segment.start.dir) * l;
+        const double dx = bx + cos(segment.start.dir) * l;
+        const double dy = by + sin(segment.start.dir) * l;
+
+        // limits of the area in which to search for visible points
+        // this is a subset of the raster that strictly contains the visibility rectangle
+        const double min_x = max(min(min(ax, bx), min(cx, dx)) - raster.cell_width, raster.x_offset);
+        const double max_x = min(max(max(ax, bx), max(cx, dx)) + raster.cell_width, raster.x_offset + raster.x_width * raster.cell_width- raster.cell_width/2);
+        const double min_y = max(min(min(ay, by), min(cy, dy)) - raster.cell_width, raster.y_offset);
+        const double max_y = min(max(max(ay, by), max(cy, dy)) + raster.cell_width, raster.y_offset + raster.y_height * raster.cell_width - raster.cell_width/2);
+
+        // coordinates of where to start the search, centered on a cell
+        const size_t start_x = raster.x_coords(raster.x_index(min_x));
+        const size_t start_y = raster.y_coords(raster.y_index(min_y));
+
+        // for each point possibly in the rectangle check if it is in the visible area and mark it as pending/visible when necessary
+        for(double ix=start_x; ix<=max_x; ix+=raster.cell_width) {
+            for(double iy=start_y; iy<=max_y; iy+=raster.cell_width) {
+                if(in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
+                    // corresponding point in matrix coordinates
+                    trace.push_back(Cell{raster.x_index(ix), raster.y_index(iy)});
+                }
+            }
+        }
+
+        return trace;
+    }
+
+    /** Dot product of two vectors */
+    static inline double dot(double x1, double y1, double x2, double y2) {
+        return x1 * x2 + y1 * y2;
+    }
+
+    /** Returns true if the point (x,y) is in the rectangle defined by its two perpendicular sides AB and AC */
+    static bool in_rectangle(double x, double y, double ax, double ay, double bx, double by, double cx, double cy) {
+        const double dot_ab_am = dot(bx-ax, by-ay, x-ax, y-ay);
+        const double dot_ab_ab = dot(bx-ax, by-ay, bx-ax, by-ay);
+        const double dot_ac_am = dot(cx-ax, cy-ay, x-ax, y-ay);
+        const double dot_ac_ac = dot(cx-ax, cy-ay, cx-ax, cy-ay);
+        return 0 <= dot_ab_am && dot_ab_am <= dot_ab_ab &&
+               0 <= dot_ac_am && dot_ac_am <= dot_ac_ac;
     }
 
 private:
