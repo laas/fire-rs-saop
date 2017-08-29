@@ -123,7 +123,6 @@ struct Plan {
         ASSERT(traj_id < trajectories.size());
         ASSERT(at_index < trajectories[traj_id].traj.size());
         trajectories[traj_id].erase_segment(at_index);
-        post_process();
     }
 
     void replace_segment(size_t traj_id, size_t at_index, const Segment& by_segment) {
