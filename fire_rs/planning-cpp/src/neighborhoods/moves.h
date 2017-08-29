@@ -142,25 +142,28 @@ struct Remove final : public CloneBasedLocalMove {
     }
 };
 
-struct SegmentSwap : public CloneBasedLocalMove {
+struct SegmentReplacement : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
-    const Segment newSegment;
+    const size_t n_replaced;
+    const std::vector<Segment> replacements;
 
-    SegmentSwap(const PPlan &base, size_t traj_id, size_t segment_index, const Segment& replacement)
+    SegmentReplacement(const PPlan &base, size_t traj_id, size_t segment_index, size_t n_replaced,
+                       const std::vector<Segment>& replacements)
             : CloneBasedLocalMove(base),
               traj_id(traj_id),
               segment_index(segment_index),
-              newSegment(replacement)
+              n_replaced(n_replaced),
+              replacements(replacements)
     {
-
+        ASSERT(n_replaced > 0);
         ASSERT(traj_id < base->trajectories.size());
-        ASSERT(segment_index < base->trajectories[traj_id].traj.size());
-        ASSERT(duration() >= 0)
+        ASSERT(segment_index + n_replaced - 1< base->trajectories[traj_id].traj.size());
+        ASSERT(replacements.size() > 0);
     }
 
     void apply_on(PPlan p) override {
-        p->replace_segment(traj_id, segment_index, newSegment);
+        p->replace_segment(traj_id, segment_index, n_replaced, replacements);
     }
 };
 
