@@ -10,6 +10,8 @@ struct Point final {
     double x;
     double y;
 
+    constexpr Point(const double x, const double y) : x(x), y(y) {};
+
     double dist(const Point& pt) const {
         return sqrt(pow(x-pt.x, 2) + pow(y-pt.y, 2));
     }
@@ -75,9 +77,11 @@ struct Segment final {
             : start(wp1), end(wp2), length(sqrt(pow(wp2.x-wp1.x, 2) + pow(wp2.y-wp1.y, 2))) {}
     Segment(const Waypoint& wp1, const double length)
             : start(wp1), end(Waypoint(wp1.x +cos(wp1.dir)*length, wp1.y + sin(wp1.dir)*length, wp1.dir)), length(length) {}
+    Segment(const Point pt1, const Point pt2) : Segment(Waypoint {pt1.x, pt1.y, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
+                                                        Waypoint {pt2.x, pt2.y, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {}
 
     friend std::ostream& operator<< (std::ostream& stream, const Segment& s) {
-        return stream << "<" << s.start << ", " << s.length << ">";
+        return stream << "<" << s.start << "--" << s.end << ", " << s.length << ">";
     }
 
     bool operator==(const Segment& o) const {
@@ -96,6 +100,8 @@ struct Segment final {
 struct PointTime final {
     Point pt;
     double time;
+
+    constexpr PointTime(const Point& p , const double t) : pt(p), time(t) {};
 };
 
 struct TimeWindow final {
