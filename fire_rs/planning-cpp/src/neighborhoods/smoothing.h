@@ -64,7 +64,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
                 move = make_shared<SegmentReplacement>(SegmentReplacement(plan, traj_id, seg_id - 1, 2, prev_replacement));
                 double move_utility = move->utility();
                 double move_duration = move->duration();
-                if(move->is_valid() && (move_utility < plan->utility() || move_duration < plan->duration())) {
+                if(move->is_valid() && (move_utility < plan->utility() && move_duration < plan->duration())) {
                     return move;
                 }
             }
@@ -82,7 +82,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
                 move = make_shared<SegmentReplacement>(SegmentReplacement(plan, traj_id, seg_id, 2, next_replacement));
                 double move_utility = move->utility();
                 double move_duration = move->duration();
-                if(move->is_valid() && (move_utility < plan->utility() || move_duration < plan->duration())) {
+                if(move->is_valid() && (move_utility < plan->utility() && move_duration < plan->duration())) {
                     return move;
                 }
             }
