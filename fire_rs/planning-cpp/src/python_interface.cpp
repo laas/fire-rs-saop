@@ -212,20 +212,20 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("preprocessing_time", &SearchResult::preprocessing_time);
 
     m.def("make_plan_vns", [](UAV uav, DRaster ignitions, double min_time, double max_time,
-                              double max_flight_time, size_t save_every) -> SearchResult {
+                              double max_flight_time, size_t save_every, bool save_improvements) -> SearchResult {
         auto fire_data = make_shared<FireData>(ignitions);
         TrajectoryConfig conf(uav, min_time, max_flight_time);
         Plan p(vector<TrajectoryConfig> { conf }, fire_data, TimeWindow{min_time, max_time});
 
         DefaultVnsSearch vns;
 
-        auto res = vns.search(p, 0, save_every);
+        auto res = vns.search(p, 0, save_every, save_improvements);
         return res;
     }, py::arg("uav"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"),
-          py::arg("save_every") = 0);
+          py::arg("save_every") = 0, py::arg("save_improvements") = false);
 
     m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, double min_time, double max_time,
-                         size_t save_every) -> SearchResult {
+                         size_t save_every, bool save_improvements=false) -> SearchResult {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -243,14 +243,14 @@ PYBIND11_PLUGIN(uav_planning) {
         printf("Planning\n");
         DefaultVnsSearch vns;
         const double planning_start = time();
-        auto res = vns.search(p, 0, save_every);
+        auto res = vns.search(p, 0, save_every, save_improvements);
         const double planning_end = time();
         printf("Plan found\n");
         res.planning_time = planning_end - planning_start;
         res.preprocessing_time = preprocessing_end - preprocessing_start;
         return res;
     }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"),
-          py::arg("save_every") = 0);
+          py::arg("save_every") = 0, py::arg("save_improvements") = false);
 
     return m.ptr();
 }

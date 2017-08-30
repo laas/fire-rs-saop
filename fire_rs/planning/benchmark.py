@@ -157,7 +157,7 @@ def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' 
         geodatadisplay.axis.get_figure().show()
 
 
-def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, plot=False):
+def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, snapshots, plot=False):
     import os
     from fire_rs.firemodel import propagation
     env = propagation.Environment(scenario.area, wind_speed=scenario.wind_speed, wind_dir=scenario.wind_direction)
@@ -169,7 +169,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     flights = [f.as_trajectory_config() for f in scenario.flights]
     # ax = ignitions.plot(blocking=False)
     res = up.plan_vns(flights, ignitions.as_cpp_raster(),
-                      scenario.time_window_start, scenario.time_window_end, save_every=0)
+                      scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots)
     plan = res.final_plan()
 
 
@@ -197,13 +197,44 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
             geodatadisplay.draw_wind_quiver()
 
     plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
-    print("saving as: " + str(os.path.join(save_directory, instance_name + ".png")))
+    print("saving as: " + str(os.path.join(
+        save_directory, instance_name + str(output_options_plot.get('format', 'png')))))
     geodatadisplay.axis.get_figure().set_size_inches(20, 15)
     geodatadisplay.axis.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
 
     matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
+
+
+    # Save intermediate plans
+    for i, i_plan in enumerate(res.intermediate_plans):
+        geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
+        PlanDisplayExtension(None).extend(geodatadisplay)
+        for layer in output_options_plot['background']:
+            if layer == 'elevation_shade':
+                geodatadisplay.draw_elevation_shade(with_colorbar=True)
+            elif layer == 'ignition_shade':
+                geodatadisplay.draw_ignition_shade(with_colorbar=True)
+            elif layer == 'observedcells':
+                geodatadisplay.draw_observedcells(i_plan.observations())
+            elif layer == 'ignition_contour':
+                geodatadisplay.draw_ignition_contour(with_labels=True)
+            elif layer == 'wind_quiver':
+                geodatadisplay.draw_wind_quiver()
+        plot_plan(i_plan, geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
+
+        i_plan_dir = os.path.join(save_directory, instance_name)
+        if not os.path.exists(i_plan_dir):
+            os.makedirs(i_plan_dir)
+
+        print("saving as: " + str(
+            os.path.join(i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png')))))
+        geodatadisplay.axis.get_figure().set_size_inches(20, 15)
+        geodatadisplay.axis.get_figure().savefig(os.path.join(
+            i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png'))),
+            dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
+        matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
 
     # Save plan statistics
     summary_file = os.path.join(save_directory, "summary.csv")
@@ -214,6 +245,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     with open(summary_file, "a") as summary:
         summary.write("{},{},{},{},{}\n".format(
             instance_name, res.planning_time, res.preprocessing_time, plan.utility(), plan.duration()))
+
+    del res
 
 
 Waypoint = namedtuple('Waypoint', 'x, y, dir')
@@ -312,8 +345,11 @@ def main():
                         help="resolution of the output figures",
                         type=int,
                         default=150)
+    parser.add_argument("--snapshots", action="store_true",
+                        help="save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
+                        default=False)
     parser.add_argument("--wait", action="store_true",
-                        help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
+                        help="wait for user input before start. Useful to hold the execution while attaching to a debugger")
     args = parser.parse_args()
 
     # Set-up output options
@@ -361,7 +397,7 @@ def main():
     i=0
     for scenario in scenarios:
         print(scenario)
-        run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'])
+        run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'], snapshots=args.snapshots)
         i += 1
 
 

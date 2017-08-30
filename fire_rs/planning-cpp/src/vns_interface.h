@@ -102,9 +102,11 @@ struct VariableNeighborhoodSearch {
      * @param max_restarts: Number of allowed restarts (currently only 0 is supported).
      * @param save_every: If >0, the Search result will contain snapshots of the search every N iterations.
      *                    Warning: this is very heavy on memory usage.
+     * @param save_improvements: If set, the Search result will contain snapshots of every improvement in the plan.
+     *                    Warning: this is very heavy on memory usage.
      * @return
      */
-    SearchResult search(Plan p, size_t max_restarts, size_t save_every=0) {
+    SearchResult search(Plan p, size_t max_restarts, size_t save_every=0, bool save_improvements=false) {
         ASSERT(max_restarts == 0) // currently no shaking function
 
         SearchResult result(p);
@@ -112,6 +114,8 @@ struct VariableNeighborhoodSearch {
 
         size_t current_iter = 0;
         size_t num_restarts = 0;
+
+        bool saved = false; /*True if an improvement was saved so save_every do not take an snapshot again*/
 
         while(num_restarts <= max_restarts) {
             // choose first neighborhood
@@ -132,15 +136,21 @@ struct VariableNeighborhoodSearch {
                     printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int)current_neighborhood,
                            best_plan->utility(), best_plan->duration());
 
+                    if(save_improvements) {
+                        result.intermediate_plans.push_back(*best_plan);
+                        saved = true;
+                    }
+
                     // plan changed, go back to first neighborhood
                     current_neighborhood = 0;
                 } else {
                     // no move
                     current_neighborhood += 1;
                 }
-                if(save_every != 0 && (current_iter % save_every) == 0) {
+                if(!saved && save_every != 0 && (current_iter % save_every) == 0) {
                     result.intermediate_plans.push_back(*best_plan);
                 }
+                saved = false;
                 current_iter += 1;
             }
             // no neighborhood provides improvements, restart or exit.
