@@ -248,7 +248,7 @@ struct Plan {
         // the rectangle is placed right in front of the plane. Its width is given by the view width of the UAV
         // (half of it on each side) and as length equal to the length of the segment + the view depth of the UAV
         const double w = view_width; // width of rect
-        const double l = view_depth + segment.length; // length of rect
+        const double l = /*view_depth + */segment.length; // length of rect
 
         // coordinates of A, B and C corners, where AB and BC are perpendicular. D is the corner opposing A
         // UAV is at the center of AB
