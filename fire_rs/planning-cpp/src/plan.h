@@ -304,11 +304,11 @@ private:
     /** Constants used for computed the cost associated to a pair of points.
      * The cost is MAX_INDIVIDUAL_COST if the distance between two points
      * is >= MAX_INFORMATIVE_DISTANCE. It is be 0 if the distance is 0 and scales linearly between the two. */
-    const double MAX_INFORMATIVE_DISTANCE = 500.;
+    const double MAX_INFORMATIVE_DISTANCE = 100.;
 
     /** If a point is less than REDUNDANT_OBS_DIST aways from another observation, it useless to observe it.
      * This is defined such that those point are in the visible area when pictured. */
-    const double REDUNDANT_OBS_DIST = 50.;
+    const double REDUNDANT_OBS_DIST = 0.;
 };
 
 
