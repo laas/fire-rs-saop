@@ -161,10 +161,14 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     import os
     from fire_rs.firemodel import propagation
     env = propagation.Environment(scenario.area, wind_speed=scenario.wind_speed, wind_dir=scenario.wind_direction)
-    prop = propagation.propagate_from_points(env, scenario.ignitions, horizon=scenario.time_window_end)
+    prop = propagation.propagate_from_points(env, scenario.ignitions, horizon=scenario.time_window_end + 60 * 10)
 
     # Create and run a plan for this scenario
     ignitions = prop.ignitions()
+
+    # Propagation was let running more time than desired in order to reduce edge effect.
+    # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next 10-minute mark (minus 1).
+    ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
     flight = scenario.flights[0]
     flights = [f.as_trajectory_config() for f in scenario.flights]
     # ax = ignitions.plot(blocking=False)
@@ -198,7 +202,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
     print("saving as: " + str(os.path.join(
-        save_directory, instance_name + str(output_options_plot.get('format', 'png')))))
+        save_directory, instance_name + "." + str(output_options_plot.get('format', 'png')))))
     geodatadisplay.axis.get_figure().set_size_inches(20, 15)
     geodatadisplay.axis.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
