@@ -101,7 +101,7 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(self.x, self.y);
             } );
 
-    py::class_<Position>(m, "Position")
+    py::class_<Position>(m, "Position2d")
             .def(py::init<double, double>(),
                  py::arg("x"), py::arg("y"))
             .def_readonly("x", &Position::x)
@@ -117,7 +117,7 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(self.x, self.y);
             } );
 
-    py::class_<Position3d>(m, "Position3d")
+    py::class_<Position3d>(m, "Position")
             .def(py::init<double, double, double>(),
                  py::arg("x"), py::arg("y"), py::arg("z"))
             .def_readonly("x", &Position3d::x)
@@ -134,7 +134,7 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(self.x, self.y, self.z);
             } );
 
-    py::class_<PositionTime>(m, "PositionTime")
+    py::class_<PositionTime>(m, "Position2dTime")
             .def(py::init<Position, double>(),
                  py::arg("point"), py::arg("time"))
             .def_readonly("pt", &PositionTime::pt)
@@ -150,7 +150,7 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y), self.time);
             } );
 
-    py::class_<Position3dTime>(m, "Position3dTime")
+    py::class_<Position3dTime>(m, "PositionTime")
             .def(py::init<Position3d, double>(),
                  py::arg("point"), py::arg("time"))
             .def_readonly("pt", &Position3dTime::pt)
