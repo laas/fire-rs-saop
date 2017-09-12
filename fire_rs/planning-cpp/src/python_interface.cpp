@@ -45,11 +45,10 @@ PYBIND11_MODULE(uav_planning, m) {
     srand(0);
 
     py::class_<DRaster>(m, "DRaster")
-            .def("__init__", [](DRaster& self, py::array_t<double, py::array::c_style | py::array::forcecast> arr,
-                                double x_offset, double y_offset, double cell_width)  {
-                // create a new object and sibstitute to the given self
-                new (&self) DRaster(as_vector<double>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
-            })
+            .def(py::init([](py::array_t<double, py::array::c_style | py::array::forcecast> arr,
+                             double x_offset, double y_offset, double cell_width) {
+                return new DRaster(as_vector<double>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
+            }))
             .def("as_numpy", [](DRaster& self) {
                 return as_nparray<double>(self.data, self.x_width, self.y_height);
             })
@@ -58,10 +57,10 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("cell_width", &DRaster::cell_width);
 
     py::class_<LRaster>(m, "LRaster")
-            .def("__init__", [](LRaster& self, py::array_t<long, py::array::c_style | py::array::forcecast> arr,
-                                double x_offset, double y_offset, double cell_width) {
-                new (&self) LRaster(as_vector<long>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
-            })
+            .def(py::init([](py::array_t<long, py::array::c_style | py::array::forcecast> arr,
+                             double x_offset, double y_offset, double cell_width) {
+                return new LRaster(as_vector<long>(arr), arr.shape(0), arr.shape(1), x_offset, y_offset, cell_width);
+            }))
             .def("as_numpy", [](LRaster& self) {
                 return as_nparray<long>(self.data, self.x_width, self.y_height);
             })
@@ -167,9 +166,7 @@ PYBIND11_MODULE(uav_planning, m) {
             } );
 
     py::class_<IsochroneCluster, shared_ptr<IsochroneCluster>>(m, "IsochroneCluster")
-            .def("__init__", [](IsochroneCluster& self, const TimeWindow& tw, vector<Cell> cell_vector) {
-                new (&self) IsochroneCluster(tw, cell_vector);
-            })
+            .def(py::init<const TimeWindow&, vector<Cell>>())
             .def_readonly("time_window", &IsochroneCluster::time_window)
             .def_readonly("cells", &IsochroneCluster::cells);
 
