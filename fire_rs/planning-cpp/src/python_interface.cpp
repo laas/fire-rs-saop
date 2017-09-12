@@ -9,12 +9,12 @@
 
 namespace py = pybind11;
 
-/** Converts a nupy array to a vector */
+/** Converts a numpy array to a vector */
 template<class T>
 std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
     std::vector<T> data(array.size());
-    for(size_t x=0; x<array.shape(0); x++) {
-        for(size_t y=0; y<array.shape(1); y++) {
+    for(ssize_t x=0; x<array.shape(0); x++) {
+        for(ssize_t y=0; y<array.shape(1); y++) {
             data[x + y*array.shape(0)] = *(array.data(x, y));
         }
     }
@@ -26,8 +26,10 @@ template<class T>
 py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
     ASSERT(vec.size() == x_width * y_height)
     py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> {x_width, y_height});
-    for(size_t x=0; x<x_width; x++) {
-        for (size_t y = 0; y < y_height; y++) {
+    auto s_x_width = static_cast<ssize_t>(x_width);
+    auto s_y_height = static_cast<ssize_t>(y_height);
+    for(ssize_t x=0; x<s_x_width; x++) {
+        for (ssize_t y = 0; y < s_y_height; y++) {
             *(array.mutable_data(x, y)) = vec[x + y*x_width];
         }
     }
@@ -36,8 +38,8 @@ py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
-PYBIND11_PLUGIN(uav_planning) {
-    py::module m("uav_planning", "Python module for AUV trajectory planning");
+PYBIND11_MODULE(uav_planning, m) {
+    m.doc() = "Python module for UAV trajectory planning";
 
     srand(time(0));
     srand(0);
@@ -282,6 +284,4 @@ PYBIND11_PLUGIN(uav_planning) {
         return res;
     }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("min_time"), py::arg("max_time"),
           py::arg("save_every") = 0, py::arg("save_improvements") = false);
-
-    return m.ptr();
 }
