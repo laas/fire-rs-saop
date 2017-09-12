@@ -40,6 +40,7 @@ PYBIND11_PLUGIN(uav_planning) {
     py::module m("uav_planning", "Python module for AUV trajectory planning");
 
     srand(time(0));
+    srand(0);
 
     py::class_<DRaster>(m, "DRaster")
             .def("__init__", [](DRaster& self, py::array_t<double, py::array::c_style | py::array::forcecast> arr,
@@ -98,36 +99,69 @@ PYBIND11_PLUGIN(uav_planning) {
                 return py::make_tuple(self.x, self.y);
             } );
 
-    py::class_<Point>(m, "Point")
+    py::class_<Position>(m, "Position")
             .def(py::init<double, double>(),
                  py::arg("x"), py::arg("y"))
-            .def_readonly("x", &Point::x)
-            .def_readonly("y", &Point::y)
+            .def_readonly("x", &Position::x)
+            .def_readonly("y", &Position::y)
             .def("__repr__",
-                 [](const Point &p) {
+                 [](const Position &p) {
                      std::stringstream repr;
-                     repr << "Point(" << p.x << ", " << p.y << ")";
+                     repr << "Position(" << p.x << ", " << p.y << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](Point &self) {
+            .def("as_tuple", [](Position &self) {
                 return py::make_tuple(self.x, self.y);
             } );
 
-    py::class_<PointTime>(m, "PointTime")
-            .def(py::init<Point, double>(),
-                 py::arg("point"), py::arg("time"))
-            .def_readonly("pt", &PointTime::pt)
-            .def_readonly("y", &PointTime::time)
+    py::class_<Position3d>(m, "Position3d")
+            .def(py::init<double, double, double>(),
+                 py::arg("x"), py::arg("y"), py::arg("z"))
+            .def_readonly("x", &Position3d::x)
+            .def_readonly("y", &Position3d::y)
+            .def_readonly("z", &Position3d::z)
             .def("__repr__",
-                 [](const PointTime &p) {
+                 [](const Position3d &p) {
                      std::stringstream repr;
-                     repr << "PointTime(" << p.pt.x <<", " << p.pt.y << ", " << p.time << ")";
+                     repr << "Position3d(" << p.x << ", " << p.y << ", " << p.z << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](PointTime &self) {
+            .def("as_tuple", [](Position3d &self) {
+                return py::make_tuple(self.x, self.y, self.z);
+            } );
+
+    py::class_<PositionTime>(m, "PositionTime")
+            .def(py::init<Position, double>(),
+                 py::arg("point"), py::arg("time"))
+            .def_readonly("pt", &PositionTime::pt)
+            .def_readonly("y", &PositionTime::time)
+            .def("__repr__",
+                 [](const PositionTime &p) {
+                     std::stringstream repr;
+                     repr << "PositionTime(" << p.pt.x << ", " << p.pt.y << ", " << p.time << ")";
+                     return repr.str();
+                 }
+            )
+            .def("as_tuple", [](PositionTime &self) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y), self.time);
+            } );
+
+    py::class_<Position3dTime>(m, "Position3dTime")
+            .def(py::init<Position3d, double>(),
+                 py::arg("point"), py::arg("time"))
+            .def_readonly("pt", &Position3dTime::pt)
+            .def_readonly("y", &Position3dTime::time)
+            .def("__repr__",
+                 [](const Position3dTime &p) {
+                     std::stringstream repr;
+                     repr << "Position3dTime(" << p.pt.x << ", " << p.pt.y << ", " << p.pt.z << ", " << p.time << ")";
+                     return repr.str();
+                 }
+            )
+            .def("as_tuple", [](Position3dTime &self) {
+                return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y, self.pt.z), self.time);
             } );
 
     py::class_<IsochroneCluster, shared_ptr<IsochroneCluster>>(m, "IsochroneCluster")
@@ -147,26 +181,31 @@ PYBIND11_PLUGIN(uav_planning) {
 //            .def_readonly_static("isochrone_timespan", &FireData::isochrone_timespan)
             .def_readonly("isochrones", &FireData::isochrones);
 
-    py::class_<Waypoint>(m, "Waypoint")
-            .def(py::init<const double, const double, const double>(),
-                 py::arg("x"), py::arg("y"), py::arg("direction"))
-            .def_readonly("x", &Waypoint::x)
-            .def_readonly("y", &Waypoint::y) 
-            .def_readonly("dir", &Waypoint::dir)
-            .def("__repr__", &Waypoint::to_string);
+    py::class_<Waypoint3d>(m, "Waypoint")
+            .def(py::init<const double, const double, const double, const double>(),
+                 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("direction"))
+            .def_readonly("x", &Waypoint3d::x)
+            .def_readonly("y", &Waypoint3d::y)
+            .def_readonly("z", &Waypoint3d::z)
+            .def_readonly("dir", &Waypoint3d::dir)
+            .def("__repr__", &Waypoint3d::to_string);
 
-    py::class_<Segment>(m, "Segment")
-            .def(py::init<const Waypoint, const double>())
-            .def_readonly("start", &Segment::start)
-            .def_readonly("end", &Segment::end)
-            .def_readonly("length", &Segment::length);
+    py::class_<Segment3d>(m, "Segment")
+            .def(py::init<const Waypoint3d, const double>())
+            .def(py::init<const Waypoint3d, const Waypoint3d>())
+            .def_readonly("start", &Segment3d::start)
+            .def_readonly("end", &Segment3d::end)
+            .def_readonly("length", &Segment3d::length);
 
     py::class_<UAV>(m, "UAV")
-            .def(py::init<const double, const double>())
+            .def(py::init<const double, const double, const double>())
             .def_readonly("min_turn_radius", &UAV::min_turn_radius)
             .def_readonly("max_air_speed", &UAV::max_air_speed)
-            .def("travel_distance", &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", &UAV::travel_time, py::arg("origin"), py::arg("destination"));
+            .def_readonly("max_pitch_angle", &UAV::max_pitch_angle)
+            .def("travel_distance", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)&UAV::travel_distance, py::arg("origin"), py::arg("destination"))
+            .def("travel_distance", (double (UAV::*)(const Waypoint &, const Waypoint &) const)&UAV::travel_distance, py::arg("origin"), py::arg("destination"))
+            .def("travel_time", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)&UAV::travel_time, py::arg("origin"), py::arg("destination"))
+            .def("travel_time", (double (UAV::*)(const Waypoint &, const Waypoint &) const)&UAV::travel_time, py::arg("origin"), py::arg("destination"));
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const TrajectoryConfig&>())
@@ -175,21 +214,13 @@ PYBIND11_PLUGIN(uav_planning) {
             .def_readonly("segments", &Trajectory::traj)
             .def("length", &Trajectory::length)
             .def("duration", &Trajectory::duration)
-            .def("as_waypoints", &Trajectory::as_waypoints, py::arg("step_size")= -1)
+            .def("as_waypoints", &Trajectory::as_waypoints)
+            .def("sampled", &Trajectory::sampled, py::arg("step_size") = 1)
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
             .def("__repr__", &Trajectory::to_string);
 
-    py::class_<Visibility>(m, "Visibility")
-            .def(py::init<DRaster, double, double>())
-            .def("set_time_window_of_interest", &Visibility::set_time_window_of_interest)
-            .def("add_segment", &Visibility::add_segment)
-            .def("remove_segment", &Visibility::remove_segment)
-            .def("cost", &Visibility::cost)
-            .def_readonly("visibility", &Visibility::visibility)
-            .def_readonly("interest", &Visibility::interest);
-
     py::class_<TrajectoryConfig>(m, "TrajectoryConfig")
-            .def(py::init<UAV, Waypoint, Waypoint, double, double>())
+            .def(py::init<UAV, Waypoint3d, Waypoint3d, double, double>())
             .def_readonly("uav", &TrajectoryConfig::uav)
             .def_readonly("max_flight_time", &TrajectoryConfig::max_flight_time)
             .def_static("build", [](UAV uav, double start_time, double max_flight_time) -> TrajectoryConfig {

@@ -173,7 +173,7 @@ void test_projection_on_firefront() {
 
 void test_trajectory_as_waypoints() {
     Trajectory traj((TrajectoryConfig(uav)));
-    traj.as_waypoints(2);
+    traj.sampled(2);
 }
 
 int main()
