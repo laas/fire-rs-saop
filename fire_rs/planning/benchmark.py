@@ -426,6 +426,8 @@ def main():
     parser.add_argument("--snapshots", action="store_true",
                         help="save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
                         default=False)
+    parser.add_argument("--parallel", action="store_true",
+                        help="enable parallel scenario processing")
     parser.add_argument("--wait", action="store_true",
                         help="wait for user input before start. Useful to hold the execution while attaching to a debugger")
     args = parser.parse_args()
@@ -472,11 +474,18 @@ def main():
     if args.wait:
         input("Press enter to continue...")
 
-    i=0
-    for scenario in scenarios:
-        print(scenario)
-        run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'], snapshots=args.snapshots)
-        i += 1
+    if args.parallel:
+        import joblib
+        ALL_CPU_BUT_ONE = -2
+        joblib.Parallel(n_jobs=4, backend="threading", verbose=5)\
+            (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
+                                           snapshots=args.snapshots) for i, s in enumerate(scenarios))
+    else:
+        i=0
+        for scenario in scenarios:
+            print(scenario)
+            run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'], snapshots=args.snapshots)
+            i += 1
 
 
 if __name__=='__main__':
