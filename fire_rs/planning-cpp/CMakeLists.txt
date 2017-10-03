@@ -16,5 +16,6 @@ set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/trajectory.h src/uav.h
         src/dubins3d.h)
 
 add_executable(planning_cpp ${SOURCE_FILES} src/test/main.cpp)
+add_executable(dubins_test ${SOURCE_FILES} src/test/main_dubins.cpp)
 
 pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
