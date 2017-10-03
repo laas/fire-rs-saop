@@ -35,10 +35,8 @@ struct UAV {
 
     /** Returns the Dubins travel distance between the two waypoints. */
     double travel_distance(const Waypoint3d &origin, const Waypoint3d &target) const  {
-        //FIXME: Call to the actual 3d implementation
-        return travel_distance(origin.as_2d(), target.as_2d());
-//        Dubins3dPath path;
-//        return path.compute_length(origin, target, min_turn_radius, max_pitch_angle);
+        Dubins3dPath path(origin, target, min_turn_radius, max_pitch_angle);
+        return path.L;
     }
 
     /** Returns the travel time between the two waypoints. */
