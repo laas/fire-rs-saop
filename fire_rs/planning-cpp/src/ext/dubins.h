@@ -49,7 +49,7 @@ typedef struct
     double qi[3];       // the initial configuration
     double param[3];    // the lengths of the three segments
     double rho;         // model forward velocity / model angular velocity
-    int type;           // path type. one of LSL, LSR, ...
+    int type = -1;           // path type. one of LSL, LSR, ...
 } DubinsPath;
 
 /**
@@ -69,6 +69,8 @@ typedef int (*DubinsPathSamplingCallback)(double q[3], double t, void* user_data
  *
  * A configuration is (x, y, theta), where theta is in radians, with zero
  * along the line x = 0, and counter-clockwise is positive
+ *
+ * if type in path is set to a valid dubins type, this function is forced to use it for the path
  *
  * @param q0    - a configuration specified as an array of x, y, theta
  * @param q1    - a configuration specified as an array of x, y, theta
