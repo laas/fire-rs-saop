@@ -3,6 +3,9 @@
 
 
 #include "trajectory.h"
+#include "fire_data.h"
+
+using namespace std;
 
 struct Plan;
 typedef shared_ptr<Plan> PPlan;

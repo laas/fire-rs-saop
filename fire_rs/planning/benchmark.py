@@ -177,7 +177,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     flight = scenario.flights[0]
     flights = [f.as_trajectory_config() for f in scenario.flights]
     # ax = ignitions.plot(blocking=False)
-    res = up.plan_vns(flights, ignitions.as_cpp_raster(),
+    res = up.plan_vns(flights, ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(),
                       scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots)
     plan = res.final_plan()
 

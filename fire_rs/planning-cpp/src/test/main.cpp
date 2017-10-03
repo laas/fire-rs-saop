@@ -15,7 +15,7 @@ void test_single_point_to_observe() {
     DRaster ignitions(100, 100, 0, 0, 25);
     ignitions.set(10, 10, 100);
 
-    auto fd = make_shared<FireData>(ignitions);
+    auto fd = make_shared<FireData>(ignitions,ignitions);
 
     // only interested in the point ignited at time 100
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 100) };
@@ -40,7 +40,7 @@ void test_many_points_to_observe() {
         }
     }
 
-    auto fd = make_shared<FireData>(ignitions);
+    auto fd = make_shared<FireData>(ignitions, ignitions);
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 10) };
     Plan p(confs, fd, TimeWindow{0, 110});
 
@@ -65,7 +65,7 @@ void test_many_points_to_observe_with_start_end_positions() {
         }
     }
 
-    auto fd = make_shared<FireData>(ignitions);
+    auto fd = make_shared<FireData>(ignitions, ignitions);
     vector<TrajectoryConfig> confs { TrajectoryConfig(
             uav,
             start,
@@ -125,7 +125,7 @@ void test_projection_on_firefront() {
             }
         }
 
-        FireData fd(ignitions);
+        FireData fd(ignitions, ignitions);
         auto res = fd.project_on_fire_front(Cell{1, 1}, 50.5);
         ASSERT(res && res->y == 50)
 
@@ -143,7 +143,7 @@ void test_projection_on_firefront() {
             }
         }
 
-        FireData fd(ignitions);
+        FireData fd(ignitions, ignitions);
         auto res = fd.project_on_fire_front(Cell{1, 1}, 5.5);
         ASSERT(res && res->x == 5)
 
@@ -161,7 +161,7 @@ void test_projection_on_firefront() {
 
             }
         }
-        FireData fd(ignitions);
+        FireData fd(ignitions, ignitions);
         for(size_t i=0; i<100; i++) {
             const size_t x = rand(0, 100);
             const size_t y = rand(0, 100);
