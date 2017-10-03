@@ -3,7 +3,6 @@
 
 
 #include "trajectory.h"
-#include "visibility.h"
 
 struct Plan;
 typedef shared_ptr<Plan> PPlan;
