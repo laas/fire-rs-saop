@@ -49,32 +49,32 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
             if (can_join_backwards) {
                 prev = traj[seg_id - 1];
                 Segment3d prev_replacement_seg = Segment3d(prev->start.as_point(), seg.end.as_point());
-                if (prev_replacement_seg.length > 500) {
-                    continue;
-                }
-                prev_replacement.push_back(prev_replacement_seg);
+                if (prev_replacement_seg.xy_length <= 500) {
+                    prev_replacement.push_back(prev_replacement_seg);
 
-                move = make_shared<SegmentReplacement>(SegmentReplacement(plan, traj_id, seg_id - 1, 2, prev_replacement));
-                double move_utility = move->utility();
-                double move_duration = move->duration();
-                if(move->is_valid() && (move_utility < plan->utility() && move_duration < plan->duration())) {
-                    return move;
+                    move = make_shared<SegmentReplacement>(
+                            SegmentReplacement(plan, traj_id, seg_id - 1, 2, prev_replacement));
+                    double move_utility = move->utility();
+                    double move_duration = move->duration();
+                    if (move->is_valid() && (move_utility < plan->utility() && move_duration < plan->duration())) {
+                        return move;
+                    }
                 }
             }
 
             if (can_join_forward) {
                 next = traj[seg_id + 1];
                 Segment3d next_replacement_seg = Segment3d(seg.start.as_point(), next->end.as_point());
-                if (next_replacement_seg.length > 500) {
-                    continue;
-                }
-                next_replacement.push_back(next_replacement_seg);
+                if (next_replacement_seg.xy_length <= 500) {
+                    next_replacement.push_back(next_replacement_seg);
 
-                move = make_shared<SegmentReplacement>(SegmentReplacement(plan, traj_id, seg_id, 2, next_replacement));
-                double move_utility = move->utility();
-                double move_duration = move->duration();
-                if(move->is_valid() && (move_utility < plan->utility() && move_duration < plan->duration())) {
-                    return move;
+                    move = make_shared<SegmentReplacement>(
+                            SegmentReplacement(plan, traj_id, seg_id, 2, next_replacement));
+                    double move_utility = move->utility();
+                    double move_duration = move->duration();
+                    if (move->is_valid() && (move_utility < plan->utility() && move_duration < plan->duration())) {
+                        return move;
+                    }
                 }
             }
         }

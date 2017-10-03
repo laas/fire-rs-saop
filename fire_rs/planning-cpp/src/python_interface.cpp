@@ -108,7 +108,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("__repr__",
                  [](const Position &p) {
                      std::stringstream repr;
-                     repr << "Position(" << p.x << ", " << p.y << ")";
+                     repr << "Position2d(" << p.x << ", " << p.y << ")";
                      return repr.str();
                  }
             )
@@ -125,7 +125,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("__repr__",
                  [](const Position3d &p) {
                      std::stringstream repr;
-                     repr << "Position3d(" << p.x << ", " << p.y << ", " << p.z << ")";
+                     repr << "Position(" << p.x << ", " << p.y << ", " << p.z << ")";
                      return repr.str();
                  }
             )
@@ -141,7 +141,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("__repr__",
                  [](const PositionTime &p) {
                      std::stringstream repr;
-                     repr << "PositionTime(" << p.pt.x << ", " << p.pt.y << ", " << p.time << ")";
+                     repr << "Position2dTime(" << p.pt.x << ", " << p.pt.y << ", " << p.time << ")";
                      return repr.str();
                  }
             )
@@ -157,7 +157,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("__repr__",
                  [](const Position3dTime &p) {
                      std::stringstream repr;
-                     repr << "Position3dTime(" << p.pt.x << ", " << p.pt.y << ", " << p.pt.z << ", " << p.time << ")";
+                     repr << "PositionTime(" << p.pt.x << ", " << p.pt.y << ", " << p.pt.z << ", " << p.time << ")";
                      return repr.str();
                  }
             )
@@ -166,7 +166,7 @@ PYBIND11_MODULE(uav_planning, m) {
             } );
 
     py::class_<IsochroneCluster, shared_ptr<IsochroneCluster>>(m, "IsochroneCluster")
-            .def(py::init<const TimeWindow&, vector<Cell>>())
+            .def(py::init<const TimeWindow&, vector<Cell>>(), py::arg("tw") , py::arg("cell_vector"))
             .def_readonly("time_window", &IsochroneCluster::time_window)
             .def_readonly("cells", &IsochroneCluster::cells);
 
@@ -194,7 +194,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def(py::init<const Waypoint3d, const Waypoint3d>())
             .def_readonly("start", &Segment3d::start)
             .def_readonly("end", &Segment3d::end)
-            .def_readonly("length", &Segment3d::length);
+            .def_readonly("length", &Segment3d::length)
+            .def("__repr__", &Segment3d::to_string);
 
     py::class_<UAV>(m, "UAV")
             .def(py::init<const double, const double, const double>())

@@ -54,10 +54,10 @@ private:
     }
 
     mutable bool lazily_initialized = false;
-    mutable double _cost;
-    mutable double _duration;
-    mutable size_t _num_segments;
-    mutable bool _valid;
+    mutable double _cost = 0;
+    mutable double _duration = 0;
+    mutable size_t _num_segments = 0;
+    mutable bool _valid = false;
 };
 
 /** Local move that insert a segment at given place in the plan. */

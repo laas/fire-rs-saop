@@ -267,7 +267,7 @@ def generate_scenario_singlefire_singleuav_3d():
     uav_bases = [Waypoint(area.xmin + 100, area.ymin + 100, 100., 0.)]
 
     num_ignitions = 1
-    wind_speed = random.choice([1., 5., 10., 15., 20.])  # 3,6 km/h, 18 km/h, 36 km/h, 54 km/h, 72 km/h
+    wind_speed = random.choice([5., 10., 15., 20.])  # 18 km/h, 36 km/h, 54 km/h, 72 km/h
     wind_dir = random.choice([0., np.pi/2, np.pi, 3*np.pi/4])
     area_range = (area.xmax - area.xmin, area.ymax - area.ymin)
     ignitions = [TimedPoint(random.uniform(area.xmin+area_range[0]*.1, area.xmax-area_range[0]*.1),
@@ -282,8 +282,8 @@ def generate_scenario_singlefire_singleuav_3d():
     flights = []
     for i in range(num_flights):
         uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
-        uav_start = random.uniform(start + 5000, start + 7000.)
-        max_flight_time = random.uniform(500, 1000)
+        uav_start = random.uniform(start + 2500, start + 7500.)
+        max_flight_time = random.uniform(1000, 1500)
         flights.append(Flight(uav, uav_start, max_flight_time))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
