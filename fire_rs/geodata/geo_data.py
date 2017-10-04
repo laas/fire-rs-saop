@@ -3,7 +3,7 @@ from functools import reduce
 
 import gdal
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from osgeo import osr
 import matplotlib
 import matplotlib.pyplot as plt
@@ -80,9 +80,12 @@ class GeoData:
         """Data array in display form."""
         return self.data.T[::-1, ...]
 
-    def slice(self, layers: 'List') -> 'GeoData':
+    def slice(self, layers: 'Union(List, str))') -> 'GeoData':
         """Builds a new GeoData with a subset of the layers"""
         assert len(layers) >= 1
+        if isinstance(layers, str):
+            layers = [layers]
+
         if len(layers) == 1:
             layer = layers[0]
             t = self.data.dtype.fields[layer][0]  # type of layer

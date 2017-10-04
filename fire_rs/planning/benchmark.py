@@ -8,8 +8,8 @@ import random
 import time
 import types
 
-from collections import namedtuple
-from typing import Optional, Tuple
+from collections import namedtuple, Sequence
+from typing import Optional, Tuple, Union
 
 import fire_rs.geodata.display
 import fire_rs.uav_planning as up
@@ -19,19 +19,24 @@ from fire_rs.geodata.geo_data import TimedPoint, Area
 
 _DBL_MAX = np.finfo(np.float64).max
 
+Waypoint = namedtuple('Waypoint', 'x, y, z, dir')
+
 
 class UAV:
 
-    def __init__(self, max_air_speed: float, max_angular_velocity: float, base_waypoint: (float, float, float)):
+    def __init__(self, max_air_speed: float, max_angular_velocity: float, max_pitch_angle: float,
+                 base_waypoint: 'Union(Waypoint, (float, float, float, float)]'):
         self.max_air_speed = max_air_speed
         self.max_angular_velocity = max_angular_velocity
+        self.max_pitch_angle = max_pitch_angle
         self.base_waypoint = base_waypoint
 
     def as_cpp(self):
-        return up.UAV(self.max_air_speed, self.max_angular_velocity)
+        return up.UAV(self.max_air_speed, self.max_angular_velocity, self.max_pitch_angle)
 
     def __repr__(self):
-        return "".join(("UAV(max_air_speed=", repr(self.max_air_speed), ", max_angular_velocity=", repr(self.max_angular_velocity),
+        return "".join(("UAV(max_air_speed=", repr(self.max_air_speed),
+                        ", max_angular_velocity=", repr(self.max_angular_velocity),
                         ", base_waypoint=", repr(self.base_waypoint), ")"))
 
 
@@ -46,7 +51,7 @@ class Flight:
 
     def as_trajectory_config(self):
         x = self.uav.base_waypoint
-        wp = up.Waypoint(x[0], x[1], x[2])
+        wp = up.Waypoint(x[0], x[1], x[2], x[3])
         return up.TrajectoryConfig(self.uav.as_cpp(), wp, wp, self.start_time, self.max_flight_time)
 
     def __repr__(self):
@@ -108,7 +113,7 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         '''Draw trajectory in a GeoDataDisplay figure.
         
         Optional argument colorbar_time_range may be a tuple of start and end times in seconds.'''
-        sampled_waypoints = self.plan_trajectory.as_waypoints(step_size=5)
+        sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         x = [wp.x for wp in sampled_waypoints]
         y = [wp.y for wp in sampled_waypoints]
         color_range = np.linspace(self.plan_trajectory.start_time() / 60, self.plan_trajectory.end_time() / 60, len(x))
@@ -172,7 +177,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     flight = scenario.flights[0]
     flights = [f.as_trajectory_config() for f in scenario.flights]
     # ax = ignitions.plot(blocking=False)
-    res = up.plan_vns(flights, ignitions.as_cpp_raster(),
+    res = up.plan_vns(flights, ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(),
                       scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots)
     plan = res.final_plan()
 
@@ -253,13 +258,78 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     del res
 
 
-Waypoint = namedtuple('Waypoint', 'x, y, dir')
+def generate_scenario_singlefire_singleuav_3d():
+    # 9 by 7 km area
+    area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
+    uav_max_pitch_angle = 6. / 180. * np.pi  # aka gamma_max=0.11rad for 2m/s rate of climb and 18m/s cruise air speed
+    uav_speed = 18.  # m/s
+    uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
+    uav_bases = [Waypoint(area.xmin + 100, area.ymin + 100, 100., 0.)]
+
+    num_ignitions = 1
+    wind_speed = random.choice([5., 10., 15., 20.])  # 18 km/h, 36 km/h, 54 km/h, 72 km/h
+    wind_dir = random.choice([0., np.pi/2, np.pi, 3*np.pi/4])
+    area_range = (area.xmax - area.xmin, area.ymax - area.ymin)
+    ignitions = [TimedPoint(random.uniform(area.xmin+area_range[0]*.1, area.xmax-area_range[0]*.1),
+                            random.uniform(area.ymin+area_range[1]*.1, area.ymax-area_range[1]*.1),
+                            random.uniform(0, 3000))
+                 for i in range(num_ignitions)]
+
+    # start once all fires are ignited
+    start = max([igni.time for igni in ignitions])
+
+    num_flights = 1
+    flights = []
+    for i in range(num_flights):
+        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
+        uav_start = random.uniform(start + 2500, start + 7500.)
+        max_flight_time = random.uniform(1000, 1500)
+        flights.append(Flight(uav, uav_start, max_flight_time))
+
+    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
+                        wind_speed, wind_dir, ignitions, flights)
+    return scenario
+
+
+def generate_scenario_singlefire_singleuav_shortrange():
+    # 9 by 7 km area
+    area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
+    uav_speed = 18.  # m/s
+    uav_max_pitch_angle = 6. / 180. * np.pi
+    uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
+    uav_bases = [Waypoint(area.xmin+100, area.ymin+100, 0)]
+
+    wind_speed = 15.
+    wind_dir = 0.
+    num_ignitions = 1
+    x_area_range = area.xmax - area.xmin
+    y_area_range = area.ymax - area.ymin
+    ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax-0.5*x_area_range),
+                            random.uniform(area.ymin, area.ymax-0.5*y_area_range),
+                            random.uniform(0, 3000))
+                 for i in range(num_ignitions)]
+
+    # start once all fires are ignited
+    start = max([igni.time for igni in ignitions])
+
+    num_flights = 1
+    flights = []
+    for i in range(num_flights):
+        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
+        uav_start = random.uniform(start + 5000, start + 7000.)
+        max_flight_time = random.uniform(500, 1000)
+        flights.append(Flight(uav, uav_start, max_flight_time))
+
+    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
+                        wind_speed, wind_dir, ignitions, flights)
+    return scenario
 
 
 def generate_scenario_singlefire_singleuav():
     # 9 by 7 km area
     area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
     uav_speed = 18.  # m/s
+    uav_max_pitch_angle = 6. / 180. * np.pi
     uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
     uav_bases = [Waypoint(area.xmin +100, area.ymin+100, 0)]
 
@@ -277,7 +347,7 @@ def generate_scenario_singlefire_singleuav():
     num_flights = 1
     flights = []
     for i in range(num_flights):
-        uav = UAV(uav_speed, uav_max_turn_rate, random.choice(uav_bases))
+        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(1000, 1500)
         flights.append(Flight(uav, uav_start, max_flight_time))
@@ -291,12 +361,13 @@ def generate_scenario():
     # 9 by 7 km area
     area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
     uav_speed = 18.  # m/s
+    uav_max_pitch_angle = 6. / 180. * np.pi
     uav_max_turn_rate = 32. * np.pi / 180
     uav_bases = [  # four corners of the map
-        Waypoint(area.xmin+100, area.ymin+100, 0),
-        Waypoint(area.xmin+100, area.ymax-100, 0),
-        Waypoint(area.xmax-100, area.ymin+100, 0),
-        Waypoint(area.xmax-100, area.ymax-100, 0)
+        Waypoint(area.xmin+100, area.ymin+100, 100, 0),
+        Waypoint(area.xmin+100, area.ymax-100, 100, 0),
+        Waypoint(area.xmax-100, area.ymin+100, 100, 0),
+        Waypoint(area.xmax-100, area.ymax-100, 100, 0)
     ]
 
     wind_speed = 15.  #random.uniform(10., 20.)  # wind speed in [10,20] km/h
@@ -313,7 +384,7 @@ def generate_scenario():
     num_flights = random.randint(1, 3)
     flights = []
     for i in range(num_flights):
-        uav = UAV(uav_speed, uav_max_turn_rate, random.choice(uav_bases))
+        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(500, 1500)
         flights.append(Flight(uav, uav_start, max_flight_time))
@@ -323,7 +394,10 @@ def generate_scenario():
     return scenario
 
 
-scenario_factory_funcs = {'default': generate_scenario, 'singlefire_singleuav': generate_scenario_singlefire_singleuav}
+scenario_factory_funcs = {'default': generate_scenario,
+                          'singlefire_singleuav': generate_scenario_singlefire_singleuav,
+                          'singlefire_singleuav_shortrange': generate_scenario_singlefire_singleuav_shortrange,
+                          'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,}
 
 
 def main():
@@ -352,6 +426,8 @@ def main():
     parser.add_argument("--snapshots", action="store_true",
                         help="save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
                         default=False)
+    parser.add_argument("--parallel", action="store_true",
+                        help="enable parallel scenario processing")
     parser.add_argument("--wait", action="store_true",
                         help="wait for user input before start. Useful to hold the execution while attaching to a debugger")
     args = parser.parse_args()
@@ -398,11 +474,18 @@ def main():
     if args.wait:
         input("Press enter to continue...")
 
-    i=0
-    for scenario in scenarios:
-        print(scenario)
-        run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'], snapshots=args.snapshots)
-        i += 1
+    if args.parallel:
+        import joblib
+        ALL_CPU_BUT_ONE = -2
+        joblib.Parallel(n_jobs=4, backend="threading", verbose=5)\
+            (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
+                                           snapshots=args.snapshots) for i, s in enumerate(scenarios))
+    else:
+        i=0
+        for scenario in scenarios:
+            print(scenario)
+            run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'], snapshots=args.snapshots)
+            i += 1
 
 
 if __name__=='__main__':

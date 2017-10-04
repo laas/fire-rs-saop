@@ -1,6 +1,7 @@
 #ifndef PLANNING_CPP_DUBINS_OPTIMIZATION_H
 #define PLANNING_CPP_DUBINS_OPTIMIZATION_H
 
+#include <cmath>
 #include "../trajectory.h"
 #include "../planning.h"
 #include "../vns_interface.h"
@@ -35,7 +36,15 @@ struct MeanOrientationChangeGenerator final : public OrientationChangeGenerator 
 struct RandomOrientationChangeGenerator final : public OrientationChangeGenerator {
 
     opt<double> get_orientation_change(const Trajectory& traj, size_t seg_id) const override {
-        return drand(0, 2*M_PI);
+        return remainder(traj[seg_id].start.dir + drand(-M_PI_4, M_PI_4), 2 * M_PI);
+    }
+};
+
+/* Suggest flipping the segment*/
+struct FlipOrientationChangeGenerator final : public OrientationChangeGenerator {
+
+    opt<double> get_orientation_change(const Trajectory& traj, size_t seg_id) const override {
+        return remainder(traj[seg_id].start.dir + M_PI, 2 * M_PI);
     }
 };
 
@@ -48,7 +57,7 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
     /** Maximum number of changes to try before returning. */
     const size_t max_trials;
 
-    DubinsOptimizationNeighborhood(vector<shared_ptr<OrientationChangeGenerator>> generators = default_generators(), size_t max_trials = 100) :
+    explicit DubinsOptimizationNeighborhood(vector<shared_ptr<OrientationChangeGenerator>> generators = default_generators(), size_t max_trials = 10) :
             generators(generators),
             max_trials(max_trials) {
         ASSERT(!generators.empty());
@@ -65,11 +74,13 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
             const size_t traj_id = rand(0, plan->trajectories.size());
             const Trajectory& traj = plan->trajectories[traj_id];
 
-            if(traj.first_modifiable() > traj.last_modifiable())
-                continue; // nothing in this trajectory, go to next trial
-
             // pick a random segment in the trajectory
-            const size_t seg_id = rand(traj.first_modifiable(), traj.last_modifiable()+1);
+            const opt<size_t> opt_seg_id = traj.get_random_modifiable_id();
+
+            if (!opt_seg_id) {
+                continue;
+            }
+            const size_t seg_id = *opt_seg_id;
 
             // pick an angle generator and generate a candidate angle
             const shared_ptr<OrientationChangeGenerator> generator = generators[rand(0, generators.size())];
@@ -79,14 +90,14 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
                 continue; // generator not adapted to current segment, go to next trial
 
             // compute the utility of the change
-            const Segment replacement_segment = plan->uav(traj_id).rotate_on_visibility_center(traj[seg_id], *optAngle);
+            const Segment3d replacement_segment = plan->uav(traj_id).rotate_on_visibility_center(traj[seg_id], *optAngle);
             const double local_duration_cost = traj.replacement_duration_cost(seg_id, replacement_segment);
 
-            // if the orientation change is strictly improving, return it if it is valid
-            if(local_duration_cost < -0.0001) {
-                PLocalMove move = make_shared<SegmentRotation>(plan, traj_id, seg_id, *optAngle);
-                if(move->is_valid())
-                    return move;
+            PLocalMove move = make_shared<SegmentRotation>(plan, traj_id, seg_id, *optAngle);
+
+            // if the duration is improving and the utility doesn't get worse then return the move
+            if(move->is_valid() && local_duration_cost < -1 && move->utility() <= plan->utility()) {
+                return move;
             }
         }
         // we did not find any duration improving move
@@ -97,7 +108,8 @@ private:
     static vector<shared_ptr<OrientationChangeGenerator>> default_generators() {
         return vector<shared_ptr<OrientationChangeGenerator>> {
                 (shared_ptr<OrientationChangeGenerator>) make_shared<RandomOrientationChangeGenerator>(),
-                (shared_ptr<OrientationChangeGenerator>) make_shared<MeanOrientationChangeGenerator>()
+                //(shared_ptr<OrientationChangeGenerator>) make_shared<MeanOrientationChangeGenerator>(),
+                (shared_ptr<OrientationChangeGenerator>) make_shared<FlipOrientationChangeGenerator>()
         };
     }
 };

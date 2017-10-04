@@ -40,14 +40,18 @@ public:
     /** Main fire propagation direction in each cell. */
     const DRaster propagation_directions;
 
+    /* Terrain elevation */
+    const DRaster elevation;
+
     /** Cells within the same timespan. */
     const vector<shared_ptr<IsochroneCluster>> isochrones;
     static constexpr double isochrone_timespan = 300.0;
 
-    FireData(const DRaster& ignitions)
+    FireData(const DRaster &ignitions, const DRaster &elevation)
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
+              elevation(elevation),
               isochrones(compute_isochrone_clusters(ignitions, traversal_end, isochrone_timespan)){}
 
     FireData(const FireData& from) = default;
@@ -119,14 +123,15 @@ public:
      *
      * The returned optional is empty if the projection failed.
      **/
-    opt<Segment> project_on_firefront(const Segment& seg, const UAV& uav, double time) const {
-        const Waypoint center = uav.visibilty_center(seg);
+    opt<Segment3d> project_on_firefront(const Segment3d& seg, const UAV& uav, double time) const {
+        const Waypoint3d center = uav.visibility_center(seg);
         if(!ignitions.is_in(center))
             return {};
         const Cell cell = ignitions.as_cell(center);
         const opt<Cell> projected_cell = project_on_fire_front(cell, time);
         if(projected_cell)
-            return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y), seg.start.dir, seg.length);
+            return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y),
+                                           center.z, seg.start.dir, seg.length);
         else
             return {};
     }

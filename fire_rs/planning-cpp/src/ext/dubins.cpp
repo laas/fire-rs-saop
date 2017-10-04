@@ -88,6 +88,23 @@ int dubins_init_normalised( double alpha, double beta, double d, DubinsPath* pat
     int    best_word;
     int    i;
 
+    // If path type is already set, force to use it
+    /* TODO: This case will happen less likely than the case below, where the type is not pre-set.
+             They should be present in the opposite order so the CPU pipeline is disturbed less than it is now.
+    */
+    if (path->type >= 0 && path->type <= 6) {
+        double params[3];
+        int err = dubins_words[path->type](alpha, beta, d, params);
+        if(err == EDUBOK) {
+            path->param[0] = params[0];
+            path->param[1] = params[1];
+            path->param[2] = params[2];
+            return EDUBOK;
+        }
+        return EDUBNOPATH;
+    }
+
+    // If path type is unset, find the best one
     best_word = -1;
     for( i = 0; i < 6; i++ ) {
         double params[3];

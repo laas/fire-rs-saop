@@ -3,17 +3,18 @@
 
 
 #include "trajectory.h"
-#include "visibility.h"
+#include "fire_data.h"
+
+using namespace std;
 
 struct Plan;
 typedef shared_ptr<Plan> PPlan;
 
 struct Plan {
-    const TimeWindow time_window;
+    TimeWindow time_window;
     vector<Trajectory> trajectories;
     shared_ptr<FireData> firedata;
-    vector<PointTimeWindow> possible_observations;
-
+    vector<Point3dTimeWindow> possible_observations;
 
     Plan(const Plan& plan) = default;
 
@@ -32,7 +33,7 @@ struct Plan {
                 if (time_window.start <= t && t <= time_window.end) {
                     Cell c{x, y};
                     possible_observations.push_back(
-                            PointTimeWindow{firedata->ignitions.as_point(c), {firedata->ignitions(c), firedata->traversal_end(c)}});
+                            Point3dTimeWindow{Position3d {firedata->ignitions.as_position(c), 100}, {firedata->ignitions(c), firedata->traversal_end(c)}});
                 }
             }
         }
@@ -58,12 +59,12 @@ struct Plan {
      * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
      **/
     double utility() const {
-        vector<PointTime> done_obs = observations();
+        vector<Position3dTime> done_obs = observations();
         double global_cost = 0;
-        for(PointTimeWindow possible_obs : possible_observations) {
+        for(Point3dTimeWindow possible_obs : possible_observations) {
             double min_dist = MAX_INFORMATIVE_DISTANCE;
             // find the closest observation.
-            for(PointTime obs : done_obs) {
+            for(Position3dTime obs : done_obs) {
                 min_dist = min(min_dist, possible_obs.pt.dist(obs.pt));
             }
             // utility is based on the minimal distance to the observation and normalized such that
@@ -91,12 +92,12 @@ struct Plan {
 
     /** All observations in the plan. Computed by taking the visibility center of all segments.
      * Each observation is tagged with a time, corresponding to the start time of the segment.*/
-    vector<PointTime> observations() const {
-        vector<PointTime> obs;
+    vector<Position3dTime> observations() const {
+        vector<Position3dTime> obs;
         for(auto traj : trajectories) {
             UAV drone = traj.conf.uav;
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
-                const Segment& seg = traj[seg_id];
+                const Segment3d& seg = traj[seg_id];
 
                 double obs_time = traj.start_time(seg_id);
                 opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
@@ -105,7 +106,7 @@ struct Plan {
                     for (const auto &c : *opt_cells) {
                         if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
                             // If the cell is observable, add it to the observations list
-                            obs.push_back(PointTime {firedata->ignitions.as_point(c), traj.start_time(seg_id)});
+                            obs.push_back(Position3dTime {Position3d {firedata->ignitions.as_position(c), 100.0}, traj.start_time(seg_id)});
                         }
                     }
                 }
@@ -114,7 +115,7 @@ struct Plan {
         return obs;
     }
 
-    void insert_segment(size_t traj_id, const Segment& seg, size_t insert_loc) {
+    void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc) {
         ASSERT(traj_id < trajectories.size());
         ASSERT(insert_loc <= trajectories[traj_id].traj.size());
         trajectories[traj_id].insert_segment(seg, insert_loc);
@@ -127,11 +128,11 @@ struct Plan {
         trajectories[traj_id].erase_segment(at_index);
     }
 
-    void replace_segment(size_t traj_id, size_t at_index, const Segment& by_segment) {
-        replace_segment(traj_id, at_index, 1, std::vector<Segment>({by_segment}));
+    void replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment) {
+        replace_segment(traj_id, at_index, 1, std::vector<Segment3d>({by_segment}));
     }
 
-    void replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment>& segments) {
+    void replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment3d>& segments) {
         ASSERT(n_replaced > 0);
         ASSERT(traj_id < trajectories.size());
         ASSERT(at_index + n_replaced - 1 < trajectories[traj_id].traj.size());
@@ -160,9 +161,9 @@ struct Plan {
         for(auto &traj : trajectories) {
             size_t seg_id = traj.first_modifiable();
             while(seg_id <= traj.last_modifiable()) {
-                const Segment& seg = traj[seg_id];
+                const Segment3d& seg = traj[seg_id];
                 const double t = traj.start_time(seg_id);
-                opt<Segment> projected = firedata->project_on_firefront(seg, traj.conf.uav, t);
+                opt<Segment3d> projected = firedata->project_on_firefront(seg, traj.conf.uav, t);
                 if(projected) {
                     if(*projected != seg) {
                         // original is different than projection, replace it
@@ -183,8 +184,8 @@ struct Plan {
         for(auto &traj : trajectories) {
             size_t seg_id = traj.first_modifiable();
             while(seg_id < traj.last_modifiable()) {
-                const Segment& current = traj[seg_id];
-                const Segment& next = traj[seg_id+1];
+                const Segment3d& current = traj[seg_id];
+                const Segment3d& next = traj[seg_id+1];
 
                 const double euclidian_dist_to_next = current.end.as_point().dist(next.start.as_point());
                 const double dubins_dist_to_next = traj.conf.uav.travel_distance(current.end, next.start);
@@ -202,7 +203,7 @@ struct Plan {
     /* Get the cells of the Raster
      * */
     template <typename GenRaster>
-    static opt<std::vector<Cell>> segment_trace(const Segment& segment, const GenRaster& raster) {
+    static opt<std::vector<Cell>> segment_trace(const Segment3d& segment, const GenRaster& raster) {
         std::vector<Cell> trace = {};
 
         /* If part of the segment is out of raster bounds, we do nothing.*/
@@ -240,7 +241,7 @@ struct Plan {
     /* Get the cells of the Raster
      * */
     template <typename GenRaster>
-    static opt<std::vector<Cell>> segment_trace(const Segment& segment, const double view_width,
+    static opt<std::vector<Cell>> segment_trace(const Segment3d& segment, const double view_width,
                                                 const double view_depth, const GenRaster& raster) {
         std::vector<Cell> trace = {};
 

@@ -10,15 +10,15 @@
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
 class IdentityMove final : public LocalMove {
 public:
-    IdentityMove(PPlan p) : LocalMove(p) {}
+    explicit IdentityMove(PPlan p) : LocalMove(p) {}
 
     /** Cost that would result in applying the move. */
-    virtual double utility() override { return base_plan->utility(); };
+    double utility() override { return base_plan->utility(); };
 
     /** Total duration that would result in applying the move */
-    virtual double duration() override { return base_plan->duration(); };
+    double duration() override { return base_plan->duration(); };
 
-    virtual bool is_valid() override { return base_plan->is_valid(); }
+    bool is_valid() override { return base_plan->is_valid(); }
 
     /** does nothing */
     void apply_on(PPlan p) override {
@@ -31,16 +31,15 @@ public:
  *
  * Subclassses only need to implement the apply_on() method and invoke the init() method in there constructor. */
 struct CloneBasedLocalMove : public LocalMove {
-    CloneBasedLocalMove(const PPlan base) : LocalMove(base) {
-    }
+    explicit CloneBasedLocalMove(PPlan base) : LocalMove(base) {}
 
     /** Cost that would result in applying the move. */
-    virtual double utility() override { init(); return _cost; };
+    double utility() override { init(); return _cost; };
 
     /** Total duration that would result in applying the move */
-    virtual double duration() override { init(); return _duration; };
+    double duration() override { init(); return _duration; };
 
-    virtual bool is_valid() override { init(); return _valid; }
+    bool is_valid() override { init(); return _valid; }
 
 private:
     void init() {
@@ -55,10 +54,10 @@ private:
     }
 
     mutable bool lazily_initialized = false;
-    mutable double _cost;
-    mutable double _duration;
-    mutable size_t _num_segments;
-    mutable bool _valid;
+    mutable double _cost = 0;
+    mutable double _duration = 0;
+    mutable size_t _num_segments = 0;
+    mutable bool _valid = false;
 };
 
 /** Local move that insert a segment at given place in the plan. */
@@ -67,16 +66,14 @@ struct Insert final : public CloneBasedLocalMove {
     size_t traj_id;
 
     /** Segment to insert. */
-    Segment seg;
+    Segment3d seg;
 
     /** Place in the trajectory where this segment should be inserted. */
     size_t insert_loc;
 
-    Insert(PPlan base, size_t traj_id, Segment seg, size_t insert_loc)
+    Insert(PPlan base, size_t traj_id, Segment3d &seg, size_t insert_loc)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              seg(seg),
-              insert_loc(insert_loc)
+              traj_id(traj_id), seg(seg), insert_loc(insert_loc)
     {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
@@ -88,7 +85,7 @@ struct Insert final : public CloneBasedLocalMove {
 
     /** Generates an insert move that include the segment at the best place in the given trajectory.
      * Currently, this does not checks the trajectory constraints. */
-    static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment seg) {
+    static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment3d &seg) {
         ASSERT(traj_id < base->trajectories.size());
 
         long best_loc = -1;
@@ -112,7 +109,7 @@ struct Insert final : public CloneBasedLocalMove {
     }
 
     /** Tries to insert each of the segments at the best place in the given trajectory of the given plan */
-    static PPlan smart_insert(PPlan base, size_t traj_id, vector<Segment> segments) {
+    static PPlan smart_insert(PPlan &base, size_t traj_id, vector<Segment3d> segments) {
         opt<PPlan> current = base;
         for(auto it=segments.begin(); it!=segments.end() && current; it++) {
             current = best_insert(*current, traj_id, *it)->apply_on_new();
@@ -131,8 +128,7 @@ struct Remove final : public CloneBasedLocalMove {
 
     Remove(PPlan base, size_t traj_id, size_t rm_id)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              rm_id(rm_id) {
+              traj_id(traj_id), rm_id(rm_id) {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(rm_id < base->trajectories[traj_id].traj.size());
     }
@@ -146,15 +142,12 @@ struct SegmentReplacement : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
     const size_t n_replaced;
-    const std::vector<Segment> replacements;
+    const std::vector<Segment3d> replacements;
 
-    SegmentReplacement(const PPlan &base, size_t traj_id, size_t segment_index, size_t n_replaced,
-                       const std::vector<Segment>& replacements)
+    SegmentReplacement(PPlan base, size_t traj_id, size_t segment_index, size_t n_replaced,
+                       const std::vector<Segment3d> &replacements)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              segment_index(segment_index),
-              n_replaced(n_replaced),
-              replacements(replacements)
+              traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements)
     {
         ASSERT(n_replaced > 0);
         ASSERT(traj_id < base->trajectories.size());
@@ -171,11 +164,10 @@ struct SegmentReplacement : public CloneBasedLocalMove {
 struct SegmentRotation final : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
-    const Segment newSegment;
-    SegmentRotation(const PPlan &base, size_t traj_id, size_t segment_index, double target_dir)
+    const Segment3d newSegment;
+    SegmentRotation(PPlan base, size_t traj_id, size_t segment_index, double target_dir)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              segment_index(segment_index),
+              traj_id(traj_id), segment_index(segment_index),
               newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
                                                                         target_dir))
     {

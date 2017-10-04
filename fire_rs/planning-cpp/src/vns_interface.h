@@ -9,7 +9,7 @@ class LocalMove {
 public:
     /** Reference to the plan this move is created for. */
     PPlan base_plan;
-    LocalMove(PPlan base) : base_plan(base) {}
+    explicit LocalMove(PPlan base) : base_plan(base) {};
 
     /** Cost that would result in applying the move. */
     virtual double utility() = 0;

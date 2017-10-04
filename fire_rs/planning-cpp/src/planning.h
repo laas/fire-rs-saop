@@ -3,7 +3,6 @@
 
 #include <vector>
 #include "trajectory.h"
-#include "visibility.h"
 #import "ext/optional.h"
 #include "neighborhoods/dubins_optimization.h"
 #include "vns_interface.h"
