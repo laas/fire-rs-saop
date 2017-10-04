@@ -10,7 +10,7 @@
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
 class IdentityMove final : public LocalMove {
 public:
-    explicit IdentityMove(PPlan &p) : LocalMove(p) {}
+    explicit IdentityMove(PPlan p) : LocalMove(p) {}
 
     /** Cost that would result in applying the move. */
     double utility() override { return base_plan->utility(); };
@@ -31,7 +31,7 @@ public:
  *
  * Subclassses only need to implement the apply_on() method and invoke the init() method in there constructor. */
 struct CloneBasedLocalMove : public LocalMove {
-    explicit CloneBasedLocalMove(const PPlan &base) : LocalMove(base) {}
+    explicit CloneBasedLocalMove(PPlan base) : LocalMove(base) {}
 
     /** Cost that would result in applying the move. */
     double utility() override { init(); return _cost; };
@@ -71,11 +71,9 @@ struct Insert final : public CloneBasedLocalMove {
     /** Place in the trajectory where this segment should be inserted. */
     size_t insert_loc;
 
-    Insert(PPlan &base, size_t traj_id, Segment3d &seg, size_t insert_loc)
+    Insert(PPlan base, size_t traj_id, Segment3d &seg, size_t insert_loc)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              seg(seg),
-              insert_loc(insert_loc)
+              traj_id(traj_id), seg(seg), insert_loc(insert_loc)
     {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
@@ -87,7 +85,7 @@ struct Insert final : public CloneBasedLocalMove {
 
     /** Generates an insert move that include the segment at the best place in the given trajectory.
      * Currently, this does not checks the trajectory constraints. */
-    static opt<Insert> best_insert(PPlan &base, size_t traj_id, Segment3d &seg) {
+    static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment3d &seg) {
         ASSERT(traj_id < base->trajectories.size());
 
         long best_loc = -1;
@@ -128,10 +126,9 @@ struct Remove final : public CloneBasedLocalMove {
     /** Location of the segment to remove within the trajectory */
     size_t rm_id;
 
-    Remove(PPlan &base, size_t traj_id, size_t rm_id)
+    Remove(PPlan base, size_t traj_id, size_t rm_id)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              rm_id(rm_id) {
+              traj_id(traj_id), rm_id(rm_id) {
         ASSERT(traj_id < base->trajectories.size());
         ASSERT(rm_id < base->trajectories[traj_id].traj.size());
     }
@@ -147,13 +144,10 @@ struct SegmentReplacement : public CloneBasedLocalMove {
     const size_t n_replaced;
     const std::vector<Segment3d> replacements;
 
-    SegmentReplacement(const PPlan &base, size_t traj_id, size_t segment_index, size_t n_replaced,
-                       const std::vector<Segment3d>& replacements)
+    SegmentReplacement(PPlan base, size_t traj_id, size_t segment_index, size_t n_replaced,
+                       const std::vector<Segment3d> &replacements)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              segment_index(segment_index),
-              n_replaced(n_replaced),
-              replacements(replacements)
+              traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements)
     {
         ASSERT(n_replaced > 0);
         ASSERT(traj_id < base->trajectories.size());
@@ -171,10 +165,9 @@ struct SegmentRotation final : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
     const Segment3d newSegment;
-    SegmentRotation(const PPlan &base, size_t traj_id, size_t segment_index, double target_dir)
+    SegmentRotation(PPlan base, size_t traj_id, size_t segment_index, double target_dir)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id),
-              segment_index(segment_index),
+              traj_id(traj_id), segment_index(segment_index),
               newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
                                                                         target_dir))
     {
