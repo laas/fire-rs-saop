@@ -176,7 +176,7 @@ void test_trajectory_as_waypoints() {
     traj.sampled(2);
 }
 
-int main()
+int all_position_manipulation()
 {
     srand(time(0));
 
@@ -186,5 +186,4 @@ int main()
     test_many_points_to_observe();
     test_many_points_to_observe_with_start_end_positions();
     test_projection_on_firefront();
-    return 0;
 }
