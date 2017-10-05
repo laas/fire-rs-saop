@@ -113,6 +113,8 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         '''Draw trajectory in a GeoDataDisplay figure.
         
         Optional argument colorbar_time_range may be a tuple of start and end times in seconds.'''
+        if len(self.plan_trajectory.segments) < 2:
+            return
         sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         x = [wp.x for wp in sampled_waypoints]
         y = [wp.y for wp in sampled_waypoints]
@@ -129,6 +131,8 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
 
     def _draw_segments_extension(self, *args, **kwargs):
         '''Draw path segments in a GeoDataDisplay figure.'''
+        if len(self.plan_trajectory.segments) < 2:
+            return
         color = kwargs.get('color', 'C0')
         segments = self.plan_trajectory.segments[1:-1]
         start_x = [s.start.x for s in segments]
