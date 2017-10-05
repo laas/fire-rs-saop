@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 project(planning_cpp)
 
-find_package(pybind11)
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/pybind11")
+    add_subdirectory("pybind11")
+else()
+    find_package(pybind11 2.2.1 REQUIRED)
+endif()
 
 set(CMAKE_CXX_STANDARD 11)
 
