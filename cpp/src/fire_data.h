@@ -44,15 +44,16 @@ public:
     const DRaster elevation;
 
     /** Cells within the same timespan. */
-    const vector<shared_ptr<IsochroneCluster>> isochrones;
-    static constexpr double isochrone_timespan = 300.0;
+//    const vector<shared_ptr<IsochroneCluster>> isochrones;
+//    static constexpr double isochrone_timespan = 300.0;
 
     FireData(const DRaster &ignitions, const DRaster &elevation)
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
-              elevation(elevation),
-              isochrones(compute_isochrone_clusters(ignitions, traversal_end, isochrone_timespan)){}
+              elevation(elevation)
+//              isochrones(compute_isochrone_clusters(ignitions, traversal_end, isochrone_timespan))
+    {}
 
     FireData(const FireData& from) = default;
 

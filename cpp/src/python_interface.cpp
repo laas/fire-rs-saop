@@ -173,9 +173,9 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("ignitions", &FireData::ignitions)
             .def_readonly("traversal_end", &FireData::traversal_end)
             .def_readonly("propagation_directions", &FireData::propagation_directions)
-            .def_readonly("elevation", &FireData::elevation)
+            .def_readonly("elevation", &FireData::elevation);
 //            .def_readonly_static("isochrone_timespan", &FireData::isochrone_timespan)
-            .def_readonly("isochrones", &FireData::isochrones);
+//            .def_readonly("isochrones", &FireData::isochrones);
 
     py::class_<Waypoint3d>(m, "Waypoint")
             .def(py::init<const double, const double, const double, const double>(),
