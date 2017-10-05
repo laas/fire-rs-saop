@@ -40,7 +40,6 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 PYBIND11_MODULE(uav_planning, m) {
     m.doc() = "Python module for UAV trajectory planning";
 
-    srand(time(0));
     srand(0);
 
     py::class_<DRaster>(m, "DRaster")

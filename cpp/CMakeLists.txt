@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(planning_cpp)
 
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/pybind11")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pybind11")
     add_subdirectory("pybind11")
 else()
     find_package(pybind11 2.2.1 REQUIRED)
@@ -23,3 +23,6 @@ set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/trajectory.h src/uav.h
 add_executable(tests ${SOURCE_FILES} src/test/test_dubins.h src/test/main_tests.cpp)
 
 pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
+
+set(PLANNING_MODULE_NAME "uav_planning.cpython-35m-x86_64-linux-gnu.so")
+set(PLANNING_MODULE "${CMAKE_CURRENT_BINARY_DIR}/${PLANNING_MODULE_NAME}" PARENT_SCOPE)
