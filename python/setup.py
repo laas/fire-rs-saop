@@ -21,15 +21,15 @@ setup(
         Extension("fire_rs.firemodel.environment", sources=["fire_rs/firemodel/environment.pyx"]),
         Extension("fire_rs.firemodel.fireshapes", sources=["fire_rs/firemodel/fireshapes.pyx"]),
         # Extension("fire_rs.firemodel.propagation", sources=["fire_rs/firemodel/propagation.pyx"]),
-        Extension(
-            name='fire_rs.uav_planning',
-            sources=['fire_rs/planning-cpp/src/ext/dubins.cpp', 'fire_rs/planning-cpp/src/python_interface.cpp'],
-            depends=glob.glob(os.path.join('fire_rs', 'planning-cpp', 'src', '**', '*.h'), recursive=True),
-            include_dirs=[pybind11.get_include(False), pybind11.get_include(True)],  # Path to pybind11 headers
-            extra_compile_args=["-std=c++11", "-O0", "-g" , "-Wall", "-Wno-deprecated"],
-            language='c++',
-            undef_macros=['NDEBUG'],  # enable assertions in compiled C++ code
-        ),
+        # Extension(
+        #     name='fire_rs.uav_planning',
+        #     sources=['fire_rs/planning-cpp/src/ext/dubins.cpp', 'fire_rs/planning-cpp/src/python_interface.cpp'],
+        #     depends=glob.glob(os.path.join('fire_rs', 'planning-cpp', 'src', '**', '*.h'), recursive=True),
+        #     include_dirs=[pybind11.get_include(False), pybind11.get_include(True)],  # Path to pybind11 headers
+        #     extra_compile_args=["-std=c++11", "-O0", "-g" , "-Wall", "-Wno-deprecated"],
+        #     language='c++',
+        #     undef_macros=['NDEBUG'],  # enable assertions in compiled C++ code
+        # ),
     ],
     cmdclass={'build_ext': build_ext}
 )
