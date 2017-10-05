@@ -5,7 +5,7 @@ add_subdirectory("python")
 
 add_custom_command(
     OUTPUT export_module_command
-    COMMAND cp ${PLANNING_MODULE} ${CMAKE_CURRENT_SOURCE_DIR}/python/fire_rs/
+    COMMAND cp "${CMAKE_CURRENT_BINARY_DIR}/cpp/uav_planning.cpython*.so" ${CMAKE_CURRENT_SOURCE_DIR}/python/fire_rs/
     DEPENDS uav_planning
     )
 
