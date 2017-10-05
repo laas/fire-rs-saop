@@ -22,7 +22,7 @@ struct TrajectoryConfig {
     const double max_flight_time;
 
     TrajectoryConfig(const UAV& uav, double start_time = 0, double max_flight_time = std::numeric_limits<double>::max())
-            : uav(uav), start_time(start_time), start_position(opt<Waypoint3d>()), end_position(opt<Waypoint3d>()), max_flight_time(max_flight_time) {}
+            : uav(uav), start_time(start_time), start_position((opt<Waypoint3d>){}), end_position((opt<Waypoint3d>){}), max_flight_time(max_flight_time) {}
 
     TrajectoryConfig(const UAV& uav,
                                const Waypoint3d& start_position,

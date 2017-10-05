@@ -48,7 +48,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
             if (can_join_backwards) {
                 prev = traj[seg_id - 1];
-                Segment3d prev_replacement_seg = Segment3d(prev->start.as_point(), seg.end.as_point());
+                Segment3d prev_replacement_seg = Segment3d(prev->start.as_point().as_2d(), seg.end.as_point().as_2d(), max(prev->start.z, seg.end.z));
                 if (prev_replacement_seg.xy_length <= 500) {
                     prev_replacement.push_back(prev_replacement_seg);
 
@@ -64,7 +64,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
             if (can_join_forward) {
                 next = traj[seg_id + 1];
-                Segment3d next_replacement_seg = Segment3d(seg.start.as_point(), next->end.as_point());
+                Segment3d next_replacement_seg = Segment3d(seg.start.as_point().as_2d(), next->end.as_point().as_2d(), max(seg.start.z, next->end.z));
                 if (next_replacement_seg.xy_length <= 500) {
                     next_replacement.push_back(next_replacement_seg);
 

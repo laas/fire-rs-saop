@@ -202,14 +202,20 @@ struct Segment3d final {
             : start(wp1), end(wp2), length(sqrt(pow(wp2.x-wp1.x, 2) + pow(wp2.y-wp1.y, 2) + pow(wp2.z-wp1.z, 2))),
               xy_length(sqrt(pow(wp2.x-wp1.x, 2) + pow(wp2.y-wp1.y, 2))) {}
 
-    Segment3d(const Waypoint3d& wp1, const double xy_length)
+    Segment3d(const Waypoint3d& wp1, double xy_length)
             : start(wp1), end(Waypoint3d(wp1.x + cos(wp1.dir) * xy_length, wp1.y + sin(wp1.dir) * xy_length, wp1.z, wp1.dir)),
               length(xy_length), xy_length(xy_length) {}
 
-    Segment3d(const Position3d pt1, const Position3d pt2)
+    Segment3d(const Position3d &pt1, const Position3d &pt2)
             : Segment3d(Waypoint3d {pt1.x, pt1.y, pt1.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
                         Waypoint3d {pt2.x, pt2.y, pt2.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
-        ASSERT(start.z == end.z)
+        ASSERT(ALMOST_EQUAL(start.z, end.z))
+    }
+
+    Segment3d(const Position &pt1, const Position &pt2, double z)
+            : Segment3d(Waypoint3d {pt1.x, pt1.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
+                        Waypoint3d {pt2.x, pt2.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
+        ASSERT(ALMOST_EQUAL(start.z, end.z))
     }
 
     std::string to_string() const {
