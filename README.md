@@ -1,15 +1,29 @@
 FireRS Situation Assessment and Observation Planning
 ====================================================
 
-Build
+Build process details.
 -----
 
-SAOP uses cython for the implementation of the fire propagation models (the `firemodel` module).
-Before using the project, you should therefore build the cython module using the setup script:
+SAOP require pybind11 which is present as a submodule of the current repository. To retrieve it:
 
-    python setup.py build_ext --inplace
+    git submodule init
+    git submodule update
 
-This will generate shared library (.so) in the project folder and you should then be able to use the `firemodel` module as if it was plain python.
+SAOP has two software parts. A C++ backend in `cpp/` used for generating plans and a python module in `python/` that handles geographic data, simulate wildfire and provide an high-level API.
+The build system uses CMake and be used with:
+
+    mkdir build/
+    cd build
+    cmake ..
+    make
+    
+This process will:
+ - build a C++ backend with python bindings
+ - build the Cython modules in `python/`
+ - ensure that the produced artifacts are located in the `python/` source directory so that the python scripts can be invoke in straightforward manner. 
+
+SAOP has a number of dependencies that you obtain by using the docker image (below).
+Otherwise, the file `docker/Dockerfile` contains all the steps require to retrieve all dependencies on an Ubuntu 16.04 distribution.
 
 
 Docker
@@ -25,16 +39,19 @@ To start a shell in the container with the the code repository and the data repo
 
     ./docker/run.sh [start]
     
+
 Makefile
 --------
 
-All most commons operations are available in the Makefile. Targets include
+Most commons operations are available in the Makefile. Targets include
 
-- `build`: compile the project
+- `build`: compile the project (default target) 
 - `autobuild`: Recompile the project each time a source file is changed (requires "when-changed")
-- `test`: Run unit tests
-- `test-cpp`: Run unittests for the C++ module only
+- `test-python`: Run all python unit tests
+- `test-cpp`: Run unittests specific to the C++ module only
+- `test-python-cpp`: Run test interfacing the python and C++ codes.
 - `docker`: starts a shell in the docker container.
 - `docker_build_container`: Build/rebuild the docker image. 
 
-A typical workflow would be to start 
+
+A typical workflow would be to launch the docker container(`make docker`) and the build the project inside it.
