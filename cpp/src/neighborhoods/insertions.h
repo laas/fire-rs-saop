@@ -15,7 +15,7 @@ struct OneInsertNbhd : public Neighborhood {
     const double default_height = 100;
 
     const double max_trials;
-    OneInsertNbhd(double max_trials = 50) : max_trials(max_trials) {}
+    explicit OneInsertNbhd(double max_trials = 50) : max_trials(max_trials) {}
 
     opt<PLocalMove> get_move(PPlan p) override {
         IdentityMove no_move(p);
@@ -65,7 +65,10 @@ private:
         const double random_angle = drand(0, 2*M_PI);
 
         /** Waypoint and segment resulting from the random picks */
-        const Segment3d random_observation = p->uav(0).observation_segment(pt.pt.x, pt.pt.y, default_height , random_angle, default_segment_length);
+        const Segment3d random_observation = p->uav(0).observation_segment(
+                pt.pt.x, pt.pt.y,
+                default_height + p->firedata->elevation(p->firedata->elevation.as_cell(pt.pt)),
+                random_angle, default_segment_length);
 
         opt<Candidate> best;
 

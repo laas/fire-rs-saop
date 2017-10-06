@@ -169,7 +169,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("cells", &IsochroneCluster::cells);
 
     py::class_<FireData>(m, "FireData")
-            .def(py::init<DRaster&, DRaster&>(), py::arg("ignitions"), py::arg("elevation"))
+            .def(py::init<DRaster&, DDiscreteRaster&>(), py::arg("ignitions"), py::arg("elevation"))
             .def_readonly("ignitions", &FireData::ignitions)
             .def_readonly("traversal_end", &FireData::traversal_end)
             .def_readonly("propagation_directions", &FireData::propagation_directions)
@@ -239,9 +239,9 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("planning_time", &SearchResult::planning_time)
             .def_readonly("preprocessing_time", &SearchResult::preprocessing_time);
 
-    m.def("make_plan_vns", [](UAV uav, DRaster ignitions, DRaster elevation,double min_time, double max_time,
+    m.def("make_plan_vns", [](UAV uav, DRaster ignitions, DRaster elevation, double min_time, double max_time,
                               double max_flight_time, size_t save_every, bool save_improvements) -> SearchResult {
-        auto fire_data = make_shared<FireData>(ignitions, elevation);
+        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation), 100));
         TrajectoryConfig conf(uav, min_time, max_flight_time);
         Plan p(vector<TrajectoryConfig> { conf }, fire_data, TimeWindow{min_time, max_time});
 
@@ -262,7 +262,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
         printf("Processing firedata data\n");
         double preprocessing_start = time();
-        auto fire_data = make_shared<FireData>(ignitions, elevation);
+        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation), 100));
         double preprocessing_end = time();
 
         printf("Building initial plan\n");
