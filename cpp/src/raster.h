@@ -43,11 +43,11 @@ struct GenRaster {
             data[i] = 0;
     }
 
-    inline T operator()(Cell cell) const {
+    inline virtual T operator()(Cell cell) const {
         return (*this)(cell.x, cell.y);
     }
 
-    inline T operator()(size_t x, size_t y) const {
+    inline virtual T operator()(size_t x, size_t y) const {
         ASSERT(x >= 0 && x < x_width);
         ASSERT(y >= 0 && y <= y_height);
         return data[x + y*x_width];
@@ -82,9 +82,18 @@ struct GenRaster {
         return is_x_in(wp.x) && is_y_in(wp.y);
     }
 
+    bool is_in(const Position& pos) const {
+        return is_x_in(pos.x) && is_y_in(pos.y);
+    }
+
+    bool is_in(const Position3d& pos) const {
+        return is_x_in(pos.x) && is_y_in(pos.y);
+    }
+
     bool is_x_in(double x_coord) const {
         return x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width-cell_width/2;
     }
+
     bool is_y_in(double y_coord) const {
         return y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height-cell_width/2;
     }
@@ -97,6 +106,16 @@ struct GenRaster {
     Cell as_cell(const Waypoint3d& wp) const {
         ASSERT(is_in(wp));
         return Cell{ x_index(wp.x), y_index(wp.y) };
+    }
+
+    Cell as_cell(const Position& pos) const {
+        ASSERT(is_in(pos));
+        return Cell{ x_index(pos.x), y_index(pos.y) };
+    }
+
+    Cell as_cell(const Position3d& pos) const {
+        ASSERT(is_in(pos));
+        return Cell{ x_index(pos.x), y_index(pos.y) };
     }
 
     size_t x_index(double x_coord) const {
@@ -112,5 +131,40 @@ struct GenRaster {
 
 typedef GenRaster<double> DRaster;
 typedef GenRaster<long> LRaster;
+
+struct DDiscreteRaster : public DRaster {
+
+    size_t interval = 100;
+
+    DDiscreteRaster(std::vector<double> data, size_t x_width, size_t y_height, double x_offset, double y_offset,
+                      double cell_width, size_t _interval) :
+            DRaster(data, x_width, y_height, x_offset, y_offset, cell_width)
+    {
+        interval = _interval;
+    }
+
+    DDiscreteRaster(size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width,
+                    size_t _interval)
+    : DRaster(std::vector<double>(x_width * y_height, 0), x_width, y_height, x_offset, y_offset, cell_width)
+    {
+        interval = _interval;
+    }
+
+    DDiscreteRaster(const DRaster &&raster, size_t _interval) : DRaster(std::move(raster)) {
+        interval = _interval;
+    }
+
+    inline double operator()(Cell cell) const override {
+        return (*this)(cell.x, cell.y);
+    }
+
+    inline double operator()(size_t x, size_t y) const override {
+        ASSERT(x >= 0 && x < x_width);
+        ASSERT(y >= 0 && y <= y_height);
+        double val = data[x + y*x_width];
+        val = val - (fmod(val,interval));
+        return val;
+    }
+};
 
 #endif //PLANNING_CPP_RASTER_H
