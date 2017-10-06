@@ -110,7 +110,9 @@ class World:
                     tile = ElevationTile(f.path)
                     self._elevation_map.add_tile(tile)
                 except RuntimeError as e:
-                    logging.warning(e.msg)
+                    logging.warning(e)
+                except AttributeError as e:
+                    logging.warning(e)
 
     def _load_landcover_tiles(self):
         for f in os.scandir(self._landcover_path):
@@ -119,7 +121,9 @@ class World:
                     tile = LandCoverTile(f.path)
                     self._landcover_map.add_tile(tile)
                 except RuntimeError as e:
-                    logging.warning(e.msg)
+                    logging.warning(e)
+                except AttributeError as e:
+                    logging.warning(e)
 
     def get_fuel_type(self, position, remap=None) -> 'GeoData':
         """Retrieves the fuel type of a given point/area of the map.
