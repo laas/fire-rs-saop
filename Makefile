@@ -5,6 +5,11 @@ build: FORCE
 	cd build && cmake ..
 	cd build && make
 
+build-debug: FORCE
+	mkdir -p build
+	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug
+	cd build && make
+
 # rebuilds project each time a C++ source is modified
 # this requires the "when-changed" program" that is installed in the docker container
 # look in docker/Dockerfile to see how to install it.
