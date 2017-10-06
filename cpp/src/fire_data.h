@@ -41,7 +41,7 @@ public:
     const DRaster propagation_directions;
 
     /* Terrain elevation */
-    const DDiscreteRaster elevation;
+    const shared_ptr<DRaster> elevation;
 
     /** Cells within the same timespan. */
 //    const vector<shared_ptr<IsochroneCluster>> isochrones;
@@ -51,7 +51,7 @@ public:
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
-              elevation(DDiscreteRaster(std::move(elevation),1))
+              elevation(make_shared<DRaster>(elevation))
 //              isochrones(compute_isochrone_clusters(ignitions, traversal_end, isochrone_timespan))
     {}
 
@@ -59,7 +59,7 @@ public:
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
-              elevation(elevation)
+              elevation(make_shared<DDiscreteRaster>(elevation))
     {}
 
     FireData(const FireData& from) = default;

@@ -67,7 +67,7 @@ private:
         /** Waypoint and segment resulting from the random picks */
         const Segment3d random_observation = p->uav(0).observation_segment(
                 pt.pt.x, pt.pt.y,
-                default_height + p->firedata->elevation(p->firedata->elevation.as_cell(pt.pt)),
+                default_height + (*p->firedata->elevation)(p->firedata->elevation->as_cell(pt.pt)),
                 random_angle, default_segment_length);
 
         opt<Candidate> best;
