@@ -134,10 +134,12 @@ struct Dubins3dPathLength {
                 configuration_2d = Dubins2dPathType::LSR;
                 break;
             case Dubins2dPathType::RLR:
-            ASSERT(false);  // FIXME: Idk how to treat it
+                // TODO: verify this is correct. (Originally not present in Beard 2013)
+                configuration_2d = Dubins2dPathType::LRL;
                 break;
             case Dubins2dPathType::LRL:
-            ASSERT(false);  // FIXME: Idk how to treat it
+                // TODO: verify this is correct. (Originally not present in Beard 2013)
+                configuration_2d = Dubins2dPathType::RLR;
                 break;
             default:
             ASSERT(false);  // Something went wrong
