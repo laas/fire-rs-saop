@@ -25,13 +25,13 @@ test-python: build FORCE
 
 # Run python test for "planning-cpp"
 test-python-cpp: build FORCE
-	cd python && python3 -m unittest fire_rs.planning.test_uav_planning_cpp
+	cd python && python3 -m unittest python.fire_rs.planning.test_uav_planning_cpp
 
 test-cpp: build
 	./build/cpp/tests
 
 benchmark: build FORCE
-	cd python && PYTHONPATH="${PYTHONPATH}:." python3 fire_rs/planning/benchmark.py
+	cd python && PYTHONPATH="${PYTHONPATH}:./python/" python3 fire_rs/planning/benchmark.py
 
 
 
