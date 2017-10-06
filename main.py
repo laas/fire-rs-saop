@@ -1,8 +1,8 @@
 """Main client of fire_rs library"""
 
 
-from fire_rs.geodata import environment
-import fire_rs.firemodel.propagation as propagation
+from python.fire_rs.geodata import environment
+import python.fire_rs.firemodel.propagation as propagation
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib
 import matplotlib.pyplot as plt

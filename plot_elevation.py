@@ -1,5 +1,5 @@
 
-from fire_rs.geodata.elevation import ElevationMap, ElevationTile
+from python.fire_rs.geodata.elevation import ElevationMap, ElevationTile
 
 import gdal
 

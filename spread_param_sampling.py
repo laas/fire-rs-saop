@@ -1,6 +1,6 @@
 """Sampling fire spread (ROS, wind angle and force)
 """
-import fire_rs.firemodel.propagation as propagation
+import python.fire_rs.firemodel.propagation as propagation
 import numpy as np
 import itertools
 import os
