@@ -240,8 +240,10 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("preprocessing_time", &SearchResult::preprocessing_time);
 
     m.def("make_plan_vns", [](UAV uav, DRaster ignitions, DRaster elevation, double min_time, double max_time,
-                              double max_flight_time, size_t save_every, bool save_improvements) -> SearchResult {
-        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation), 100));
+                              double max_flight_time, size_t save_every, bool save_improvements,
+                              size_t discrete_elevation_interval=1) -> SearchResult {
+        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation),
+                                                                          discrete_elevation_interval));
         TrajectoryConfig conf(uav, min_time, max_flight_time);
         Plan p(vector<TrajectoryConfig> { conf }, fire_data, TimeWindow{min_time, max_time});
 
@@ -249,11 +251,13 @@ PYBIND11_MODULE(uav_planning, m) {
 
         auto res = vns.search(p, 0, save_every, save_improvements);
         return res;
-    }, py::arg("uav"), py::arg("ignitions"), py::arg("elevation"), py::arg("min_time"), py::arg("max_time"), py::arg("max_flight_time"),
-          py::arg("save_every") = 0, py::arg("save_improvements") = false);
+    }, py::arg("uav"), py::arg("ignitions"), py::arg("elevation"), py::arg("min_time"), py::arg("max_time"),
+          py::arg("max_flight_time"), py::arg("save_every") = 0, py::arg("save_improvements") = false,
+          py::arg("discrete_elevation_interval") = 1);
 
-    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, double min_time, double max_time,
-                         size_t save_every, bool save_improvements=false) -> SearchResult {
+    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, double min_time,
+                         double max_time, size_t save_every, bool save_improvements=false,
+                         size_t discrete_elevation_interval=1) -> SearchResult {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -262,7 +266,8 @@ PYBIND11_MODULE(uav_planning, m) {
 
         printf("Processing firedata data\n");
         double preprocessing_start = time();
-        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation), 100));
+        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation),
+                                                                          discrete_elevation_interval));
         double preprocessing_end = time();
 
         printf("Building initial plan\n");
@@ -277,6 +282,7 @@ PYBIND11_MODULE(uav_planning, m) {
         res.planning_time = planning_end - planning_start;
         res.preprocessing_time = preprocessing_end - preprocessing_start;
         return res;
-    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("min_time"), py::arg("max_time"),
-          py::arg("save_every") = 0, py::arg("save_improvements") = false, py::call_guard<py::gil_scoped_release>());
+    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("min_time"),
+          py::arg("max_time"), py::arg("save_every") = 0, py::arg("save_improvements") = false,
+          py::arg("discrete_elevation_interval") = 1, py::call_guard<py::gil_scoped_release>());
 }

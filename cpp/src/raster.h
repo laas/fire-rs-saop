@@ -150,7 +150,7 @@ struct DDiscreteRaster : public DRaster {
         interval = _interval;
     }
 
-    DDiscreteRaster(const DRaster &&raster, size_t _interval) : DRaster(std::move(raster)) {
+    DDiscreteRaster(DRaster raster, size_t _interval) : DRaster(std::move(raster)) {
         interval = _interval;
     }
 
