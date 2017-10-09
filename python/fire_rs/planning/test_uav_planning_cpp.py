@@ -20,18 +20,18 @@ class TestUAV(unittest.TestCase):
 
     def test_waypoint(self):
         wp1 = up.Waypoint(4, 3, 2, 1)
-        self.assertEquals(wp1.x, 4)
-        self.assertEquals(wp1.y, 3)
+        self.assertEqual(wp1.x, 4)
+        self.assertEqual(wp1.y, 3)
         self.assertEqual(wp1.z, 2)
-        self.assertEquals(wp1.dir, 1)
+        self.assertEqual(wp1.dir, 1)
 
     def test_straight_line_dubins(self):
-        self.assertAlmostEquals(4, uav.travel_distance(self.wp1, self.wp2))
+        self.assertAlmostEqual(4, uav.travel_distance(self.wp1, self.wp2))
         traj = up.Trajectory(up.TrajectoryConfig.build(uav))
         for wp in [self.wp1, self.wp2]:
             traj = traj.with_waypoint_at_end(wp)
             print(traj)
-        self.assertAlmostEquals(4, traj.length())
+        self.assertAlmostEqual(4, traj.length())
 
     def test_geodata_conversion(self):
         from fire_rs.geodata.environment import World
@@ -41,10 +41,10 @@ class TestUAV(unittest.TestCase):
         print(raster)
         gd2 = GeoData.from_cpp_raster(raster, "elevation_cpp")
         print(gd2[10,10][0])
-        self.assertAlmostEquals(gd[10,10][0], gd2[10,10][0])
-        self.assertAlmostEquals(gd.x_offset, gd2.x_offset)
-        self.assertAlmostEquals(gd.y_offset, gd2.y_offset)
-        self.assertEquals(gd.data.shape, gd2.data.shape)
+        self.assertAlmostEqual(gd[10,10][0], gd2[10,10][0])
+        self.assertAlmostEqual(gd.x_offset, gd2.x_offset)
+        self.assertAlmostEqual(gd.y_offset, gd2.y_offset)
+        self.assertEqual(gd.data.shape, gd2.data.shape)
         print(gd2)
 
     def test_vns_small(self):
