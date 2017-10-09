@@ -242,8 +242,7 @@ PYBIND11_MODULE(uav_planning, m) {
     m.def("make_plan_vns", [](UAV uav, DRaster ignitions, DRaster elevation, double min_time, double max_time,
                               double max_flight_time, size_t save_every, bool save_improvements,
                               size_t discrete_elevation_interval=1) -> SearchResult {
-        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation),
-                                                                          discrete_elevation_interval));
+        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(elevation, discrete_elevation_interval));
         TrajectoryConfig conf(uav, min_time, max_flight_time);
         Plan p(vector<TrajectoryConfig> { conf }, fire_data, TimeWindow{min_time, max_time});
 
@@ -266,8 +265,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
         printf("Processing firedata data\n");
         double preprocessing_start = time();
-        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(std::move(elevation),
-                                                                          discrete_elevation_interval));
+        auto fire_data = make_shared<FireData>(ignitions, DDiscreteRaster(elevation, discrete_elevation_interval));
         double preprocessing_end = time();
 
         printf("Building initial plan\n");

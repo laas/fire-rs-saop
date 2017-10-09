@@ -154,6 +154,10 @@ struct DDiscreteRaster : public DRaster {
         interval = _interval;
     }
 
+    DDiscreteRaster(DRaster &&raster, size_t _interval) : DRaster(std::move(raster)) {
+        interval = _interval;
+    }
+
     inline double operator()(Cell cell) const override {
         return (*this)(cell.x, cell.y);
     }
