@@ -19,6 +19,8 @@ from fire_rs.geodata.geo_data import TimedPoint, Area
 
 _DBL_MAX = np.finfo(np.float64).max
 
+DISCRETE_ELEVATION_INTERVAL = 1
+
 Waypoint = namedtuple('Waypoint', 'x, y, z, dir')
 
 
@@ -96,7 +98,8 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         '''Bounds drawing methods to a GeoDataDisplayInstance.'''
         geodatadisplay.plan_trajectory = self.plan_trajectory
         geodatadisplay.draw_waypoints = types.MethodType(PlanDisplayExtension._draw_waypoints_extension, geodatadisplay)
-        geodatadisplay.draw_path = types.MethodType(PlanDisplayExtension._draw_path_extension, geodatadisplay)
+        geodatadisplay.draw_flighttime_path = types.MethodType(PlanDisplayExtension._draw_flighttime_path_extension, geodatadisplay)
+        geodatadisplay.draw_solid_path = types.MethodType(PlanDisplayExtension._draw_solid_path_extension, geodatadisplay)
         geodatadisplay.draw_segments = types.MethodType(PlanDisplayExtension._draw_segments_extension, geodatadisplay)
         geodatadisplay.draw_observedcells = types.MethodType(PlanDisplayExtension._draw_observedcells, geodatadisplay)
 
@@ -109,8 +112,8 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         self._drawings.append(self.axis.scatter(x[::2], y[::2], s=7, c=color, marker='D'))
         self._drawings.append(self.axis.scatter(x[1::2], y[1::2], s=7, c=color, marker='>'))
 
-    def _draw_path_extension(self, *args, colorbar_time_range: 'Optional[Tuple[float, float]]' = None, **kwargs):
-        '''Draw trajectory in a GeoDataDisplay figure.
+    def _draw_flighttime_path_extension(self, *args, colorbar_time_range: 'Optional[Tuple[float, float]]' = None, **kwargs):
+        '''Draw trajectory in a GeoDataDisplay figure using a flight of time color scale.
         
         Optional argument colorbar_time_range may be a tuple of start and end times in seconds.'''
         if len(self.plan_trajectory.segments) < 2:
@@ -129,8 +132,23 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
             cb.set_label("Flight time [min]")
             self._colorbars.append(cb)
 
+    def _draw_solid_path_extension(self, *args, **kwargs):
+        '''Draw trajectory in a GeoDataDisplay figure with solid color
+
+        kwargs:
+            color: desired color. Default: C0.
+        '''
+        if len(self.plan_trajectory.segments) < 2:
+            return
+        sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
+        color = kwargs.get('color', 'C0')
+        x = [wp.x for wp in sampled_waypoints]
+        y = [wp.y for wp in sampled_waypoints]
+        self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color, zorder=2))
+        # TODO: implement legend
+
     def _draw_segments_extension(self, *args, **kwargs):
-        '''Draw path segments in a GeoDataDisplay figure.'''
+        '''Draw extremes observation segments in a GeoDataDisplay figure.'''
         if len(self.plan_trajectory.segments) < 2:
             return
         color = kwargs.get('color', 'C0')
@@ -139,16 +157,21 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         start_y = [s.start.y for s in segments]
         end_x = [s.end.x for s in segments]
         end_y = [s.end.y for s in segments]
-        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='D', zorder=2))
-        self._drawings.append(self.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>', zorder=2))
+
+        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='D', zorder=3))
+        self._drawings.append(self.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>', zorder=3))
+
 
         start_base = self.plan_trajectory.segments[0]
         finish_base = self.plan_trajectory.segments[-1]
 
         self._drawings.append(
-            self.axis.scatter(start_base.start.x, start_base.start.y, s=10, edgecolor='black', c=color, marker='o', zorder=2))
+            self.axis.scatter(start_base.start.x, start_base.start.y, s=10, edgecolor='black', c=color, marker='o', zorder=3))
         self._drawings.append(
-            self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10, edgecolor='black', c=color, marker='o', zorder=2))
+            self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10, edgecolor='black', c=color, marker='o', zorder=3))
+
+        for i in range(len(segments)):
+            self._drawings.append(self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c='darkorange', linewidth=3, zorder=2))
 
     def _draw_observedcells(self, observations, **kwargs):
         for ptt in observations:
@@ -160,8 +183,8 @@ def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' 
     colors = ['C'+str(i) for i in range(len(plan.trajectories))]
     for traj, color in zip(plan.trajectories, colors):
         geodatadisplay.plan_trajectory = traj
-        geodatadisplay.draw_path(colorbar_time_range=time_range, with_colorbar=True)
-        geodatadisplay.draw_segments(color=color)
+        geodatadisplay.draw_solid_path(color="C1", colorbar_time_range=time_range, with_colorbar=True)
+        geodatadisplay.draw_segments(color="C1")
     if show:
         geodatadisplay.axis.get_figure().show()
 
@@ -181,9 +204,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     flight = scenario.flights[0]
     flights = [f.as_trajectory_config() for f in scenario.flights]
     # ax = ignitions.plot(blocking=False)
-    res = up.plan_vns(flights, ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(),
+    flat_earth = env.raster.slice('elevation')
+    flat_earth.data['elevation'] = np.zeros_like(flat_earth.data['elevation'])
+    res = up.plan_vns(flights, ignitions.as_cpp_raster(), flat_earth.as_cpp_raster(),
                       scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots,
-                      discrete_elevation_interval=100)
+                      discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL)
     plan = res.final_plan()
 
 
@@ -194,13 +219,18 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     first_ignition = np.nanmin(ignitions_nan)
     last_ignition = np.nanmax(ignitions_nan)
 
+    # a = env.raster.data['elevation']
+    # b = np.fmod(env.raster.data['elevation'], DISCRETE_ELEVATION_INTERVAL)
+    # c = a-b
+    # env.raster.data['elevation'] = c;
+
     # Draw the final plan on a figure
     geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
     PlanDisplayExtension(None).extend(geodatadisplay)
 
     for layer in output_options_plot['background']:
         if layer == 'elevation_shade':
-            geodatadisplay.draw_elevation_shade(with_colorbar=True)
+            geodatadisplay.draw_elevation_shade(with_colorbar=False)
         elif layer == 'ignition_shade':
             geodatadisplay.draw_ignition_shade(with_colorbar=True)
         elif layer == 'observedcells':
@@ -213,7 +243,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
     print("saving as: " + str(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png')))))
-    geodatadisplay.axis.get_figure().set_size_inches(20, 15)
+    geodatadisplay.axis.get_figure().set_size_inches(10, 7)
     geodatadisplay.axis.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
@@ -227,9 +257,9 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         PlanDisplayExtension(None).extend(geodatadisplay)
         for layer in output_options_plot['background']:
             if layer == 'elevation_shade':
-                geodatadisplay.draw_elevation_shade(with_colorbar=True)
+                geodatadisplay.draw_elevation_shade(with_colorbar=False)
             elif layer == 'ignition_shade':
-                geodatadisplay.draw_ignition_shade(with_colorbar=True)
+                geodatadisplay.draw_ignition_shade(with_colorbar=False)
             elif layer == 'observedcells':
                 geodatadisplay.draw_observedcells(i_plan.observations())
             elif layer == 'ignition_contour':
@@ -244,7 +274,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
         print("saving as: " + str(
             os.path.join(i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png')))))
-        geodatadisplay.axis.get_figure().set_size_inches(20, 15)
+        geodatadisplay.axis.get_figure().set_size_inches(15, 10)
         geodatadisplay.axis.get_figure().savefig(os.path.join(
             i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png'))),
             dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
@@ -261,6 +291,40 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
             instance_name, res.planning_time, res.preprocessing_time, plan.utility(), plan.duration()))
 
     del res
+
+
+def generate_scenario_newsletter():
+    # 9 by 7 km area
+    area = Area(545000.0, 548000.0, 6211000.0, 6214000.0)
+    uav_max_pitch_angle = 6. / 180. * np.pi  # aka gamma_max=0.11rad for 2m/s rate of climb and 18m/s cruise air speed
+    uav_speed = 18.  # m/s
+    uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
+    uav_bases = [Waypoint(area.xmin + 100, area.ymax - 100, 100., 0.)]
+
+    num_ignitions = 1
+    wind_speed = random.choice([10.,])  # 18 km/h, 36 km/h, 54 km/h, 72 km/h
+    wind_dir = random.choice([np.pi/4,])
+    area_range = (area.xmax - area.xmin, area.ymax - area.ymin)
+    ignitions = [TimedPoint(random.uniform(area.xmin+area_range[0]*.2, area.xmax-area_range[0]*.4),
+                            random.uniform(area.ymin+area_range[1]*.4, area.ymax-area_range[1]*.6),
+                            random.uniform(0, 3000))
+                 for i in range(num_ignitions)]
+
+    # start once all fires are ignited
+    start = max([igni.time for igni in ignitions])
+
+    num_flights = 1
+    flights = []
+    for i in range(num_flights):
+        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
+        uav_start = start + 3000
+        max_flight_time = 450
+        flights.append(Flight(uav, uav_start, max_flight_time))
+
+    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
+                        wind_speed, wind_dir, ignitions, flights)
+    return scenario
+
 
 
 def generate_scenario_singlefire_singleuav_3d():
@@ -402,7 +466,8 @@ def generate_scenario():
 scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav': generate_scenario_singlefire_singleuav,
                           'singlefire_singleuav_shortrange': generate_scenario_singlefire_singleuav_shortrange,
-                          'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,}
+                          'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
+                          'newsletter': generate_scenario_newsletter,}
 
 
 def main():
