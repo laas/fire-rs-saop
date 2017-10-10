@@ -166,7 +166,7 @@ struct DiscreteDRaster : public DRaster {
         ASSERT(x >= 0 && x < x_width);
         ASSERT(y >= 0 && y <= y_height);
         double val = data[x + y*x_width];
-        val = val - (fmod(val,interval));
+        val = val + interval - fmod(val,interval); //FIXME: if interval is "1", does val stay the same after this operation?
         return val;
     }
 };
