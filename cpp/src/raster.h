@@ -132,25 +132,29 @@ struct GenRaster {
 typedef GenRaster<double> DRaster;
 typedef GenRaster<long> LRaster;
 
-struct DDiscreteRaster : public DRaster {
+struct DiscreteDRaster : public DRaster {
 
     size_t interval = 100;
 
-    DDiscreteRaster(std::vector<double> data, size_t x_width, size_t y_height, double x_offset, double y_offset,
+    DiscreteDRaster(std::vector<double> data, size_t x_width, size_t y_height, double x_offset, double y_offset,
                       double cell_width, size_t _interval) :
             DRaster(data, x_width, y_height, x_offset, y_offset, cell_width)
     {
         interval = _interval;
     }
 
-    DDiscreteRaster(size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width,
+    DiscreteDRaster(size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width,
                     size_t _interval)
     : DRaster(std::vector<double>(x_width * y_height, 0), x_width, y_height, x_offset, y_offset, cell_width)
     {
         interval = _interval;
     }
 
-    DDiscreteRaster(DRaster raster, size_t _interval) : DRaster(std::move(raster)) {
+    DiscreteDRaster(DRaster raster, size_t _interval) : DRaster(std::move(raster)) {
+        interval = _interval;
+    }
+
+    DiscreteDRaster(DRaster &&raster, size_t _interval) : DRaster(std::move(raster)) {
         interval = _interval;
     }
 
@@ -162,7 +166,7 @@ struct DDiscreteRaster : public DRaster {
         ASSERT(x >= 0 && x < x_width);
         ASSERT(y >= 0 && y <= y_height);
         double val = data[x + y*x_width];
-        val = val - (fmod(val,interval));
+        val = val + interval - fmod(val,interval); //FIXME: if interval is "1", does val stay the same after this operation?
         return val;
     }
 };

@@ -9,6 +9,7 @@ import time
 import types
 
 from collections import namedtuple, Sequence
+from itertools import cycle
 from typing import Optional, Tuple, Union
 
 import fire_rs.geodata.display
@@ -180,7 +181,8 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
 
 
 def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
-    colors = ['C'+str(i) for i in range(len(plan.trajectories))]
+    # colors = ['C'+str(i) for i in range(len(plan.trajectories))]
+    colors = cycle(['red', 'blue', 'green', 'magenta', 'cyan'])
     for traj, color in zip(plan.trajectories, colors):
         geodatadisplay.plan_trajectory = traj
         geodatadisplay.draw_solid_path(color="C1", colorbar_time_range=time_range, with_colorbar=True)

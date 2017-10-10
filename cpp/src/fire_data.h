@@ -55,11 +55,11 @@ public:
 //              isochrones(compute_isochrone_clusters(ignitions, traversal_end, isochrone_timespan))
     {}
 
-    FireData(const DRaster &ignitions, const DDiscreteRaster &elevation)
+    FireData(const DRaster &ignitions, const DiscreteDRaster &elevation)
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
-              elevation(make_shared<DDiscreteRaster>(elevation))
+              elevation(make_shared<DiscreteDRaster>(elevation))
     {}
 
     FireData(const FireData& from) = default;
