@@ -109,25 +109,35 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         self._drawings.append(self.axis.scatter(x[::2], y[::2], s=7, c=color, marker='D'))
         self._drawings.append(self.axis.scatter(x[1::2], y[1::2], s=7, c=color, marker='>'))
 
-    def _draw_path_extension(self, *args, colorbar_time_range: 'Optional[Tuple[float, float]]' = None, **kwargs):
+    def _draw_path_extension(self, *args, single_color: 'Optional[str]' = None,
+                             colorbar_time_range: 'Optional[Tuple[float, float]]' = None, **kwargs):
         '''Draw trajectory in a GeoDataDisplay figure.
-        
-        Optional argument colorbar_time_range may be a tuple of start and end times in seconds.'''
+
+        If the single_color argument is set, the trajectory will be displayed with a single color and
+        other color related options are ignored.
+
+        Otherwise the color of the trajectory will reflect the time taken by the trajectory.
+        Optional argument colorbar_time_range may be a tuple of start and end times in seconds.
+        If the Optional argument with_colorbar is set to True, a color bar will be displayed of the trajectory.
+        '''
         if len(self.plan_trajectory.segments) < 2:
             return
         sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         x = [wp.x for wp in sampled_waypoints]
         y = [wp.y for wp in sampled_waypoints]
-        color_range = np.linspace(self.plan_trajectory.start_time() / 60, self.plan_trajectory.end_time() / 60, len(x))
-        color_norm = matplotlib.colors.Normalize(vmin=color_range[0], vmax=color_range[-1])
-        if colorbar_time_range is not None:
-            color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0]/60, vmax=colorbar_time_range[1]/60)
-        self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
+        if single_color:
+            self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=single_color, zorder=2))
+        else:
+            color_range = np.linspace(self.plan_trajectory.start_time() / 60, self.plan_trajectory.end_time() / 60, len(x))
+            color_norm = matplotlib.colors.Normalize(vmin=color_range[0], vmax=color_range[-1])
+            if colorbar_time_range is not None:
+                color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0]/60, vmax=colorbar_time_range[1]/60)
+            self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
                                        norm=color_norm, cmap=matplotlib.cm.gist_rainbow, zorder=2))
-        if kwargs.get('with_colorbar', False):
-            cb = self._figure.colorbar(self._drawings[-1], ax=self.axis, shrink=0.65, aspect=20)
-            cb.set_label("Flight time [min]")
-            self._colorbars.append(cb)
+            if kwargs.get('with_colorbar', False):
+                cb = self._figure.colorbar(self._drawings[-1], ax=self.axis, shrink=0.65, aspect=20)
+                cb.set_label("Flight time [min]")
+                self._colorbars.append(cb)
 
     def _draw_segments_extension(self, *args, **kwargs):
         '''Draw path segments in a GeoDataDisplay figure.'''
@@ -157,10 +167,12 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
 
 
 def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
-    colors = ['C'+str(i) for i in range(len(plan.trajectories))]
+    # colors = ['C'+str(i) for i in range(len(plan.trajectories))]
+    colors = ["red", "green", "blue", "black"]
     for traj, color in zip(plan.trajectories, colors):
         geodatadisplay.plan_trajectory = traj
-        geodatadisplay.draw_path(colorbar_time_range=time_range, with_colorbar=True)
+        geodatadisplay.draw_path(single_color=color)
+        # geodatadisplay.draw_path(colorbar_time_range=time_range, with_colorbar=True)
         geodatadisplay.draw_segments(color=color)
     if show:
         geodatadisplay.axis.get_figure().show()
