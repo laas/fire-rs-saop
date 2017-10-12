@@ -58,7 +58,7 @@ private:
             return {};
 
         /** Select a random point in the pending list */
-        const size_t index = rand() % p->possible_observations.size();
+        const size_t index = rand(0, p->possible_observations.size());
         const Point3dTimeWindow pt = p->possible_observations[index];
 
         /** Pick an angle randomly */
@@ -82,7 +82,7 @@ private:
                 bool updated = true;
                 size_t num_iter = 0;
 
-                // project the segment on firefront until we converge or are enable to project the segment anymore.
+                // project the segment on firefront until we converge or are unable to project the segment anymore.
                 while(current_segment && updated) {
                     // time at which the uav will reach the segment
                     const double time = insert_loc==0 ?
@@ -107,7 +107,7 @@ private:
                     } else {
                         updated = false;
                     }
-                    ASSERT(num_iter++ <1000); // I assumed that this always converges (very quickly). One can safely put a bound on the number of iterations.
+                    ASSERT(num_iter++ <1000); // This should always converges (very quickly). One can safely put a bound on the number of iterations.
                 }
                 if(current_segment) {
                     // current segment is valid (i.e. successfully projected on firefront,
