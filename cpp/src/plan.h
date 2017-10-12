@@ -116,17 +116,20 @@ struct Plan {
         return obs;
     }
 
-    void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc) {
+    void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true) {
         ASSERT(traj_id < trajectories.size());
         ASSERT(insert_loc <= trajectories[traj_id].traj.size());
         trajectories[traj_id].insert_segment(seg, insert_loc);
-        post_process();
+        if(do_post_processing)
+            post_process();
     }
 
-    void erase_segment(size_t traj_id, size_t at_index) {
+    void erase_segment(size_t traj_id, size_t at_index, bool do_post_processing = true) {
         ASSERT(traj_id < trajectories.size());
         ASSERT(at_index < trajectories[traj_id].traj.size());
         trajectories[traj_id].erase_segment(at_index);
+        if(do_post_processing)
+            post_process();
     }
 
     void replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment) {
@@ -138,12 +141,13 @@ struct Plan {
         ASSERT(traj_id < trajectories.size());
         ASSERT(at_index + n_replaced - 1 < trajectories[traj_id].traj.size());
 
+        // do not post process as we will do that at the end
         for (size_t i = 0; i < n_replaced; ++i) {
-            erase_segment(traj_id, at_index);
+            erase_segment(traj_id, at_index, true);
         }
 
         for (size_t i = 0; i < segments.size(); ++i) {
-            insert_segment(traj_id, segments.at(i), at_index + i);
+            insert_segment(traj_id, segments.at(i), at_index + i, true);
         }
 
         post_process();
@@ -306,11 +310,11 @@ private:
     /** Constants used for computed the cost associated to a pair of points.
      * The cost is MAX_INDIVIDUAL_COST if the distance between two points
      * is >= MAX_INFORMATIVE_DISTANCE. It is be 0 if the distance is 0 and scales linearly between the two. */
-    const double MAX_INFORMATIVE_DISTANCE = 100.;
+    const double MAX_INFORMATIVE_DISTANCE = 500.;
 
     /** If a point is less than REDUNDANT_OBS_DIST aways from another observation, it useless to observe it.
      * This is defined such that those point are in the visible area when pictured. */
-    const double REDUNDANT_OBS_DIST = 0.;
+    const double REDUNDANT_OBS_DIST = 50.;
 };
 
 
