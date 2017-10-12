@@ -190,7 +190,6 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # Propagation was let running more time than desired in order to reduce edge effect.
     # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next 10-minute mark (minus 1).
     ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
-    flight = scenario.flights[0]
     flights = [f.as_trajectory_config() for f in scenario.flights]
     # ax = ignitions.plot(blocking=False)
     res = up.plan_vns(flights, ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(),
@@ -221,6 +220,9 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
             geodatadisplay.draw_ignition_contour(with_labels=True)
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
+
+    for i, t in enumerate(res.final_plan().trajectories):
+        print("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
 
     plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
     print("saving as: " + str(os.path.join(
@@ -403,7 +405,7 @@ def generate_scenario():
     for i in range(num_flights):
         uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start, start + 4000.)
-        max_flight_time = random.uniform(500, 1500)
+        max_flight_time = random.uniform(1000, 2000)
         flights.append(Flight(uav, uav_start, max_flight_time))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
@@ -440,6 +442,10 @@ def main():
                         help="resolution of the output figures",
                         type=int,
                         default=150)
+    parser.add_argument("--instance",
+                        help="Runs a particular benchmark instance",
+                        type=int,
+                        default=None)
     parser.add_argument("--snapshots", action="store_true",
                         help="save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
                         default=False)
@@ -491,18 +497,21 @@ def main():
     if args.wait:
         input("Press enter to continue...")
 
+    if args.instance != None:
+        to_run = [(args.instance, scenarios[args.instance])]
+    else:
+        to_run = enumerate(scenarios)
+
     if args.parallel:
         import joblib
         ALL_CPU_BUT_ONE = -2
         joblib.Parallel(n_jobs=4, backend="threading", verbose=5)\
             (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
-                                           snapshots=args.snapshots) for i, s in enumerate(scenarios))
+                                           snapshots=args.snapshots) for i, s in to_run)
     else:
-        i=0
-        for scenario in scenarios:
+        for i, scenario in to_run:
             print(scenario)
             run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'], snapshots=args.snapshots)
-            i += 1
 
 
 if __name__=='__main__':
