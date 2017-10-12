@@ -93,11 +93,12 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
             const Segment3d replacement_segment = plan->uav(traj_id).rotate_on_visibility_center(traj[seg_id], *optAngle);
             const double local_duration_cost = traj.replacement_duration_cost(seg_id, replacement_segment);
 
-            PLocalMove move = make_shared<SegmentRotation>(plan, traj_id, seg_id, *optAngle);
 
             // if the duration is improving and the utility doesn't get worse then return the move
-            if(move->is_valid() && local_duration_cost < -1 && move->utility() <= plan->utility()) {
-                return move;
+            if(local_duration_cost < -1) {
+                PLocalMove move = make_shared<SegmentRotation>(plan, traj_id, seg_id, *optAngle);
+                if(move->is_valid())
+                    return move;
             }
         }
         // we did not find any duration improving move
