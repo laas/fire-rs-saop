@@ -143,11 +143,11 @@ struct Plan {
 
         // do not post process as we will do that at the end
         for (size_t i = 0; i < n_replaced; ++i) {
-            erase_segment(traj_id, at_index, true);
+            erase_segment(traj_id, at_index, false);
         }
 
         for (size_t i = 0; i < segments.size(); ++i) {
-            insert_segment(traj_id, segments.at(i), at_index + i, true);
+            insert_segment(traj_id, segments.at(i), at_index + i, false);
         }
 
         post_process();
