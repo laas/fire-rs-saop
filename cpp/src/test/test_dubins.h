@@ -76,7 +76,7 @@ bool test_length_flat() {
 }
 
 
-int all_dubins_tests()
+void all_dubins_tests()
 {
     test_length_flat();
     test_length_low_alt();

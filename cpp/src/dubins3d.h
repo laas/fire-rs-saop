@@ -529,7 +529,6 @@ private:
 
             L_ie = dubins_path_length(&path_ext); // We could speedup this function by using the DubinsType
 
-            double h_length = fabs(delta_z/tan(gamma_max));
             err = (L_ie + L_si) - fabs(delta_z/tan(gamma_max));
             if (err > 0) {
                 chi_h = chi;

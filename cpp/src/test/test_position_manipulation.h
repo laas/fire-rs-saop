@@ -176,7 +176,7 @@ void test_trajectory_as_waypoints() {
     traj.sampled(2);
 }
 
-int all_position_manipulation()
+void all_position_manipulation()
 {
     srand(time(0));
 
