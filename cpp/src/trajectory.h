@@ -188,7 +188,9 @@ public:
         }
     }
     double insertion_duration_cost(size_t insert_loc, const Segment3d segment) const {
-        return insertion_length_cost(insert_loc, segment) / conf.uav.max_air_speed;
+        auto increase_in_length =  insertion_length_cost(insert_loc, segment);
+        ASSERT(increase_in_length >= 0)
+        return increase_in_length / conf.uav.max_air_speed;
     }
 
     /** Decrease of length as result of removing the segment at the given position. */
@@ -270,6 +272,8 @@ public:
                           end_time(at_index-1) + conf.uav.travel_time(traj[at_index-1].end, seg.start);
 
         const double added_delay = insertion_duration_cost(at_index, seg);
+        std::cout << added_delay << " idx:" << at_index << std::endl;
+        ASSERT(added_delay >= 0)
         traj.insert(traj.begin()+at_index, seg);
         start_times.insert(start_times.begin()+at_index, start);
 
