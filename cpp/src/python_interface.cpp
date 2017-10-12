@@ -206,6 +206,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const TrajectoryConfig&>())
+            .def_readonly("conf", &Trajectory::conf)
             .def("start_time", (double (Trajectory::*)() const)&Trajectory::start_time)
             .def("end_time", (double (Trajectory::*)() const)&Trajectory::end_time)
             .def_readonly("segments", &Trajectory::traj)
