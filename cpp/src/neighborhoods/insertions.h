@@ -58,7 +58,7 @@ private:
 
     /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
     opt<PLocalMove> get_move_for_random_possible_observation(PPlan p) {
-        ASSERT(!p->trajectories.empty())
+        ASSERT(!p->core.empty())
         if(p->possible_observations.empty())
             return {};
 
@@ -70,7 +70,7 @@ private:
         const double random_angle = drand(0, 2*M_PI);
 
         /** Waypoint and segment resulting from the random picks */
-        const Segment3d random_observation = p->uav(0).observation_segment(
+        const Segment3d random_observation = p->core.uav(0).observation_segment(
                 pt.pt.x, pt.pt.y,
                 default_height + (*p->firedata->elevation)(p->firedata->elevation->as_cell(pt.pt)),
                 random_angle, default_segment_length);
@@ -78,8 +78,8 @@ private:
         opt<Candidate> best;
 
         /** Try best insert for each subtrajectory in the plan */
-        for(size_t i=0; i< p->trajectories.size(); i++) {
-            const Trajectory& traj = p->trajectories[i];
+        for(size_t i=0; i< p->core.size(); i++) {
+            const Trajectory& traj = p->core[i];
 
             for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
 

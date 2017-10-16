@@ -79,7 +79,7 @@ void test_many_points_to_observe_with_start_end_positions() {
     ASSERT(res.final_plan)
     Plan solution = res.final();
 
-    auto& traj = solution.trajectories[0];
+    auto& traj = solution.core[0];
 //    ASSERT(traj[0] == start);
 //    ASSERT(traj[traj.size()-1] == end);
     ASSERT(traj.first_modifiable() == 1);

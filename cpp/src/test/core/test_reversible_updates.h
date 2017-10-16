@@ -29,8 +29,17 @@ Trajectories default_plan() {
     InsertSegment(0, seg(1), 1).apply(ts);
     InsertSegment(0, seg(2), 2).apply(ts);
     InsertSegment(0, seg(3), 3).apply(ts);
-
     ASSERT(ts.num_segments() == 5)
+
+    double dur = ts.duration();
+    auto rev = DeleteSegment(0, 1).apply(ts);
+    ASSERT(ts.num_segments() == 4);
+    ASSERT(ts.duration() < dur);
+    ASSERT(ts.trajectories[0][1].start.x == 2)
+    rev->apply(ts);
+    ASSERT(ALMOST_EQUAL(ts.duration(), dur))
+
+
     return ts;
 }
 

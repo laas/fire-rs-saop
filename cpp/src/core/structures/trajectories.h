@@ -27,7 +27,7 @@ struct Trajectories {
 
     /** A plan is valid iff all trajectories are valid (match their configuration. */
     bool is_valid() const {
-        for(auto traj : trajectories)
+        for(auto& traj : trajectories)
             if(!traj.has_valid_flight_time())
                 return false;
         return true;
@@ -43,7 +43,7 @@ struct Trajectories {
 
     size_t num_segments() const {
         size_t total = 0;
-        for(auto traj : trajectories)
+        for(auto& traj : trajectories)
             total += traj.traj.size();
         return total;
     }
@@ -53,6 +53,12 @@ struct Trajectories {
         ASSERT(traj_id < trajectories.size())
         return trajectories[traj_id].conf.uav;
     }
+
+    size_t size() const { return trajectories.size(); }
+    bool empty() const { return size() == 0; }
+
+    Trajectory& operator[](size_t id) { return trajectories[id]; }
+    const Trajectory& operator[](size_t id) const { return trajectories[id]; }
 };
 
 #endif //PROJECT_TRAJECTORIES_H

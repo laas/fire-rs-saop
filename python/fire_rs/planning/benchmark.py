@@ -169,7 +169,7 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
 
 def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
     colors = cycle(["red", "green", "blue", "black", "magenta"])
-    for traj, color in zip(plan.trajectories, colors):
+    for traj, color in zip(plan.trajectories(), colors):
         geodatadisplay.plan_trajectory = traj
         geodatadisplay.draw_path(single_color=color)
         # geodatadisplay.draw_path(colorbar_time_range=time_range, with_colorbar=True)
@@ -221,7 +221,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
 
-    for i, t in enumerate(res.final_plan().trajectories):
+    for i, t in enumerate(res.final_plan().trajectories()):
         print("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
 
     plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)

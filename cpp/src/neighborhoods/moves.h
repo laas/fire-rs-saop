@@ -75,8 +75,8 @@ struct Insert final : public CloneBasedLocalMove {
             : CloneBasedLocalMove(base),
               traj_id(traj_id), seg(seg), insert_loc(insert_loc)
     {
-        ASSERT(traj_id < base->trajectories.size());
-        ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
+        ASSERT(traj_id < base->core.size());
+        ASSERT(insert_loc <= base->core[traj_id].traj.size());
     }
 
     void apply_on(PPlan p) override {
@@ -86,11 +86,11 @@ struct Insert final : public CloneBasedLocalMove {
     /** Generates an insert move that include the segment at the best place in the given trajectory.
      * Currently, this does not checks the trajectory constraints. */
     static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment3d &seg) {
-        ASSERT(traj_id < base->trajectories.size());
+        ASSERT(traj_id < base->core.size());
 
         long best_loc = -1;
         double best_dur = 999999;
-        Trajectory& traj = base->trajectories[traj_id];
+        Trajectory& traj = base->core[traj_id];
         for(size_t i=0; i<=traj.traj.size(); i++) {
             const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
             if(dur <=  traj.conf.max_flight_time) {
@@ -129,8 +129,8 @@ struct Remove final : public CloneBasedLocalMove {
     Remove(PPlan base, size_t traj_id, size_t rm_id)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), rm_id(rm_id) {
-        ASSERT(traj_id < base->trajectories.size());
-        ASSERT(rm_id < base->trajectories[traj_id].traj.size());
+        ASSERT(traj_id < base->core.size());
+        ASSERT(rm_id < base->core[traj_id].traj.size());
     }
 
     void apply_on(PPlan p) override {
@@ -150,8 +150,8 @@ struct SegmentReplacement : public CloneBasedLocalMove {
               traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements)
     {
         ASSERT(n_replaced > 0);
-        ASSERT(traj_id < base->trajectories.size());
-        ASSERT(segment_index + n_replaced - 1< base->trajectories[traj_id].traj.size());
+        ASSERT(traj_id < base->core.size());
+        ASSERT(segment_index + n_replaced - 1< base->core[traj_id].traj.size());
         ASSERT(replacements.size() > 0);
     }
 
@@ -168,7 +168,7 @@ struct SegmentRotation final : public CloneBasedLocalMove {
     SegmentRotation(PPlan base, size_t traj_id, size_t segment_index, double target_dir)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), segment_index(segment_index),
-              newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
+              newSegment(base->core.uav(traj_id).rotate_on_visibility_center(base->core[traj_id][segment_index],
                                                                         target_dir))
     {
         ASSERT(duration() >= 0)
@@ -179,7 +179,7 @@ struct SegmentRotation final : public CloneBasedLocalMove {
     }
 
     bool applicable() const {
-        Trajectory& t = base_plan->trajectories[traj_id];
+        Trajectory& t = base_plan->core[traj_id];
         return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf.max_flight_time;
     }
 };

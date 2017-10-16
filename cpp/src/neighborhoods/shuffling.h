@@ -12,7 +12,7 @@ struct PlanPortionRemover : public Shuffler {
     const double max_removal_portion;
 
     void suffle(shared_ptr<Plan> plan) override {
-        for(auto& traj : plan->trajectories) {
+        for(auto& traj : plan->core.trajectories) {
             const size_t num_removable = traj.last_modifiable() + 1 - traj.first_modifiable();
             ASSERT(num_removable < traj.last_modifiable());
             const size_t to_remove_lb = (size_t) max(0, (int) floor(min_removal_portion * num_removable));

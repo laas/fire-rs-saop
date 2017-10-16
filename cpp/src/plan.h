@@ -5,6 +5,8 @@
 #include "core/structures/trajectory.h"
 #include "fire_data.h"
 #include "ext/json.hpp"
+#include "core/structures/trajectories.h"
+
 using json = nlohmann::json;
 
 using namespace std;
@@ -14,19 +16,17 @@ typedef shared_ptr<Plan> PPlan;
 
 struct Plan {
     TimeWindow time_window;
-    vector<Trajectory> trajectories;
+    Trajectories core;
     shared_ptr<FireData> firedata;
     vector<Point3dTimeWindow> possible_observations;
 
     Plan(const Plan& plan) = default;
 
     Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
-            : time_window(tw), firedata(fire_data)
+            : time_window(tw), core(traj_confs), firedata(fire_data)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
-            auto traj = Trajectory(conf);
-            trajectories.push_back(traj);
         }
 
         for(size_t x=0; x<firedata->ignitions.x_width; x++) {
@@ -48,7 +48,7 @@ struct Plan {
         j["utility"] = utility();
         j["num_segments"] = num_segments();
         j["trajectories"] = json::array();
-        for(auto &t : trajectories) {
+        for(auto &t : core.trajectories) {
             json jt;
             jt["duration"] = t.duration();
             jt["max_duration"] = t.conf.max_flight_time;
@@ -62,18 +62,12 @@ struct Plan {
 
     /** A plan is valid iff all trajectories are valid (match their configuration. */
     bool is_valid() const {
-        for(auto traj : trajectories)
-            if(!traj.has_valid_flight_time())
-                return false;
-        return true;
+        return core.is_valid();
     }
 
     /** Sum of all trajectory durations. */
     double duration() const {
-        double duration = 0;
-        for(auto& traj : trajectories)
-            duration += traj.duration();
-        return duration;
+        return core.duration();
     }
 
     /** Cost of the plan.
@@ -99,23 +93,14 @@ struct Plan {
     }
 
     size_t num_segments() const {
-        size_t total = 0;
-        for(auto traj : trajectories)
-            total += traj.traj.size();
-        return total;
-    }
-
-    /** Returns the UAV performing the given trajectory */
-    UAV uav(size_t traj_id) const {
-        ASSERT(traj_id < trajectories.size())
-        return trajectories[traj_id].conf.uav;
+        return core.num_segments();
     }
 
     /** All observations in the plan. Computed by taking the visibility center of all segments.
      * Each observation is tagged with a time, corresponding to the start time of the segment.*/
     vector<Position3dTime> observations() const {
         vector<Position3dTime> obs;
-        for(auto traj : trajectories) {
+        for(auto& traj : core.trajectories) {
             UAV drone = traj.conf.uav;
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
                 const Segment3d& seg = traj[seg_id];
@@ -137,17 +122,17 @@ struct Plan {
     }
 
     void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true) {
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(insert_loc <= trajectories[traj_id].traj.size());
-        trajectories[traj_id].insert_segment(seg, insert_loc);
+        ASSERT(traj_id < core.size());
+        ASSERT(insert_loc <= core[traj_id].traj.size());
+        core[traj_id].insert_segment(seg, insert_loc);
         if(do_post_processing)
             post_process();
     }
 
     void erase_segment(size_t traj_id, size_t at_index, bool do_post_processing = true) {
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(at_index < trajectories[traj_id].traj.size());
-        trajectories[traj_id].erase_segment(at_index);
+        ASSERT(traj_id < core.size());
+        ASSERT(at_index < core[traj_id].traj.size());
+        core[traj_id].erase_segment(at_index);
         if(do_post_processing)
             post_process();
     }
@@ -158,8 +143,8 @@ struct Plan {
 
     void replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment3d>& segments) {
         ASSERT(n_replaced > 0);
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(at_index + n_replaced - 1 < trajectories[traj_id].traj.size());
+        ASSERT(traj_id < core.size());
+        ASSERT(at_index + n_replaced - 1 < core[traj_id].traj.size());
 
         // do not post process as we will do that at the end
         for (size_t i = 0; i < n_replaced; ++i) {
@@ -183,7 +168,7 @@ struct Plan {
      * If this is not the case for a given segment, its is projected on the firefront.
      * */
     void project_on_fire_front() {
-        for(auto &traj : trajectories) {
+        for(auto &traj : core.trajectories) {
             size_t seg_id = traj.first_modifiable();
             while(seg_id <= traj.last_modifiable()) {
                 const Segment3d& seg = traj[seg_id];
@@ -206,7 +191,7 @@ struct Plan {
 
     /** Goes through all trajectories and erase segments causing very tight loops. */
      void smooth_trajectory() {
-        for(auto &traj : trajectories) {
+        for(auto &traj : core.trajectories) {
             size_t seg_id = traj.first_modifiable();
             while(seg_id < traj.last_modifiable()) {
                 const Segment3d& current = traj[seg_id];
