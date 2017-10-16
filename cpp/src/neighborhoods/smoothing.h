@@ -9,6 +9,10 @@
 
 struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
+    std::string name() const override {
+        return "trajectory-smoothing";
+    }
+
     /** Maximum number of changes to try before returning. */
     const size_t max_trials;
 

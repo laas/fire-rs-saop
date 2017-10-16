@@ -4,6 +4,8 @@
 
 #include "trajectory.h"
 #include "fire_data.h"
+#include "ext/json.hpp"
+using json = nlohmann::json;
 
 using namespace std;
 
@@ -38,6 +40,24 @@ struct Plan {
                 }
             }
         }
+    }
+
+    json metadata() const {
+        json j;
+        j["duration"] = duration();
+        j["utility"] = utility();
+        j["num_segments"] = num_segments();
+        j["trajectories"] = json::array();
+        for(auto &t : trajectories) {
+            json jt;
+            jt["duration"] = t.duration();
+            jt["max_duration"] = t.conf.max_flight_time;
+            jt["num_segments"] = t.size();
+            jt["start_time"] = t.start_time();
+            jt["end_time"] = t.end_time();
+            j["trajectories"].push_back(jt);
+        }
+        return j;
     }
 
     /** A plan is valid iff all trajectories are valid (match their configuration. */

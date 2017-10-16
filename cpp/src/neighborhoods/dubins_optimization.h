@@ -51,6 +51,10 @@ struct FlipOrientationChangeGenerator final : public OrientationChangeGenerator 
 /** Combination of all neighborhoods intended to smooth dubins trajectories. */
 struct DubinsOptimizationNeighborhood final : public Neighborhood {
 
+    std::string name() const override {
+        return "dubins-opt";
+    }
+
     /** Angle generators to be considered. */
     const vector<shared_ptr<OrientationChangeGenerator>> generators;
 

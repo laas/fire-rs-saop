@@ -9,7 +9,12 @@
  * The neighborhood randomly picks a pending point in the visibility structures and returns
  * the best insertion for this point.
  */
-struct OneInsertNbhd : public Neighborhood {
+struct OneInsertNbhd final : public Neighborhood {
+
+    std::string name() const override {
+        return "one-insert";
+    }
+
     const double default_segment_length = 50;
 
     const double default_height = 100;
