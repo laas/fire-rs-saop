@@ -61,7 +61,7 @@ private:
 };
 
 struct ReverseBasedMove : public LocalMove {
-    ReverseBasedMove(const PPlan &base, const PReversiblePlanUpdate &update) : LocalMove(base), update(update) {}
+    ReverseBasedMove(const PPlan &base, const PReversibleTrajectoriesUpdate &update) : LocalMove(base), update(update) {}
 
     /** Cost that would result in applying the move. */
     double utility() override { init(); return _cost; };
@@ -78,7 +78,7 @@ protected:
 
 public:
 
-    PReversiblePlanUpdate update;
+    PReversibleTrajectoriesUpdate update;
 
 private:
 
