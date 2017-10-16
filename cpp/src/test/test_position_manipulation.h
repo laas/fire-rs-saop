@@ -98,21 +98,6 @@ void test_segment_rotation() {
         Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
         ASSERT(seg == seg_back)
     }
-
-    // simple UAV to simplify reasoning
-    UAV uav(1., 32.*M_PI/180,0.1);
-//    uav.view_width = 1;
-//    uav.view_depth = 1;
-
-    Waypoint wp(0, 0, 0);
-    Segment seg(wp, 0);
-
-    Segment seg_rotated = uav.rotate_on_visibility_center(seg, M_PI/2);
-    ASSERT(ALMOST_EQUAL(seg_rotated.start.x, 0.5))
-    ASSERT(ALMOST_EQUAL(seg_rotated.start.y, -0.5))
-    ASSERT(ALMOST_EQUAL(seg_rotated.start.dir, M_PI/2))
-    Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
-    ASSERT(seg == seg_back)
 }
 
 void test_projection_on_firefront() {

@@ -18,9 +18,9 @@ set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/ext/json.hpp src/trajec
         src/waypoint.h src/raster.h src/visibility.h src/planning.h src/ext/optional.h src/utils.h
         src/neighborhoods/dubins_optimization.h src/neighborhoods/insertions.h src/vns_interface.h
         src/plan.h src/fire_data.h src/neighborhoods/moves.h src/neighborhoods/shuffling.h src/neighborhoods/smoothing.h
-        src/dubins3d.h)
+        src/dubins3d.h src/plan_updates.h)
 
-add_executable(tests ${SOURCE_FILES} src/test/test_dubins.h src/test/main_tests.cpp)
+add_executable(tests ${SOURCE_FILES} src/test/test_dubins.h src/test/test_position_manipulation.h src/test/main_tests.cpp)
 
 pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
 
