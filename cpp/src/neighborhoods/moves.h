@@ -4,7 +4,7 @@
 
 #include "../plan.h"
 #include "../vns_interface.h"
-
+#include "../core/updates/updates.h"
 
 
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
@@ -58,6 +58,49 @@ private:
     mutable double _duration = 0;
     mutable size_t _num_segments = 0;
     mutable bool _valid = false;
+};
+
+struct ReverseBasedMove : public LocalMove {
+    ReverseBasedMove(const PPlan &base, const PReversiblePlanUpdate &update) : LocalMove(base), update(update) {}
+
+    /** Cost that would result in applying the move. */
+    double utility() override { init(); return _cost; };
+
+    /** Total duration that would result in applying the move */
+    double duration() override { init(); return _duration; };
+
+    bool is_valid() override { init(); return _valid; }
+
+protected:
+    void apply_on(PPlan target) override {
+
+    }
+
+public:
+
+    PReversiblePlanUpdate update;
+
+private:
+
+    mutable bool lazily_initialized = false;
+    mutable double _cost = 0;
+    mutable double _duration = 0;
+    mutable size_t _num_segments = 0;
+    mutable bool _valid = false;
+
+    void init() {
+        if(!lazily_initialized) {
+            const double duration = base_plan->duration();
+            auto rev = update->apply(base_plan->core);
+            _cost = base_plan->utility();
+            _duration = base_plan->duration();
+            _num_segments = base_plan->num_segments();
+            _valid = base_plan->is_valid();
+            lazily_initialized = true;
+            rev->apply(base_plan->core);
+            ASSERT(duration == base_plan->duration())
+        }
+    }
 };
 
 /** Local move that insert a segment at given place in the plan. */
