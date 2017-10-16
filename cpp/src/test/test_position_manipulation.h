@@ -1,10 +1,10 @@
 #include <iostream>
 
 #include "../ext/dubins.h"
-#include "../trajectory.h"
+#include "../core/structures/trajectory.h"
 #include "../raster.h"
 #include "../planning.h"
-#include "../uav.h"
+#include "../core/structures/uav.h"
 #include "../neighborhoods/dubins_optimization.h"
 #include "../fire_data.h"
 

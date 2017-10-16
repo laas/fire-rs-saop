@@ -8,11 +8,11 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
-#include "ext/dubins.h"
+#include "../../ext/dubins.h"
 #include "waypoint.h"
 #include "uav.h"
-#include "utils.h"
-#include "ext/optional.h"
+#include "../../utils.h"
+#include "../../ext/optional.h"
 
 struct TrajectoryConfig {
     const UAV uav;

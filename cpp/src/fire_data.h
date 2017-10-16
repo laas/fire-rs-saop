@@ -5,9 +5,9 @@
 #include <iostream>
 #include <set>
 #include "raster.h"
-#include "waypoint.h"
+#include "core/structures/waypoint.h"
 #include "ext/optional.h"
-#include "uav.h"
+#include "core/structures/uav.h"
 #include "utils.h"
 
 using namespace std;

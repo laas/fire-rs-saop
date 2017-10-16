@@ -2,7 +2,7 @@
 #define PLANNING_CPP_PLAN_H
 
 
-#include "trajectory.h"
+#include "core/structures/trajectory.h"
 #include "fire_data.h"
 #include "ext/json.hpp"
 using json = nlohmann::json;

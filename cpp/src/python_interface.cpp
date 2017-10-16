@@ -2,7 +2,7 @@
 
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
-#include "trajectory.h"
+#include "core/structures/trajectory.h"
 #include "raster.h"
 #include "planning.h"
 

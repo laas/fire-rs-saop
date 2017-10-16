@@ -3,11 +3,11 @@
 
 #include <vector>
 #include <cassert>
-#include "ext/dubins.h"
+#include "../../ext/dubins.h"
 #include "waypoint.h"
-#include "utils.h"
+#include "../../utils.h"
 #include "trajectory.h"
-#include "dubins3d.h"
+#include "../../dubins3d.h"
 
 
 struct UAV {

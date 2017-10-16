@@ -2,7 +2,7 @@
 #define PLANNING_CPP_VISIBILITY_H
 
 #include "raster.h"
-#include "trajectory.h"
+#include "core/structures/trajectory.h"
 #include "fire_data.h"
 
 using namespace std;

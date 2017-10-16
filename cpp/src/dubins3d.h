@@ -3,7 +3,7 @@
 
 #include "ext/dubins.h"
 #include "ext/optional.h"
-#include "waypoint.h"
+#include "core/structures/waypoint.h"
 #include <cmath>
 
 #undef LSL

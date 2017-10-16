@@ -2,7 +2,7 @@
 #define PLANNING_CPP_PLANNING_H
 
 #include <vector>
-#include "trajectory.h"
+#include "core/structures/trajectory.h"
 #import "ext/optional.h"
 #include "neighborhoods/dubins_optimization.h"
 #include "vns_interface.h"
