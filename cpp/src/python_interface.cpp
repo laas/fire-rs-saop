@@ -237,8 +237,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("initial_plan", &SearchResult::initial)
             .def("final_plan", &SearchResult::final)
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
-            .def_readonly("planning_time", &SearchResult::planning_time)
-            .def_readonly("preprocessing_time", &SearchResult::preprocessing_time);
+            .def("metadata", [](SearchResult &self) { return self.metadata.dump(); } );
 
     m.def("make_plan_vns", [](UAV uav, DRaster ignitions, DRaster elevation, double min_time, double max_time,
                               double max_flight_time, size_t save_every, bool save_improvements,
@@ -278,8 +277,8 @@ PYBIND11_MODULE(uav_planning, m) {
         auto res = vns.search(p, 0, save_every, save_improvements);
         const double planning_end = time();
         printf("Plan found\n");
-        res.planning_time = planning_end - planning_start;
-        res.preprocessing_time = preprocessing_end - preprocessing_start;
+        res.metadata["planning_time"] = planning_end - planning_start;
+        res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
         return res;
     }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("min_time"),
           py::arg("max_time"), py::arg("save_every") = 0, py::arg("save_improvements") = false,

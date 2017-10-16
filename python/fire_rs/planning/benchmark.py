@@ -232,6 +232,12 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
 
+    # save metadata to file
+    with open(os.path.join(save_directory, instance_name+".json"), "w") as metadata_file:
+        import json
+        parsed = json.loads(res.metadata())
+        print(json.dumps(parsed, indent=4), file=metadata_file)
+
     matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
 
 
@@ -263,16 +269,6 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
             i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png'))),
             dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
         matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
-
-    # Save plan statistics
-    summary_file = os.path.join(save_directory, "summary.csv")
-    if not os.path.exists(summary_file):
-        with open(summary_file, "a") as summary:
-            summary.write("instance,planning-time,preprocessing-time,utility,duration\n")
-
-    with open(summary_file, "a") as summary:
-        summary.write("{},{},{},{},{}\n".format(
-            instance_name, res.planning_time, res.preprocessing_time, plan.utility(), plan.duration()))
 
     del res
 

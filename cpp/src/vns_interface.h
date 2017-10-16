@@ -4,6 +4,9 @@
 
 #include "plan.h"
 
+#include "ext/json.hpp"
+using json = nlohmann::json;
+
 class LocalMove {
 
 public:
@@ -71,8 +74,6 @@ struct SearchResult {
 
 public:
     vector<Plan> intermediate_plans;
-    double planning_time = -1;
-    double preprocessing_time = -1;
 
     SearchResult(Plan& init_plan)
             : init_plan(shared_ptr<Plan>(new Plan(init_plan))),
@@ -86,6 +87,8 @@ public:
 
     Plan initial() const { return *init_plan; }
     Plan final() const { return *final_plan; }
+
+    json metadata;
 };
 
 struct VariableNeighborhoodSearch {
