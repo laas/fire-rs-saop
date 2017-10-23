@@ -245,6 +245,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     with open(os.path.join(save_directory, instance_name+".json"), "w") as metadata_file:
         import json
         parsed = json.loads(res.metadata())
+        parsed["benchmark_id"] = instance_name
+        parsed["date"] = time.strftime("%Y-%m-%d--%H:%M:%S")
         print(json.dumps(parsed, indent=4), file=metadata_file)
 
     matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
