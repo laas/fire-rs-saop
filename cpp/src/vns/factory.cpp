@@ -33,7 +33,6 @@ shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string 
     std::vector<shared_ptr<Neighborhood>> ns;
     for(auto& it : neighborhoods_confs) {
         ns.push_back(build_neighborhood(it));
-        std::cout << it["name"] << endl;
     }
 
     return make_shared<VariableNeighborhoodSearch>(ns, make_shared<PlanPortionRemover>(0., 1.));
