@@ -1,10 +1,10 @@
 #ifndef PLANNING_CPP_SMOOTHING_H
 #define PLANNING_CPP_SMOOTHING_H
 
-#include "../core/structures/trajectory.h"
+#include "../../core/structures/trajectory.h"
 #include "../planning.h"
 #include "../vns_interface.h"
-#include "../utils.h"
+#include "../../utils.h"
 #include "moves.h"
 
 struct TrajectorySmoothingNeighborhood final : public Neighborhood {

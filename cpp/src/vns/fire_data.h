@@ -4,11 +4,11 @@
 #include <algorithm>
 #include <iostream>
 #include <set>
-#include "raster.h"
-#include "core/structures/waypoint.h"
-#include "ext/optional.h"
-#include "core/structures/uav.h"
-#include "utils.h"
+#include "../raster.h"
+#include "../core/structures/waypoint.h"
+#include "../ext/optional.h"
+#include "../core/structures/uav.h"
+#include "../utils.h"
 
 using namespace std;
 

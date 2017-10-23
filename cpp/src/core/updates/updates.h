@@ -26,7 +26,7 @@ struct SequencedUpdates final : public ReversibleTrajectoriesUpdate {
     PReversibleTrajectoriesUpdate first;
     PReversibleTrajectoriesUpdate second;
 
-    SequencedUpdates(const PReversibleTrajectoriesUpdate first, const PReversibleTrajectoriesUpdate second) : first(first),
+    SequencedUpdates(const PReversibleTrajectoriesUpdate& first, const PReversibleTrajectoriesUpdate& second) : first(first),
                                                                                               second(second) {}
 
     PReversibleTrajectoriesUpdate apply(Trajectories &p) override;

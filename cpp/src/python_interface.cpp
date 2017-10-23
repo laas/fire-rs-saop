@@ -4,7 +4,7 @@
 #include <pybind11/numpy.h> // support for numpy arrays
 #include "core/structures/trajectory.h"
 #include "raster.h"
-#include "planning.h"
+#include "vns/planning.h"
 
 namespace py = pybind11;
 

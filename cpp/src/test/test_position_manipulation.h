@@ -3,10 +3,10 @@
 #include "../ext/dubins.h"
 #include "../core/structures/trajectory.h"
 #include "../raster.h"
-#include "../planning.h"
+#include "../vns/planning.h"
 #include "../core/structures/uav.h"
 #include "../neighborhoods/dubins_optimization.h"
-#include "../fire_data.h"
+#include "../vns/fire_data.h"
 
 UAV uav(10., 32.*M_PI/180, 0.1);
 

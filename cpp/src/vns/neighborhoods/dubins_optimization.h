@@ -2,7 +2,7 @@
 #define PLANNING_CPP_DUBINS_OPTIMIZATION_H
 
 #include <cmath>
-#include "../core/structures/trajectory.h"
+#include "../../core/structures/trajectory.h"
 #include "../planning.h"
 #include "../vns_interface.h"
 #include "moves.h"

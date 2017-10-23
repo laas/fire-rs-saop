@@ -4,7 +4,7 @@
 
 #include "../plan.h"
 #include "../vns_interface.h"
-#include "../core/updates/updates.h"
+#include "../../core/updates/updates.h"
 
 
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */

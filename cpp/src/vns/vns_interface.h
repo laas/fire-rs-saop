@@ -4,7 +4,7 @@
 #include <ctime>
 #include "plan.h"
 
-#include "ext/json.hpp"
+#include "../ext/json.hpp"
 using json = nlohmann::json;
 
 class LocalMove {
