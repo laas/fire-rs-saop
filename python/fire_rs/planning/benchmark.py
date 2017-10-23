@@ -178,8 +178,9 @@ def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' 
         geodatadisplay.axis.get_figure().show()
 
 
-def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, snapshots, plot=False):
+def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, snapshots, vns_name, plot=False):
     import os
+    import json
     from fire_rs.firemodel import propagation
     env = propagation.Environment(scenario.area, wind_speed=scenario.wind_speed, wind_dir=scenario.wind_direction)
     prop = propagation.propagate_from_points(env, scenario.ignitions, horizon=scenario.time_window_end + 60 * 10)
@@ -192,9 +193,16 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
     flights = [f.as_trajectory_config() for f in scenario.flights]
     # ax = ignitions.plot(blocking=False)
+    conf = {
+        'min_time': scenario.time_window_start,
+        'max_time': scenario.time_window_end,
+        'save_every': 0,
+        'save_improvements': snapshots,
+        'discrete_elevation_interval': 100,
+        'vns': vns_configurations[vns_name]
+    }
     res = up.plan_vns(flights, ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(),
-                      scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots,
-                      discrete_elevation_interval=100)
+                      json.dumps(conf))
     plan = res.final_plan()
 
 
@@ -401,7 +409,7 @@ def generate_scenario():
     for i in range(num_flights):
         uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start, start + 4000.)
-        max_flight_time = random.uniform(1000, 2000)
+        max_flight_time = random.uniform(500, 1200)
         flights.append(Flight(uav, uav_start, max_flight_time))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
@@ -413,6 +421,20 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav': generate_scenario_singlefire_singleuav,
                           'singlefire_singleuav_shortrange': generate_scenario_singlefire_singleuav_shortrange,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,}
+
+vns_configurations = {
+    'base': {
+        'neighborhoods': [
+            {'name': 'dubins-opt'},
+            {'name': 'one-insert'}]
+    },
+    'with_smoothing': {
+        'neighborhoods': [
+            {'name': 'trajectory-smoothing'},
+            {'name': 'dubins-opt'},
+            {'name': 'one-insert'}]
+    }
+}
 
 
 def main():
@@ -434,6 +456,10 @@ def main():
                         help="format of the output figures",
                         choices=['png', 'svg'],
                         default='png')
+    parser.add_argument("--vns",
+                        help="Select a predefined configuration for VNS search.",
+                        choices=['base', 'with_smoothing'],
+                        default='base')
     parser.add_argument("--dpi",
                         help="resolution of the output figures",
                         type=int,
@@ -504,7 +530,7 @@ def main():
     import joblib
     joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5)\
         (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
-                                       snapshots=args.snapshots) for i, s in to_run)
+                                       snapshots=args.snapshots, vns_name=args.vns) for i, s in to_run)
 
 
 if __name__=='__main__':

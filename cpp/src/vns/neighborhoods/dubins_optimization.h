@@ -3,7 +3,6 @@
 
 #include <cmath>
 #include "../../core/structures/trajectory.h"
-#include "../planning.h"
 #include "../vns_interface.h"
 #include "moves.h"
 

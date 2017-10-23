@@ -1,7 +1,6 @@
 #ifndef PLANNING_CPP_INSERTIONS_H
 #define PLANNING_CPP_INSERTIONS_H
 
-#include "../planning.h"
 #include "moves.h"
 
 /** Neighborhood for generating Insert moves.

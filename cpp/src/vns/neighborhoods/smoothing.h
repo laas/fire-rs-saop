@@ -2,7 +2,6 @@
 #define PLANNING_CPP_SMOOTHING_H
 
 #include "../../core/structures/trajectory.h"
-#include "../planning.h"
 #include "../vns_interface.h"
 #include "../../utils.h"
 #include "moves.h"

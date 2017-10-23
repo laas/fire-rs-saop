@@ -1,17 +1,13 @@
-//
-// Created by saop on 10/23/17.
-//
-
-#ifndef PROJECT_NEIGHBORHOODFACTORY_H
-#define PROJECT_NEIGHBORHOODFACTORY_H
+#ifndef PROJECT_VNS_FACTORY_H
+#define PROJECT_VNS_FACTORY_H
 
 
 #include "vns_interface.h"
 
-namespace neighborhood {
+namespace vns {
 
-    void build_from_config(std::string& json_config);
+    std::shared_ptr<VariableNeighborhoodSearch> build_from_config(const std::string& json_config);
 
 }
 
-#endif //PROJECT_NEIGHBORHOODFACTORY_H
+#endif //PROJECT_VNS_FACTORY_H
