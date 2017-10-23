@@ -269,6 +269,7 @@ PYBIND11_MODULE(uav_planning, m) {
         printf("Plan found\n");
         res.metadata["planning_time"] = planning_end - planning_start;
         res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
+        res.metadata["configuration"] = conf;
         return res;
     }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
           py::call_guard<py::gil_scoped_release>());

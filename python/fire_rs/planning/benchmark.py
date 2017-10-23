@@ -201,6 +201,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         'discrete_elevation_interval': 100,
         'vns': vns_configurations[vns_name]
     }
+    conf['vns']['configuration_name'] = vns_name
     res = up.plan_vns(flights, ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(),
                       json.dumps(conf))
     plan = res.final_plan()

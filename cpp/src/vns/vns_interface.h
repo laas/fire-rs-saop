@@ -171,13 +171,13 @@ struct VariableNeighborhoodSearch {
         result.set_final_plan(*best_plan);
 
         // save neighborhoods metadata
-        result.metadata["neighborhoods"] = {};
+        result.metadata["neighborhoods"] = json::array();
         for(size_t i=0; i<neighborhoods.size(); i++) {
             json j;
             auto& n = *neighborhoods[i];
             j["name"] = n.name();
             j["runtime"] = runtime_per_neighborhood[i];
-            result.metadata["neighborhoods"][n.name()] = j;
+            result.metadata["neighborhoods"].push_back(j);
         }
         return result;
     }
