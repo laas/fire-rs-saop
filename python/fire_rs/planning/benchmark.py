@@ -191,26 +191,35 @@ def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' 
         geodatadisplay.axis.get_figure().show()
 
 
-def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, snapshots, plot=False):
+def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, output_options_planning: dict,
+                  snapshots, plot=False):
     import os
     from fire_rs.firemodel import propagation
-    env = propagation.Environment(scenario.area, wind_speed=scenario.wind_speed, wind_dir=scenario.wind_direction)
-    prop = propagation.propagate_from_points(env, scenario.ignitions, horizon=scenario.time_window_end + 60 * 10)
 
-    # Create and run a plan for this scenario
+    # Fetch scenario environment data
+    env = propagation.Environment(scenario.area, wind_speed=scenario.wind_speed, wind_dir=scenario.wind_direction)
+
+    # Propagate fires in the environment
+    prop = propagation.propagate_from_points(env, scenario.ignitions, horizon=scenario.time_window_end + 60 * 10)
     ignitions = prop.ignitions()
 
-    # Propagation was let running more time than desired in order to reduce edge effect.
+    # Propagation was running more time than desired in order to reduce edge effect.
     # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next 10-minute mark (minus 1).
+    # This makes color bar ranges and fire front contour plots nicer
     ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
-    flight = scenario.flights[0]
+
     flights = [f.as_trajectory_config() for f in scenario.flights]
-    # ax = ignitions.plot(blocking=False)
-    flat_earth = env.raster.slice('elevation')
-    flat_earth.data['elevation'] = np.zeros_like(flat_earth.data['elevation'])
-    res = up.plan_vns(flights, ignitions.as_cpp_raster(), flat_earth.as_cpp_raster(),
+
+    # If 'use_elevation' option is True, plan using a 3d environment. If not, use a flat terrain.
+    # This is independent of the output plot, because if can show the real terrain even in flat terrain mode.
+    terrain = env.raster.slice('elevation')
+    if (output_options_planning['use_elevation']):
+        terrain.data['elevation'] = np.zeros_like(terrain.data['elevation'])
+
+    # Call the C++ library that calculates the plan
+    res = up.plan_vns(flights, ignitions.as_cpp_raster(), terrain.as_cpp_raster(),
                       scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots,
-                      discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL)
+                      discrete_elevation_interval=output_options_planning.get('discrete_elevation_interval', 1))
     plan = res.final_plan()
 
 
@@ -221,15 +230,17 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     first_ignition = np.nanmin(ignitions_nan)
     last_ignition = np.nanmax(ignitions_nan)
 
-    # a = env.raster.data['elevation']
-    # b = np.fmod(env.raster.data['elevation'], DISCRETE_ELEVATION_INTERVAL)
-    # c = a-b
-    # env.raster.data['elevation'] = c;
+    # If 'discrete_elevation_interval' is set, discretize the elevation raster that will be displayed
+    if (output_options_planning['discrete_elevation_interval']):
+        a = env.raster.data['elevation'] + output_options_planning['discrete_elevation_interval']
+        b = np.fmod(env.raster.data['elevation'], output_options_planning['discrete_elevation_interval'])
+        env.raster.data['elevation'] = a-b
 
-    # Draw the final plan on a figure
+    # Create the geodatadisplay object & extensions that are going to be used
     geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
     PlanDisplayExtension(None).extend(geodatadisplay)
 
+    # Draw background layers
     for layer in output_options_plot['background']:
         if layer == 'elevation_shade':
             geodatadisplay.draw_elevation_shade(with_colorbar=False)
@@ -242,7 +253,10 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
 
+    # Draw UAV trajectories
     plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
+
+    # Save the picture
     print("saving as: " + str(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png')))))
     geodatadisplay.axis.get_figure().set_size_inches(10, 7)
@@ -253,7 +267,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
 
 
-    # Save intermediate plans
+    # If intermediate plans are available, save them
     for i, i_plan in enumerate(res.intermediate_plans):
         geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
         PlanDisplayExtension(None).extend(geodatadisplay)
@@ -505,10 +519,12 @@ def main():
     args = parser.parse_args()
 
     # Set-up output options
-    output_options = {'plot':{},}
+    output_options = {'plot':{}, 'planning':{}, }
     output_options['plot']['background'] = args.background
     output_options['plot']['format'] = args.format
     output_options['plot']['dpi'] = args.dpi
+    output_options['planning']['use_elevation'] = True
+    output_options['planning']['discrete_elevation_interval'] = DISCRETE_ELEVATION_INTERVAL
 
     # benchmark folder handling
     benchmark_name = args.name
@@ -551,12 +567,14 @@ def main():
         ALL_CPU_BUT_ONE = -2
         joblib.Parallel(n_jobs=4, backend="threading", verbose=5)\
             (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
+                                           output_options_planning=output_options['planning'],
                                            snapshots=args.snapshots) for i, s in enumerate(scenarios))
     else:
         i=0
         for scenario in scenarios:
             print(scenario)
-            run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'], snapshots=args.snapshots)
+            run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'],
+                          output_options_planning=output_options['planning'], snapshots=args.snapshots)
             i += 1
 
 
