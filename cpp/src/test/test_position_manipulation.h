@@ -3,9 +3,10 @@
 #include "../ext/dubins.h"
 #include "../core/structures/trajectory.h"
 #include "../raster.h"
-#include "../vns/planning.h"
 #include "../core/structures/uav.h"
-#include "../neighborhoods/dubins_optimization.h"
+#include "../vns/vns_interface.h"
+#include "../vns/factory.h"
+#include "../vns/neighborhoods/dubins_optimization.h"
 #include "../vns/fire_data.h"
 
 UAV uav(10., 32.*M_PI/180, 0.1);
@@ -22,9 +23,9 @@ void test_single_point_to_observe() {
     Plan p(confs, fd, TimeWindow{90, 110});
 
 
-    DefaultVnsSearch vns;
+    auto vns = vns::build_default();
 
-    auto res = vns.search(p, 0, 1);
+    auto res = vns->search(p, 0, 1);
     ASSERT(res.final_plan)
     Plan solution = res.final();
 
@@ -44,9 +45,9 @@ void test_many_points_to_observe() {
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 10) };
     Plan p(confs, fd, TimeWindow{0, 110});
 
-    DefaultVnsSearch vns;
+    auto vns = vns::build_default();
 
-    auto res = vns.search(p, 0, 1);
+    auto res = vns->search(p, 0, 1);
     ASSERT(res.final_plan)
     Plan solution = res.final();
 
@@ -73,9 +74,9 @@ void test_many_points_to_observe_with_start_end_positions() {
             10) };
     Plan p(confs, fd, TimeWindow{0, 110});
 
-    DefaultVnsSearch vns;
+    auto vns = vns::build_default();
 
-    auto res = vns.search(p, 0, 1);
+    auto res = vns->search(p, 0, 1);
     ASSERT(res.final_plan)
     Plan solution = res.final();
 
