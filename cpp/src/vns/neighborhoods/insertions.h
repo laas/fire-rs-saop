@@ -76,13 +76,20 @@ private:
 
         opt<Candidate> best;
 
+        // last valid projection made of the random observation.
+        // it used to incrementally update the projection to different times,
+        // Simple measurements indicate that doing this incrementally reduces
+        // the number of steps in "project on_firefront" by a factor ~5
+        Segment3d projected_random_observation = random_observation;
+
         /** Try best insert for each subtrajectory in the plan */
         for(size_t i=0; i< p->core.size(); i++) {
             const Trajectory& traj = p->core[i];
 
             for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
 
-                opt<Segment3d> current_segment = random_observation;
+                // start iteration from last valid projection made.
+                opt<Segment3d> current_segment = projected_random_observation;
                 bool updated = true;
                 size_t num_iter = 0;
 
@@ -105,6 +112,9 @@ private:
                         // set the default orientation to the segment
                         const double direction = default_insertion_angle(traj, insert_loc, *current_segment);
                         current_segment = traj.conf.uav.rotate_on_visibility_center(*current_segment, direction);
+
+                        // update last valid projection.
+                        projected_random_observation = *current_segment;
 
                         // start over since the time at which we reach the segment might have changed as well
                         updated = true;
