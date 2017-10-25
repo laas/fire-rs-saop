@@ -86,44 +86,17 @@ private:
         for(size_t i=0; i< p->core.size(); i++) {
             const Trajectory& traj = p->core[i];
 
+            // get projected observation closer to the fire front at the beginning of the trajectory
+            // this is useful to avoid to projection to follow the same path multiple times to end up on a failure.
+            projected_random_observation = p->firedata->project_closest_to_fire_front(random_observation, traj.conf.uav, traj.start_time());
+
             for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
 
-                // start iteration from last valid projection made.
-                opt<Segment3d> current_segment = projected_random_observation;
-                bool updated = true;
-                size_t num_iter = 0;
+                opt<Segment3d> current_segment = get_projection(p, projected_random_observation, i, insert_loc);
 
-                // project the segment on firefront until we converge or are unable to project the segment anymore.
-                while(current_segment && updated) {
-                    // time at which the uav will reach the segment
-                    const double time = insert_loc==0 ?
-                                            traj.start_time() :
-                                            traj.end_time(insert_loc-1) +
-                                                        traj.conf.uav.travel_time(traj[insert_loc-1].end, random_observation.start);
-                    // back up current segment
-                    const Segment3d previous = *current_segment;
-
-                    // project the segment on the firefront.
-                    current_segment = p->firedata->project_on_firefront(previous, traj.conf.uav, time);
-                    ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
-
-                    if(current_segment && previous != *current_segment) {
-                        // segment has changed due to projection,
-                        // set the default orientation to the segment
-                        const double direction = default_insertion_angle(traj, insert_loc, *current_segment);
-                        current_segment = traj.conf.uav.rotate_on_visibility_center(*current_segment, direction);
-
-                        // update last valid projection.
-                        projected_random_observation = *current_segment;
-
-                        // start over since the time at which we reach the segment might have changed as well
-                        updated = true;
-                    } else {
-                        updated = false;
-                    }
-                    ASSERT(num_iter++ <1000); // This should always converges (very quickly). One can safely put a bound on the number of iterations.
-                }
                 if(current_segment) {
+                    // save to be able to use it as a base for the following projections
+                    projected_random_observation = *current_segment;
                     // current segment is valid (i.e. successfully projected on firefront,
                     // create a candidate for it
 
@@ -174,6 +147,47 @@ private:
             auto dy = traj[insertion_loc].start.y - traj[insertion_loc-1].end.y;
             return atan2(dy, dx);
         }
+    }
+
+    /** Produces a new segment for observation. The segment is such that:
+     * if inserted after the insert_loc^th observation of the traj_id^th trajectory, the UAV will reach it when
+     * the underneath cell is on fire.
+     * If there is no such cell, an empty option is returned. */
+    opt<Segment3d> get_projection(const PPlan p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
+        const Trajectory& traj = p->core[traj_id];
+        // start iteration from last valid projection made.
+        opt<Segment3d> current_segment = to_project;
+        bool updated = true;
+        size_t num_iter = 0;
+
+        // project the segment on firefront until we converge or are unable to project the segment anymore.
+        while(current_segment && updated) {
+            // time at which the uav will reach the segment
+            const double time = insert_loc==0 ?
+                                traj.start_time() :
+                                traj.end_time(insert_loc-1) +
+                                traj.conf.uav.travel_time(traj[insert_loc-1].end, to_project.start);
+            // back up current segment
+            const Segment3d previous = *current_segment;
+
+            // project the segment on the firefront.
+            current_segment = p->firedata->project_on_firefront(previous, traj.conf.uav, time);
+            ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
+
+            if(current_segment && previous != *current_segment) {
+                // segment has changed due to projection,
+                // set the default orientation to the segment
+                const double direction = default_insertion_angle(traj, insert_loc, *current_segment);
+                current_segment = traj.conf.uav.rotate_on_visibility_center(*current_segment, direction);
+
+                // start over since the time at which we reach the segment might have changed as well
+                updated = true;
+            } else {
+                updated = false;
+            }
+            ASSERT(num_iter++ <1000); // This should always converges (very quickly). One can safely put a bound on the number of iterations.
+        }
+        return current_segment;
     }
 };
 

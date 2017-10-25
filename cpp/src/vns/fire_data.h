@@ -50,8 +50,20 @@ public:
         return ignitions(cell) < numeric_limits<double>::max() /2;
     }
 
-    /** Tries finding the closest cell on the firefront of the given time by going up or down the propagation slope.*/
+    /** Lookup a cell that ignited at `time`. Returns an empty option if no such cell was found. */
     opt<Cell> project_on_fire_front(const Cell& cell, double time) const {
+        ASSERT(ignitions.is_in(cell));
+        Cell proj = project_closest_to_fire_front(cell, time);
+        ASSERT(ignitions.is_in(proj));
+        if (time >= ignitions(proj) && time <= traversal_end(proj)) {
+            return proj;
+        } else {
+            return {};
+        }
+    }
+
+    /** Finds the closest cell from the fire front of the given time by going up or down the propagation slope.*/
+    Cell project_closest_to_fire_front(const Cell& cell, double time) const {
         ASSERT(ignitions.is_in(cell));
         if (time >= ignitions(cell) && time <= traversal_end(cell)) {
             return cell;
@@ -89,19 +101,19 @@ public:
                 next_cell = { cell.x+dx, cell.y + dy };
                 if(!ignitions.is_in(next_cell) || ignitions(cell) > ignitions(next_cell))
                     // ignitions are not growing, we are in strange geometrical pattern inducing a local maximum, abandon
-                    return {};
+                    return cell;
             } else {
                 // move backwards the propagation direction
                 ASSERT(time < ignitions(cell))
                 next_cell = { cell.x-dx, cell.y-dy };
                 if(!ignitions.is_in(next_cell) || ignitions(cell) < ignitions(next_cell))
                     // ignitions are not decreasing, we are in strange geometrical pattern inducing a local minimum, abandon
-                    return {};
+                    return cell;
             }
             if(!ignitions.is_in(next_cell) || ! eventually_ignited(next_cell)) {
-                return {};
+                return cell;
             } else {
-                return project_on_fire_front(next_cell, time);
+                return project_closest_to_fire_front(next_cell, time);
             }
         }
     }
@@ -124,6 +136,25 @@ public:
         else
             return {};
     }
+
+    /** Returns a segment whose visibility center is on cell closest to the firefront of the given time.
+     *
+     * This essentially projects a segment as close as possible to the firefront, non-touching its orientation.
+     **/
+    Segment3d project_closest_to_fire_front(const Segment3d& seg, const UAV& uav, double time) const {
+        const Waypoint3d center = uav.visibility_center(seg);
+        if(!ignitions.is_in(center))
+            return seg;
+        const Cell cell = ignitions.as_cell(center);
+        const opt<Cell> projected_cell = project_closest_to_fire_front(cell, time);
+        if(projected_cell)
+            return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y),
+                                           center.z, seg.start.dir, seg.length);
+        else
+            return seg;
+    }
+
+
 
 private:
     /** Builds a raster containing the times at which the firefront leaves the cells. */
