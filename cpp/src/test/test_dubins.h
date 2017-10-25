@@ -58,6 +58,58 @@ bool test_length_low_alt() {
     return true;
 }
 
+bool test_triangleineq_flat() {
+    Waypoint3d a {0, 0, 0, 0};
+    Waypoint3d b {100, 100, 0, M_PI_2};
+    Waypoint3d c {0, 100, 0, M_PI};
+    Dubins3dPathLength path_ab(a, b, r_min, gamma_max);
+    Dubins3dPathLength path_bc(b, c, r_min, gamma_max);
+    Dubins3dPathLength path_ac(a, c, r_min, gamma_max);
+
+    if (path_ab.configuration_2d && path_bc.configuration_2d && path_ac.configuration_2d) {
+        BOOST_TEST(path_ab.L + path_bc.L > path_ac.L);
+        BOOST_TEST(path_ab.L_2d + path_bc.L_2d > path_ac.L_2d);
+        return true;
+    }
+
+    return false;
+}
+
+bool test_triangleineq_highest() {
+    Waypoint3d a {0, 0, 0, 0};
+    Waypoint3d b {100, 100, 500, M_PI_2};
+    Waypoint3d c {200, 100, 1000, M_PI};
+    Dubins3dPathLength path_ab(a, b, r_min, gamma_max);
+    Dubins3dPathLength path_bc(b, c, r_min, gamma_max);
+    Dubins3dPathLength path_ac(a, c, r_min, gamma_max);
+
+    if (path_ab.configuration_2d && path_bc.configuration_2d && path_ac.configuration_2d) {
+        BOOST_TEST(path_ab.L + path_bc.L > path_ac.L);
+        BOOST_TEST(path_ab.L_2d + path_bc.L_2d > path_ac.L_2d);
+        return true;
+    }
+
+    return false;
+}
+
+
+bool test_triangleineq_high() {
+    Waypoint3d a {0, 0, 0, 0};
+    Waypoint3d b {100, 100, 50, M_PI_2};
+    Waypoint3d c {200, 100, 100, M_PI};
+    Dubins3dPathLength path_ab(a, b, r_min, gamma_max);
+    Dubins3dPathLength path_bc(b, c, r_min, gamma_max);
+    Dubins3dPathLength path_ac(a, c, r_min, gamma_max);
+
+    if (path_ab.configuration_2d && path_bc.configuration_2d && path_ac.configuration_2d) {
+        BOOST_TEST(path_ab.L + path_bc.L > path_ac.L);
+        BOOST_TEST(path_ab.L_2d + path_bc.L_2d > path_ac.L_2d);
+        return true;
+    }
+
+    return false;
+}
+
 bool test_length_flat() {
     DubinsPath path2d;
     Waypoint3d orig {100, 100, 0, M_PI_2};
@@ -84,5 +136,8 @@ test_suite* dubins_test_suite() {
     ts1->add(BOOST_TEST_CASE(&test_length_medium_alt));
     ts1->add(BOOST_TEST_CASE(&test_length_high_alt));
     ts1->add(BOOST_TEST_CASE(&test_length_flat));
+    ts1->add(BOOST_TEST_CASE(&test_triangleineq_flat));
+    ts1->add(BOOST_TEST_CASE(&test_triangleineq_highest));
+    ts1->add(BOOST_TEST_CASE(&test_triangleineq_high));
     return ts1;
 }
