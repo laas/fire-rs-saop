@@ -163,11 +163,6 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y, self.pt.z), self.time);
             } );
 
-    py::class_<IsochroneCluster, shared_ptr<IsochroneCluster>>(m, "IsochroneCluster")
-            .def(py::init<const TimeWindow&, vector<Cell>>(), py::arg("tw") , py::arg("cell_vector"))
-            .def_readonly("time_window", &IsochroneCluster::time_window)
-            .def_readonly("cells", &IsochroneCluster::cells);
-
     py::class_<FireData>(m, "FireData")
             .def(py::init<DRaster&, DiscreteDRaster&>(), py::arg("ignitions"), py::arg("elevation"))
             .def_readonly("ignitions", &FireData::ignitions)

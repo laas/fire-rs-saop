@@ -12,21 +12,6 @@
 
 using namespace std;
 
-
-struct IsochroneCluster final {
-    const TimeWindow time_window; /* Time span of this cluster. End time is excluded of the range: t ∈ [t_start, t_end)*/
-    vector<Cell> cells; /* Cells belonging to this cluster */
-
-    IsochroneCluster(const TimeWindow tw, vector<Cell> cell_vector) : time_window(tw), cells(cell_vector) {}
-
-    /* IsochroneCluster "less than" comparison by center of time*/
-    friend bool operator< (const IsochroneCluster& isochroneClusterA, const IsochroneCluster& isochroneClusterB){
-        return isochroneClusterA.time_window.center() < isochroneClusterB.time_window.center();
-    }
-};
-
-typedef set<shared_ptr<IsochroneCluster>, PComp<IsochroneCluster>> SetPIsochroneCluster_t;
-
 class FireData {
 public:
 
@@ -42,10 +27,6 @@ public:
 
     /* Terrain elevation */
     const shared_ptr<DRaster> elevation;
-
-    /** Cells within the same timespan. */
-//    const vector<shared_ptr<IsochroneCluster>> isochrones;
-//    static constexpr double isochrone_timespan = 300.0;
 
     FireData(const DRaster &ignitions, const DRaster &elevation)
             : ignitions(ignitions),
@@ -214,73 +195,6 @@ private:
             }
         }
         return pd;
-    }
-
-    static vector<shared_ptr<IsochroneCluster>> compute_isochrone_clusters(const DRaster& ignitions,
-                                                             const DRaster& traversal_end,
-                                                             double cluster_timespan) {
-        /* Isochrone clusters contain cells that burn in the cluster timespan.
-         * Vector of IsochroneCluster should be in order.
-         * NOT YET: Cluster timespans overlap 50% each other.
-         *          This means that cluster_1 nominal timestamp is right in the border between cluster_0 and cluster_2.*/
-
-        ASSERT(cluster_timespan > 0);
-
-        vector<shared_ptr<IsochroneCluster>> isochrones;
-
-        for(size_t x=0; x<ignitions.x_width; x++) {
-            for(size_t y=0; y<ignitions.y_height; y++) {
-                double ign_start = ignitions(x, y);
-                ASSERT(ign_start > 0);
-                double ign_end = traversal_end(x, y);
-                ASSERT(ign_end > 0);
-
-                Cell current_cell = Cell{x, y};
-
-                bool isochrone_found = false;
-                /*If eventually ignited*/
-                if(abs(ign_start) < std::numeric_limits<double>::max() && abs(ign_end-ign_start) < std::numeric_limits<double>::max() ) {
-                    TimeWindow cellTimeWindow = TimeWindow{ign_start, ign_end};
-                    for (auto c : isochrones) {
-                        if (c->time_window.contains(cellTimeWindow.center())) {
-                            c->cells.push_back(current_cell);
-                            isochrone_found = true;
-                            break;
-                        }
-                    }
-
-                    if (!isochrone_found) {
-                        long range_index = static_cast<long>(cellTimeWindow.center() / cluster_timespan);
-                        if (range_index <= 0) {
-                            cout << "ERROR: range_index = " << range_index << " < 0." << endl;
-                            cout << '\t' << "cellTimeWindow = " << cellTimeWindow << endl;
-                        }
-                        ASSERT(range_index >= 0);
-
-                        double t_start = range_index*cluster_timespan;
-                        double t_end = (range_index+1)*cluster_timespan;
-                        shared_ptr<IsochroneCluster> new_isochrone = make_shared<IsochroneCluster>(
-                                IsochroneCluster{TimeWindow{t_start, t_end}, vector<Cell>{current_cell}});
-                        isochrones.push_back(new_isochrone);
-                    }
-                }
-            }
-        }
-
-        /* Isochrone vector should be in order*/
-        std::sort(isochrones.begin(), isochrones.end(),
-                  [](std::shared_ptr<IsochroneCluster> a, std::shared_ptr<IsochroneCluster> b){
-                      return a->time_window.center() < b->time_window.center();});
-
-        /* Print the resulting isochrone vector */
-//        for(auto iso : isochrones) {
-//            cout << "Isochrone: " << '(' << iso->time_window.start/60 << ", " << iso->time_window.end/60 << ')' << endl;
-//            for (auto c : iso->cells) {
-//                cout << '\t' << c << endl;
-//            }
-//        }
-
-        return isochrones;
     }
 };
 

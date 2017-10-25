@@ -33,16 +33,4 @@ if(!(test)) {                         \
 }                                     \
 assert(test);
 
-
-/*Compare dereferenced values. From https://stackoverflow.com/a/19381106*/
-template <typename T>
-struct PComp
-{
-    bool operator ()(const T* a, const T* b) const
-    {
-        return *a < *b;
-    }
-};
-
-
 #endif //PLANNING_CPP_DEBUG_H
