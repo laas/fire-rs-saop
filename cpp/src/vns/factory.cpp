@@ -38,3 +38,10 @@ shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string 
 
     return make_shared<VariableNeighborhoodSearch>(ns, make_shared<PlanPortionRemover>(0., 1.));
 }
+
+std::shared_ptr<VariableNeighborhoodSearch> vns::build_default() {
+    json conf = R"(
+      { "neighborhoods": [{"name": "dubins-opt"}, {"name": "one-insert"}] }
+)"_json;
+    return vns::build_from_config(conf.dump());
+}

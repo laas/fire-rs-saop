@@ -100,7 +100,9 @@ struct VariableNeighborhoodSearch {
     vector<shared_ptr<Neighborhood>> neighborhoods;
 
     explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler> shuffler) :
-            neighborhoods(neighborhoods) {}
+            neighborhoods(neighborhoods) {
+        ASSERT(neighborhoods.size() > 0);
+    }
 
     /** Refines an initial plan with Variable Neighborhood Search.
      *
