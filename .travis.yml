@@ -19,7 +19,7 @@
 
   ],
   "script": [
-    "make test",
+    "make test-cpp",
   ],
   "group": "stable",
   "dist": "trusty",
