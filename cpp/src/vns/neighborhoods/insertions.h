@@ -19,7 +19,14 @@ struct OneInsertNbhd final : public Neighborhood {
     const double default_height = 100;
 
     const double max_trials;
-    explicit OneInsertNbhd(double max_trials = 50) : max_trials(max_trials) {}
+    const bool select_arbitrary_trajectory;
+    const bool select_arbitrary_position;
+    explicit OneInsertNbhd(double max_trials,
+                           const bool select_arbitrary_trajectory,
+                           const bool select_arbitrary_position)
+            : max_trials(max_trials),
+              select_arbitrary_trajectory(select_arbitrary_trajectory),
+              select_arbitrary_position(select_arbitrary_position) {}
 
     opt<PLocalMove> get_move(PPlan p) override {
         IdentityMove no_move(p);
@@ -82,22 +89,42 @@ private:
         // the number of steps in "project on_firefront" by a factor ~5
         Segment3d projected_random_observation = random_observation;
 
+        size_t first_traj, last_traj;
+        if(select_arbitrary_trajectory) {
+            const size_t t = rand(0, p->core.size());
+            first_traj = t;
+            last_traj = t;
+        } else {
+            first_traj = 0;
+            last_traj = p->core.size()-1;
+        }
+
         /** Try best insert for each subtrajectory in the plan */
-        for(size_t i=0; i< p->core.size(); i++) {
+        for(size_t i=first_traj; i <= last_traj; i++) {
             const Trajectory& traj = p->core[i];
 
             // get projected observation closer to the fire front at the beginning of the trajectory
             // this is useful to avoid to projection to follow the same path multiple times to end up on a failure.
             projected_random_observation = p->firedata->project_closest_to_fire_front(random_observation, traj.conf.uav, traj.start_time());
 
-            for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
+            size_t first_insertion_loc, last_insertion_loc;
+            if(select_arbitrary_position) {
+                const size_t loc = rand(traj.first_modifiable(), traj.last_modifiable()+2);
+                first_insertion_loc = loc;
+                last_insertion_loc = loc;
+            } else {
+                first_insertion_loc = traj.first_modifiable();
+                last_insertion_loc = traj.last_modifiable() +1;
+            }
+
+            for(size_t insert_loc=first_insertion_loc; insert_loc<=last_insertion_loc; insert_loc++) {
 
                 opt<Segment3d> current_segment = get_projection(p, projected_random_observation, i, insert_loc);
 
                 if(current_segment) {
                     // save to be able to use it as a base for the following projections
                     projected_random_observation = *current_segment;
-                    // current segment is valid (i.e. successfully projected on firefront,
+                    // current segment is valid (i.e. successfully projected on fire front,
                     // create a candidate for it
 
                     const double additional_flight_time = traj.insertion_duration_cost(insert_loc, *current_segment);

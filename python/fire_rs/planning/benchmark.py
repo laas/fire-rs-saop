@@ -429,14 +429,38 @@ vns_configurations = {
     'base': {
         'neighborhoods': [
             {'name': 'dubins-opt'},
-            {'name': 'one-insert'}]
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False}
+        ]
     },
     'with_smoothing': {
         'neighborhoods': [
             {'name': 'trajectory-smoothing'},
             {'name': 'dubins-opt'},
-            {'name': 'one-insert'}]
-    }
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False}]
+    },
+    'full': {
+        'neighborhoods': [
+            {'name': 'dubins-opt'},
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False},
+            {'name': 'one-insert',
+             'max_trials': 200,
+             "select_arbitrary_trajectory": True,
+             "select_arbitrary_position": False},
+            {'name': 'one-insert',
+             'max_trials': 200,
+             "select_arbitrary_trajectory": True,
+             "select_arbitrary_position": True}
+        ]
+    },
 }
 
 
@@ -461,7 +485,7 @@ def main():
                         default='png')
     parser.add_argument("--vns",
                         help="Select a predefined configuration for VNS search.",
-                        choices=['base', 'with_smoothing'],
+                        choices=['base', 'with_smoothing', 'full'],
                         default='base')
     parser.add_argument("--dpi",
                         help="resolution of the output figures",

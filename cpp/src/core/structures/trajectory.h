@@ -262,6 +262,7 @@ public:
     /** Adds segment to the end of the trajectory */
     void append_segment(const Segment3d& seg) {
         insert_segment(seg, traj.size());
+        ASSERT(traj.size() == start_times.size())
     }
 
     /** Inserts the given segment at the given index */

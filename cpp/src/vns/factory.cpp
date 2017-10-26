@@ -8,15 +8,30 @@
 
 using json = nlohmann::json;
 
+void check_field_is_present(json json_obj, std::string field) {
+    if((json_obj).find(field) == (json_obj).end()) {
+        std::cerr << "Missing field " << field << " in json object:\n" << (json_obj).dump() << std::endl;
+    }
+    ASSERT((json_obj).find(field) != (json_obj).end())
+}
 
 shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
     const std::string& name = conf["name"];
+
 
     if(name == "dubins-opt") {
         return make_shared<DubinsOptimizationNeighborhood>();
     }
     if(name == "one-insert") {
-        return make_shared<OneInsertNbhd>();
+        check_field_is_present(conf, "max_trials");
+        const size_t max_trials = conf["max_trials"];
+        check_field_is_present(conf, "select_arbitrary_trajectory");
+        const bool select_arbitrary_trajectory = conf["select_arbitrary_trajectory"];
+        check_field_is_present(conf, "select_arbitrary_position");
+        const bool select_arbitrary_position = conf["select_arbitrary_position"];
+        return make_shared<OneInsertNbhd>(
+                max_trials, select_arbitrary_trajectory, select_arbitrary_position
+        );
     }
     if(name == "trajectory-smoothing") {
         return make_shared<TrajectorySmoothingNeighborhood>();
@@ -40,7 +55,12 @@ shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string 
 
 std::shared_ptr<VariableNeighborhoodSearch> vns::build_default() {
     json conf = R"(
-      { "neighborhoods": [{"name": "dubins-opt"}, {"name": "one-insert"}] }
+      { "neighborhoods": [
+          {"name": "dubins-opt"}, {
+           "name": "one-insert",
+           "max_trials": 50,
+           "select_arbitrary_trajectory": false,
+           "select_arbitrary_position": false}] }
 )"_json;
     return vns::build_from_config(conf.dump());
 }
