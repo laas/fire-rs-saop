@@ -1,0 +1,21 @@
+{
+  "language": "cpp",
+  "sudo": false,
+  "git": {
+    "submodules": true
+  },
+  "before_install": [
+
+  ],
+  "install": [
+
+  ],
+  "script": [
+    "make test",
+  ],
+  "group": "stable",
+  "dist": "trusty",
+  "os": "linux"
+}
+
+
