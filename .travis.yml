@@ -18,7 +18,11 @@
 
   ],
   "install": [
-
+    "mkdir build",
+    "cd build",
+    "cmake -DBUILD_TESTING=ON ..",
+    "make",
+    "cd .."
   ],
   "script": [
     "make test-cpp",
