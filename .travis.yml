@@ -4,6 +4,14 @@
   "git": {
     "submodules": true
   },
+  "addons": {
+    "apt": {
+      "packages": [
+        "cmake",
+        "libboost-test-dev"
+      ]
+    }  
+  }
   "before_install": [
 
   ],
