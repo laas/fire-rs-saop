@@ -9,6 +9,11 @@ build-debug: FORCE
 	mkdir -p build
 	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug
 	cd build && make
+	
+build-testing: FORCE
+	mkdir -p build
+	cd build && cmake -DBUILD_TESTING=ON .. 
+	cd build && make
 
 # rebuilds project each time a C++ source is modified
 # this requires the "when-changed" program" that is installed in the docker container
@@ -32,7 +37,7 @@ test-python: build FORCE
 test-python-cpp: build FORCE
 	cd python && python3 -m unittest python.fire_rs.planning.test_uav_planning_cpp
 
-test-cpp: build
+test-cpp: build-testing
 	./build/cpp/tests
 
 benchmark: build FORCE
