@@ -8,10 +8,10 @@
     "apt": {
       "packages": [
         "cmake",
-        "libboost-test-dev"
+        "libboost-test-dev",
       ]
-    }  
-  }
+    },
+  },
   "before_install": [
 
   ],
