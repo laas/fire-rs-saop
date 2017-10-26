@@ -475,6 +475,9 @@ def main():
     parser = argparse.ArgumentParser(prog='benchmark.py')
     parser.add_argument("--name",
                         help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
+    parser.add_argument("--folder",
+                        help="Name of the folder in which benchmarks are to be saved.",
+                        default=DEFAULT_FIRERS_DATA_FOLDER)
     parser.add_argument("--background", nargs='+',
                         help="list of background layers for the output figures, from bottom to top.",
                         choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
@@ -518,7 +521,7 @@ def main():
     benchmark_name_full = "benchmark"
     if benchmark_name:
         benchmark_name_full = "_".join([benchmark_name_full, str(benchmark_name)])
-    benchmark_dir = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, benchmark_name_full)
+    benchmark_dir = os.path.join(args.folder, benchmark_name_full)
     if not os.path.exists(benchmark_dir):
         os.makedirs(benchmark_dir)
 
