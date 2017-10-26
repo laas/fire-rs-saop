@@ -1,9 +1,10 @@
 #include "../ext/dubins.h"
 #include "../dubins3d.h"
 #include <iostream>
+#include "../core/structures/waypoint.h"
+#include <boost/test/included/unit_test.hpp>
+using namespace boost::unit_test;
 using namespace std;
-//#include "../waypoint.h"
-//#include <cmath>
 
 static double r_min = 25; // m
 static double gamma_max = 0.1; // rad
@@ -39,7 +40,7 @@ bool test_medium_alt_SSLS() {
 
     Dubins3dPathLength path(orig, dest, r_min, gamma_max);
 
-    ASSERT(path.R>=0);
+    BOOST_TEST(path.R>=0);
 
     cout << orig << " -> " << dest << " => " << path.L << "xyz / " << path.L_2d << "xy" << endl;
     return true;
@@ -57,6 +58,58 @@ bool test_length_low_alt() {
     return true;
 }
 
+bool test_triangleineq_flat() {
+    Waypoint3d a {0, 0, 0, 0};
+    Waypoint3d b {100, 100, 0, M_PI_2};
+    Waypoint3d c {0, 100, 0, M_PI};
+    Dubins3dPathLength path_ab(a, b, r_min, gamma_max);
+    Dubins3dPathLength path_bc(b, c, r_min, gamma_max);
+    Dubins3dPathLength path_ac(a, c, r_min, gamma_max);
+
+    if (path_ab.configuration_2d && path_bc.configuration_2d && path_ac.configuration_2d) {
+        BOOST_TEST(path_ab.L + path_bc.L > path_ac.L);
+        BOOST_TEST(path_ab.L_2d + path_bc.L_2d > path_ac.L_2d);
+        return true;
+    }
+
+    return false;
+}
+
+bool test_triangleineq_highest() {
+    Waypoint3d a {0, 0, 0, 0};
+    Waypoint3d b {100, 100, 500, M_PI_2};
+    Waypoint3d c {200, 100, 1000, M_PI};
+    Dubins3dPathLength path_ab(a, b, r_min, gamma_max);
+    Dubins3dPathLength path_bc(b, c, r_min, gamma_max);
+    Dubins3dPathLength path_ac(a, c, r_min, gamma_max);
+
+    if (path_ab.configuration_2d && path_bc.configuration_2d && path_ac.configuration_2d) {
+        BOOST_TEST(path_ab.L + path_bc.L > path_ac.L);
+        BOOST_TEST(path_ab.L_2d + path_bc.L_2d > path_ac.L_2d);
+        return true;
+    }
+
+    return false;
+}
+
+
+bool test_triangleineq_high() {
+    Waypoint3d a {0, 0, 0, 0};
+    Waypoint3d b {100, 100, 50, M_PI_2};
+    Waypoint3d c {200, 100, 100, M_PI};
+    Dubins3dPathLength path_ab(a, b, r_min, gamma_max);
+    Dubins3dPathLength path_bc(b, c, r_min, gamma_max);
+    Dubins3dPathLength path_ac(a, c, r_min, gamma_max);
+
+    if (path_ab.configuration_2d && path_bc.configuration_2d && path_ac.configuration_2d) {
+        BOOST_TEST(path_ab.L + path_bc.L > path_ac.L);
+        BOOST_TEST(path_ab.L_2d + path_bc.L_2d > path_ac.L_2d);
+        return true;
+    }
+
+    return false;
+}
+
 bool test_length_flat() {
     DubinsPath path2d;
     Waypoint3d orig {100, 100, 0, M_PI_2};
@@ -71,17 +124,20 @@ bool test_length_flat() {
     cout << orig << " -> " << dest << " => " << path3d.L << "xyz / " << path3d.L_2d << "xy" << endl;
     cout << dubins_path_length(&path2d) << " type=" << dubins_path_type(&path2d) << endl;
 
-    assert(path3d.L == dubins_path_length(&path2d));
+    BOOST_TEST(path3d.L == dubins_path_length(&path2d));
     return path3d.L == dubins_path_length(&path2d);
 }
 
-
-void all_dubins_tests()
-{
-    test_length_flat();
-    test_length_low_alt();
-    test_medium_alt_SSLS();
-    test_length_medium_alt();
-    test_length_high_alt();
-    test_length_flat();
+test_suite* dubins_test_suite() {
+    test_suite* ts1 = BOOST_TEST_SUITE("dubins_tests");
+    ts1->add(BOOST_TEST_CASE(&test_length_flat));
+    ts1->add(BOOST_TEST_CASE(&test_length_low_alt));
+    ts1->add(BOOST_TEST_CASE(&test_medium_alt_SSLS));
+    ts1->add(BOOST_TEST_CASE(&test_length_medium_alt));
+    ts1->add(BOOST_TEST_CASE(&test_length_high_alt));
+    ts1->add(BOOST_TEST_CASE(&test_length_flat));
+    ts1->add(BOOST_TEST_CASE(&test_triangleineq_flat));
+    ts1->add(BOOST_TEST_CASE(&test_triangleineq_highest));
+    ts1->add(BOOST_TEST_CASE(&test_triangleineq_high));
+    return ts1;
 }

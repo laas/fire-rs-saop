@@ -25,6 +25,7 @@ This process will:
 SAOP has a number of dependencies that you obtain by using the docker image (below).
 Otherwise, the file `docker/Dockerfile` contains all the steps require to retrieve all dependencies on an Ubuntu 16.04 distribution.
 
+Optionally, C++ unitary tests can be built if the argument -DBUILD_TESTING=ON is passed to CMake
 
 Docker
 ------
@@ -54,4 +55,4 @@ Most commons operations are available in the Makefile. Targets include
 - `docker_build_container`: Build/rebuild the docker image. 
 
 
-A typical workflow would be to launch the docker container(`make docker`) and the build the project inside it.
+A typical workflow would be to launch the docker container(`make docker`) and the build the project inside it.A typical workflow would be to launch the docker container(`make docker`) and the build the project inside it.

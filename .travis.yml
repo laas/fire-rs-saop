@@ -1,0 +1,35 @@
+{
+  "language": "cpp",
+  "sudo": false,
+  "git": {
+    "submodules": true
+  },
+  "addons": {
+    "apt": {
+      "packages": [
+        "cmake",
+        "build-essential",
+        "libboost-test-dev",
+        "python3.5"
+      ]
+    },
+  },
+  "before_install": [
+
+  ],
+  "install": [
+    "mkdir build",
+    "cd build",
+    "cmake -DBUILD_TESTING=ON ..",
+    "make",
+    "cd .."
+  ],
+  "script": [
+    "make test-cpp",
+  ],
+  "group": "stable",
+  "dist": "trusty",
+  "os": "linux"
+}
+
+
