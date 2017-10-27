@@ -243,7 +243,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # Draw background layers
     for layer in output_options_plot['background']:
         if layer == 'elevation_shade':
-            geodatadisplay.draw_elevation_shade(with_colorbar=False)
+            geodatadisplay.draw_elevation_shade(with_colorbar=True)
         elif layer == 'ignition_shade':
             geodatadisplay.draw_ignition_shade(with_colorbar=True)
         elif layer == 'observedcells':
@@ -273,9 +273,9 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         PlanDisplayExtension(None).extend(geodatadisplay)
         for layer in output_options_plot['background']:
             if layer == 'elevation_shade':
-                geodatadisplay.draw_elevation_shade(with_colorbar=False)
+                geodatadisplay.draw_elevation_shade(with_colorbar=True)
             elif layer == 'ignition_shade':
-                geodatadisplay.draw_ignition_shade(with_colorbar=False)
+                geodatadisplay.draw_ignition_shade(with_colorbar=True)
             elif layer == 'observedcells':
                 geodatadisplay.draw_observedcells(i_plan.observations())
             elif layer == 'ignition_contour':
