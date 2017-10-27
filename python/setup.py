@@ -6,8 +6,6 @@ from setuptools import find_packages, setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
-import pybind11
-
 setup(
     name="Fire RS",
     version="0.1",
@@ -15,7 +13,7 @@ setup(
     url="http://fire-rs.com",
     packages=find_packages(),
     license="GPLv3+",
-    install_requires=['affine', 'GDAL', 'numpy', 'pandas', 'pytz', 'matplotlib', 'sklearn', 'pybind11'],
+    install_requires=['affine', 'GDAL', 'numpy', 'pandas', 'pytz', 'matplotlib', 'pybind11'],
     ext_modules=[
         Extension("fire_rs.firemodel.rothermel", sources=["fire_rs/firemodel/rothermel.pyx"]),
         Extension("fire_rs.firemodel.environment", sources=["fire_rs/firemodel/environment.pyx"]),

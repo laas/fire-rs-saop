@@ -20,7 +20,7 @@
 
   ],
   "install": [
-    "pip install .",
+    "pip install ./python",
     "mkdir build",
     "cd build",
     "cmake -DBUILD_TESTING=ON ..",
