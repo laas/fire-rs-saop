@@ -17,10 +17,10 @@
     },
   },
   "before_install": [
-
+    "pip3 install Cython",
   ],
   "install": [
-    "pip install ./python",
+    "pip3 install ./python",
     "mkdir build",
     "cd build",
     "cmake -DBUILD_TESTING=ON ..",
