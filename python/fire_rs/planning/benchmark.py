@@ -171,7 +171,7 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
             self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10, edgecolor='black', c=color, marker='o', zorder=3))
 
         for i in range(len(segments)):
-            self._drawings.append(self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c='darkorange', linewidth=3, zorder=2))
+            self._drawings.append(self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c=color, linewidth=2, zorder=2))
 
     def _draw_observedcells(self, observations, **kwargs):
         for ptt in observations:
@@ -184,8 +184,8 @@ def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' 
     colors = cycle(['red', 'blue', 'green', 'magenta', 'cyan'])
     for traj, color in zip(plan.trajectories, colors):
         geodatadisplay.plan_trajectory = traj
-        geodatadisplay.draw_solid_path(color="C1", colorbar_time_range=time_range, with_colorbar=True)
-        geodatadisplay.draw_segments(color="C1")
+        geodatadisplay.draw_solid_path(color=color, colorbar_time_range=time_range, with_colorbar=True)
+        geodatadisplay.draw_segments(color=color)
     if show:
         geodatadisplay.axis.get_figure().show()
 
