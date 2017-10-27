@@ -149,7 +149,7 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         # TODO: implement legend
 
     def _draw_segments_extension(self, *args, **kwargs):
-        '''Draw extremes observation segments in a GeoDataDisplay figure.'''
+        '''Draw observation segments with start and end points in a GeoDataDisplay figure.'''
         if len(self.plan_trajectory.segments) < 2:
             return
         color = kwargs.get('color', 'C0')
@@ -161,7 +161,6 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
 
         self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='D', zorder=3))
         self._drawings.append(self.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>', zorder=3))
-
 
         start_base = self.plan_trajectory.segments[0]
         finish_base = self.plan_trajectory.segments[-1]
@@ -211,7 +210,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     flights = [f.as_trajectory_config() for f in scenario.flights]
 
     # If 'use_elevation' option is True, plan using a 3d environment. If not, use a flat terrain.
-    # This is independent of the output plot, because if can show the real terrain even in flat terrain mode.
+    # This is independent of the output plot, because it can show the real terrain even in flat terrain mode.
     terrain = env.raster.slice('elevation')
     if (output_options_planning['use_elevation']):
         terrain.data['elevation'] = np.zeros_like(terrain.data['elevation'])
@@ -221,7 +220,6 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
                       scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots,
                       discrete_elevation_interval=output_options_planning.get('discrete_elevation_interval', 1))
     plan = res.final_plan()
-
 
     # Representation of unburned cells using max double is not suitable for display,
     # so those values must be converted to NaN
@@ -496,26 +494,26 @@ def main():
     # CLI argument parsing
     parser = argparse.ArgumentParser(prog='benchmark.py')
     parser.add_argument("--name",
-                        help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
+                        help="Name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
     parser.add_argument("--background", nargs='+',
-                        help="list of background layers for the output figures, from bottom to top.",
+                        help="List of background layers for the output figures, from bottom to top.",
                         choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument("--format",
-                        help="format of the output figures",
+                        help="Format of the output figures",
                         choices=['png', 'svg'],
                         default='png')
     parser.add_argument("--dpi",
-                        help="resolution of the output figures",
+                        help="Resolution of the output figures",
                         type=int,
                         default=150)
     parser.add_argument("--snapshots", action="store_true",
-                        help="save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
+                        help="Save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
                         default=False)
     parser.add_argument("--parallel", action="store_true",
-                        help="enable parallel scenario processing")
+                        help="Enable parallel scenario processing")
     parser.add_argument("--wait", action="store_true",
-                        help="wait for user input before start. Useful to hold the execution while attaching to a debugger")
+                        help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
     args = parser.parse_args()
 
     # Set-up output options
