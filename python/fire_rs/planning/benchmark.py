@@ -493,6 +493,8 @@ def main():
     import os
     import argparse
     import logging
+    import joblib
+
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
 
     # CLI argument parsing
@@ -581,7 +583,6 @@ def main():
     else:
         to_run = enumerate(scenarios)
 
-    import joblib
     joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5)\
         (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
                                        snapshots=args.snapshots, vns_name=args.vns) for i, s in to_run)
