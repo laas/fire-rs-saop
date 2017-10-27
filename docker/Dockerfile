@@ -62,7 +62,7 @@ RUN mkdir /home/saop/windninja/build &&\
 USER root
 
 # install SAOP dependencies
-RUN apt-get update && apt-get install -y gdb python3 cython3 python3-gdal python3-setuptools python3-affine python3-tz python3-pandas python3-matplotlib python3-sklearn python3-pip ffmpeg clang
+RUN apt-get update && apt-get install -y gdb python3 cython3 python3-gdal python3-setuptools python3-affine python3-tz python3-pandas python3-matplotlib python3-pip ffmpeg clang
 RUN pip3 install pybind11==2.2.1
 # install "when-changed"
 RUN pip3 install https://github.com/joh/when-changed/archive/master.zip
