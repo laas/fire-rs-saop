@@ -1,10 +1,34 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_MOVES_H
 #define PLANNING_CPP_MOVES_H
 
 
 #include "../plan.h"
 #include "../vns_interface.h"
-
+#include "../../core/updates/updates.h"
 
 
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
@@ -60,6 +84,49 @@ private:
     mutable bool _valid = false;
 };
 
+struct ReverseBasedMove : public LocalMove {
+    ReverseBasedMove(const PPlan &base, const PReversibleTrajectoriesUpdate &update) : LocalMove(base), update(update) {}
+
+    /** Cost that would result in applying the move. */
+    double utility() override { init(); return _cost; };
+
+    /** Total duration that would result in applying the move */
+    double duration() override { init(); return _duration; };
+
+    bool is_valid() override { init(); return _valid; }
+
+protected:
+    void apply_on(PPlan target) override {
+
+    }
+
+public:
+
+    PReversibleTrajectoriesUpdate update;
+
+private:
+
+    mutable bool lazily_initialized = false;
+    mutable double _cost = 0;
+    mutable double _duration = 0;
+    mutable size_t _num_segments = 0;
+    mutable bool _valid = false;
+
+    void init() {
+        if(!lazily_initialized) {
+            const double duration = base_plan->duration();
+            auto rev = update->apply(base_plan->core);
+            _cost = base_plan->utility();
+            _duration = base_plan->duration();
+            _num_segments = base_plan->num_segments();
+            _valid = base_plan->is_valid();
+            lazily_initialized = true;
+            rev->apply(base_plan->core);
+            ASSERT(duration == base_plan->duration())
+        }
+    }
+};
+
 /** Local move that insert a segment at given place in the plan. */
 struct Insert final : public CloneBasedLocalMove {
     /** Index of the trajectory in which to perform the insertion. */
@@ -75,8 +142,8 @@ struct Insert final : public CloneBasedLocalMove {
             : CloneBasedLocalMove(base),
               traj_id(traj_id), seg(seg), insert_loc(insert_loc)
     {
-        ASSERT(traj_id < base->trajectories.size());
-        ASSERT(insert_loc <= base->trajectories[traj_id].traj.size());
+        ASSERT(traj_id < base->core.size());
+        ASSERT(insert_loc <= base->core[traj_id].traj.size());
     }
 
     void apply_on(PPlan p) override {
@@ -86,11 +153,11 @@ struct Insert final : public CloneBasedLocalMove {
     /** Generates an insert move that include the segment at the best place in the given trajectory.
      * Currently, this does not checks the trajectory constraints. */
     static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment3d &seg) {
-        ASSERT(traj_id < base->trajectories.size());
+        ASSERT(traj_id < base->core.size());
 
         long best_loc = -1;
         double best_dur = 999999;
-        Trajectory& traj = base->trajectories[traj_id];
+        Trajectory& traj = base->core[traj_id];
         for(size_t i=0; i<=traj.traj.size(); i++) {
             const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
             if(dur <=  traj.conf.max_flight_time) {
@@ -129,8 +196,8 @@ struct Remove final : public CloneBasedLocalMove {
     Remove(PPlan base, size_t traj_id, size_t rm_id)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), rm_id(rm_id) {
-        ASSERT(traj_id < base->trajectories.size());
-        ASSERT(rm_id < base->trajectories[traj_id].traj.size());
+        ASSERT(traj_id < base->core.size());
+        ASSERT(rm_id < base->core[traj_id].traj.size());
     }
 
     void apply_on(PPlan p) override {
@@ -150,8 +217,8 @@ struct SegmentReplacement : public CloneBasedLocalMove {
               traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements)
     {
         ASSERT(n_replaced > 0);
-        ASSERT(traj_id < base->trajectories.size());
-        ASSERT(segment_index + n_replaced - 1< base->trajectories[traj_id].traj.size());
+        ASSERT(traj_id < base->core.size());
+        ASSERT(segment_index + n_replaced - 1< base->core[traj_id].traj.size());
         ASSERT(replacements.size() > 0);
     }
 
@@ -168,7 +235,7 @@ struct SegmentRotation final : public CloneBasedLocalMove {
     SegmentRotation(PPlan base, size_t traj_id, size_t segment_index, double target_dir)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), segment_index(segment_index),
-              newSegment(base->uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index],
+              newSegment(base->core.uav(traj_id).rotate_on_visibility_center(base->core[traj_id][segment_index],
                                                                         target_dir))
     {
         ASSERT(duration() >= 0)
@@ -179,7 +246,7 @@ struct SegmentRotation final : public CloneBasedLocalMove {
     }
 
     bool applicable() const {
-        Trajectory& t = base_plan->trajectories[traj_id];
+        Trajectory& t = base_plan->core[traj_id];
         return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf.max_flight_time;
     }
 };

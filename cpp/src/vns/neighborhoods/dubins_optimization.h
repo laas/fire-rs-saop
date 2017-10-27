@@ -1,9 +1,32 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_DUBINS_OPTIMIZATION_H
 #define PLANNING_CPP_DUBINS_OPTIMIZATION_H
 
 #include <cmath>
-#include "../trajectory.h"
-#include "../planning.h"
+#include "../../core/structures/trajectory.h"
 #include "../vns_interface.h"
 #include "moves.h"
 
@@ -51,6 +74,10 @@ struct FlipOrientationChangeGenerator final : public OrientationChangeGenerator 
 /** Combination of all neighborhoods intended to smooth dubins trajectories. */
 struct DubinsOptimizationNeighborhood final : public Neighborhood {
 
+    std::string name() const override {
+        return "dubins-opt";
+    }
+
     /** Angle generators to be considered. */
     const vector<shared_ptr<OrientationChangeGenerator>> generators;
 
@@ -71,8 +98,8 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
         size_t num_trials = 0;
         while(num_trials++ < max_trials) {
             // pick a random trajectory in plan.
-            const size_t traj_id = rand(0, plan->trajectories.size());
-            const Trajectory& traj = plan->trajectories[traj_id];
+            const size_t traj_id = rand(0, plan->core.size());
+            const Trajectory& traj = plan->core[traj_id];
 
             // pick a random segment in the trajectory
             const opt<size_t> opt_seg_id = traj.get_random_modifiable_id();
@@ -90,14 +117,15 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
                 continue; // generator not adapted to current segment, go to next trial
 
             // compute the utility of the change
-            const Segment3d replacement_segment = plan->uav(traj_id).rotate_on_visibility_center(traj[seg_id], *optAngle);
+            const Segment3d replacement_segment = plan->core.uav(traj_id).rotate_on_visibility_center(traj[seg_id], *optAngle);
             const double local_duration_cost = traj.replacement_duration_cost(seg_id, replacement_segment);
 
-            PLocalMove move = make_shared<SegmentRotation>(plan, traj_id, seg_id, *optAngle);
 
             // if the duration is improving and the utility doesn't get worse then return the move
-            if(move->is_valid() && local_duration_cost < -1 && move->utility() <= plan->utility()) {
-                return move;
+            if(local_duration_cost < -1) {
+                PLocalMove move = make_shared<SegmentRotation>(plan, traj_id, seg_id, *optAngle);
+                if(move->is_valid())
+                    return move;
             }
         }
         // we did not find any duration improving move

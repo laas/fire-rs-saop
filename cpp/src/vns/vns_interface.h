@@ -1,8 +1,35 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_VNS_INTERFACE_H
 #define PLANNING_CPP_VNS_INTERFACE_H
 
-
+#include <ctime>
 #include "plan.h"
+
+#include "../ext/json.hpp"
+using json = nlohmann::json;
 
 class LocalMove {
 
@@ -57,6 +84,8 @@ struct Neighborhood {
      * Hence subclasses should make sure the returned values contribute to the overall quality of the plan.
      * */
     virtual opt<PLocalMove> get_move(PPlan plan) = 0;
+
+    virtual std::string name() const = 0;
 };
 
 struct Shuffler {
@@ -71,8 +100,6 @@ struct SearchResult {
 
 public:
     vector<Plan> intermediate_plans;
-    double planning_time = -1;
-    double preprocessing_time = -1;
 
     SearchResult(Plan& init_plan)
             : init_plan(shared_ptr<Plan>(new Plan(init_plan))),
@@ -82,10 +109,13 @@ public:
     void set_final_plan(Plan& p) {
         ASSERT(!final_plan)
         final_plan.reset(new Plan(p));
+        metadata["plan"] = p.metadata();
     }
 
     Plan initial() const { return *init_plan; }
     Plan final() const { return *final_plan; }
+
+    json metadata;
 };
 
 struct VariableNeighborhoodSearch {
@@ -94,7 +124,9 @@ struct VariableNeighborhoodSearch {
     vector<shared_ptr<Neighborhood>> neighborhoods;
 
     explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler> shuffler) :
-            neighborhoods(neighborhoods) {}
+            neighborhoods(neighborhoods) {
+        ASSERT(neighborhoods.size() > 0);
+    }
 
     /** Refines an initial plan with Variable Neighborhood Search.
      *
@@ -115,6 +147,8 @@ struct VariableNeighborhoodSearch {
         size_t current_iter = 0;
         size_t num_restarts = 0;
 
+        vector<double> runtime_per_neighborhood(neighborhoods.size(), 0.0);
+
         bool saved = false; /*True if an improvement was saved so save_every do not take an snapshot again*/
 
         while(num_restarts <= max_restarts) {
@@ -126,7 +160,11 @@ struct VariableNeighborhoodSearch {
                 shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 
                 // get move for current neighborhood
+                clock_t start = clock();
                 const opt<PLocalMove> move = neighborhood->get_move(best_plan);
+                clock_t end = clock();
+                runtime_per_neighborhood[current_neighborhood] += double(end - start) / CLOCKS_PER_SEC;
+
                 if(move) {
                     // neighborhood generate a move, apply it
                     LocalMove& m = **move;
@@ -157,6 +195,16 @@ struct VariableNeighborhoodSearch {
             num_restarts += 1;
         }
         result.set_final_plan(*best_plan);
+
+        // save neighborhoods metadata
+        result.metadata["neighborhoods"] = json::array();
+        for(size_t i=0; i<neighborhoods.size(); i++) {
+            json j;
+            auto& n = *neighborhoods[i];
+            j["name"] = n.name();
+            j["runtime"] = runtime_per_neighborhood[i];
+            result.metadata["neighborhoods"].push_back(j);
+        }
         return result;
     }
 };

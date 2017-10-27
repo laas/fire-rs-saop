@@ -1,31 +1,40 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_FIRE_DATA_H
 #define PLANNING_CPP_FIRE_DATA_H
 
 #include <algorithm>
 #include <iostream>
 #include <set>
-#include "raster.h"
-#include "waypoint.h"
-#include "ext/optional.h"
-#include "uav.h"
-#include "utils.h"
+#include "../raster.h"
+#include "../core/structures/waypoint.h"
+#include "../ext/optional.h"
+#include "../core/structures/uav.h"
+#include "../utils.h"
 
 using namespace std;
-
-
-struct IsochroneCluster final {
-    const TimeWindow time_window; /* Time span of this cluster. End time is excluded of the range: t ∈ [t_start, t_end)*/
-    vector<Cell> cells; /* Cells belonging to this cluster */
-
-    IsochroneCluster(const TimeWindow tw, vector<Cell> cell_vector) : time_window(tw), cells(cell_vector) {}
-
-    /* IsochroneCluster "less than" comparison by center of time*/
-    friend bool operator< (const IsochroneCluster& isochroneClusterA, const IsochroneCluster& isochroneClusterB){
-        return isochroneClusterA.time_window.center() < isochroneClusterB.time_window.center();
-    }
-};
-
-typedef set<shared_ptr<IsochroneCluster>, PComp<IsochroneCluster>> SetPIsochroneCluster_t;
 
 class FireData {
 public:
@@ -42,10 +51,6 @@ public:
 
     /* Terrain elevation */
     const shared_ptr<DRaster> elevation;
-
-    /** Cells within the same timespan. */
-//    const vector<shared_ptr<IsochroneCluster>> isochrones;
-//    static constexpr double isochrone_timespan = 300.0;
 
     FireData(const DRaster &ignitions, const DRaster &elevation)
             : ignitions(ignitions),
@@ -69,8 +74,20 @@ public:
         return ignitions(cell) < numeric_limits<double>::max() /2;
     }
 
-    /** Tries finding the closest cell on the firefront of the given time by going up or down the propagation slope.*/
+    /** Lookup a cell that ignited at `time`. Returns an empty option if no such cell was found. */
     opt<Cell> project_on_fire_front(const Cell& cell, double time) const {
+        ASSERT(ignitions.is_in(cell));
+        Cell proj = project_closest_to_fire_front(cell, time);
+        ASSERT(ignitions.is_in(proj));
+        if (time >= ignitions(proj) && time <= traversal_end(proj)) {
+            return proj;
+        } else {
+            return {};
+        }
+    }
+
+    /** Finds the closest cell from the fire front of the given time by going up or down the propagation slope.*/
+    Cell project_closest_to_fire_front(const Cell& cell, double time) const {
         ASSERT(ignitions.is_in(cell));
         if (time >= ignitions(cell) && time <= traversal_end(cell)) {
             return cell;
@@ -108,19 +125,19 @@ public:
                 next_cell = { cell.x+dx, cell.y + dy };
                 if(!ignitions.is_in(next_cell) || ignitions(cell) > ignitions(next_cell))
                     // ignitions are not growing, we are in strange geometrical pattern inducing a local maximum, abandon
-                    return {};
+                    return cell;
             } else {
                 // move backwards the propagation direction
                 ASSERT(time < ignitions(cell))
                 next_cell = { cell.x-dx, cell.y-dy };
                 if(!ignitions.is_in(next_cell) || ignitions(cell) < ignitions(next_cell))
                     // ignitions are not decreasing, we are in strange geometrical pattern inducing a local minimum, abandon
-                    return {};
+                    return cell;
             }
             if(!ignitions.is_in(next_cell) || ! eventually_ignited(next_cell)) {
-                return {};
+                return cell;
             } else {
-                return project_on_fire_front(next_cell, time);
+                return project_closest_to_fire_front(next_cell, time);
             }
         }
     }
@@ -143,6 +160,25 @@ public:
         else
             return {};
     }
+
+    /** Returns a segment whose visibility center is on cell closest to the firefront of the given time.
+     *
+     * This essentially projects a segment as close as possible to the firefront, non-touching its orientation.
+     **/
+    Segment3d project_closest_to_fire_front(const Segment3d& seg, const UAV& uav, double time) const {
+        const Waypoint3d center = uav.visibility_center(seg);
+        if(!ignitions.is_in(center))
+            return seg;
+        const Cell cell = ignitions.as_cell(center);
+        const opt<Cell> projected_cell = project_closest_to_fire_front(cell, time);
+        if(projected_cell)
+            return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y),
+                                           center.z, seg.start.dir, seg.length);
+        else
+            return seg;
+    }
+
+
 
 private:
     /** Builds a raster containing the times at which the firefront leaves the cells. */
@@ -214,73 +250,6 @@ private:
             }
         }
         return pd;
-    }
-
-    static vector<shared_ptr<IsochroneCluster>> compute_isochrone_clusters(const DRaster& ignitions,
-                                                             const DRaster& traversal_end,
-                                                             double cluster_timespan) {
-        /* Isochrone clusters contain cells that burn in the cluster timespan.
-         * Vector of IsochroneCluster should be in order.
-         * NOT YET: Cluster timespans overlap 50% each other.
-         *          This means that cluster_1 nominal timestamp is right in the border between cluster_0 and cluster_2.*/
-
-        ASSERT(cluster_timespan > 0);
-
-        vector<shared_ptr<IsochroneCluster>> isochrones;
-
-        for(size_t x=0; x<ignitions.x_width; x++) {
-            for(size_t y=0; y<ignitions.y_height; y++) {
-                double ign_start = ignitions(x, y);
-                ASSERT(ign_start > 0);
-                double ign_end = traversal_end(x, y);
-                ASSERT(ign_end > 0);
-
-                Cell current_cell = Cell{x, y};
-
-                bool isochrone_found = false;
-                /*If eventually ignited*/
-                if(abs(ign_start) < std::numeric_limits<double>::max() && abs(ign_end-ign_start) < std::numeric_limits<double>::max() ) {
-                    TimeWindow cellTimeWindow = TimeWindow{ign_start, ign_end};
-                    for (auto c : isochrones) {
-                        if (c->time_window.contains(cellTimeWindow.center())) {
-                            c->cells.push_back(current_cell);
-                            isochrone_found = true;
-                            break;
-                        }
-                    }
-
-                    if (!isochrone_found) {
-                        long range_index = static_cast<long>(cellTimeWindow.center() / cluster_timespan);
-                        if (range_index <= 0) {
-                            cout << "ERROR: range_index = " << range_index << " < 0." << endl;
-                            cout << '\t' << "cellTimeWindow = " << cellTimeWindow << endl;
-                        }
-                        ASSERT(range_index >= 0);
-
-                        double t_start = range_index*cluster_timespan;
-                        double t_end = (range_index+1)*cluster_timespan;
-                        shared_ptr<IsochroneCluster> new_isochrone = make_shared<IsochroneCluster>(
-                                IsochroneCluster{TimeWindow{t_start, t_end}, vector<Cell>{current_cell}});
-                        isochrones.push_back(new_isochrone);
-                    }
-                }
-            }
-        }
-
-        /* Isochrone vector should be in order*/
-        std::sort(isochrones.begin(), isochrones.end(),
-                  [](std::shared_ptr<IsochroneCluster> a, std::shared_ptr<IsochroneCluster> b){
-                      return a->time_window.center() < b->time_window.center();});
-
-        /* Print the resulting isochrone vector */
-//        for(auto iso : isochrones) {
-//            cout << "Isochrone: " << '(' << iso->time_window.start/60 << ", " << iso->time_window.end/60 << ')' << endl;
-//            for (auto c : iso->cells) {
-//                cout << '\t' << c << endl;
-//            }
-//        }
-
-        return isochrones;
     }
 };
 

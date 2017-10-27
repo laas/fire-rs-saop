@@ -1,13 +1,37 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_UAV_H
 #define PLANNING_CPP_UAV_H
 
 #include <vector>
 #include <cassert>
-#include "ext/dubins.h"
+#include "../../ext/dubins.h"
 #include "waypoint.h"
-#include "utils.h"
+#include "../../utils.h"
 #include "trajectory.h"
-#include "dubins3d.h"
+#include "../../dubins3d.h"
 
 
 struct UAV {
@@ -35,8 +59,10 @@ struct UAV {
 
     /** Returns the Dubins travel distance between the two waypoints. */
     double travel_distance(const Waypoint3d &origin, const Waypoint3d &target) const  {
-        Dubins3dPath path(origin, target, min_turn_radius, max_pitch_angle);
-        return path.L;
+        return travel_distance(origin.as_2d(), target.as_2d());
+        // TODO: reactivate when 3D path respect triangular inequalities
+        // Dubins3dPath path(origin, target, min_turn_radius, max_pitch_angle);
+        // return path.L;
     }
 
     /** Returns the travel time between the two waypoints. */

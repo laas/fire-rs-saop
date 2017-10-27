@@ -1,3 +1,27 @@
+# Copyright (c) 2017, CNRS-LAAS
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#  * Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+#  * Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import matplotlib
 matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
 import matplotlib.cm
@@ -99,7 +123,7 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         '''Bounds drawing methods to a GeoDataDisplayInstance.'''
         geodatadisplay.plan_trajectory = self.plan_trajectory
         geodatadisplay.draw_waypoints = types.MethodType(PlanDisplayExtension._draw_waypoints_extension, geodatadisplay)
-        geodatadisplay.draw_flighttime_path = types.MethodType(PlanDisplayExtension._draw_flighttime_path_extension, geodatadisplay)
+        geodatadisplay.draw_flighttime_path = types.MethodType(PlanDisplayExtension._draw_path_extension, geodatadisplay)
         geodatadisplay.draw_solid_path = types.MethodType(PlanDisplayExtension._draw_solid_path_extension, geodatadisplay)
         geodatadisplay.draw_segments = types.MethodType(PlanDisplayExtension._draw_segments_extension, geodatadisplay)
         geodatadisplay.draw_observedcells = types.MethodType(PlanDisplayExtension._draw_observedcells, geodatadisplay)
@@ -113,25 +137,35 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         self._drawings.append(self.axis.scatter(x[::2], y[::2], s=7, c=color, marker='D'))
         self._drawings.append(self.axis.scatter(x[1::2], y[1::2], s=7, c=color, marker='>'))
 
-    def _draw_flighttime_path_extension(self, *args, colorbar_time_range: 'Optional[Tuple[float, float]]' = None, **kwargs):
-        '''Draw trajectory in a GeoDataDisplay figure using a flight of time color scale.
-        
-        Optional argument colorbar_time_range may be a tuple of start and end times in seconds.'''
+    def _draw_path_extension(self, *args, single_color: 'Optional[str]' = None,
+                             colorbar_time_range: 'Optional[Tuple[float, float]]' = None, **kwargs):
+        '''Draw trajectory in a GeoDataDisplay figure.
+
+        If the single_color argument is set, the trajectory will be displayed with a single color and
+        other color related options are ignored.
+
+        Otherwise the color of the trajectory will reflect the time taken by the trajectory.
+        Optional argument colorbar_time_range may be a tuple of start and end times in seconds.
+        If the Optional argument with_colorbar is set to True, a color bar will be displayed of the trajectory.
+        '''
         if len(self.plan_trajectory.segments) < 2:
             return
         sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         x = [wp.x for wp in sampled_waypoints]
         y = [wp.y for wp in sampled_waypoints]
-        color_range = np.linspace(self.plan_trajectory.start_time() / 60, self.plan_trajectory.end_time() / 60, len(x))
-        color_norm = matplotlib.colors.Normalize(vmin=color_range[0], vmax=color_range[-1])
-        if colorbar_time_range is not None:
-            color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0]/60, vmax=colorbar_time_range[1]/60)
-        self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
+        if single_color:
+            self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=single_color, zorder=2))
+        else:
+            color_range = np.linspace(self.plan_trajectory.start_time() / 60, self.plan_trajectory.end_time() / 60, len(x))
+            color_norm = matplotlib.colors.Normalize(vmin=color_range[0], vmax=color_range[-1])
+            if colorbar_time_range is not None:
+                color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0]/60, vmax=colorbar_time_range[1]/60)
+            self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
                                        norm=color_norm, cmap=matplotlib.cm.gist_rainbow, zorder=2))
-        if kwargs.get('with_colorbar', False):
-            cb = self._figure.colorbar(self._drawings[-1], ax=self.axis, shrink=0.65, aspect=20)
-            cb.set_label("Flight time [min]")
-            self._colorbars.append(cb)
+            if kwargs.get('with_colorbar', False):
+                cb = self._figure.colorbar(self._drawings[-1], ax=self.axis, shrink=0.65, aspect=20)
+                cb.set_label("Flight time [min]")
+                self._colorbars.append(cb)
 
     def _draw_solid_path_extension(self, *args, **kwargs):
         '''Draw trajectory in a GeoDataDisplay figure with solid color
@@ -180,9 +214,8 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
 
 
 def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
-    # colors = ['C'+str(i) for i in range(len(plan.trajectories))]
-    colors = cycle(['red', 'blue', 'green', 'magenta', 'cyan'])
-    for traj, color in zip(plan.trajectories, colors):
+    colors = cycle(["red", "green", "blue", "black", "magenta"])
+    for traj, color in zip(plan.trajectories(), colors):
         geodatadisplay.plan_trajectory = traj
         geodatadisplay.draw_solid_path(color=color, colorbar_time_range=time_range, with_colorbar=True)
         geodatadisplay.draw_segments(color=color)
@@ -191,8 +224,9 @@ def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' 
 
 
 def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, output_options_planning: dict,
-                  snapshots, plot=False):
+                  snapshots, vns_name, plot=False):
     import os
+    import json
     from fire_rs.firemodel import propagation
 
     # Fetch scenario environment data
@@ -207,6 +241,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # This makes color bar ranges and fire front contour plots nicer
     ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
 
+    # Retrieve trajectory configurations
     flights = [f.as_trajectory_config() for f in scenario.flights]
 
     # If 'use_elevation' option is True, plan using a 3d environment. If not, use a flat terrain.
@@ -215,10 +250,20 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     if (output_options_planning['use_elevation']):
         terrain.data['elevation'] = np.zeros_like(terrain.data['elevation'])
 
+    conf = {
+        'min_time': scenario.time_window_start,
+        'max_time': scenario.time_window_end,
+        'save_every': 0,
+        'save_improvements': snapshots,
+        'discrete_elevation_interval': DISCRETE_ELEVATION_INTERVAL,
+        'vns': vns_configurations[vns_name]
+    }
+    conf['vns']['configuration_name'] = vns_name
+
     # Call the C++ library that calculates the plan
     res = up.plan_vns(flights, ignitions.as_cpp_raster(), terrain.as_cpp_raster(),
-                      scenario.time_window_start, scenario.time_window_end, save_every=0, save_improvements=snapshots,
-                      discrete_elevation_interval=output_options_planning.get('discrete_elevation_interval', 1))
+                      json.dumps(conf))
+
     plan = res.final_plan()
 
     # Representation of unburned cells using max double is not suitable for display,
@@ -251,7 +296,10 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
 
-    # Draw UAV trajectories
+    for i, t in enumerate(res.final_plan().trajectories()):
+        print("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
+
+    # Plot the final plan
     plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
 
     # Save the picture
@@ -261,6 +309,14 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     geodatadisplay.axis.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
+
+    # save metadata to file
+    with open(os.path.join(save_directory, instance_name+".json"), "w") as metadata_file:
+        import json
+        parsed = json.loads(res.metadata())
+        parsed["benchmark_id"] = instance_name
+        parsed["date"] = time.strftime("%Y-%m-%d--%H:%M:%S")
+        print(json.dumps(parsed, indent=4), file=metadata_file)
 
     matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
 
@@ -293,16 +349,6 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
             i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png'))),
             dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
         matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
-
-    # Save plan statistics
-    summary_file = os.path.join(save_directory, "summary.csv")
-    if not os.path.exists(summary_file):
-        with open(summary_file, "a") as summary:
-            summary.write("instance,planning-time,preprocessing-time,utility,duration\n")
-
-    with open(summary_file, "a") as summary:
-        summary.write("{},{},{},{},{}\n".format(
-            instance_name, res.planning_time, res.preprocessing_time, plan.utility(), plan.duration()))
 
     del res
 
@@ -469,7 +515,7 @@ def generate_scenario():
     for i in range(num_flights):
         uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start, start + 4000.)
-        max_flight_time = random.uniform(500, 1500)
+        max_flight_time = random.uniform(500, 1200)
         flights.append(Flight(uav, uav_start, max_flight_time))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
@@ -483,18 +529,61 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
                           'newsletter': generate_scenario_newsletter,}
 
+vns_configurations = {
+    'base': {
+        'neighborhoods': [
+            {'name': 'dubins-opt'},
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False}
+        ]
+    },
+    'with_smoothing': {
+        'neighborhoods': [
+            {'name': 'trajectory-smoothing'},
+            {'name': 'dubins-opt'},
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False}]
+    },
+    'full': {
+        'neighborhoods': [
+            {'name': 'dubins-opt'},
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False},
+            {'name': 'one-insert',
+             'max_trials': 200,
+             "select_arbitrary_trajectory": True,
+             "select_arbitrary_position": False},
+            {'name': 'one-insert',
+             'max_trials': 200,
+             "select_arbitrary_trajectory": True,
+             "select_arbitrary_position": True}
+        ]
+    },
+}
+
 
 def main():
     import pickle
     import os
     import argparse
     import logging
+    import joblib
+
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
 
     # CLI argument parsing
     parser = argparse.ArgumentParser(prog='benchmark.py')
     parser.add_argument("--name",
-                        help="Name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
+                        help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
+    parser.add_argument("--folder",
+                        help="Name of the folder in which benchmarks are to be saved.",
+                        default=DEFAULT_FIRERS_DATA_FOLDER)
     parser.add_argument("--background", nargs='+',
                         help="List of background layers for the output figures, from bottom to top.",
                         choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
@@ -503,15 +592,25 @@ def main():
                         help="Format of the output figures",
                         choices=['png', 'svg'],
                         default='png')
+    parser.add_argument("--vns",
+                        help="Select a predefined configuration for VNS search.",
+                        choices=['base', 'with_smoothing', 'full'],
+                        default='base')
     parser.add_argument("--dpi",
                         help="Resolution of the output figures",
                         type=int,
                         default=150)
+    parser.add_argument("--instance",
+                        help="Runs a particular benchmark instance",
+                        type=int,
+                        default=None)
     parser.add_argument("--snapshots", action="store_true",
                         help="Save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
                         default=False)
-    parser.add_argument("--parallel", action="store_true",
-                        help="Enable parallel scenario processing")
+    parser.add_argument("--parallel",
+                        help="Set the number of threads to be used for parallel processing.",
+                        type=int,
+                        default=1)
     parser.add_argument("--wait", action="store_true",
                         help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
     args = parser.parse_args()
@@ -529,7 +628,7 @@ def main():
     benchmark_name_full = "benchmark"
     if benchmark_name:
         benchmark_name_full = "_".join([benchmark_name_full, str(benchmark_name)])
-    benchmark_dir = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, benchmark_name_full)
+    benchmark_dir = os.path.join(args.folder, benchmark_name_full)
     if not os.path.exists(benchmark_dir):
         os.makedirs(benchmark_dir)
 
@@ -560,20 +659,15 @@ def main():
     if args.wait:
         input("Press enter to continue...")
 
-    if args.parallel:
-        import joblib
-        ALL_CPU_BUT_ONE = -2
-        joblib.Parallel(n_jobs=4, backend="threading", verbose=5)\
-            (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
-                                           output_options_planning=output_options['planning'],
-                                           snapshots=args.snapshots) for i, s in enumerate(scenarios))
+    if args.instance != None:
+        to_run = [(args.instance, scenarios[args.instance])]
     else:
-        i=0
-        for scenario in scenarios:
-            print(scenario)
-            run_benchmark(scenario, run_dir, str(i), output_options_plot=output_options['plot'],
-                          output_options_planning=output_options['planning'], snapshots=args.snapshots)
-            i += 1
+        to_run = enumerate(scenarios)
+
+    joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5)\
+        (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
+                                       snapshots=args.snapshots, output_options_planning=output_options['planning'],
+                                       vns_name=args.vns) for i, s in to_run)
 
 
 if __name__=='__main__':

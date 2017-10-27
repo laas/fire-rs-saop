@@ -1,10 +1,34 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #include <pybind11/pybind11.h>
 
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
-#include "trajectory.h"
+#include "core/structures/trajectory.h"
 #include "raster.h"
-#include "planning.h"
+#include "vns/factory.h"
 
 namespace py = pybind11;
 
@@ -163,11 +187,6 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y, self.pt.z), self.time);
             } );
 
-    py::class_<IsochroneCluster, shared_ptr<IsochroneCluster>>(m, "IsochroneCluster")
-            .def(py::init<const TimeWindow&, vector<Cell>>(), py::arg("tw") , py::arg("cell_vector"))
-            .def_readonly("time_window", &IsochroneCluster::time_window)
-            .def_readonly("cells", &IsochroneCluster::cells);
-
     py::class_<FireData>(m, "FireData")
             .def(py::init<DRaster&, DiscreteDRaster&>(), py::arg("ignitions"), py::arg("elevation"))
             .def_readonly("ignitions", &FireData::ignitions)
@@ -206,6 +225,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const TrajectoryConfig&>())
+            .def_readonly("conf", &Trajectory::conf)
             .def("start_time", (double (Trajectory::*)() const)&Trajectory::start_time)
             .def("end_time", (double (Trajectory::*)() const)&Trajectory::end_time)
             .def_readonly("segments", &Trajectory::traj)
@@ -226,7 +246,7 @@ PYBIND11_MODULE(uav_planning, m) {
                         py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
-            .def_readonly("trajectories", &Plan::trajectories)
+            .def("trajectories", [](Plan& self) { return self.core.trajectories; })
             .def("utility", &Plan::utility)
             .def("duration", &Plan::duration)
             .def_readonly("firedata", &Plan::firedata)
@@ -236,32 +256,21 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("initial_plan", &SearchResult::initial)
             .def("final_plan", &SearchResult::final)
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
-            .def_readonly("planning_time", &SearchResult::planning_time)
-            .def_readonly("preprocessing_time", &SearchResult::preprocessing_time);
+            .def("metadata", [](SearchResult &self) { return self.metadata.dump(); } );
 
-    m.def("make_plan_vns", [](UAV uav, DRaster ignitions, DRaster elevation, double min_time, double max_time,
-                              double max_flight_time, size_t save_every, bool save_improvements,
-                              size_t discrete_elevation_interval=1) -> SearchResult {
-        auto fire_data = make_shared<FireData>(ignitions, DiscreteDRaster(elevation, discrete_elevation_interval));
-        TrajectoryConfig conf(uav, min_time, max_flight_time);
-        Plan p(vector<TrajectoryConfig> { conf }, fire_data, TimeWindow{min_time, max_time});
-
-        DefaultVnsSearch vns;
-
-        auto res = vns.search(p, 0, save_every, save_improvements);
-        return res;
-    }, py::arg("uav"), py::arg("ignitions"), py::arg("elevation"), py::arg("min_time"), py::arg("max_time"),
-          py::arg("max_flight_time"), py::arg("save_every") = 0, py::arg("save_improvements") = false,
-          py::arg("discrete_elevation_interval") = 1);
-
-    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, double min_time,
-                         double max_time, size_t save_every, bool save_improvements=false,
-                         size_t discrete_elevation_interval=1) -> SearchResult {
+    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) -> SearchResult {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
             return (double) tp.tv_sec + ((double)(tp.tv_usec / 1000) /1000.);
         };
+        json conf = json::parse(json_conf);
+        const double min_time = conf["min_time"];
+        const double max_time = conf["max_time"];
+        const size_t save_every = conf["save_every"];
+        const bool save_improvements = conf["save_improvements"];
+        const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
+
 
         printf("Processing firedata data\n");
         double preprocessing_start = time();
@@ -272,15 +281,15 @@ PYBIND11_MODULE(uav_planning, m) {
         Plan p(configs, fire_data, TimeWindow{min_time, max_time});
 
         printf("Planning\n");
-        DefaultVnsSearch vns;
+        auto vns = vns::build_from_config(conf["vns"].dump());
         const double planning_start = time();
-        auto res = vns.search(p, 0, save_every, save_improvements);
+        auto res = vns->search(p, 0, save_every, save_improvements);
         const double planning_end = time();
         printf("Plan found\n");
-        res.planning_time = planning_end - planning_start;
-        res.preprocessing_time = preprocessing_end - preprocessing_start;
+        res.metadata["planning_time"] = planning_end - planning_start;
+        res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
+        res.metadata["configuration"] = conf;
         return res;
-    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("min_time"),
-          py::arg("max_time"), py::arg("save_every") = 0, py::arg("save_improvements") = false,
-          py::arg("discrete_elevation_interval") = 1, py::call_guard<py::gil_scoped_release>());
+    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
+          py::call_guard<py::gil_scoped_release>());
 }

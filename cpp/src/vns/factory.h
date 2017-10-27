@@ -22,39 +22,18 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#ifndef PLANNING_CPP_DEBUG_H
-#define PLANNING_CPP_DEBUG_H
+#ifndef PROJECT_VNS_FACTORY_H
+#define PROJECT_VNS_FACTORY_H
 
 
-#include <stdio.h>
-#include <signal.h>
-#include <stdio.h>
-#include <signal.h>
-#include <execinfo.h>
-#include <wait.h>
-#include <zconf.h>
-#include <cstdlib>
-#include <cassert>
+#include "vns_interface.h"
 
-void print_trace();
-double drand(double min, double max);
-size_t rand(size_t min, size_t non_inclusive_max);
-double positive_modulo(double left, double right);
+namespace vns {
 
-/** Macro that test equality of to floating point number, disregarding rounding errors. */
-#define ALMOST_EQUAL(x, y) (fabs((double) x - (double) y) < 0.000001)
+    std::shared_ptr<VariableNeighborhoodSearch> build_from_config(const std::string& json_config);
 
-/** Macro that test whether x >= y with tolerance to rounding errors. */
-#define ALMOST_GREATER_EQUAL(x, y) ((double) x >= ((double) y - 0.000001))
+    std::shared_ptr<VariableNeighborhoodSearch> build_default();
 
-/** Macro that test whether x >= y with tolerance to rounding errors. */
-#define ALMOST_LESSER_EQUAL(x, y) ((double) x <= ((double) y + 0.000001))
+}
 
-#define ASSERT(test)                  \
-if(!(test)) {                         \
-  fprintf(stderr, "Failed assert\n"); \
-  print_trace();                      \
-}                                     \
-assert(test);
-
-#endif //PLANNING_CPP_DEBUG_H
+#endif //PROJECT_VNS_FACTORY_H

@@ -22,39 +22,25 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#ifndef PLANNING_CPP_DEBUG_H
-#define PLANNING_CPP_DEBUG_H
+#include "updates.h"
 
+PReversibleTrajectoriesUpdate SequencedUpdates::apply(Trajectories& p) {
+    PReversibleTrajectoriesUpdate first_reverse = first->apply(p);
+    PReversibleTrajectoriesUpdate second_reverse = second->apply(p);
+    return make_shared<SequencedUpdates>(second_reverse, first_reverse);
+}
 
-#include <stdio.h>
-#include <signal.h>
-#include <stdio.h>
-#include <signal.h>
-#include <execinfo.h>
-#include <wait.h>
-#include <zconf.h>
-#include <cstdlib>
-#include <cassert>
+PReversibleTrajectoriesUpdate InsertSegment::apply(Trajectories &p) {
+    ASSERT(traj_id < p.trajectories.size());
+    ASSERT(insert_loc <= p.trajectories[traj_id].traj.size());
+    p.trajectories[traj_id].insert_segment(seg, insert_loc);
+    return make_shared<DeleteSegment>(traj_id, insert_loc);
+}
 
-void print_trace();
-double drand(double min, double max);
-size_t rand(size_t min, size_t non_inclusive_max);
-double positive_modulo(double left, double right);
-
-/** Macro that test equality of to floating point number, disregarding rounding errors. */
-#define ALMOST_EQUAL(x, y) (fabs((double) x - (double) y) < 0.000001)
-
-/** Macro that test whether x >= y with tolerance to rounding errors. */
-#define ALMOST_GREATER_EQUAL(x, y) ((double) x >= ((double) y - 0.000001))
-
-/** Macro that test whether x >= y with tolerance to rounding errors. */
-#define ALMOST_LESSER_EQUAL(x, y) ((double) x <= ((double) y + 0.000001))
-
-#define ASSERT(test)                  \
-if(!(test)) {                         \
-  fprintf(stderr, "Failed assert\n"); \
-  print_trace();                      \
-}                                     \
-assert(test);
-
-#endif //PLANNING_CPP_DEBUG_H
+PReversibleTrajectoriesUpdate DeleteSegment::apply(Trajectories &p) {
+    ASSERT(traj_id < p.trajectories.size());
+    ASSERT(at_index < p.trajectories[traj_id].traj.size());
+    Segment3d seg = p.trajectories[traj_id][at_index];
+    p.trajectories[traj_id].erase_segment(at_index);
+    return make_shared<InsertSegment>(traj_id, seg, at_index);
+}

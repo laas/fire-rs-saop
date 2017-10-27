@@ -1,3 +1,27 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_TRAJECTORY_H
 #define PLANNING_CPP_TRAJECTORY_H
 
@@ -8,11 +32,11 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
-#include "ext/dubins.h"
+#include "../../ext/dubins.h"
 #include "waypoint.h"
 #include "uav.h"
-#include "utils.h"
-#include "ext/optional.h"
+#include "../../utils.h"
+#include "../../ext/optional.h"
 
 struct TrajectoryConfig {
     const UAV uav;
@@ -188,7 +212,9 @@ public:
         }
     }
     double insertion_duration_cost(size_t insert_loc, const Segment3d segment) const {
-        return insertion_length_cost(insert_loc, segment) / conf.uav.max_air_speed;
+        auto increase_in_length =  insertion_length_cost(insert_loc, segment);
+        ASSERT(increase_in_length >= 0)
+        return increase_in_length / conf.uav.max_air_speed;
     }
 
     /** Decrease of length as result of removing the segment at the given position. */
@@ -260,6 +286,7 @@ public:
     /** Adds segment to the end of the trajectory */
     void append_segment(const Segment3d& seg) {
         insert_segment(seg, traj.size());
+        ASSERT(traj.size() == start_times.size())
     }
 
     /** Inserts the given segment at the given index */
@@ -270,6 +297,7 @@ public:
                           end_time(at_index-1) + conf.uav.travel_time(traj[at_index-1].end, seg.start);
 
         const double added_delay = insertion_duration_cost(at_index, seg);
+        ASSERT(added_delay >= 0)
         traj.insert(traj.begin()+at_index, seg);
         start_times.insert(start_times.begin()+at_index, start);
 

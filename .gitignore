@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 
 .#*
+\#*#
 
 # C extensions
 *.so
@@ -12,6 +13,7 @@ __pycache__/
 env/
 bin/
 build/
+cmake-build-debug/
 develop-eggs/
 dist/
 eggs/

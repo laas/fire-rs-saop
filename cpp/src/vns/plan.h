@@ -1,9 +1,37 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_PLAN_H
 #define PLANNING_CPP_PLAN_H
 
 
-#include "trajectory.h"
+#include "../core/structures/trajectory.h"
 #include "fire_data.h"
+#include "../ext/json.hpp"
+#include "../core/structures/trajectories.h"
+
+using json = nlohmann::json;
 
 using namespace std;
 
@@ -12,19 +40,17 @@ typedef shared_ptr<Plan> PPlan;
 
 struct Plan {
     TimeWindow time_window;
-    vector<Trajectory> trajectories;
+    Trajectories core;
     shared_ptr<FireData> firedata;
     vector<Point3dTimeWindow> possible_observations;
 
     Plan(const Plan& plan) = default;
 
     Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
-            : time_window(tw), firedata(fire_data)
+            : time_window(tw), core(traj_confs), firedata(fire_data)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
-            auto traj = Trajectory(conf);
-            trajectories.push_back(traj);
         }
 
         for(size_t x=0; x<firedata->ignitions.x_width; x++) {
@@ -40,20 +66,32 @@ struct Plan {
         }
     }
 
+    json metadata() const {
+        json j;
+        j["duration"] = duration();
+        j["utility"] = utility();
+        j["num_segments"] = num_segments();
+        j["trajectories"] = json::array();
+        for(auto &t : core.trajectories) {
+            json jt;
+            jt["duration"] = t.duration();
+            jt["max_duration"] = t.conf.max_flight_time;
+            jt["num_segments"] = t.size();
+            jt["start_time"] = t.start_time();
+            jt["end_time"] = t.end_time();
+            j["trajectories"].push_back(jt);
+        }
+        return j;
+    }
+
     /** A plan is valid iff all trajectories are valid (match their configuration. */
     bool is_valid() const {
-        for(auto traj : trajectories)
-            if(!traj.has_valid_flight_time())
-                return false;
-        return true;
+        return core.is_valid();
     }
 
     /** Sum of all trajectory durations. */
     double duration() const {
-        double duration = 0;
-        for(auto& traj : trajectories)
-            duration += traj.duration();
-        return duration;
+        return core.duration();
     }
 
     /** Cost of the plan.
@@ -79,23 +117,14 @@ struct Plan {
     }
 
     size_t num_segments() const {
-        size_t total = 0;
-        for(auto traj : trajectories)
-            total += traj.traj.size();
-        return total;
-    }
-
-    /** Returns the UAV performing the given trajectory */
-    UAV uav(size_t traj_id) const {
-        ASSERT(traj_id < trajectories.size())
-        return trajectories[traj_id].conf.uav;
+        return core.num_segments();
     }
 
     /** All observations in the plan. Computed by taking the visibility center of all segments.
      * Each observation is tagged with a time, corresponding to the start time of the segment.*/
     vector<Position3dTime> observations() const {
         vector<Position3dTime> obs;
-        for(auto traj : trajectories) {
+        for(auto& traj : core.trajectories) {
             UAV drone = traj.conf.uav;
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
                 const Segment3d& seg = traj[seg_id];
@@ -116,17 +145,20 @@ struct Plan {
         return obs;
     }
 
-    void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc) {
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(insert_loc <= trajectories[traj_id].traj.size());
-        trajectories[traj_id].insert_segment(seg, insert_loc);
-        post_process();
+    void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true) {
+        ASSERT(traj_id < core.size());
+        ASSERT(insert_loc <= core[traj_id].traj.size());
+        core[traj_id].insert_segment(seg, insert_loc);
+        if(do_post_processing)
+            post_process();
     }
 
-    void erase_segment(size_t traj_id, size_t at_index) {
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(at_index < trajectories[traj_id].traj.size());
-        trajectories[traj_id].erase_segment(at_index);
+    void erase_segment(size_t traj_id, size_t at_index, bool do_post_processing = true) {
+        ASSERT(traj_id < core.size());
+        ASSERT(at_index < core[traj_id].traj.size());
+        core[traj_id].erase_segment(at_index);
+        if(do_post_processing)
+            post_process();
     }
 
     void replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment) {
@@ -135,15 +167,16 @@ struct Plan {
 
     void replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment3d>& segments) {
         ASSERT(n_replaced > 0);
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(at_index + n_replaced - 1 < trajectories[traj_id].traj.size());
+        ASSERT(traj_id < core.size());
+        ASSERT(at_index + n_replaced - 1 < core[traj_id].traj.size());
 
+        // do not post process as we will do that at the end
         for (size_t i = 0; i < n_replaced; ++i) {
-            erase_segment(traj_id, at_index);
+            erase_segment(traj_id, at_index, false);
         }
 
         for (size_t i = 0; i < segments.size(); ++i) {
-            insert_segment(traj_id, segments.at(i), at_index + i);
+            insert_segment(traj_id, segments.at(i), at_index + i, false);
         }
 
         post_process();
@@ -159,7 +192,7 @@ struct Plan {
      * If this is not the case for a given segment, its is projected on the firefront.
      * */
     void project_on_fire_front() {
-        for(auto &traj : trajectories) {
+        for(auto &traj : core.trajectories) {
             size_t seg_id = traj.first_modifiable();
             while(seg_id <= traj.last_modifiable()) {
                 const Segment3d& seg = traj[seg_id];
@@ -182,7 +215,7 @@ struct Plan {
 
     /** Goes through all trajectories and erase segments causing very tight loops. */
      void smooth_trajectory() {
-        for(auto &traj : trajectories) {
+        for(auto &traj : core.trajectories) {
             size_t seg_id = traj.first_modifiable();
             while(seg_id < traj.last_modifiable()) {
                 const Segment3d& current = traj[seg_id];
@@ -306,11 +339,11 @@ private:
     /** Constants used for computed the cost associated to a pair of points.
      * The cost is MAX_INDIVIDUAL_COST if the distance between two points
      * is >= MAX_INFORMATIVE_DISTANCE. It is be 0 if the distance is 0 and scales linearly between the two. */
-    const double MAX_INFORMATIVE_DISTANCE = 100.;
+    const double MAX_INFORMATIVE_DISTANCE = 500.;
 
     /** If a point is less than REDUNDANT_OBS_DIST aways from another observation, it useless to observe it.
      * This is defined such that those point are in the visible area when pictured. */
-    const double REDUNDANT_OBS_DIST = 0.;
+    const double REDUNDANT_OBS_DIST = 50.;
 };
 
 

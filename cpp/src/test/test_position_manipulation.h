@@ -1,12 +1,37 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #include <iostream>
 
 #include "../ext/dubins.h"
-#include "../trajectory.h"
+#include "../core/structures/trajectory.h"
 #include "../raster.h"
-#include "../planning.h"
-#include "../uav.h"
-#include "../neighborhoods/dubins_optimization.h"
-#include "../fire_data.h"
+#include "../core/structures/uav.h"
+#include "../vns/vns_interface.h"
+#include "../vns/factory.h"
+#include "../vns/neighborhoods/dubins_optimization.h"
+#include "../vns/fire_data.h"
 
 UAV uav(10., 32.*M_PI/180, 0.1);
 
@@ -22,9 +47,9 @@ void test_single_point_to_observe() {
     Plan p(confs, fd, TimeWindow{90, 110});
 
 
-    DefaultVnsSearch vns;
+    auto vns = vns::build_default();
 
-    auto res = vns.search(p, 0, 1);
+    auto res = vns->search(p, 0, 1);
     ASSERT(res.final_plan)
     Plan solution = res.final();
 
@@ -44,9 +69,9 @@ void test_many_points_to_observe() {
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 10) };
     Plan p(confs, fd, TimeWindow{0, 110});
 
-    DefaultVnsSearch vns;
+    auto vns = vns::build_default();
 
-    auto res = vns.search(p, 0, 1);
+    auto res = vns->search(p, 0, 1);
     ASSERT(res.final_plan)
     Plan solution = res.final();
 
@@ -73,13 +98,13 @@ void test_many_points_to_observe_with_start_end_positions() {
             10) };
     Plan p(confs, fd, TimeWindow{0, 110});
 
-    DefaultVnsSearch vns;
+    auto vns = vns::build_default();
 
-    auto res = vns.search(p, 0, 1);
+    auto res = vns->search(p, 0, 1);
     ASSERT(res.final_plan)
     Plan solution = res.final();
 
-    auto& traj = solution.trajectories[0];
+    auto& traj = solution.core[0];
 //    ASSERT(traj[0] == start);
 //    ASSERT(traj[traj.size()-1] == end);
     ASSERT(traj.first_modifiable() == 1);
@@ -98,21 +123,6 @@ void test_segment_rotation() {
         Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
         ASSERT(seg == seg_back)
     }
-
-    // simple UAV to simplify reasoning
-    UAV uav(1., 32.*M_PI/180,0.1);
-//    uav.view_width = 1;
-//    uav.view_depth = 1;
-
-    Waypoint wp(0, 0, 0);
-    Segment seg(wp, 0);
-
-    Segment seg_rotated = uav.rotate_on_visibility_center(seg, M_PI/2);
-    ASSERT(ALMOST_EQUAL(seg_rotated.start.x, 0.5))
-    ASSERT(ALMOST_EQUAL(seg_rotated.start.y, -0.5))
-    ASSERT(ALMOST_EQUAL(seg_rotated.start.dir, M_PI/2))
-    Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
-    ASSERT(seg == seg_back)
 }
 
 void test_projection_on_firefront() {
@@ -176,7 +186,7 @@ void test_trajectory_as_waypoints() {
     traj.sampled(2);
 }
 
-int all_position_manipulation()
+void all_position_manipulation()
 {
     srand(time(0));
 
