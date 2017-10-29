@@ -1,3 +1,27 @@
+/* Copyright (c) 2017, CNRS-LAAS
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+
 #ifndef PLANNING_CPP_INSERTIONS_H
 #define PLANNING_CPP_INSERTIONS_H
 
@@ -19,7 +43,14 @@ struct OneInsertNbhd final : public Neighborhood {
     const double default_height = 100;
 
     const double max_trials;
-    explicit OneInsertNbhd(double max_trials = 50) : max_trials(max_trials) {}
+    const bool select_arbitrary_trajectory;
+    const bool select_arbitrary_position;
+    explicit OneInsertNbhd(double max_trials,
+                           const bool select_arbitrary_trajectory,
+                           const bool select_arbitrary_position)
+            : max_trials(max_trials),
+              select_arbitrary_trajectory(select_arbitrary_trajectory),
+              select_arbitrary_position(select_arbitrary_position) {}
 
     opt<PLocalMove> get_move(PPlan p) override {
         IdentityMove no_move(p);
@@ -76,45 +107,48 @@ private:
 
         opt<Candidate> best;
 
+        // last valid projection made of the random observation.
+        // it used to incrementally update the projection to different times,
+        // Simple measurements indicate that doing this incrementally reduces
+        // the number of steps in "project on_firefront" by a factor ~5
+        Segment3d projected_random_observation = random_observation;
+
+        size_t first_traj, last_traj;
+        if(select_arbitrary_trajectory) {
+            const size_t t = rand(0, p->core.size());
+            first_traj = t;
+            last_traj = t;
+        } else {
+            first_traj = 0;
+            last_traj = p->core.size()-1;
+        }
+
         /** Try best insert for each subtrajectory in the plan */
-        for(size_t i=0; i< p->core.size(); i++) {
+        for(size_t i=first_traj; i <= last_traj; i++) {
             const Trajectory& traj = p->core[i];
 
-            for(size_t insert_loc=traj.first_modifiable(); insert_loc<=traj.last_modifiable()+1; insert_loc++) {
+            // get projected observation closer to the fire front at the beginning of the trajectory
+            // this is useful to avoid to projection to follow the same path multiple times to end up on a failure.
+            projected_random_observation = p->firedata->project_closest_to_fire_front(random_observation, traj.conf.uav, traj.start_time());
 
-                opt<Segment3d> current_segment = random_observation;
-                bool updated = true;
-                size_t num_iter = 0;
+            size_t first_insertion_loc, last_insertion_loc;
+            if(select_arbitrary_position) {
+                const size_t loc = rand(traj.first_modifiable(), traj.last_modifiable()+2);
+                first_insertion_loc = loc;
+                last_insertion_loc = loc;
+            } else {
+                first_insertion_loc = traj.first_modifiable();
+                last_insertion_loc = traj.last_modifiable() +1;
+            }
 
-                // project the segment on firefront until we converge or are unable to project the segment anymore.
-                while(current_segment && updated) {
-                    // time at which the uav will reach the segment
-                    const double time = insert_loc==0 ?
-                                            traj.start_time() :
-                                            traj.end_time(insert_loc-1) +
-                                                        traj.conf.uav.travel_time(traj[insert_loc-1].end, random_observation.start);
-                    // back up current segment
-                    const Segment3d previous = *current_segment;
+            for(size_t insert_loc=first_insertion_loc; insert_loc<=last_insertion_loc; insert_loc++) {
 
-                    // project the segment on the firefront.
-                    current_segment = p->firedata->project_on_firefront(previous, traj.conf.uav, time);
-                    ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
+                opt<Segment3d> current_segment = get_projection(p, projected_random_observation, i, insert_loc);
 
-                    if(current_segment && previous != *current_segment) {
-                        // segment has changed due to projection,
-                        // set the default orientation to the segment
-                        const double direction = default_insertion_angle(traj, insert_loc, *current_segment);
-                        current_segment = traj.conf.uav.rotate_on_visibility_center(*current_segment, direction);
-
-                        // start over since the time at which we reach the segment might have changed as well
-                        updated = true;
-                    } else {
-                        updated = false;
-                    }
-                    ASSERT(num_iter++ <1000); // This should always converges (very quickly). One can safely put a bound on the number of iterations.
-                }
                 if(current_segment) {
-                    // current segment is valid (i.e. successfully projected on firefront,
+                    // save to be able to use it as a base for the following projections
+                    projected_random_observation = *current_segment;
+                    // current segment is valid (i.e. successfully projected on fire front,
                     // create a candidate for it
 
                     const double additional_flight_time = traj.insertion_duration_cost(insert_loc, *current_segment);
@@ -164,6 +198,47 @@ private:
             auto dy = traj[insertion_loc].start.y - traj[insertion_loc-1].end.y;
             return atan2(dy, dx);
         }
+    }
+
+    /** Produces a new segment for observation. The segment is such that:
+     * if inserted after the insert_loc^th observation of the traj_id^th trajectory, the UAV will reach it when
+     * the underneath cell is on fire.
+     * If there is no such cell, an empty option is returned. */
+    opt<Segment3d> get_projection(const PPlan p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
+        const Trajectory& traj = p->core[traj_id];
+        // start iteration from last valid projection made.
+        opt<Segment3d> current_segment = to_project;
+        bool updated = true;
+        size_t num_iter = 0;
+
+        // project the segment on firefront until we converge or are unable to project the segment anymore.
+        while(current_segment && updated) {
+            // time at which the uav will reach the segment
+            const double time = insert_loc==0 ?
+                                traj.start_time() :
+                                traj.end_time(insert_loc-1) +
+                                traj.conf.uav.travel_time(traj[insert_loc-1].end, to_project.start);
+            // back up current segment
+            const Segment3d previous = *current_segment;
+
+            // project the segment on the firefront.
+            current_segment = p->firedata->project_on_firefront(previous, traj.conf.uav, time);
+            ASSERT(!current_segment || previous.start.dir == current_segment->start.dir) // projection should not change orientation
+
+            if(current_segment && previous != *current_segment) {
+                // segment has changed due to projection,
+                // set the default orientation to the segment
+                const double direction = default_insertion_angle(traj, insert_loc, *current_segment);
+                current_segment = traj.conf.uav.rotate_on_visibility_center(*current_segment, direction);
+
+                // start over since the time at which we reach the segment might have changed as well
+                updated = true;
+            } else {
+                updated = false;
+            }
+            ASSERT(num_iter++ <1000); // This should always converges (very quickly). One can safely put a bound on the number of iterations.
+        }
+        return current_segment;
     }
 };
 

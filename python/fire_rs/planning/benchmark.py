@@ -1,3 +1,27 @@
+# Copyright (c) 2017, CNRS-LAAS
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#  * Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+#  * Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import matplotlib
 matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
 import matplotlib.cm
@@ -429,14 +453,38 @@ vns_configurations = {
     'base': {
         'neighborhoods': [
             {'name': 'dubins-opt'},
-            {'name': 'one-insert'}]
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False}
+        ]
     },
     'with_smoothing': {
         'neighborhoods': [
             {'name': 'trajectory-smoothing'},
             {'name': 'dubins-opt'},
-            {'name': 'one-insert'}]
-    }
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False}]
+    },
+    'full': {
+        'neighborhoods': [
+            {'name': 'dubins-opt'},
+            {'name': 'one-insert',
+             'max_trials': 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False},
+            {'name': 'one-insert',
+             'max_trials': 200,
+             "select_arbitrary_trajectory": True,
+             "select_arbitrary_position": False},
+            {'name': 'one-insert',
+             'max_trials': 200,
+             "select_arbitrary_trajectory": True,
+             "select_arbitrary_position": True}
+        ]
+    },
 }
 
 
@@ -445,12 +493,17 @@ def main():
     import os
     import argparse
     import logging
+    import joblib
+
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
 
     # CLI argument parsing
     parser = argparse.ArgumentParser(prog='benchmark.py')
     parser.add_argument("--name",
                         help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
+    parser.add_argument("--folder",
+                        help="Name of the folder in which benchmarks are to be saved.",
+                        default=DEFAULT_FIRERS_DATA_FOLDER)
     parser.add_argument("--background", nargs='+',
                         help="list of background layers for the output figures, from bottom to top.",
                         choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
@@ -461,7 +514,7 @@ def main():
                         default='png')
     parser.add_argument("--vns",
                         help="Select a predefined configuration for VNS search.",
-                        choices=['base', 'with_smoothing'],
+                        choices=['base', 'with_smoothing', 'full'],
                         default='base')
     parser.add_argument("--dpi",
                         help="resolution of the output figures",
@@ -494,7 +547,7 @@ def main():
     benchmark_name_full = "benchmark"
     if benchmark_name:
         benchmark_name_full = "_".join([benchmark_name_full, str(benchmark_name)])
-    benchmark_dir = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, benchmark_name_full)
+    benchmark_dir = os.path.join(args.folder, benchmark_name_full)
     if not os.path.exists(benchmark_dir):
         os.makedirs(benchmark_dir)
 
@@ -530,7 +583,6 @@ def main():
     else:
         to_run = enumerate(scenarios)
 
-    import joblib
     joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5)\
         (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
                                        snapshots=args.snapshots, vns_name=args.vns) for i, s in to_run)
