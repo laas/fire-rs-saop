@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../vns/factory.h"
 #include "../vns/neighborhoods/dubins_optimization.h"
 #include "../vns/fire_data.h"
+#include <boost/test/included/unit_test.hpp>
+using namespace boost::unit_test;
 
 UAV uav(10., 32.*M_PI/180, 0.1);
 
@@ -50,7 +52,7 @@ void test_single_point_to_observe() {
     auto vns = vns::build_default();
 
     auto res = vns->search(p, 0, 1);
-    ASSERT(res.final_plan)
+    BOOST_CHECK(res.final_plan);
     Plan solution = res.final();
 
     cout << "SUCCESS" << endl;
@@ -72,7 +74,7 @@ void test_many_points_to_observe() {
     auto vns = vns::build_default();
 
     auto res = vns->search(p, 0, 1);
-    ASSERT(res.final_plan)
+    BOOST_CHECK(res.final_plan);
     Plan solution = res.final();
 
     cout << "SUCCESS" << endl;
@@ -101,14 +103,14 @@ void test_many_points_to_observe_with_start_end_positions() {
     auto vns = vns::build_default();
 
     auto res = vns->search(p, 0, 1);
-    ASSERT(res.final_plan)
+    BOOST_CHECK(res.final_plan);
     Plan solution = res.final();
 
     auto& traj = solution.core[0];
 //    ASSERT(traj[0] == start);
 //    ASSERT(traj[traj.size()-1] == end);
-    ASSERT(traj.first_modifiable() == 1);
-    ASSERT(traj.last_modifiable() == traj.size()-2);
+    BOOST_CHECK(traj.first_modifiable() == 1);
+    BOOST_CHECK(traj.last_modifiable() == traj.size()-2);
 
     cout << "SUCCESS" << endl;
 }
@@ -121,7 +123,7 @@ void test_segment_rotation() {
 
         Segment seg_rotated = uav.rotate_on_visibility_center(seg, drand(-10*M_PI, 10*M_PI));
         Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
-        ASSERT(seg == seg_back)
+        BOOST_CHECK(seg == seg_back);
     }
 }
 
@@ -137,11 +139,11 @@ void test_projection_on_firefront() {
 
         FireData fd(ignitions, ignitions);
         auto res = fd.project_on_fire_front(Cell{1, 1}, 50.5);
-        ASSERT(res && res->y == 50)
+        BOOST_CHECK(res && res->y == 50);
 
 
         auto res_back = fd.project_on_fire_front(Cell{79, 1}, 50.5);
-        ASSERT(res_back && res_back->y == 50)
+        BOOST_CHECK(res_back && res_back->y == 50);
     }
 
     // uniform propagation along the x axis
@@ -155,11 +157,11 @@ void test_projection_on_firefront() {
 
         FireData fd(ignitions, ignitions);
         auto res = fd.project_on_fire_front(Cell{1, 1}, 5.5);
-        ASSERT(res && res->x == 5)
+        BOOST_CHECK(res && res->x == 5);
 
 
         auto res_back = fd.project_on_fire_front(Cell{7, 1}, 5.5);
-        ASSERT(res_back && res_back->x == 5)
+        BOOST_CHECK(res_back && res_back->x == 5);
     }
     // circular propagation center on (50,50)
     {
@@ -176,7 +178,7 @@ void test_projection_on_firefront() {
             const size_t x = rand(0, 100);
             const size_t y = rand(0, 100);
             auto res = fd.project_on_fire_front(Cell{x, y}, 25);
-            ASSERT(res && abs(dist(res->x, res->y) - 25) <1.5)
+            BOOST_CHECK(res && abs(dist(res->x, res->y) - 25) <1.5);
         }
     }
 }
@@ -186,14 +188,16 @@ void test_trajectory_as_waypoints() {
     traj.sampled(2);
 }
 
-void all_position_manipulation()
+test_suite* position_manipulation_test_suite()
 {
+    test_suite* ts2 = BOOST_TEST_SUITE( "position_manipulation_tests" );
     srand(time(0));
+    ts2->add(BOOST_TEST_CASE(&test_trajectory_as_waypoints));
+    ts2->add(BOOST_TEST_CASE(&test_segment_rotation));
+    ts2->add(BOOST_TEST_CASE(&test_single_point_to_observe));
+    ts2->add(BOOST_TEST_CASE(&test_many_points_to_observe));
+    ts2->add(BOOST_TEST_CASE(&test_many_points_to_observe_with_start_end_positions));
+    ts2->add(BOOST_TEST_CASE(&test_projection_on_firefront));
 
-    test_trajectory_as_waypoints();
-    test_segment_rotation();
-    test_single_point_to_observe();
-    test_many_points_to_observe();
-    test_many_points_to_observe_with_start_end_positions();
-    test_projection_on_firefront();
+    return ts2;
 }
