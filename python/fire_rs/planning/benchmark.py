@@ -306,7 +306,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # Save the picture
     print("saving as: " + str(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png')))))
-    geodatadisplay.axis.get_figure().set_size_inches(10, 7)
+    geodatadisplay.axis.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
     geodatadisplay.axis.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
@@ -345,7 +345,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
         print("saving as: " + str(
             os.path.join(i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png')))))
-        geodatadisplay.axis.get_figure().set_size_inches(15, 10)
+        geodatadisplay.axis.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
         geodatadisplay.axis.get_figure().savefig(os.path.join(
             i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png'))),
             dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
@@ -385,7 +385,6 @@ def generate_scenario_newsletter():
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
     return scenario
-
 
 
 def generate_scenario_singlefire_singleuav_3d():
@@ -601,6 +600,10 @@ def main():
                         help="Resolution of the output figures",
                         type=int,
                         default=150)
+    parser.add_argument("--size", nargs=2,
+                        help="Size (in inches) of the output figures",
+                        type=int,
+                        default=(15,10))
     parser.add_argument("--instance",
                         help="Runs a particular benchmark instance",
                         type=int,
@@ -621,6 +624,7 @@ def main():
     output_options['plot']['background'] = args.background
     output_options['plot']['format'] = args.format
     output_options['plot']['dpi'] = args.dpi
+    output_options['plot']['size'] = args.size
     output_options['planning']['use_elevation'] = True
     output_options['planning']['discrete_elevation_interval'] = DISCRETE_ELEVATION_INTERVAL
 
