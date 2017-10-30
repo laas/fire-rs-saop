@@ -22,15 +22,19 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import json
 import matplotlib
 matplotlib.use('Agg')  # set backend so that an X display is not required
-import unittest
-import fire_rs.uav_planning as up
 import numpy as np
+import unittest
 
-from fire_rs.geodata.geo_data import GeoData, TimedPoint
+import fire_rs.planning.benchmark
+import fire_rs.uav_planning as up
+
 from fire_rs.geodata.display import GeoDataDisplay
+from fire_rs.geodata.geo_data import GeoData, TimedPoint
 from fire_rs.planning.benchmark import plot_plan, PlanDisplayExtension
+
 
 # X8 UAS from Porto University
 uav = up.UAV(18., 32.*np.pi/180, 0.1)
@@ -80,15 +84,31 @@ class TestUAV(unittest.TestCase):
         prop = propagation.propagate_from_points(env, TimedPoint(480460, 6210374, 0), horizon=3000)
 
         ignitions = prop.ignitions()
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(), 2500, 3000, 150, save_every=5)
+
+        conf = {
+            'min_time': 2500,
+            'max_time': 3000,
+            'save_every': 0,
+            'save_improvements': False,
+            'discrete_elevation_interval': 1,
+            'vns': fire_rs.planning.benchmark.vns_configurations['base']
+        }
+        conf['vns']['configuration_name'] = 'base'
+
+        wp = up.Waypoint(480060.0+10, 6210074.0+10, 0, 0)
+        flight = up.TrajectoryConfig(uav, wp, wp, conf['min_time'], 150)
+
+        res = up.plan_vns([flight,], ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(), json.dumps(conf))
 
         geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
         PlanDisplayExtension(None).extend(geodatadisplay)
+        plan = res.final_plan()
 
-        plot_plan(res.final_plan(), geodatadisplay, show=True)
+        plot_plan(plan, geodatadisplay, show=True)
+
 
         print("durations: ")
-        for traj in res.final_plan().trajectories:
+        for traj in plan.trajectories():
             print(traj.duration())
 
     def test_vns(self):
@@ -102,7 +122,21 @@ class TestUAV(unittest.TestCase):
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)
         elev = env.raster.slice('elevation')
-        res = up.make_plan_vns(uav, ignitions.as_cpp_raster(), elev.as_cpp_raster(), 9500, 12000, 1500, save_every=5)
+
+        conf = {
+            'min_time': 9500,
+            'max_time': 12000,
+            'save_every': 0,
+            'save_improvements': False,
+            'discrete_elevation_interval': 1,
+            'vns': fire_rs.planning.benchmark.vns_configurations['base']
+        }
+        conf['vns']['configuration_name'] = 'base'
+
+        wp = up.Waypoint(480060.0+100, 6210074.0+100, 0, 0)
+        flight = up.TrajectoryConfig(uav, wp, wp, conf['min_time'], 1500)
+
+        res = up.plan_vns([flight,], ignitions.as_cpp_raster(), elev.as_cpp_raster(), json.dumps(conf))
 
         plan = res.final_plan()
 
@@ -117,5 +151,5 @@ class TestUAV(unittest.TestCase):
             plot_plan(intermediate_plan, geodatadisplay, show=True)
 
         print("durations: ")
-        for traj in plan.trajectories:
+        for traj in plan.trajectories():
             print(traj.duration())
