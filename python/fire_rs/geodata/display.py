@@ -194,6 +194,10 @@ class GeoDataDisplay:
 
 # "DisplayExtension" classes attach new member functions to a GeoDataDisplay to make it able to display other data
 class DisplayExtension(metaclass=abc.ABCMeta):
+    RASTER_LAYER = 0
+    RASTER_OVERLAY_LAYER = 100
+    TRAJECTORY_LAYER = 200
+    TRAJECTORY_OVERLAY_LAYER = 300
 
     @abc.abstractmethod
     def extend(self, geodatadisplay):
