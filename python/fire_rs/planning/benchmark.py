@@ -590,7 +590,7 @@ def main():
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument("--format",
                         help="Format of the output figures",
-                        choices=['png', 'svg'],
+                        choices=['png', 'svg', 'eps', 'pdf'],
                         default='png')
     parser.add_argument("--vns",
                         help="Select a predefined configuration for VNS search.",
