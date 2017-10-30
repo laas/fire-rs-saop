@@ -619,6 +619,12 @@ def main():
                         help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
     args = parser.parse_args()
 
+    # Use TeX fonts when the output format is eps or pdf
+    # When this is active, matplotlib drawing is slower
+    if args.format == 'eps' or args.format == 'pdf':
+        matplotlib.rcParams['font.family'] = 'serif'
+        matplotlib.rcParams['text.usetex'] = True
+
     # Set-up output options
     output_options = {'plot':{}, 'planning':{}, }
     output_options['plot']['background'] = args.background
