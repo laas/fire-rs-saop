@@ -580,7 +580,8 @@ def main():
     # CLI argument parsing
     parser = argparse.ArgumentParser(prog='benchmark.py')
     parser.add_argument("--name",
-                        help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.")
+                        help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.",
+                        choices=scenario_factory_funcs.keys())
     parser.add_argument("--folder",
                         help="Name of the folder in which benchmarks are to be saved.",
                         default=DEFAULT_FIRERS_DATA_FOLDER)
@@ -594,7 +595,7 @@ def main():
                         default='png')
     parser.add_argument("--vns",
                         help="Select a predefined configuration for VNS search.",
-                        choices=['base', 'with_smoothing', 'full'],
+                        choices=vns_configurations.keys(),
                         default='base')
     parser.add_argument("--dpi",
                         help="Resolution of the output figures",
