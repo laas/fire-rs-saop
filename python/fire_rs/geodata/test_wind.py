@@ -106,24 +106,24 @@ class WindMapTest(unittest.TestCase):
 class WindAngleTransformTest(unittest.TestCase):
 
     def test_geo_to_trigo(self):
-        self.assertAlmostEquals(0, geo_angle_to_trigo_angle(90))
-        self.assertAlmostEquals(np.pi/2 % (np.pi * 2), geo_angle_to_trigo_angle(180))
-        self.assertAlmostEquals(-np.pi/2 % (np.pi * 2), geo_angle_to_trigo_angle(0))
-        self.assertAlmostEquals(np.pi, geo_angle_to_trigo_angle(270))
+        self.assertAlmostEqual(0, geo_angle_to_trigo_angle(90))
+        self.assertAlmostEqual(np.pi/2 % (np.pi * 2), geo_angle_to_trigo_angle(180))
+        self.assertAlmostEqual(-np.pi/2 % (np.pi * 2), geo_angle_to_trigo_angle(0))
+        self.assertAlmostEqual(np.pi, geo_angle_to_trigo_angle(270))
 
     def test_trigo_to_geo(self):
-        self.assertAlmostEquals(90, trigo_angle_to_geo_angle(0))
-        self.assertAlmostEquals(0, trigo_angle_to_geo_angle(-np.pi/2))
-        self.assertAlmostEquals(180, trigo_angle_to_geo_angle(np.pi/2))
-        self.assertAlmostEquals(270, trigo_angle_to_geo_angle(np.pi))
+        self.assertAlmostEqual(90, trigo_angle_to_geo_angle(0))
+        self.assertAlmostEqual(0, trigo_angle_to_geo_angle(-np.pi/2))
+        self.assertAlmostEqual(180, trigo_angle_to_geo_angle(np.pi/2))
+        self.assertAlmostEqual(270, trigo_angle_to_geo_angle(np.pi))
 
     def test_geo_geo(self):
         for a in np.linspace(-1000, 1000):
-            self.assertAlmostEquals(a % 360, trigo_angle_to_geo_angle(geo_angle_to_trigo_angle(a)))
+            self.assertAlmostEqual(a % 360, trigo_angle_to_geo_angle(geo_angle_to_trigo_angle(a)))
 
     def test_trigo_to_trigo(self):
         for a in np.linspace(-np.pi*5, np.pi*5):
-            self.assertAlmostEquals(a % (np.pi*2), geo_angle_to_trigo_angle(trigo_angle_to_geo_angle(a)))
+            self.assertAlmostEqual(a % (np.pi*2), geo_angle_to_trigo_angle(trigo_angle_to_geo_angle(a)))
 
 
 if __name__ == '__main__':
