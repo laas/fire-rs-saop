@@ -176,7 +176,6 @@ struct Dubins3dPathLength {
     }
 
 protected:
-
     DubinsPath path2d = {};
 
     int k=0;
@@ -192,7 +191,7 @@ protected:
     /* Find the optimal turning radius when climbing using the bisection method */
     HelixOptimizationResult
     helix_optimization(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max,
-                       DubinsPath path2d, int k, double delta_z) {
+                       DubinsPath path_2d, int k, double delta_z) {
         double R_l = r_min; // Lowest acceptable turn radius
         double R_h = 2 * r_min; // Highest acceptable turn radius
         double R = (R_l + R_h) / 2;
@@ -202,9 +201,9 @@ protected:
         while (fabs(err) > TOLERANCE) {
             double orig[3] = {start.x, start.y, start.dir};
             double dest[3] = {end.x, end.y, end.dir};
-            int ret = dubins_init(orig, dest, r_min, &path2d); // As path2d has the type already set, this call is fast
+            int ret = dubins_init(orig, dest, R, &path_2d); // As path2d has the type already set, this call is fast
             ASSERT(ret == 0);
-            L_2d = dubins_path_length(&path2d);
+            L_2d = dubins_path_length(&path_2d);
             err = (L_2d + 2 * M_PI * k * R) * tan(gamma_max) - fabs(delta_z);
             if (err > 0) {R_h = R;} else {R_l = R;}
             R = (R_l + R_h) / 2;
@@ -212,6 +211,7 @@ protected:
             n_loops++;
             ASSERT(n_loops < MAX_LOOPS); // This loop should converge faster than MAX_LOOPS
         }
+        path2d = path_2d;
         return HelixOptimizationResult{R, L_2d};
     }
 };
