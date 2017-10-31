@@ -287,9 +287,9 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # Draw background layers
     for layer in output_options_plot['background']:
         if layer == 'elevation_shade':
-            geodatadisplay.draw_elevation_shade(with_colorbar=True)
+            geodatadisplay.draw_elevation_shade(with_colorbar=output_options_plot.get('colorbar', True))
         elif layer == 'ignition_shade':
-            geodatadisplay.draw_ignition_shade(with_colorbar=True)
+            geodatadisplay.draw_ignition_shade(with_colorbar=output_options_plot.get('colorbar', True))
         elif layer == 'observedcells':
             geodatadisplay.draw_observedcells(res.final_plan().observations())
         elif layer == 'ignition_contour':
@@ -328,9 +328,9 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         PlanDisplayExtension(None).extend(geodatadisplay)
         for layer in output_options_plot['background']:
             if layer == 'elevation_shade':
-                geodatadisplay.draw_elevation_shade(with_colorbar=True)
+                geodatadisplay.draw_elevation_shade(with_colorbar=output_options_plot.get('colorbar', True))
             elif layer == 'ignition_shade':
-                geodatadisplay.draw_ignition_shade(with_colorbar=True)
+                geodatadisplay.draw_ignition_shade(with_colorbar=output_options_plot.get('colorbar', True))
             elif layer == 'observedcells':
                 geodatadisplay.draw_observedcells(i_plan.observations())
             elif layer == 'ignition_contour':
@@ -589,6 +589,11 @@ def main():
                         help="List of background layers for the output figures, from bottom to top.",
                         choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
+    parser.add_argument('--colorbar', dest='colorbar', action='store_true',
+                        help="Display colorbars")
+    parser.add_argument('--no-colorbar', dest='colorbar', action='store_false',
+                        help="Display colorbars")
+    parser.set_defaults(colorbar=True)
     parser.add_argument("--format",
                         help="Format of the output figures",
                         choices=['png', 'svg', 'eps', 'pdf'],
@@ -630,6 +635,7 @@ def main():
     output_options = {'plot':{}, 'planning':{}, }
     output_options['plot']['background'] = args.background
     output_options['plot']['format'] = args.format
+    output_options['plot']['colorbar'] = args.colorbar
     output_options['plot']['dpi'] = args.dpi
     output_options['plot']['size'] = args.size
     output_options['planning']['use_elevation'] = True
