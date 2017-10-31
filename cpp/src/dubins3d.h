@@ -128,7 +128,7 @@ struct Dubins3dPathLength {
         if (abs_delta_z >= (L_path2d + 2 * M_PI * r_min) * tan(gamma_max)) {
             /* High altitude case */
             goal_altitude = GoalAltitude::High;
-            auto k = static_cast<int>((fabs(delta_z) / tan(gamma_max) - L_path2d) / ( 2 * M_PI * r_min));
+            k = static_cast<int>((fabs(delta_z) / tan(gamma_max) - L_path2d) / ( 2 * M_PI * r_min));
             HelixOptimizationResult optimal = helix_optimization(from, to, r_min, gamma_max, path2d, k, delta_z);
             R = optimal.R;
             L_2d = (optimal.L_2d + 2 * M_PI * k * R);
@@ -178,6 +178,8 @@ struct Dubins3dPathLength {
 protected:
 
     DubinsPath path2d = {};
+
+    int k=0;
 
     const double MAX_LOOPS = 100;
     const double TOLERANCE = 0.1;
