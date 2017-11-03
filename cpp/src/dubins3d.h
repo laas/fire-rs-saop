@@ -56,7 +56,7 @@ enum Dubins3dPathType {
     //SSLSS, // TODO: idk if this case may exist or not.
 };
 
-enum GoalAltitude {
+enum Dubins3dGoalAltitude {
     Flat,
     Low,
     Medium,
@@ -68,7 +68,7 @@ struct Dubins3dPathLength {
     // Path configuration
     opt<Dubins3dPathType> configuration = {};
     opt<Dubins2dPathType> configuration_2d = {};
-    opt<GoalAltitude> goal_altitude = {};
+    opt<Dubins3dGoalAltitude> goal_altitude = {};
 
     // start and end waypoints
     Waypoint3d wp_s {0,0,0,0}; // start waypoint
@@ -104,7 +104,7 @@ struct Dubins3dPathLength {
         double abs_delta_z = fabs(delta_z);
 
         if (ALMOST_EQUAL(delta_z, 0)) {
-            goal_altitude = GoalAltitude::Flat;
+            goal_altitude = Dubins3dGoalAltitude::Flat;
             configuration = Dubins3dPathType::SLS;
             configuration_2d = type_path2d;
             L = L_path2d;
@@ -116,7 +116,7 @@ struct Dubins3dPathLength {
 
         if (abs_delta_z <= L_path2d*tan(gamma_max)) {
             /* Low altitude case: Just perform the 2d path with a linear increment in z */
-            goal_altitude = GoalAltitude::Low;
+            goal_altitude = Dubins3dGoalAltitude::Low;
             configuration = Dubins3dPathType::SLS;
             configuration_2d = type_path2d;
             gamma = atan(delta_z/L_path2d);
@@ -127,7 +127,7 @@ struct Dubins3dPathLength {
         }
         if (abs_delta_z >= (L_path2d + 2 * M_PI * r_min) * tan(gamma_max)) {
             /* High altitude case */
-            goal_altitude = GoalAltitude::High;
+            goal_altitude = Dubins3dGoalAltitude::High;
             k = static_cast<int>((fabs(delta_z) / tan(gamma_max) - L_path2d) / ( 2 * M_PI * r_min));
             HelixOptimizationResult optimal = helix_optimization(from, to, r_min, gamma_max, path2d, k, delta_z);
             R = optimal.R;
@@ -140,7 +140,7 @@ struct Dubins3dPathLength {
         }
 
         /* Medium altitude case */
-        goal_altitude = GoalAltitude::Medium;
+        goal_altitude = Dubins3dGoalAltitude::Medium;
         R = r_min;
         gamma = delta_z >= 0 ? gamma_max : -gamma_max; // gamma > 0 means up.
         configuration = gamma > 0 ? Dubins3dPathType::SSLS: Dubins3dPathType::SLSS;
@@ -280,7 +280,7 @@ struct Dubins3dPath : public Dubins3dPathLength {
 //            double delta_z = wp_e.z - wp_s.z;
 //            double abs_delta_z = fabs(delta_z);
 //
-//            if (*goal_altitude == GoalAltitude::Flat) {
+//            if (*goal_altitude == Dubins3dGoalAltitude::Flat) {
 //
 //            }
 //        } else {
@@ -308,14 +308,14 @@ struct Dubins3dPath : public Dubins3dPathLength {
 //            return;
 //        }
 //
-//        if (*goal_altitude == GoalAltitude::Flat) {
+//        if (*goal_altitude == Dubins3dGoalAltitude::Flat) {
 //
 //        }
 //
 //        switch (*configuration) {
 //            case Dubins3dPathType::SLS: // Flat, Low or High
 //                int k = 0;
-//                if (*goal_altitude == GoalAltitude::High) {
+//                if (*goal_altitude == Dubins3dGoalAltitude::High) {
 //                    // FIXME: gamma gives the same as gamma_max? R gives the same as r_min?
 //                    k = static_cast<int>((abs_delta_z / tan(gamma) - L_path2d) / (2 * M_PI * R));
 //                    if (delta_z>=0) {
@@ -373,8 +373,8 @@ struct Dubins3dPath : public Dubins3dPathLength {
 //                break;
 //        }
 //
-//        if (this->goal_altitude == GoalAltitude::Flat) {
-//            goal_altitude = GoalAltitude::Flat;
+//        if (this->goal_altitude == Dubins3dGoalAltitude::Flat) {
+//            goal_altitude = Dubins3dGoalAltitude::Flat;
 //            L = L_path2d;
 //            L_2d = L_path2d;
 //            gamma = 0;
@@ -382,18 +382,18 @@ struct Dubins3dPath : public Dubins3dPathLength {
 //            configuration_2d = type_path2d;
 //            R = r_min;
 //            return L;
-//        } else if (this->goal_altitude == GoalAltitude::Low) {
+//        } else if (this->goal_altitude == Dubins3dGoalAltitude::Low) {
 //            /* Low altitude case: Just perform the 2d path with a linear increment in z */
-//            goal_altitude = GoalAltitude::Low;
+//            goal_altitude = Dubins3dGoalAltitude::Low;
 //            gamma = atan(delta_z/L_path2d);
 //            configuration = Dubins3dPathType::SLS;
 //            R = r_min;
 //            L = L_path2d / cos(gamma);
 //            L_2d = L_path2d;
 //
-//        } else if (this->goal_altitude == GoalAltitude::High) {
+//        } else if (this->goal_altitude == Dubins3dGoalAltitude::High) {
 //            /* High altitude case */
-//            goal_altitude = GoalAltitude::High;
+//            goal_altitude = Dubins3dGoalAltitude::High;
 //            auto k = static_cast<int>((fabs(delta_z) / tan(gamma_max) - L_path2d) / ( 2 * M_PI * r_min));
 //            if (delta_z>=0) {
 //                k_s = k, k_e = 0; // k spirals at the beginning
@@ -409,10 +409,10 @@ struct Dubins3dPath : public Dubins3dPathLength {
 //            configuration_2d = type_path2d;
 //            gamma = delta_z >= 0 ? gamma_max : -gamma_max; // gamma > 0 means up.
 //
-//        } else { /* this->goal_altitude == GoalAltitude::Medium */
+//        } else { /* this->goal_altitude == Dubins3dGoalAltitude::Medium */
 //            /* Medium altitude case */
 //            if (abs_delta_z > 0) {
-//                goal_altitude = GoalAltitude::Medium;
+//                goal_altitude = Dubins3dGoalAltitude::Medium;
 //                gamma = gamma_max;
 //                configuration = Dubins3dPathType::SSLS;
 //                switch (type_path2d) {
