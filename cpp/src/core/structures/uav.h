@@ -59,10 +59,8 @@ struct UAV {
 
     /** Returns the Dubins travel distance between the two waypoints. */
     double travel_distance(const Waypoint3d &origin, const Waypoint3d &target) const  {
-        return travel_distance(origin.as_2d(), target.as_2d());
-        // TODO: reactivate when 3D path respect triangular inequalities
-        // Dubins3dPath path(origin, target, min_turn_radius, max_pitch_angle);
-        // return path.L;
+         Dubins3dPath path(origin, target, min_turn_radius, max_pitch_angle);
+         return path.L;
     }
 
     /** Returns the travel time between the two waypoints. */
