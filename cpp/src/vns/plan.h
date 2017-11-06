@@ -130,7 +130,12 @@ struct Plan {
                 const Segment3d& seg = traj[seg_id];
 
                 double obs_time = traj.start_time(seg_id);
-                opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
+
+                // Determine the view depth and width from the segment height.
+                double view_d = drone.view_depth_at_height(seg.start.z);
+                double view_w = drone.view_width_at_height(seg.start.z);
+
+                opt<std::vector<Cell>> opt_cells = segment_trace(seg, view_d, view_w,
                                                                  firedata->ignitions);
                 if (opt_cells) {
                     for (const auto &c : *opt_cells) {

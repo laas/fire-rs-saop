@@ -41,6 +41,7 @@ struct UAV {
     const double max_pitch_angle; /* aka gamma_max */
     const double view_width = 100;
     const double view_depth = 70;
+    const double nominal_view_height = 100;
 
 
     UAV(const double max_air_speed, const double max_angular_velocity, const double max_pitch_angle) :
@@ -106,6 +107,16 @@ struct UAV {
         }
         waypoints.push_back(target);
         return waypoints;
+    }
+
+    /* Calculates the view depth of the UAV at the specified elevation above ground level*/
+    double view_depth_at_height(double elevation_agl) const {
+        return elevation_agl * view_depth / nominal_view_height;
+    }
+
+    /* Calculates the view depth of the UAV at the specified height above ground level*/
+    double view_width_at_height(double elevation_agl) const {
+        return elevation_agl * view_width / nominal_view_height;
     }
 
     /** Rotates the given segment on the center of the visibility area. */
