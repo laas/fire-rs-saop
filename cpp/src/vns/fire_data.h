@@ -57,7 +57,6 @@ public:
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
               elevation(make_shared<DRaster>(elevation))
-//              isochrones(compute_isochrone_clusters(ignitions, traversal_end, isochrone_timespan))
     {}
 
     FireData(const DRaster &ignitions, const DiscreteDRaster &elevation)

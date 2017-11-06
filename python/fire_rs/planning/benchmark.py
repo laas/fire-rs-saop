@@ -248,7 +248,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # If 'use_elevation' option is True, plan using a 3d environment. If not, use a flat terrain.
     # This is independent of the output plot, because it can show the real terrain even in flat terrain mode.
     terrain = env.raster.slice('elevation')
-    if (output_options_planning['use_elevation']):
+    if (output_options_planning['use_elevation'] == False):
         terrain.data['elevation'] = np.zeros_like(terrain.data['elevation'])
 
     conf = {
@@ -602,6 +602,10 @@ def main():
                         help="Select a predefined configuration for VNS search.",
                         choices=vns_configurations.keys(),
                         default='base')
+    parser.add_argument("--elevation",
+                        help="Source of elevation considered by the planning algorithm",
+                        choices=['flat', 'dem', 'discrete'],
+                        default='dem')
     parser.add_argument("--dpi",
                         help="Resolution of the output figures",
                         type=int,
@@ -638,8 +642,9 @@ def main():
     output_options['plot']['colorbar'] = args.colorbar
     output_options['plot']['dpi'] = args.dpi
     output_options['plot']['size'] = args.size
-    output_options['planning']['use_elevation'] = True
-    output_options['planning']['discrete_elevation_interval'] = DISCRETE_ELEVATION_INTERVAL
+    output_options['planning']['use_elevation'] = False if args.elevation == "flat" else True
+    output_options['planning']['discrete_elevation_interval'] = \
+        DISCRETE_ELEVATION_INTERVAL if args.elevation == "discrete" else 0
 
     # benchmark folder handling
     benchmark_name = args.name

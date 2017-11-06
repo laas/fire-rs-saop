@@ -274,7 +274,12 @@ PYBIND11_MODULE(uav_planning, m) {
 
         printf("Processing firedata data\n");
         double preprocessing_start = time();
-        auto fire_data = make_shared<FireData>(ignitions, DiscreteDRaster(elevation, discrete_elevation_interval));
+        shared_ptr<FireData> fire_data;
+        if (discrete_elevation_interval > 0) {
+            fire_data = make_shared<FireData>(ignitions, DiscreteDRaster(elevation, discrete_elevation_interval));
+        } else {
+            fire_data = make_shared<FireData>(ignitions, elevation);
+        }
         double preprocessing_end = time();
 
         printf("Building initial plan\n");
