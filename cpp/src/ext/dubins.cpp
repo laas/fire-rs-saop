@@ -88,23 +88,6 @@ int dubins_init_normalised( double alpha, double beta, double d, DubinsPath* pat
     int    best_word;
     int    i;
 
-    // If path type is already set, force to use it
-    /* TODO: This case will happen less likely than the case below, where the type is not pre-set.
-             They should be present in the opposite order so the CPU pipeline is disturbed less than it is now.
-    */
-    if (path->type >= 0 && path->type <= 6) {
-        double params[3];
-        int err = dubins_words[path->type](alpha, beta, d, params);
-        if(err == EDUBOK) {
-            path->param[0] = params[0];
-            path->param[1] = params[1];
-            path->param[2] = params[2];
-            return EDUBOK;
-        }
-        return EDUBNOPATH;
-    }
-
-    // If path type is unset, find the best one
     best_word = -1;
     for( i = 0; i < 6; i++ ) {
         double params[3];
@@ -127,6 +110,39 @@ int dubins_init_normalised( double alpha, double beta, double d, DubinsPath* pat
     }
     path->type = best_word;
     return EDUBOK;
+}
+
+int dubins_init_with_type( double q0[3], double q1[3], double rho, DubinsPath* path, int type )
+{
+    if (type >= 0 && type <= 5) {
+        path->type = type;
+        int i;
+        double dx = q1[0] - q0[0];
+        double dy = q1[1] - q0[1];
+        double D = sqrt( dx * dx + dy * dy );
+        double d = D / rho;
+        if( rho <= 0. ) {
+            return EDUBBADRHO;
+        }
+        double theta = mod2pi(atan2( dy, dx ));
+        double alpha = mod2pi(q0[2] - theta);
+        double beta  = mod2pi(q1[2] - theta);
+        for( i = 0; i < 3; i ++ ) {
+            path->qi[i] = q0[i];
+        }
+        path->rho = rho;
+
+        double params[3];
+        int err = dubins_words[path->type](alpha, beta, d, params);
+        if(err == EDUBOK) {
+            path->param[0] = params[0];
+            path->param[1] = params[1];
+            path->param[2] = params[2];
+            return EDUBOK;
+        }
+        return err;
+    }
+    return EDUBWRONGTYPE;
 }
 
 int dubins_init( double q0[3], double q1[3], double rho, DubinsPath* path )
