@@ -167,7 +167,7 @@ struct Dubins3dPathLength {
                 configuration_2d = Dubins2dPathType::RLR;
                 break;
             default:
-            ASSERT(false);  // Something went wrong
+                ASSERT(false);  // Something went wrong
                 break;
         }
         // We don't need to call the spiral extension as we already know the desired full and xy path length.
@@ -193,7 +193,7 @@ protected:
     /* Find the optimal turning radius when climbing using the bisection method */
     HelixOptimizationResult
     helix_optimization(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max, int k,
-                       double delta_z) {
+                       double delta_z) const {
 
         DubinsPath optimal_path2d = {};
         double R_l = r_min; // Lowest acceptable turn radius
