@@ -66,9 +66,9 @@ enum Dubins3dGoalAltitude {
 /* Just the basic information to assess the cost of performing a Dubins 3D path*/
 struct Dubins3dPathLength {
     // Path configuration
-    opt<Dubins3dPathType> configuration = {};
-    opt<Dubins2dPathType> configuration_2d = {};
-    opt<Dubins3dGoalAltitude> goal_altitude = {};
+    Dubins3dPathType configuration = {};
+    Dubins2dPathType configuration_2d = {};
+    Dubins3dGoalAltitude goal_altitude = {};
 
     // start and end waypoints
     Waypoint3d wp_s {0,0,0,0}; // start waypoint
