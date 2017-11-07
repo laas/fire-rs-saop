@@ -129,8 +129,9 @@ struct Dubins3dPathLength {
             /* High altitude case */
             goal_altitude = Dubins3dGoalAltitude::High;
             k = static_cast<int>((fabs(delta_z) / tan(gamma_max) - L_path2d) / ( 2 * M_PI * r_min));
-            HelixOptimizationResult optimal = helix_optimization(from, to, r_min, gamma_max, path2d, k, delta_z);
+            HelixOptimizationResult optimal = helix_optimization(from, to, r_min, gamma_max, k, delta_z);
             R = optimal.R;
+            path2d = optimal.path_2d;
             L_2d = (optimal.L_2d + 2 * M_PI * k * R);
             L = L_2d/cos(gamma_max);
             gamma = delta_z >= 0 ? gamma_max : -gamma_max; // gamma > 0 means up.
@@ -181,17 +182,20 @@ protected:
     int k=0;
 
     const double MAX_LOOPS = 100;
-    const double TOLERANCE = 0.1;
+    const double TOLERANCE = 0.01; // ~1% error
 
     struct HelixOptimizationResult {
         double R; // Optimal radius
         double L_2d; // Length of the resulting trajectory in the xy-plane
+        DubinsPath path_2d; // Dubins 2d path using the optimal radius.
     };
 
     /* Find the optimal turning radius when climbing using the bisection method */
     HelixOptimizationResult
-    helix_optimization(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max,
-                       DubinsPath path_2d, int k, double delta_z) {
+    helix_optimization(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max, int k,
+                       double delta_z) {
+
+        DubinsPath optimal_path2d = {};
         double R_l = r_min; // Lowest acceptable turn radius
         double R_h = 2 * r_min; // Highest acceptable turn radius
         double R = (R_l + R_h) / 2;
@@ -201,9 +205,9 @@ protected:
         while (fabs(err) > TOLERANCE) {
             double orig[3] = {start.x, start.y, start.dir};
             double dest[3] = {end.x, end.y, end.dir};
-            int ret = dubins_init(orig, dest, R, &path_2d); // As path2d has the type already set, this call is fast
+            int ret = dubins_init(orig, dest, R, &optimal_path2d);
             ASSERT(ret == 0);
-            L_2d = dubins_path_length(&path_2d);
+            L_2d = dubins_path_length(&optimal_path2d);
             err = (L_2d + 2 * M_PI * k * R) * tan(gamma_max) - fabs(delta_z);
             if (err > 0) {R_h = R;} else {R_l = R;}
             R = (R_l + R_h) / 2;
@@ -211,8 +215,7 @@ protected:
             n_loops++;
             ASSERT(n_loops < MAX_LOOPS); // This loop should converge faster than MAX_LOOPS
         }
-        path2d = path_2d;
-        return HelixOptimizationResult{R, L_2d};
+        return HelixOptimizationResult{R, L_2d, optimal_path2d};
     }
 };
 
