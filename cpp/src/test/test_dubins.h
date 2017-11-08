@@ -45,8 +45,7 @@ void test_length_high_alt() {
     Waypoint3d dest {  0,   0, 200, 3 * M_PI_2};
 
     Dubins3dPathLength path(orig, dest, r_min, gamma_max);
-
-    BOOST_ASSERT(*path.goal_altitude == Dubins3dGoalAltitude::High);
+    BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::High);
 }
 
 void test_length_medium_alt() {
@@ -54,8 +53,7 @@ void test_length_medium_alt() {
     Waypoint3d dest {  0,   0, 25, 3 * M_PI_2};
 
     Dubins3dPathLength path(orig, dest, r_min, gamma_max);
-
-    BOOST_ASSERT(*path.goal_altitude == Dubins3dGoalAltitude::Medium);
+    BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::Medium);
 }
 
 void test_medium_alt_SSLS() {
@@ -63,9 +61,8 @@ void test_medium_alt_SSLS() {
     Waypoint3d dest {  0,   0, 25, 3 * M_PI_2};
 
     Dubins3dPathLength path(orig, dest, r_min, gamma_max);
-
-    BOOST_ASSERT(*path.goal_altitude == Dubins3dGoalAltitude::Medium);
-    BOOST_ASSERT(*path.configuration == Dubins3dPathType::SSLS);
+    BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::Medium);
+    BOOST_CHECK(path.configuration == Dubins3dPathType::SSLS);
 }
 
 void test_length_low_alt() {
@@ -73,7 +70,7 @@ void test_length_low_alt() {
     Waypoint3d dest {  0,   0, 15, 3 * M_PI_2};
 
     Dubins3dPathLength path(orig, dest, r_min, gamma_max);
-    BOOST_ASSERT(*path.goal_altitude == Dubins3dGoalAltitude::Low);
+    BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::Low);
 
     double orig_array[3] {orig.x, orig.y, orig.dir};
     double dest_array[3] {dest.x, dest.y, dest.dir};
@@ -90,8 +87,6 @@ void test_triangleineq_flat() {
     Dubins3dPathLength path_ab(a, b, r_min, gamma_max);
     Dubins3dPathLength path_bc(b, c, r_min, gamma_max);
     Dubins3dPathLength path_ac(a, c, r_min, gamma_max);
-
-    BOOST_ASSERT(path_ab.configuration_2d && path_bc.configuration_2d && path_ac.configuration_2d);
 
     BOOST_TEST(path_ab.L + path_bc.L > path_ac.L);
     BOOST_TEST(path_ab.L_2d + path_bc.L_2d > path_ac.L_2d);
