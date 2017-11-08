@@ -220,7 +220,7 @@ protected:
 };
 
 /* All the information needed to define a Dubins 3D path*/
-struct Dubins3dPath : public Dubins3dPathLength {
+//struct Dubins3dPath : public Dubins3dPathLength {
 
 //    // start spiral
 //    Position3d c_s {0,0,0}; // center of start spiral
@@ -265,16 +265,6 @@ struct Dubins3dPath : public Dubins3dPathLength {
 //    // hyperplane H_e: end of Dubins path
 //    Position3d w_e {0,0,0}; // center of hyperplane
 //    Position3d q_e {0,0,0}; // normal vector to hyperplane
-
-    Dubins3dPath(const Waypoint3d& from, const Waypoint3d& to, double r_min, double gamma_max)
-            : Dubins3dPathLength (from, to, r_min, gamma_max) {
-//        compute_geometry();
-    }
-
-    explicit Dubins3dPath(Dubins3dPathLength &dubins3dPathLength) : Dubins3dPathLength(dubins3dPathLength) {
-//        compute_geometry();
-    }
-
 //    Position3d path_sample(double t) {
 //        if (configuration_2d || configuration || goal_altitude) {
 //            double L_path2d = dubins_path_length(&path2d);
@@ -472,116 +462,116 @@ struct Dubins3dPath : public Dubins3dPathLength {
 //            }
 //        }
 //    }
-
-
-private:
-
-    struct SpiralExtensionResult {
-        double configuration_3d; //
-        double L_i; // Length of the intermediate spiral in the xy-plane
-        double L_sls; // Length of the SLS part in the xy-plane
-        double ci_x; // Center (x) of intermediate-start (or intermediate-end) spiral
-        double ci_y; // Center (y) of intermediate-start (or intermediate-end) spiral
-        double chi_i; // Angle of intermediate-start spiral
-    };
-
-
-    opt<SpiralExtensionResult>
-    spiral_extension_beginning(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max,
-                               DubinsPath path2d, double delta_z) {
-        // Parametrization of φ as explained in section 4.2.3 of Beard & McLain, 2013. Case SSLS
-        double chi_l = 0; // Lowest acceptable φ
-        double chi_h = 2 * M_PI; // Highest acceptable φ
-        double chi = (chi_l + chi_h) / 2; // φ is the arc of the circle with respect to φ_s
-
-        // Extract parameters of the un-extended 2d path
-        double dest[3] = {end.x, end.y, end.dir};
-        double L_init = dubins_path_length(&path2d);
-        double lambda_i = 1; // First turn to the left
-        int path2d_type = dubins_path_type(&path2d);
-        if (path2d_type == RSL || path2d_type == RSR || path2d_type == RLR) {
-            lambda_i = -1; /* First turn to the right*/
-        }
-
-        // Find the zi point. See fig. 10 of Beard&McLain 2013 for details.
-        // zs: starting position
-        double zs_x = start.x;
-        double zs_y = start.y;
-        // cs: center of the starting circle
-
-        double chi_s = start.dir + M_PI_2*(-lambda_i); // Starting angle for the first spiral that is perpendicular to UAV heading
-
-        double cs_x = zs_x + r_min * (cos(M_PI_2*lambda_i) * cos(start.dir) - sin(M_PI_2*lambda_i) * sin(start.dir));
-        double cs_y = zs_y + r_min * (sin(M_PI_2*lambda_i) * cos(start.dir) + cos(M_PI_2*lambda_i) * sin(start.dir));
-
-        DubinsPath path_ext; // Extension path starting after the intermediate spiral
-        path_ext.type = path2d.type;
-        switch ((Dubins2dPathType)path2d.type) {
-            case Dubins2dPathType::LSL:
-                path_ext.type = Dubins2dPathType::RSL;
-                break;
-            case Dubins2dPathType::LSR:
-                path_ext.type = Dubins2dPathType::RSR;
-                break;
-            case Dubins2dPathType::RSL:
-                path_ext.type = Dubins2dPathType::LSL;
-                break;
-            case Dubins2dPathType::RSR:
-                path_ext.type = Dubins2dPathType::LSR;
-                break;
-            case Dubins2dPathType::RLR:
-            ASSERT(false);  // FIXME: Idk how to treat it
-                break;
-            case Dubins2dPathType::LRL:
-            ASSERT(false);  // FIXME: Idk how to treat it
-                break;
-            default:
-            ASSERT(false);  // Something went wrong
-                break;
-        }
-
-        double err = L_init - fabs(delta_z/tan(gamma_max));
-        double L_ie = 0; // Length of the part of the path after the extension
-        double L_si = fabs(chi) * r_min; //Length of the path between the starting point an the intermediate point
-        int n_loops = 0;
-        while (fabs(err) > TOLERANCE) {
-            // Determine intermediate point for guessed φ
-            double zi_x = cs_x + cos(lambda_i * (chi)) * (zs_x-cs_x) - sin(lambda_i * (chi)) * (zs_y-cs_y);
-            double zi_y = cs_y + sin(lambda_i * (chi)) * (zs_x-cs_x) + cos(lambda_i * (chi)) * (zs_y-cs_y);
-            double chi_i = chi_s + chi;
-            L_si = fabs(chi) * r_min;
-
-            // Recalculate the dubins path from the intermediate point keeping the same end point
-            double orig_ext[3] = {zi_x, zi_y, chi_i - M_PI_2*(-lambda_i)};
-            int ret = dubins_init(orig_ext, dest, r_min, &path_ext);
-            ASSERT(ret == 0);
-
-            L_ie = dubins_path_length(&path_ext); // We could speedup this function by using the DubinsType
-
-            err = (L_ie + L_si) - fabs(delta_z/tan(gamma_max));
-            if (err > 0) {
-                chi_h = chi;
-            } else {
-                chi_l = chi;
-            }
-            chi = (chi_h + chi_l) / 2;
-
-            n_loops++;
-            if(n_loops >= MAX_LOOPS) { ASSERT(false); } // This loop should converge faster than MAX_LOOPS
-        }
-
-        return SpiralExtensionResult{Dubins3dPathType::SSLS, L_si, L_ie, cs_x, cs_y, chi};
-
-    }
-
-    opt<SpiralExtensionResult>
-    spiral_extension_end(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max,
-                               DubinsPath path2d, double delta_z) {
-
-        // FIXME: IMPLEMENT ME!
-        return {};
-    }
-
-};
+//
+//
+//private:
+//
+//    struct SpiralExtensionResult {
+//        double configuration_3d; //
+//        double L_i; // Length of the intermediate spiral in the xy-plane
+//        double L_sls; // Length of the SLS part in the xy-plane
+//        double ci_x; // Center (x) of intermediate-start (or intermediate-end) spiral
+//        double ci_y; // Center (y) of intermediate-start (or intermediate-end) spiral
+//        double chi_i; // Angle of intermediate-start spiral
+//    };
+//
+//
+//    opt<SpiralExtensionResult>
+//    spiral_extension_beginning(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max,
+//                               DubinsPath path2d, double delta_z) {
+//        // Parametrization of φ as explained in section 4.2.3 of Beard & McLain, 2013. Case SSLS
+//        double chi_l = 0; // Lowest acceptable φ
+//        double chi_h = 2 * M_PI; // Highest acceptable φ
+//        double chi = (chi_l + chi_h) / 2; // φ is the arc of the circle with respect to φ_s
+//
+//        // Extract parameters of the un-extended 2d path
+//        double dest[3] = {end.x, end.y, end.dir};
+//        double L_init = dubins_path_length(&path2d);
+//        double lambda_i = 1; // First turn to the left
+//        int path2d_type = dubins_path_type(&path2d);
+//        if (path2d_type == RSL || path2d_type == RSR || path2d_type == RLR) {
+//            lambda_i = -1; /* First turn to the right*/
+//        }
+//
+//        // Find the zi point. See fig. 10 of Beard&McLain 2013 for details.
+//        // zs: starting position
+//        double zs_x = start.x;
+//        double zs_y = start.y;
+//        // cs: center of the starting circle
+//
+//        double chi_s = start.dir + M_PI_2*(-lambda_i); // Starting angle for the first spiral that is perpendicular to UAV heading
+//
+//        double cs_x = zs_x + r_min * (cos(M_PI_2*lambda_i) * cos(start.dir) - sin(M_PI_2*lambda_i) * sin(start.dir));
+//        double cs_y = zs_y + r_min * (sin(M_PI_2*lambda_i) * cos(start.dir) + cos(M_PI_2*lambda_i) * sin(start.dir));
+//
+//        DubinsPath path_ext; // Extension path starting after the intermediate spiral
+//        path_ext.type = path2d.type;
+//        switch ((Dubins2dPathType)path2d.type) {
+//            case Dubins2dPathType::LSL:
+//                path_ext.type = Dubins2dPathType::RSL;
+//                break;
+//            case Dubins2dPathType::LSR:
+//                path_ext.type = Dubins2dPathType::RSR;
+//                break;
+//            case Dubins2dPathType::RSL:
+//                path_ext.type = Dubins2dPathType::LSL;
+//                break;
+//            case Dubins2dPathType::RSR:
+//                path_ext.type = Dubins2dPathType::LSR;
+//                break;
+//            case Dubins2dPathType::RLR:
+//            ASSERT(false);  // FIXME: Idk how to treat it
+//                break;
+//            case Dubins2dPathType::LRL:
+//            ASSERT(false);  // FIXME: Idk how to treat it
+//                break;
+//            default:
+//            ASSERT(false);  // Something went wrong
+//                break;
+//        }
+//
+//        double err = L_init - fabs(delta_z/tan(gamma_max));
+//        double L_ie = 0; // Length of the part of the path after the extension
+//        double L_si = fabs(chi) * r_min; //Length of the path between the starting point an the intermediate point
+//        int n_loops = 0;
+//        while (fabs(err) > TOLERANCE) {
+//            // Determine intermediate point for guessed φ
+//            double zi_x = cs_x + cos(lambda_i * (chi)) * (zs_x-cs_x) - sin(lambda_i * (chi)) * (zs_y-cs_y);
+//            double zi_y = cs_y + sin(lambda_i * (chi)) * (zs_x-cs_x) + cos(lambda_i * (chi)) * (zs_y-cs_y);
+//            double chi_i = chi_s + chi;
+//            L_si = fabs(chi) * r_min;
+//
+//            // Recalculate the dubins path from the intermediate point keeping the same end point
+//            double orig_ext[3] = {zi_x, zi_y, chi_i - M_PI_2*(-lambda_i)};
+//            int ret = dubins_init(orig_ext, dest, r_min, &path_ext);
+//            ASSERT(ret == 0);
+//
+//            L_ie = dubins_path_length(&path_ext); // We could speedup this function by using the DubinsType
+//
+//            err = (L_ie + L_si) - fabs(delta_z/tan(gamma_max));
+//            if (err > 0) {
+//                chi_h = chi;
+//            } else {
+//                chi_l = chi;
+//            }
+//            chi = (chi_h + chi_l) / 2;
+//
+//            n_loops++;
+//            if(n_loops >= MAX_LOOPS) { ASSERT(false); } // This loop should converge faster than MAX_LOOPS
+//        }
+//
+//        return SpiralExtensionResult{Dubins3dPathType::SSLS, L_si, L_ie, cs_x, cs_y, chi};
+//
+//    }
+//
+//    opt<SpiralExtensionResult>
+//    spiral_extension_end(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max,
+//                               DubinsPath path2d, double delta_z) {
+//
+//        // FIXME: IMPLEMENT ME!
+//        return {};
+//    }
+//
+//};
 
 #endif //PLANNING_CPP_DUBINS3D_H
