@@ -10,9 +10,9 @@ endif()
 
 set(CMAKE_CXX_STANDARD 11)
 
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-deprecated")
-endif()
+set(CMAKE_CXX_FLAGS "-Wall")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/ext/json.hpp src/core/structures/trajectory.h 
     src/core/structures/uav.h src/core/structures/waypoint.h src/raster.h src/vns/visibility.h src/ext/optional.h 
