@@ -23,9 +23,6 @@ set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/ext/json.hpp src/core/s
 
 pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
 
-set(PLANNING_MODULE_NAME "uav_planning.cpython-35m-x86_64-linux-gnu.so")
-set(PLANNING_MODULE "${CMAKE_CURRENT_BINARY_DIR}/${PLANNING_MODULE_NAME}" PARENT_SCOPE)
-
 IF (BUILD_TESTING)
     find_package(Boost COMPONENTS unit_test_framework REQUIRED)
     add_executable(tests ${SOURCE_FILES} src/test/core/test_reversible_updates.h src/test/test_dubins.h 
