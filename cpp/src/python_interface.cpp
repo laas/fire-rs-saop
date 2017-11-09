@@ -196,8 +196,6 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("traversal_end", &FireData::traversal_end)
             .def_readonly("propagation_directions", &FireData::propagation_directions)
             .def_readonly("elevation", &FireData::elevation);
-//            .def_readonly_static("isochrone_timespan", &FireData::isochrone_timespan)
-//            .def_readonly("isochrones", &FireData::isochrones);
 
     py::class_<Waypoint3d>(m, "Waypoint")
             .def(py::init<const double, const double, const double, const double>(),
@@ -273,7 +271,7 @@ PYBIND11_MODULE(uav_planning, m) {
         const size_t save_every = conf["save_every"];
         const bool save_improvements = conf["save_improvements"];
         const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
-
+        const size_t max_restarts = conf["vns"]["max_restarts"];
 
         printf("Processing firedata data\n");
         double preprocessing_start = time();
@@ -291,7 +289,7 @@ PYBIND11_MODULE(uav_planning, m) {
         printf("Planning\n");
         auto vns = vns::build_from_config(conf["vns"].dump());
         const double planning_start = time();
-        auto res = vns->search(p, 0, save_every, save_improvements);
+        auto res = vns->search(p, max_restarts, save_every, save_improvements);
         const double planning_end = time();
         printf("Plan found\n");
         res.metadata["planning_time"] = planning_end - planning_start;

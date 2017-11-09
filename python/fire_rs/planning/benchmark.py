@@ -262,8 +262,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     conf['vns']['configuration_name'] = vns_name
 
     # Call the C++ library that calculates the plan
-    res = up.plan_vns(flights, ignitions.as_cpp_raster(), terrain.as_cpp_raster(),
-                      json.dumps(conf))
+    res = up.plan_vns(flights, ignitions.as_cpp_raster(), terrain.as_cpp_raster(), json.dumps(conf))
 
     plan = res.final_plan()
 
@@ -531,6 +530,7 @@ scenario_factory_funcs = {'default': generate_scenario,
 
 vns_configurations = {
     'base': {
+        'max_restarts': 5,
         'neighborhoods': [
             {'name': 'dubins-opt'},
             {'name': 'one-insert',
@@ -540,6 +540,7 @@ vns_configurations = {
         ]
     },
     'with_smoothing': {
+        'max_restarts': 5,
         'neighborhoods': [
             {'name': 'trajectory-smoothing'},
             {'name': 'dubins-opt'},
@@ -549,6 +550,7 @@ vns_configurations = {
              "select_arbitrary_position": False}]
     },
     'full': {
+        'max_restarts': 5,
         'neighborhoods': [
             {'name': 'dubins-opt'},
             {'name': 'one-insert',
