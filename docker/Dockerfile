@@ -14,11 +14,10 @@ RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /tmp/*
 
+# create a local user
+RUN useradd -ms /bin/bash saop
 USER saop
 
-# use CLang by default
-# ENV CC /usr/bin/clang
-# ENV CXX /usr/bin/clang++
 
 
 ENV WINDNINJA_CLI_PATH /usr/local/bin
