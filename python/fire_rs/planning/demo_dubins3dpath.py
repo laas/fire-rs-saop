@@ -39,21 +39,38 @@ if __name__ == '__main__':
         z = [wp.z for wp in samples]
         return x, y, z
 
-    # input("enter something")
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.auto_scale_xyz([-500, +500], [-500, +500], [0, 100])
-
     uav_speed = 18.  # m/s
     uav_max_turn_rate = 32. * np.pi / 180
     uav_max_pitch_angle = 6. / 180. * np.pi
     uav = up.UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
 
-    wp = [(0, 0, 0, 0), (100, 50, 100, np.pi/4), (100, 150, 110, np.pi/4), (130, 120, 50, 3*np.pi/4), (0, 0, 0, 0),]
 
-    for i in range(len(wp)-1):
-        ax.plot(*traj(uav, wp[i], wp[i + 1]))
-
+    fig = plt.figure()
+    # Low altitude
+    ax = fig.add_subplot(131, projection='3d')
+    wp_ma = [(0, 0, 0, np.pi), (100, 50, 10, np.pi), (0, 100, 20, 0)]
+    for i in range(len(wp_ma) - 1):
+        ax.plot(*traj(uav, wp_ma[i], wp_ma[i + 1]))
     plt.xlabel("x")
     plt.ylabel("y")
+    plt.title("Low Altitude")
+
+    # Medium altitude
+    ax2 = fig.add_subplot(132, projection='3d')
+    wp_ma = [(0, 0, 0, 0), (100, 50, 20, np.pi/4), (0, 50, 60, np.pi/4)]
+    for i in range(len(wp_ma)-1):
+        ax2.plot(*traj(uav, wp_ma[i], wp_ma[i + 1]))
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title("Medium Altitude")
+
+    # High altitude
+    ax3 = fig.add_subplot(133, projection='3d')
+    wp_ha = [(0, 0, 0, 0), (100, 50, 100, np.pi/4), (150, 150, 200, 3*np.pi/4), (0, 0, 0, 0),]
+    for i in range(len(wp_ha) - 1):
+        ax3.plot(*traj(uav, wp_ha[i], wp_ha[i + 1]))
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title("High Altitude")
+
     plt.show(block=True)
