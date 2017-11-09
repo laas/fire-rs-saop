@@ -201,7 +201,7 @@ struct VariableNeighborhoodSearch {
         for(size_t i=0; i<neighborhoods.size(); i++) {
             json j;
             auto& n = *neighborhoods[i];
-            j["name"] = n.name();
+            j["name"] = std::to_string(i) + "-" + n.name();
             j["runtime"] = runtime_per_neighborhood[i];
             result.metadata["neighborhoods"].push_back(j);
         }

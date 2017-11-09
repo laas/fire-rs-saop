@@ -65,6 +65,9 @@ PYBIND11_MODULE(uav_planning, m) {
     m.doc() = "Python module for UAV trajectory planning";
 
     srand(0);
+#ifdef DEBUG
+    std::cerr << "Warning: Planning module compiled in debug mode. Expect slowness ;)\n";
+#endif
 
     py::class_<DRaster>(m, "DRaster")
             .def(py::init([](py::array_t<double, py::array::c_style | py::array::forcecast> arr,
