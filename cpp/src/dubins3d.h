@@ -212,7 +212,7 @@ struct Dubins3dPathLength {
                 L_helix = k * 2 * M_PI * R;
 
             } else if (goal_altitude == Dubins3dGoalAltitude::Medium) {
-                auto spiral_result= spiral_extension_beginning(wp_s, wp_e, R, gamma, lambda_s, cs, path2d);
+                auto spiral_result = spiral_extension_beginning(wp_s, wp_e, R, gamma, lambda_s, cs, path2d);
                 path2d = spiral_result.path2d;
                 L_helix = spiral_result.L_ext;
             } else {
@@ -334,10 +334,10 @@ protected:
                 path_ext.type = Dubins2dPathType::LSR;
                 break;
             case Dubins2dPathType::RLR:
-                configuration_2d = Dubins2dPathType::LRL;
+                path_ext.type = Dubins2dPathType::LRL;
                 break;
             case Dubins2dPathType::LRL:
-                configuration_2d = Dubins2dPathType::RLR;
+                path_ext.type = Dubins2dPathType::RLR;
                 break;
             default:
             ASSERT(false);  // Something went wrong
