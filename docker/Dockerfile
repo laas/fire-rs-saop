@@ -25,6 +25,8 @@ ENV WINDNINJA_CLI_PATH /usr/local/bin
 # set data directory, this directory needs to be mounted with actual data
 ENV FIRERS_DATA /home/saop/data
 
+ENV PYTHONPATH ${PYTHONPATH}:/home/saop/code/python
+
 # code directory, needs to be mounted to the the root of of the git repository
 WORKDIR /home/saop/code
 
