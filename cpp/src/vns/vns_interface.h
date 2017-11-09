@@ -35,8 +35,8 @@ class LocalMove {
 
 public:
     /** Reference to the plan this move is created for. */
-    PPlan base_plan;
-    explicit LocalMove(PPlan base) : base_plan(base) {};
+    PlanPtr base_plan;
+    explicit LocalMove(PlanPtr base) : base_plan(base) {};
 
     /** Cost that would result in applying the move. */
     virtual double utility() = 0;
@@ -53,8 +53,8 @@ public:
     }
 
     /** Creates a new Plan on which the move is applied */
-    PPlan apply_on_new() {
-        PPlan ret = make_shared<Plan>(*base_plan);
+    PlanPtr apply_on_new() {
+        PlanPtr ret = make_shared<Plan>(*base_plan);
         apply_on(ret);
         return ret;
     }
@@ -62,7 +62,7 @@ public:
 protected:
     /** Internal method that applies the move on a given plan.
      * This should not be used directly. Instead you should the apply/apply_on_new public methods. */
-    virtual void apply_on(PPlan target) = 0;
+    virtual void apply_on(PlanPtr target) = 0;
 
 private:
     /** NEVER ACCESS. This is only to make the plan visible in gdb which has problems with shared points. */
@@ -83,7 +83,7 @@ struct Neighborhood {
      * If the optional return is non-empty, local search will apply this move regardless of its cost.
      * Hence subclasses should make sure the returned values contribute to the overall quality of the plan.
      * */
-    virtual opt<PLocalMove> get_move(PPlan plan) = 0;
+    virtual opt<PLocalMove> get_move(PlanPtr plan) = 0;
 
     virtual std::string name() const = 0;
 };
@@ -123,8 +123,8 @@ struct VariableNeighborhoodSearch {
     /** Sequence of neighborhoods to be considered by VNS. */
     vector<shared_ptr<Neighborhood>> neighborhoods;
 
-    explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler> shuffler) :
-            neighborhoods(neighborhoods) {
+    explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler>& shuffler) :
+            neighborhoods(neighborhoods), shuffler(shuffler) {
         ASSERT(neighborhoods.size() > 0);
     }
 
@@ -142,7 +142,7 @@ struct VariableNeighborhoodSearch {
         ASSERT(max_restarts == 0) // currently no shaking function
 
         SearchResult result(p);
-        PPlan best_plan = make_shared<Plan>(p);
+        PlanPtr best_plan = make_shared<Plan>(p);
 
         size_t current_iter = 0;
         size_t num_restarts = 0;

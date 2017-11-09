@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */
 class IdentityMove final : public LocalMove {
 public:
-    explicit IdentityMove(PPlan p) : LocalMove(p) {}
+    explicit IdentityMove(PlanPtr p) : LocalMove(p) {}
 
     /** Cost that would result in applying the move. */
     double utility() override { return base_plan->utility(); };
@@ -45,7 +45,7 @@ public:
     bool is_valid() override { return base_plan->is_valid(); }
 
     /** does nothing */
-    void apply_on(PPlan p) override {
+    void apply_on(PlanPtr p) override {
     }
 };
 
@@ -55,7 +55,7 @@ public:
  *
  * Subclassses only need to implement the apply_on() method and invoke the init() method in there constructor. */
 struct CloneBasedLocalMove : public LocalMove {
-    explicit CloneBasedLocalMove(PPlan base) : LocalMove(base) {}
+    explicit CloneBasedLocalMove(PlanPtr base) : LocalMove(base) {}
 
     /** Cost that would result in applying the move. */
     double utility() override { init(); return _cost; };
@@ -68,7 +68,7 @@ struct CloneBasedLocalMove : public LocalMove {
 private:
     void init() {
         if(!lazily_initialized) {
-            PPlan clone = apply_on_new();
+            PlanPtr clone = apply_on_new();
             _cost = clone->utility();
             _duration = clone->duration();
             _num_segments = clone->num_segments();
@@ -85,7 +85,7 @@ private:
 };
 
 struct ReverseBasedMove : public LocalMove {
-    ReverseBasedMove(const PPlan &base, const PReversibleTrajectoriesUpdate &update) : LocalMove(base), update(update) {}
+    ReverseBasedMove(const PlanPtr &base, const PReversibleTrajectoriesUpdate &update) : LocalMove(base), update(update) {}
 
     /** Cost that would result in applying the move. */
     double utility() override { init(); return _cost; };
@@ -96,7 +96,7 @@ struct ReverseBasedMove : public LocalMove {
     bool is_valid() override { init(); return _valid; }
 
 protected:
-    void apply_on(PPlan target) override {
+    void apply_on(PlanPtr target) override {
 
     }
 
@@ -138,7 +138,7 @@ struct Insert final : public CloneBasedLocalMove {
     /** Place in the trajectory where this segment should be inserted. */
     size_t insert_loc;
 
-    Insert(PPlan base, size_t traj_id, Segment3d &seg, size_t insert_loc)
+    Insert(PlanPtr base, size_t traj_id, Segment3d &seg, size_t insert_loc)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), seg(seg), insert_loc(insert_loc)
     {
@@ -146,13 +146,13 @@ struct Insert final : public CloneBasedLocalMove {
         ASSERT(insert_loc <= base->core[traj_id].traj.size());
     }
 
-    void apply_on(PPlan p) override {
+    void apply_on(PlanPtr p) override {
         p->insert_segment(traj_id, seg, insert_loc);
     }
 
     /** Generates an insert move that include the segment at the best place in the given trajectory.
      * Currently, this does not checks the trajectory constraints. */
-    static opt<Insert> best_insert(PPlan base, size_t traj_id, Segment3d &seg) {
+    static opt<Insert> best_insert(PlanPtr base, size_t traj_id, Segment3d &seg) {
         ASSERT(traj_id < base->core.size());
 
         long best_loc = -1;
@@ -176,8 +176,8 @@ struct Insert final : public CloneBasedLocalMove {
     }
 
     /** Tries to insert each of the segments at the best place in the given trajectory of the given plan */
-    static PPlan smart_insert(PPlan &base, size_t traj_id, vector<Segment3d> segments) {
-        opt<PPlan> current = base;
+    static PlanPtr smart_insert(PlanPtr &base, size_t traj_id, vector<Segment3d> segments) {
+        opt<PlanPtr> current = base;
         for(auto it=segments.begin(); it!=segments.end() && current; it++) {
             current = best_insert(*current, traj_id, *it)->apply_on_new();
         }
@@ -193,14 +193,14 @@ struct Remove final : public CloneBasedLocalMove {
     /** Location of the segment to remove within the trajectory */
     size_t rm_id;
 
-    Remove(PPlan base, size_t traj_id, size_t rm_id)
+    Remove(PlanPtr base, size_t traj_id, size_t rm_id)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), rm_id(rm_id) {
         ASSERT(traj_id < base->core.size());
         ASSERT(rm_id < base->core[traj_id].traj.size());
     }
 
-    void apply_on(PPlan p) override {
+    void apply_on(PlanPtr p) override {
         p->erase_segment(traj_id, rm_id);
     }
 };
@@ -211,7 +211,7 @@ struct SegmentReplacement : public CloneBasedLocalMove {
     const size_t n_replaced;
     const std::vector<Segment3d> replacements;
 
-    SegmentReplacement(PPlan base, size_t traj_id, size_t segment_index, size_t n_replaced,
+    SegmentReplacement(PlanPtr base, size_t traj_id, size_t segment_index, size_t n_replaced,
                        const std::vector<Segment3d> &replacements)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements)
@@ -222,7 +222,7 @@ struct SegmentReplacement : public CloneBasedLocalMove {
         ASSERT(replacements.size() > 0);
     }
 
-    void apply_on(PPlan p) override {
+    void apply_on(PlanPtr p) override {
         p->replace_segment(traj_id, segment_index, n_replaced, replacements);
     }
 };
@@ -232,7 +232,7 @@ struct SegmentRotation final : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
     const Segment3d newSegment;
-    SegmentRotation(PPlan base, size_t traj_id, size_t segment_index, double target_dir)
+    SegmentRotation(PlanPtr base, size_t traj_id, size_t segment_index, double target_dir)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), segment_index(segment_index),
               newSegment(base->core.uav(traj_id).rotate_on_visibility_center(base->core[traj_id][segment_index],
@@ -241,7 +241,7 @@ struct SegmentRotation final : public CloneBasedLocalMove {
         ASSERT(duration() >= 0)
     }
 
-    void apply_on(PPlan p) override {
+    void apply_on(PlanPtr p) override {
         p->replace_segment(traj_id, segment_index, newSegment);
     }
 
