@@ -578,7 +578,11 @@ def main():
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
 
     # CLI argument parsing
-    parser = argparse.ArgumentParser(prog='benchmark.py')
+    FROMFILE_PREFIX_CHARS = '@'
+    parser = argparse.ArgumentParser(
+        prog='benchmark.py', fromfile_prefix_chars=FROMFILE_PREFIX_CHARS,
+        epilog="The arguments that start with `" + FROMFILE_PREFIX_CHARS + \
+               "' will be treated as files, and will be replaced by the arguments they contain.")
     parser.add_argument("--name",
                         help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.",
                         choices=scenario_factory_funcs.keys())
