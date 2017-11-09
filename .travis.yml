@@ -9,15 +9,7 @@ before_install:
   - git clone https://github.com/fire-rs-laas/data.git
   - docker pull abitmonn/firers-saop-dev
   # start a container
-  - docker run -d -it --user=${USER_ID}:${GROUP_ID} \
-                --cap-add=SYS_PTRACE \
-                --privileged \
-                --security-opt seccomp:unconfined \
-                --security-opt apparmor:unconfined \
-                --name saop \
-                -v `pwd`:/home/saop/code:z \
-                -v `pwd`/data:/home/saop/data:z \
-                abitmonn/firers-saop-dev
+  - docker run -d -it --user=${USER_ID}:${GROUP_ID} --name saop -v `pwd`:/home/saop/code:z -v `pwd`/data:/home/saop/data:z abitmonn/firers-saop-dev
   # build
   - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/sh -c "mkdir build-debug && cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4"
 
