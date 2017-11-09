@@ -82,6 +82,11 @@ typedef int (*DubinsPathSamplingCallback)(double q[3], double t, void* user_data
 int dubins_init( double q0[3], double q1[3], double rho, DubinsPath* path);
 
 /**
+ * As dubins_init but with a fix type of path.
+ * */
+int dubins_init_with_type( double q0[3], double q1[3], double rho, DubinsPath* path, int type);
+
+/**
  * Calculate the length of an initialised path
  *
  * @param path - the path to find the length of
