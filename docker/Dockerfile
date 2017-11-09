@@ -57,15 +57,30 @@ RUN mkdir /home/saop/windninja/build &&\
     make -j8
 
 
-##### SAOP
-
 USER root
+# install to /usr/local/bin
+RUN cd /home/saop/windninja/build && make install
+
+# Remove windninja build dir
+RUN rm -rf /home/saop/windninja
+
+
+# Set root password to "root"
+RUN echo "root:root" | chpasswd
+
+
+##### SAOP
 
 # install SAOP dependencies
 RUN apt-get update && apt-get install -y gdb python3 cython3 python3-gdal python3-setuptools python3-affine python3-tz python3-pandas python3-matplotlib python3-pip ffmpeg clang
 RUN pip3 install pybind11==2.2.1
 # install "when-changed"
 RUN pip3 install https://github.com/joh/when-changed/archive/master.zip
+
+# Clean Apt cache
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /tmp/*
 
 USER saop
 
@@ -74,11 +89,10 @@ USER saop
 # ENV CXX /usr/bin/clang++
 
 
-ENV WINDNINJA_CLI_PATH /home/saop/windninja/build/src/cli
+ENV WINDNINJA_CLI_PATH /usr/local/bin
 
 # set data directory, this directory needs to be mounted with actual data
 ENV FIRERS_DATA /home/saop/data
-
 
 # code directory, needs to be mounted to the the root of of the git repository
 WORKDIR /home/saop/code
