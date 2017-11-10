@@ -15,4 +15,8 @@ before_install:
 
 script:
   # run benchmark without 3D
-  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat"
+  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=1"
+  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=2"
+  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=3"
+  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=4"
+  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=5"
