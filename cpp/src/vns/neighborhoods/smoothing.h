@@ -41,7 +41,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
     explicit TrajectorySmoothingNeighborhood(size_t max_trials = 10) : max_trials(max_trials) {}
 
-    opt<PLocalMove> get_move(PPlan plan) override {
+    opt<PLocalMove> get_move(PlanPtr plan) override {
 
         size_t trials = 0;
         while(++trials < max_trials) {

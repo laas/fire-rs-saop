@@ -262,8 +262,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     conf['vns']['configuration_name'] = vns_name
 
     # Call the C++ library that calculates the plan
-    res = up.plan_vns(flights, ignitions.as_cpp_raster(), terrain.as_cpp_raster(),
-                      json.dumps(conf))
+    res = up.plan_vns(flights, ignitions.as_cpp_raster(), terrain.as_cpp_raster(), json.dumps(conf))
 
     plan = res.final_plan()
 
@@ -531,6 +530,7 @@ scenario_factory_funcs = {'default': generate_scenario,
 
 vns_configurations = {
     'base': {
+        'max_restarts': 5,
         'neighborhoods': [
             {'name': 'dubins-opt'},
             {'name': 'one-insert',
@@ -540,6 +540,7 @@ vns_configurations = {
         ]
     },
     'with_smoothing': {
+        'max_restarts': 5,
         'neighborhoods': [
             {'name': 'trajectory-smoothing'},
             {'name': 'dubins-opt'},
@@ -549,6 +550,7 @@ vns_configurations = {
              "select_arbitrary_position": False}]
     },
     'full': {
+        'max_restarts': 5,
         'neighborhoods': [
             {'name': 'dubins-opt'},
             {'name': 'one-insert',
@@ -578,7 +580,11 @@ def main():
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
 
     # CLI argument parsing
-    parser = argparse.ArgumentParser(prog='benchmark.py')
+    FROMFILE_PREFIX_CHARS = '@'
+    parser = argparse.ArgumentParser(
+        prog='benchmark.py', fromfile_prefix_chars=FROMFILE_PREFIX_CHARS,
+        epilog="The arguments that start with `" + FROMFILE_PREFIX_CHARS + \
+               "' will be treated as files, and will be replaced by the arguments they contain.")
     parser.add_argument("--name",
                         help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.",
                         choices=scenario_factory_funcs.keys())

@@ -90,7 +90,7 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
         ASSERT(!generators.empty());
     }
 
-    opt<PLocalMove> get_move(PPlan plan) {
+    opt<PLocalMove> get_move(PlanPtr plan) {
         if(plan->num_segments() == 0)
             return {};
 

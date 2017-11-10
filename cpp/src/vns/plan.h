@@ -36,7 +36,7 @@ using json = nlohmann::json;
 using namespace std;
 
 struct Plan;
-typedef shared_ptr<Plan> PPlan;
+typedef shared_ptr<Plan> PlanPtr;
 
 struct Plan {
     TimeWindow time_window;
