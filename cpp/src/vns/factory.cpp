@@ -22,13 +22,13 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#include "factory.h"
+#include "factory.hpp"
 #include "../ext/json.hpp"
 
-#include "neighborhoods/dubins_optimization.h"
-#include "neighborhoods/insertions.h"
-#include "neighborhoods/smoothing.h"
-#include "neighborhoods/shuffling.h"
+#include "neighborhoods/dubins_optimization.hpp"
+#include "neighborhoods/insertions.hpp"
+#include "neighborhoods/smoothing.hpp"
+#include "neighborhoods/shuffling.hpp"
 
 using json = nlohmann::json;
 

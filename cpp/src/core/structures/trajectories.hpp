@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PROJECT_TRAJECTORIES_H
 
 #include <ostream>
-#include "trajectory.h"
+#include "trajectory.hpp"
 
 using namespace std;
 

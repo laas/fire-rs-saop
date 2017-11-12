@@ -26,8 +26,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PROJECT_TEST_REVERSIBLE_UPDATES_H
 
 
-#include "../../core/structures/trajectories.h"
-#include "../../core/updates/updates.h"
+#include "../../core/structures/trajectories.hpp"
+#include "../../core/updates/updates.hpp"
 #include <boost/test/included/unit_test.hpp>
 using namespace boost::unit_test;
 

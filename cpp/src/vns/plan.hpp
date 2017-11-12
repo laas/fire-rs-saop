@@ -26,10 +26,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_PLAN_H
 
 
-#include "../core/structures/trajectory.h"
-#include "fire_data.h"
+#include "../core/structures/trajectory.hpp"
+#include "fire_data.hpp"
 #include "../ext/json.hpp"
-#include "../core/structures/trajectories.h"
+#include "../core/structures/trajectories.hpp"
 
 using json = nlohmann::json;
 

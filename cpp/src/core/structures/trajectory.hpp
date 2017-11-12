@@ -33,10 +33,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <cassert>
 #include <memory>
 #include "../../ext/dubins.h"
-#include "waypoint.h"
-#include "uav.h"
-#include "../../utils.h"
-#include "../../ext/optional.h"
+#include "waypoint.hpp"
+#include "uav.hpp"
+#include "../../utils.hpp"
+#include "../../ext/optional.hpp"
 
 struct TrajectoryConfig {
     const UAV uav;

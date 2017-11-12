@@ -26,9 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
-#include "core/structures/trajectory.h"
-#include "raster.h"
-#include "vns/factory.h"
+#include "core/structures/trajectory.hpp"
+#include "raster.hpp"
+#include "vns/factory.hpp"
 
 namespace py = pybind11;
 

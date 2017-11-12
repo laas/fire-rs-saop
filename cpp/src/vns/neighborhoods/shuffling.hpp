@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_SHUFFLING_H
 #define PLANNING_CPP_SHUFFLING_H
 
-#include "../vns_interface.h"
+#include "../vns_interface.hpp"
 
 struct PlanPortionRemover : public Shuffler {
 

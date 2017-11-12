@@ -25,10 +25,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_SMOOTHING_H
 #define PLANNING_CPP_SMOOTHING_H
 
-#include "../../core/structures/trajectory.h"
-#include "../vns_interface.h"
-#include "../../utils.h"
-#include "moves.h"
+#include "../../core/structures/trajectory.hpp"
+#include "../vns_interface.hpp"
+#include "../../utils.hpp"
+#include "moves.hpp"
 
 struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
