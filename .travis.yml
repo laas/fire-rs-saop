@@ -5,7 +5,9 @@ services:
 before_install:
 - openssl aes-256-cbc -K $encrypted_9a59b02794aa_key -iv $encrypted_9a59b02794aa_iv
   -in clone_data_id.enc -out clone_data_id -d
+- chmod 700 clone_data_id
 - ssh-add clone_data_id &>/dev/null
+- rm clone_data_id
 - git clone ssh://git@redmine.laas.fr/laas/users/simon/fire-rs/fire-rs-data.git data/ &>/dev/null
 - docker pull abitmonn/firers-saop-dev
 - docker run -d -it --user=${USER_ID}:${GROUP_ID} --name saop -v `pwd`:/home/saop/code:z
