@@ -1,22 +1,25 @@
 sudo: required
-
 language: cpp
-
 services:
-  - docker
-
+- docker
 before_install:
-  - git clone https://github.com/fire-rs-laas/data.git
-  - docker pull abitmonn/firers-saop-dev
-  # start a container
-  - docker run -d -it --user=${USER_ID}:${GROUP_ID} --name saop -v `pwd`:/home/saop/code:z -v `pwd`/data:/home/saop/data:z abitmonn/firers-saop-dev
-  # build
-  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/sh -c "mkdir build-debug && cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4"
-
+- openssl aes-256-cbc -K $encrypted_9a59b02794aa_key -iv $encrypted_9a59b02794aa_iv
+  -in clone_data_id.enc -out clone_data_id -d
+- ssh-add clone_data_id &>/dev/null
+- git clone ssh://git@redmine.laas.fr/laas/users/simon/fire-rs/fire-rs-data.git data/ &>/dev/null
+- docker pull abitmonn/firers-saop-dev
+- docker run -d -it --user=${USER_ID}:${GROUP_ID} --name saop -v `pwd`:/home/saop/code:z
+  -v `pwd`/data:/home/saop/data:z abitmonn/firers-saop-dev
+- docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/sh -c "mkdir build-debug &&
+  cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4"
 script:
-  # run benchmark without 3D
-  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=1"
-  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=2"
-  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=3"
-  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=4"
-  - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=5"
+- docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python
+  python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=1"
+- docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python
+  python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=2"
+- docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python
+  python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=3"
+- docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python
+  python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=4"
+- docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c "PYTHONPATH=${PYTHONPATH}:/home/saop/code/python
+  python3 python/fire_rs/planning/benchmark.py --elevation=flat --instance=5"
