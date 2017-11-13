@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "core/structures/waypoint.h"
 #include <cmath>
 #include <memory>
+#include <iostream>
 
 #undef LSL
 #undef LSR
@@ -319,7 +320,12 @@ protected:
             R = (R_l + R_h) / 2;
 
             n_loops++;
-            ASSERT(n_loops < MAX_LOOPS); // This loop should converge faster than MAX_LOOPS
+            ASSERT(n_loops < MAX_LOOPS);
+            if (n_loops > MAX_LOOPS) {
+                std::cerr << "WARNING: Helix optimization do not converge.\tn_loops = " << n_loops
+                          << "\tz err:" << err << std::endl;
+                break;
+            }
         }
         return HelixOptimizationResult{best_r, best_L_2d, best_path2d};
     }
@@ -406,7 +412,11 @@ protected:
             alpha = (alpha_h + alpha_l) / 2;
 
             n_loops++;
-            ASSERT(n_loops <= MAX_LOOPS) // This loop should converge faster than MAX_LOOPS
+            ASSERT(n_loops < MAX_LOOPS);
+            if (n_loops > MAX_LOOPS) {
+                std::cerr << "WARNING: Spiral extension do not converge. n_loops = " << n_loops << std::endl; // This loop should converge faster than MAX_LOOPS
+                break;
+            }
         }
 
         return SpiralExtensionResult{Dubins3dPathType::SSLS, best_path_ext, best_L_si, best_L_ie};
