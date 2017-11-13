@@ -140,10 +140,18 @@ struct VariableNeighborhoodSearch {
      * @return
      */
     SearchResult search(Plan p, size_t max_restarts, size_t save_every=0, bool save_improvements=false) {
+        const clock_t search_start = clock();
+        auto seconds_since_start = [search_start]() { return (double (clock() - search_start)) / CLOCKS_PER_SEC; };
+
         SearchResult result(p);
 
         PlanPtr best_plan = make_shared<Plan>(p);
         PlanPtr best_plan_for_restart = make_shared<Plan>(p);
+
+        // a list of tuples (t, u) where 't' is a time in seconds reliative to the start of search and 'u' is the value
+        // of the best utility found a 't'
+        std::vector<std::pair<double, double>> utility_history;
+        utility_history.push_back(std::pair<double, double>(seconds_since_start(), best_plan->utility()));
 
 
         size_t current_iter = 0;
@@ -171,16 +179,23 @@ struct VariableNeighborhoodSearch {
                 shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 
                 // get move for current neighborhood
-                clock_t start = clock();
+                const clock_t start = clock();
                 const opt<PLocalMove> move = neighborhood->get_move(best_plan_for_restart);
-                clock_t end = clock();
+                const clock_t end = clock();
                 runtime_per_neighborhood[current_neighborhood] += double(end - start) / CLOCKS_PER_SEC;
 
                 if(move) {
                     // neighborhood generate a move, apply it
                     LocalMove& m = **move;
                     ASSERT(m.is_valid());
+
+                    // apply the move on best_plan_for_restart
                     m.apply();
+
+                    if(best_plan_for_restart->utility() < best_plan->utility()) {
+                        // best utility improved, record the improvement for offline analysis
+                        utility_history.emplace_back(std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
+                    }
 
                     printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int)current_neighborhood,
                            best_plan_for_restart->utility(), best_plan_for_restart->duration());
@@ -221,6 +236,9 @@ struct VariableNeighborhoodSearch {
             j["runtime"] = runtime_per_neighborhood[i];
             result.metadata["neighborhoods"].push_back(j);
         }
+        result.metadata["utility_history"] = json::array();
+        for(auto time_utility : utility_history)
+            result.metadata["utility_history"].push_back(json::array({time_utility.first, time_utility.second}));
         return result;
     }
 };
