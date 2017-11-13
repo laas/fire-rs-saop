@@ -1,18 +1,20 @@
 
+build: build-release
+
 # Builds all python extensions 
-build: FORCE
+build-release: FORCE
 	mkdir -p build
-	cd build && cmake ..
+	cd build && cmake -DCMAKE_BUILD_TYPE=Release ..
 	cd build && make
 
 build-debug: FORCE
 	mkdir -p build
-	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug
+	cd build && cmake -DCMAKE_BUILD_TYPE=Debug ..
 	cd build && make
 	
 build-testing: FORCE
 	mkdir -p build
-	cd build && cmake -DBUILD_TESTING=ON .. 
+	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
 	cd build && make
 
 # rebuilds project each time a C++ source is modified
@@ -30,23 +32,24 @@ docker_build_container:
 	docker/run.sh build
 
 # Run all unittests
-test-python: build FORCE
+test-python: build-testing FORCE
 	cd python && python3 -m unittest
 
 # Run python test for "planning-cpp"
-test-python-cpp: build FORCE
+test-python-cpp: build-testing FORCE
 	cd python && python3 -m unittest python.fire_rs.planning.test_uav_planning_cpp
 
 test-cpp: build-testing
 	./build/cpp/tests
 
-benchmark: build FORCE
+benchmark: build-release FORCE
 	cd python && PYTHONPATH="${PYTHONPATH}:./python/" python3 fire_rs/planning/benchmark.py
 
 # Remove the build folder and clean python source dir
 clean:
 	rm -r build
 	cd python && python3 setup.py clean --all
+	rm python/fire_rs/uav_planning.cpython-*.so
 
 # phantom task that always need to be run
 FORCE: ;
