@@ -281,27 +281,47 @@ protected:
     helix_optimization(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max, int k,
                        double delta_z) const {
 
-        DubinsPath optimal_path2d = {};
+        DubinsPath a_path2d = {};
+
         double R_l = r_min; // Lowest acceptable turn radius
         double R_h = 2 * r_min; // Highest acceptable turn radius
         double R = (R_l + R_h) / 2;
+
         double L_2d = 0.;
         double err = 1.;
         int n_loops = 0;
+
+        double best_r = R;
+        double best_err = std::numeric_limits<double>::infinity();
+        double best_L_2d = 0;
+        DubinsPath best_path2d = {};
+
+        double orig[3] = {start.x, start.y, start.dir};
+        double dest[3] = {end.x, end.y, end.dir};
+
         while (fabs(err) > TOLERANCE) {
-            double orig[3] = {start.x, start.y, start.dir};
-            double dest[3] = {end.x, end.y, end.dir};
-            int ret = dubins_init(orig, dest, R, &optimal_path2d);
+            int ret = dubins_init(orig, dest, R, &a_path2d);
             ASSERT(ret == 0);
-            L_2d = dubins_path_length(&optimal_path2d);
-            err = (L_2d + 2 * M_PI * k * R) * tan(gamma_max) - fabs(delta_z);
+            L_2d = dubins_path_length(&a_path2d);
+            err = (L_2d + 2 * M_PI * k * R) * tan(fabs(gamma_max)) - fabs(delta_z);
+            if (fabs(fabs(err) - fabs(best_err)) < TOLERANCE/2) {
+                break;
+            }
+
+            if (fabs(err) < fabs(best_err)) {
+                best_err = err;
+                best_r = R;
+                best_L_2d = L_2d;
+                best_path2d = a_path2d;
+            }
+
             if (err > 0) {R_h = R;} else {R_l = R;}
             R = (R_l + R_h) / 2;
 
             n_loops++;
             ASSERT(n_loops < MAX_LOOPS); // This loop should converge faster than MAX_LOOPS
         }
-        return HelixOptimizationResult{R, L_2d, optimal_path2d};
+        return HelixOptimizationResult{best_r, best_L_2d, best_path2d};
     }
 
     SpiralExtensionResult
