@@ -365,6 +365,10 @@ protected:
         }
 
         double err = L_init - fabs(delta_z/tan(gamma_max));
+        double best_err = std::numeric_limits<double>::infinity();
+        double best_L_si = 0;
+        double best_L_ie = 0;
+        DubinsPath best_path_ext = {};
         double L_ie = 0; // Length of the part of the path after the extension
         double L_si = fabs(alpha) * r_min; //Length of the path between the starting point an the intermediate point
         int n_loops = 0;
@@ -382,6 +386,18 @@ protected:
             L_ie = dubins_path_length(&path_ext);
 
             err = (L_ie + L_si) - fabs(delta_z/tan(gamma_max));
+
+            if (fabs(fabs(err) - fabs(best_err)) < TOLERANCE/2) {
+                break;
+            }
+
+            if (fabs(err) < fabs(best_err)) {
+                best_err = err;
+                best_L_si= L_si;
+                best_L_ie= L_ie;
+                best_path_ext = path_ext;
+            }
+
             if (err > 0) {
                 alpha_h = alpha;
             } else {
@@ -393,7 +409,7 @@ protected:
             ASSERT(n_loops <= MAX_LOOPS) // This loop should converge faster than MAX_LOOPS
         }
 
-        return SpiralExtensionResult{Dubins3dPathType::SSLS, path_ext, L_si, L_ie};
+        return SpiralExtensionResult{Dubins3dPathType::SSLS, best_path_ext, best_L_si, best_L_ie};
     }
 };
 
