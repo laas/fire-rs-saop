@@ -43,7 +43,10 @@ test-cpp: build-testing
 benchmark: build FORCE
 	cd python && PYTHONPATH="${PYTHONPATH}:./python/" python3 fire_rs/planning/benchmark.py
 
-
+# Remove the build folder and clean python source dir
+clean:
+	rm -r build
+	cd python && python3 setup.py clean --all
 
 # phantom task that always need to be run
 FORCE: ;
