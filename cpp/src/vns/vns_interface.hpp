@@ -193,7 +193,7 @@ struct VariableNeighborhoodSearch {
                     m.apply();
 
                     if(best_plan_for_restart->utility() < best_plan->utility()) {
-                        // best utility improved, record the improvement for offline analysis
+                        best_plan = make_shared<Plan>(*best_plan_for_restart);
                         utility_history.emplace_back(std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                     }
 
