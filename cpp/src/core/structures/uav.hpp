@@ -28,10 +28,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <vector>
 #include <cassert>
 #include "../../ext/dubins.h"
-#include "waypoint.h"
-#include "../../utils.h"
-#include "trajectory.h"
-#include "../../dubins3d.h"
+#include "waypoint.hpp"
+#include "../../utils.hpp"
+#include "trajectory.hpp"
+#include "../../dubins3d.hpp"
 
 
 struct UAV {

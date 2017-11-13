@@ -23,9 +23,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "../ext/dubins.h"
-#include "../dubins3d.h"
+#include "../dubins3d.hpp"
 #include <iostream>
-#include "../core/structures/waypoint.h"
+#include "../core/structures/waypoint.hpp"
 #include <boost/test/included/unit_test.hpp>
 using namespace boost::unit_test;
 using namespace std;

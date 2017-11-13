@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_VNS_INTERFACE_H
 
 #include <ctime>
-#include "plan.h"
+#include "plan.hpp"
 
 #include "../ext/json.hpp"
 using json = nlohmann::json;

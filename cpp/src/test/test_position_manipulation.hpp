@@ -25,13 +25,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <iostream>
 
 #include "../ext/dubins.h"
-#include "../core/structures/trajectory.h"
-#include "../raster.h"
-#include "../core/structures/uav.h"
-#include "../vns/vns_interface.h"
-#include "../vns/factory.h"
-#include "../vns/neighborhoods/dubins_optimization.h"
-#include "../vns/fire_data.h"
+#include "../core/structures/trajectory.hpp"
+#include "../raster.hpp"
+#include "../core/structures/uav.hpp"
+#include "../vns/vns_interface.hpp"
+#include "../vns/factory.hpp"
+#include "../vns/neighborhoods/dubins_optimization.hpp"
+#include "../vns/fire_data.hpp"
 #include <boost/test/included/unit_test.hpp>
 using namespace boost::unit_test;
 

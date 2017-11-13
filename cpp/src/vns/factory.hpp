@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PROJECT_VNS_FACTORY_H
 
 
-#include "vns_interface.h"
+#include "vns_interface.hpp"
 
 namespace vns {
 

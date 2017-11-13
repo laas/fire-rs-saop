@@ -26,9 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_MOVES_H
 
 
-#include "../plan.h"
-#include "../vns_interface.h"
-#include "../../core/updates/updates.h"
+#include "../plan.hpp"
+#include "../vns_interface.hpp"
+#include "../../core/updates/updates.hpp"
 
 
 /** A simple move that does nothing. Typically used to represent a fix-point in type-safe manner. */

@@ -25,9 +25,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_VISIBILITY_H
 #define PLANNING_CPP_VISIBILITY_H
 
-#include "../raster.h"
-#include "../core/structures/trajectory.h"
-#include "fire_data.h"
+#include "../raster.hpp"
+#include "../core/structures/trajectory.hpp"
+#include "fire_data.hpp"
 
 using namespace std;
 

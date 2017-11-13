@@ -22,6 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import matplotlib
 matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
 import matplotlib.cm
@@ -292,7 +293,10 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         elif layer == 'observedcells':
             geodatadisplay.draw_observedcells(res.final_plan().observations())
         elif layer == 'ignition_contour':
-            geodatadisplay.draw_ignition_contour(with_labels=True)
+            try:
+                geodatadisplay.draw_ignition_contour(with_labels=True)
+            except ValueError as e:
+                logging.warn(e)
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
 
@@ -574,7 +578,6 @@ def main():
     import pickle
     import os
     import argparse
-    import logging
     import joblib
 
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER

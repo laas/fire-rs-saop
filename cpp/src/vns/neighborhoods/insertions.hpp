@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_INSERTIONS_H
 #define PLANNING_CPP_INSERTIONS_H
 
-#include "moves.h"
+#include "moves.hpp"
 
 /** Neighborhood for generating Insert moves.
  *
