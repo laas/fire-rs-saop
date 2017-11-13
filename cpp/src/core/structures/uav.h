@@ -92,7 +92,7 @@ struct UAV {
     /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
     std::vector<Waypoint3d> path_sampling(const Waypoint3d &origin, const Waypoint3d &target, const double step_size) const {
         ASSERT(step_size > 0);
-        Dubins3dPathLength path = Dubins3dPathLength(origin, target, min_turn_radius, max_pitch_angle);
+        Dubins3dPath path = Dubins3dPath(origin, target, min_turn_radius, max_pitch_angle);
         std::vector<Waypoint3d> waypoints;
         for(double it=0; it<path.L_2d; it += step_size) {
             waypoints.push_back(path.sample(it));
