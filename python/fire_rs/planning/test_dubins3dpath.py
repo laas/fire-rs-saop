@@ -25,6 +25,7 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+import random
 import fire_rs.uav_planning as up
 
 if __name__ == '__main__':
@@ -43,6 +44,24 @@ if __name__ == '__main__':
     uav_max_turn_rate = 32. * np.pi / 180
     uav_max_pitch_angle = 6. / 180. * np.pi
     uav = up.UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+
+    ran = random.Random()
+
+    # Random trajectories
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    def random_wp_pair(n=np.inf):
+        for i in range(n):
+            yield ((ran.randrange(-200, 200), ran.randrange(-200, 200), ran.randrange(-200, 200), ran.random()*2*np.pi),
+                   (ran.randrange(-200, 200), ran.randrange(-200, 200), ran.randrange(-200, 200), ran.random()*2*np.pi))
+
+    for wp_pair in random_wp_pair(50):
+        print(wp_pair)
+        ax.plot(*traj(uav, wp_pair[0], wp_pair[1]))
+
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.show(block=False)
 
     # Examples of failing trajectories while planing but not here.
     fig = plt.figure()
