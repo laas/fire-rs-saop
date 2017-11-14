@@ -26,9 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
-#include "core/structures/trajectory.h"
-#include "raster.h"
-#include "vns/factory.h"
+#include "core/structures/trajectory.hpp"
+#include "raster.hpp"
+#include "vns/factory.hpp"
 
 namespace py = pybind11;
 
@@ -65,6 +65,9 @@ PYBIND11_MODULE(uav_planning, m) {
     m.doc() = "Python module for UAV trajectory planning";
 
     srand(0);
+#ifdef DEBUG
+    std::cerr << "Warning: Planning module compiled in debug mode. Expect slowness ;)\n";
+#endif
 
     py::class_<DRaster>(m, "DRaster")
             .def(py::init([](py::array_t<double, py::array::c_style | py::array::forcecast> arr,
@@ -193,8 +196,6 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("traversal_end", &FireData::traversal_end)
             .def_readonly("propagation_directions", &FireData::propagation_directions)
             .def_readonly("elevation", &FireData::elevation);
-//            .def_readonly_static("isochrone_timespan", &FireData::isochrone_timespan)
-//            .def_readonly("isochrones", &FireData::isochrones);
 
     py::class_<Waypoint3d>(m, "Waypoint")
             .def(py::init<const double, const double, const double, const double>(),
@@ -218,10 +219,16 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("min_turn_radius", &UAV::min_turn_radius)
             .def_readonly("max_air_speed", &UAV::max_air_speed)
             .def_readonly("max_pitch_angle", &UAV::max_pitch_angle)
-            .def("travel_distance", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)&UAV::travel_distance, py::arg("origin"), py::arg("destination"))
-            .def("travel_distance", (double (UAV::*)(const Waypoint &, const Waypoint &) const)&UAV::travel_distance, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)&UAV::travel_time, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", (double (UAV::*)(const Waypoint &, const Waypoint &) const)&UAV::travel_time, py::arg("origin"), py::arg("destination"));
+            .def("travel_distance", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)
+                    &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
+            .def("travel_distance", (double (UAV::*)(const Waypoint &, const Waypoint &) const)
+                    &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
+            .def("travel_time", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)
+                    &UAV::travel_time, py::arg("origin"), py::arg("destination"))
+            .def("travel_time", (double (UAV::*)(const Waypoint &, const Waypoint &) const)
+                    &UAV::travel_time, py::arg("origin"), py::arg("destination"))
+            .def("path_sampling", (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d &, const Waypoint3d &, const double) const)
+                    &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"));
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const TrajectoryConfig&>())
@@ -270,7 +277,7 @@ PYBIND11_MODULE(uav_planning, m) {
         const size_t save_every = conf["save_every"];
         const bool save_improvements = conf["save_improvements"];
         const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
-
+        const size_t max_restarts = conf["vns"]["max_restarts"];
 
         printf("Processing firedata data\n");
         double preprocessing_start = time();
@@ -288,7 +295,7 @@ PYBIND11_MODULE(uav_planning, m) {
         printf("Planning\n");
         auto vns = vns::build_from_config(conf["vns"].dump());
         const double planning_start = time();
-        auto res = vns->search(p, 0, save_every, save_improvements);
+        auto res = vns->search(p, max_restarts, save_every, save_improvements);
         const double planning_end = time();
         printf("Plan found\n");
         res.metadata["planning_time"] = planning_end - planning_start;

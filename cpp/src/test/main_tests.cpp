@@ -22,9 +22,9 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#include "test_dubins.h"
-#include "test_position_manipulation.h"
-#include "core/test_reversible_updates.h"
+#include "test_dubins.hpp"
+#include "test_position_manipulation.hpp"
+#include "core/test_reversible_updates.hpp"
 #include <boost/test/included/unit_test.hpp>
 using namespace boost::unit_test;
 

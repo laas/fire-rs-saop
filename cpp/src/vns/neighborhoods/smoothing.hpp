@@ -25,10 +25,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_SMOOTHING_H
 #define PLANNING_CPP_SMOOTHING_H
 
-#include "../../core/structures/trajectory.h"
-#include "../vns_interface.h"
-#include "../../utils.h"
-#include "moves.h"
+#include "../../core/structures/trajectory.hpp"
+#include "../vns_interface.hpp"
+#include "../../utils.hpp"
+#include "moves.hpp"
 
 struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
@@ -41,7 +41,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
     explicit TrajectorySmoothingNeighborhood(size_t max_trials = 10) : max_trials(max_trials) {}
 
-    opt<PLocalMove> get_move(PPlan plan) override {
+    opt<PLocalMove> get_move(PlanPtr plan) override {
 
         size_t trials = 0;
         while(++trials < max_trials) {

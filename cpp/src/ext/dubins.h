@@ -37,6 +37,7 @@
 #define EDUBPARAM     (2)   // Path parameterisitation error
 #define EDUBBADRHO    (3)   // the rho value is invalid
 #define EDUBNOPATH    (4)   // no connection between configurations with this word
+#define EDUBWRONGTYPE (5)   // the desired dubins2d type does not exist (out of [0, 5] bounds)
 
 // The various types of solvers for each of the path types
 typedef int (*DubinsWord)(double, double, double, double* );
@@ -79,6 +80,11 @@ typedef int (*DubinsPathSamplingCallback)(double q[3], double t, void* user_data
  * @return      - non-zero on error
  */
 int dubins_init( double q0[3], double q1[3], double rho, DubinsPath* path);
+
+/**
+ * As dubins_init but with a fix type of path.
+ * */
+int dubins_init_with_type( double q0[3], double q1[3], double rho, DubinsPath* path, int type);
 
 /**
  * Calculate the length of an initialised path

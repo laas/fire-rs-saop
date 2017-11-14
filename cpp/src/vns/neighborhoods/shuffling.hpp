@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_SHUFFLING_H
 #define PLANNING_CPP_SHUFFLING_H
 
-#include "../vns_interface.h"
+#include "../vns_interface.hpp"
 
 struct PlanPortionRemover : public Shuffler {
 
@@ -37,8 +37,11 @@ struct PlanPortionRemover : public Shuffler {
 
     void suffle(shared_ptr<Plan> plan) override {
         for(auto& traj : plan->core.trajectories) {
+            if(traj.first_modifiable() > traj.last_modifiable())
+                // trajectory has no modifiable parts, skip
+                continue;
+            
             const size_t num_removable = traj.last_modifiable() + 1 - traj.first_modifiable();
-            ASSERT(num_removable < traj.last_modifiable());
             const size_t to_remove_lb = (size_t) max(0, (int) floor(min_removal_portion * num_removable));
             const size_t to_remove_ub = (size_t) min((int) num_removable, (int) floor(max_removal_portion * num_removable));
             // number of segments to remove

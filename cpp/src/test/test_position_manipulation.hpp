@@ -25,13 +25,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <iostream>
 
 #include "../ext/dubins.h"
-#include "../core/structures/trajectory.h"
-#include "../raster.h"
-#include "../core/structures/uav.h"
-#include "../vns/vns_interface.h"
-#include "../vns/factory.h"
-#include "../vns/neighborhoods/dubins_optimization.h"
-#include "../vns/fire_data.h"
+#include "../core/structures/trajectory.hpp"
+#include "../raster.hpp"
+#include "../core/structures/uav.hpp"
+#include "../vns/vns_interface.hpp"
+#include "../vns/factory.hpp"
+#include "../vns/neighborhoods/dubins_optimization.hpp"
+#include "../vns/fire_data.hpp"
 #include <boost/test/included/unit_test.hpp>
 using namespace boost::unit_test;
 
@@ -42,7 +42,9 @@ void test_single_point_to_observe() {
     DRaster ignitions(100, 100, 0, 0, 25);
     ignitions.set(10, 10, 100);
 
-    auto fd = make_shared<FireData>(ignitions,ignitions);
+    DRaster elevation(100, 100, 0, 0, 25);
+
+    auto fd = make_shared<FireData>(ignitions, elevation);
 
     // only interested in the point ignited at time 100
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 100) };
@@ -67,7 +69,9 @@ void test_many_points_to_observe() {
         }
     }
 
-    auto fd = make_shared<FireData>(ignitions, ignitions);
+    DRaster elevation(100, 100, 0, 0, 1);
+
+    auto fd = make_shared<FireData>(ignitions, elevation);
     vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 10) };
     Plan p(confs, fd, TimeWindow{0, 110});
 
@@ -92,7 +96,9 @@ void test_many_points_to_observe_with_start_end_positions() {
         }
     }
 
-    auto fd = make_shared<FireData>(ignitions, ignitions);
+    DRaster elevation(100, 100, 0, 0, 1);
+
+    auto fd = make_shared<FireData>(ignitions, elevation);
     vector<TrajectoryConfig> confs { TrajectoryConfig(
             uav,
             start,
@@ -137,7 +143,9 @@ void test_projection_on_firefront() {
             }
         }
 
-        FireData fd(ignitions, ignitions);
+        DRaster elevation(100, 100, 0, 0, 1);
+
+        FireData fd(ignitions, elevation);
         auto res = fd.project_on_fire_front(Cell{1, 1}, 50.5);
         BOOST_CHECK(res && res->y == 50);
 
@@ -155,7 +163,9 @@ void test_projection_on_firefront() {
             }
         }
 
-        FireData fd(ignitions, ignitions);
+        DRaster elevation(10, 10, 0, 0, 1);
+
+        FireData fd(ignitions, elevation);
         auto res = fd.project_on_fire_front(Cell{1, 1}, 5.5);
         BOOST_CHECK(res && res->x == 5);
 
@@ -173,7 +183,10 @@ void test_projection_on_firefront() {
 
             }
         }
-        FireData fd(ignitions, ignitions);
+
+        DRaster elevation(100, 100, 0, 0, 1);
+
+        FireData fd(ignitions, elevation);
         for(size_t i=0; i<100; i++) {
             const size_t x = rand(0, 100);
             const size_t y = rand(0, 100);

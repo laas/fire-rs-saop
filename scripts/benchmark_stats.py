@@ -4,8 +4,11 @@ from pprint import pprint
 import copy
 import glob
 from functools import reduce
+import sys
 
-result_files = glob.glob("../../data/benchmark_stats/*/*.json")
+bench_name = "default" if len(sys.argv) <= 1 else sys.argv[1]
+
+result_files = glob.glob("../../data/benchmark_"+bench_name+"/*/*.json")
 
 all_lines = []
 

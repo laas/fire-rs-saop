@@ -26,9 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_DUBINS_OPTIMIZATION_H
 
 #include <cmath>
-#include "../../core/structures/trajectory.h"
-#include "../vns_interface.h"
-#include "moves.h"
+#include "../../core/structures/trajectory.hpp"
+#include "../vns_interface.hpp"
+#include "moves.hpp"
 
 
 /** Interface for objects generating orientation candidates for particular segments in a trajectory.  */
@@ -90,7 +90,7 @@ struct DubinsOptimizationNeighborhood final : public Neighborhood {
         ASSERT(!generators.empty());
     }
 
-    opt<PLocalMove> get_move(PPlan plan) {
+    opt<PLocalMove> get_move(PlanPtr plan) {
         if(plan->num_segments() == 0)
             return {};
 

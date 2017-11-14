@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_VNS_INTERFACE_H
 
 #include <ctime>
-#include "plan.h"
+#include "plan.hpp"
 
 #include "../ext/json.hpp"
 using json = nlohmann::json;
@@ -35,8 +35,8 @@ class LocalMove {
 
 public:
     /** Reference to the plan this move is created for. */
-    PPlan base_plan;
-    explicit LocalMove(PPlan base) : base_plan(base) {};
+    PlanPtr base_plan;
+    explicit LocalMove(PlanPtr base) : base_plan(base) {};
 
     /** Cost that would result in applying the move. */
     virtual double utility() = 0;
@@ -53,8 +53,8 @@ public:
     }
 
     /** Creates a new Plan on which the move is applied */
-    PPlan apply_on_new() {
-        PPlan ret = make_shared<Plan>(*base_plan);
+    PlanPtr apply_on_new() {
+        PlanPtr ret = make_shared<Plan>(*base_plan);
         apply_on(ret);
         return ret;
     }
@@ -62,7 +62,7 @@ public:
 protected:
     /** Internal method that applies the move on a given plan.
      * This should not be used directly. Instead you should the apply/apply_on_new public methods. */
-    virtual void apply_on(PPlan target) = 0;
+    virtual void apply_on(PlanPtr target) = 0;
 
 private:
     /** NEVER ACCESS. This is only to make the plan visible in gdb which has problems with shared points. */
@@ -83,7 +83,7 @@ struct Neighborhood {
      * If the optional return is non-empty, local search will apply this move regardless of its cost.
      * Hence subclasses should make sure the returned values contribute to the overall quality of the plan.
      * */
-    virtual opt<PLocalMove> get_move(PPlan plan) = 0;
+    virtual opt<PLocalMove> get_move(PlanPtr plan) = 0;
 
     virtual std::string name() const = 0;
 };
@@ -119,12 +119,13 @@ public:
 };
 
 struct VariableNeighborhoodSearch {
-    shared_ptr<Shuffler> shuffler;
     /** Sequence of neighborhoods to be considered by VNS. */
     vector<shared_ptr<Neighborhood>> neighborhoods;
 
+    shared_ptr<Shuffler> shuffler;
+
     explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler> shuffler) :
-            neighborhoods(neighborhoods) {
+            neighborhoods(neighborhoods), shuffler(shuffler) {
         ASSERT(neighborhoods.size() > 0);
     }
 
@@ -139,10 +140,19 @@ struct VariableNeighborhoodSearch {
      * @return
      */
     SearchResult search(Plan p, size_t max_restarts, size_t save_every=0, bool save_improvements=false) {
-        ASSERT(max_restarts == 0) // currently no shaking function
+        const clock_t search_start = clock();
+        auto seconds_since_start = [search_start]() { return (double (clock() - search_start)) / CLOCKS_PER_SEC; };
 
         SearchResult result(p);
-        PPlan best_plan = make_shared<Plan>(p);
+
+        PlanPtr best_plan = make_shared<Plan>(p);
+        PlanPtr best_plan_for_restart = make_shared<Plan>(p);
+
+        // a list of tuples (t, u) where 't' is a time in seconds reliative to the start of search and 'u' is the value
+        // of the best utility found a 't'
+        std::vector<std::pair<double, double>> utility_history;
+        utility_history.push_back(std::pair<double, double>(seconds_since_start(), best_plan->utility()));
+
 
         size_t current_iter = 0;
         size_t num_restarts = 0;
@@ -154,28 +164,44 @@ struct VariableNeighborhoodSearch {
         while(num_restarts <= max_restarts) {
             // choose first neighborhood
             size_t current_neighborhood = 0;
+            if(num_restarts > 0) {
+                std::cout << "Shuffling\n";
+                best_plan_for_restart = std::make_shared<Plan>(*best_plan);
+                shuffler->suffle(best_plan_for_restart);
+                if(save_improvements) {
+                    // save plan even though its is probably not an improvement
+                    result.intermediate_plans.push_back(*best_plan_for_restart);
+                }
+            }
 
             while(current_neighborhood < neighborhoods.size()) {
                 // current neighborhood
                 shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 
                 // get move for current neighborhood
-                clock_t start = clock();
-                const opt<PLocalMove> move = neighborhood->get_move(best_plan);
-                clock_t end = clock();
+                const clock_t start = clock();
+                const opt<PLocalMove> move = neighborhood->get_move(best_plan_for_restart);
+                const clock_t end = clock();
                 runtime_per_neighborhood[current_neighborhood] += double(end - start) / CLOCKS_PER_SEC;
 
                 if(move) {
                     // neighborhood generate a move, apply it
                     LocalMove& m = **move;
                     ASSERT(m.is_valid());
+
+                    // apply the move on best_plan_for_restart
                     m.apply();
 
+                    if(best_plan_for_restart->utility() < best_plan->utility()) {
+                        best_plan = make_shared<Plan>(*best_plan_for_restart);
+                        utility_history.emplace_back(std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
+                    }
+
                     printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int)current_neighborhood,
-                           best_plan->utility(), best_plan->duration());
+                           best_plan_for_restart->utility(), best_plan_for_restart->duration());
 
                     if(save_improvements) {
-                        result.intermediate_plans.push_back(*best_plan);
+                        result.intermediate_plans.push_back(*best_plan_for_restart);
                         saved = true;
                     }
 
@@ -186,11 +212,16 @@ struct VariableNeighborhoodSearch {
                     current_neighborhood += 1;
                 }
                 if(!saved && save_every != 0 && (current_iter % save_every) == 0) {
-                    result.intermediate_plans.push_back(*best_plan);
+                    result.intermediate_plans.push_back(*best_plan_for_restart);
                 }
                 saved = false;
                 current_iter += 1;
             }
+
+            if(best_plan_for_restart->utility() < best_plan->utility()) {
+                best_plan = best_plan_for_restart;
+            }
+
             // no neighborhood provides improvements, restart or exit.
             num_restarts += 1;
         }
@@ -201,10 +232,13 @@ struct VariableNeighborhoodSearch {
         for(size_t i=0; i<neighborhoods.size(); i++) {
             json j;
             auto& n = *neighborhoods[i];
-            j["name"] = n.name();
+            j["name"] = std::to_string(i) + "-" + n.name();
             j["runtime"] = runtime_per_neighborhood[i];
             result.metadata["neighborhoods"].push_back(j);
         }
+        result.metadata["utility_history"] = json::array();
+        for(auto time_utility : utility_history)
+            result.metadata["utility_history"].push_back(json::array({time_utility.first, time_utility.second}));
         return result;
     }
 };

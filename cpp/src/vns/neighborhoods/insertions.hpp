@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_INSERTIONS_H
 #define PLANNING_CPP_INSERTIONS_H
 
-#include "moves.h"
+#include "moves.hpp"
 
 /** Neighborhood for generating Insert moves.
  *
@@ -52,7 +52,7 @@ struct OneInsertNbhd final : public Neighborhood {
               select_arbitrary_trajectory(select_arbitrary_trajectory),
               select_arbitrary_position(select_arbitrary_position) {}
 
-    opt<PLocalMove> get_move(PPlan p) override {
+    opt<PLocalMove> get_move(PlanPtr p) override {
         IdentityMove no_move(p);
         opt<PLocalMove> best = {};
 
@@ -87,7 +87,7 @@ private:
     }
 
     /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
-    opt<PLocalMove> get_move_for_random_possible_observation(PPlan p) {
+    opt<PLocalMove> get_move_for_random_possible_observation(PlanPtr p) {
         ASSERT(!p->core.empty())
         if(p->possible_observations.empty())
             return {};
@@ -204,7 +204,7 @@ private:
      * if inserted after the insert_loc^th observation of the traj_id^th trajectory, the UAV will reach it when
      * the underneath cell is on fire.
      * If there is no such cell, an empty option is returned. */
-    opt<Segment3d> get_projection(const PPlan p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
+    opt<Segment3d> get_projection(const PlanPtr p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
         const Trajectory& traj = p->core[traj_id];
         // start iteration from last valid projection made.
         opt<Segment3d> current_segment = to_project;
