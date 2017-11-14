@@ -41,11 +41,12 @@ import fire_rs.geodata.display
 import fire_rs.uav_planning as up
 
 from fire_rs.geodata.geo_data import TimedPoint, Area
+from fire_rs.geodata.geo_data import Point as GeoData_Point
 
 
 _DBL_MAX = np.finfo(np.float64).max
 
-DISCRETE_ELEVATION_INTERVAL = 1
+DISCRETE_ELEVATION_INTERVAL = 100
 
 Waypoint = namedtuple('Waypoint', 'x, y, z, dir')
 
@@ -243,14 +244,21 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # This makes color bar ranges and fire front contour plots nicer
     ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
 
-    # Retrieve trajectory configurations
-    flights = [f.as_trajectory_config() for f in scenario.flights]
-
     # If 'use_elevation' option is True, plan using a 3d environment. If not, use a flat terrain.
     # This is independent of the output plot, because it can show the real terrain even in flat terrain mode.
     terrain = env.raster.slice('elevation')
     if (output_options_planning['use_elevation'] == False):
         terrain.data['elevation'] = np.zeros_like(terrain.data['elevation'])
+
+    # Transform altitude of UAV bases from agl (above ground level) to absolute
+    for f in scenario.flights:
+        base_h = terrain["elevation"][terrain.array_index(
+            GeoData_Point(f.uav.base_waypoint[0], f.uav.base_waypoint[1]))]
+        # The new WP is (old_x, old_y, old_z + elevation[old_x, old_y], old_dir)
+        f.uav.base_waypoint = Waypoint(
+            f.uav.base_waypoint[0], f.uav.base_waypoint[1], f.uav.base_waypoint[2] + base_h, f.uav.base_waypoint[3])
+    # Retrieve trajectory configurations in as C++ objects
+    flights = [f.as_trajectory_config() for f in scenario.flights]
 
     conf = {
         'min_time': scenario.time_window_start,
