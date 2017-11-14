@@ -219,10 +219,16 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("min_turn_radius", &UAV::min_turn_radius)
             .def_readonly("max_air_speed", &UAV::max_air_speed)
             .def_readonly("max_pitch_angle", &UAV::max_pitch_angle)
-            .def("travel_distance", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)&UAV::travel_distance, py::arg("origin"), py::arg("destination"))
-            .def("travel_distance", (double (UAV::*)(const Waypoint &, const Waypoint &) const)&UAV::travel_distance, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)&UAV::travel_time, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", (double (UAV::*)(const Waypoint &, const Waypoint &) const)&UAV::travel_time, py::arg("origin"), py::arg("destination"));
+            .def("travel_distance", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)
+                    &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
+            .def("travel_distance", (double (UAV::*)(const Waypoint &, const Waypoint &) const)
+                    &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
+            .def("travel_time", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)
+                    &UAV::travel_time, py::arg("origin"), py::arg("destination"))
+            .def("travel_time", (double (UAV::*)(const Waypoint &, const Waypoint &) const)
+                    &UAV::travel_time, py::arg("origin"), py::arg("destination"))
+            .def("path_sampling", (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d &, const Waypoint3d &, const double) const)
+                    &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"));
 
     py::class_<Trajectory>(m, "Trajectory") 
             .def(py::init<const TrajectoryConfig&>())
