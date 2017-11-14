@@ -24,8 +24,16 @@
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.colors import LightSource
 import numpy as np
+import random
+
 import fire_rs.uav_planning as up
+
+from fire_rs.firemodel.propagation import propagate_from_points, Environment
+from fire_rs.geodata.environment import World
+from fire_rs.geodata.display import GeoDataDisplay, GeoDataDisplay3d, plot3d_elevation_shade
 
 if __name__ == '__main__':
 
@@ -33,11 +41,28 @@ if __name__ == '__main__':
         origin = up.Waypoint(orig[0], orig[1], orig[2], orig[3])
         target = up.Waypoint(dest[0], dest[1], dest[2], dest[3])
 
-        samples = uav.path_sampling(origin, target, 1)
+        samples = uav.path_sampling(origin, target, 10)
         x = [wp.x for wp in samples]
         y = [wp.y for wp in samples]
         z = [wp.z for wp in samples]
         return x, y, z
+
+    #
+    # def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25):
+    #     ls = LightSource(azdeg=120, altdeg=45)
+    #     rgb = ls.shade(z, cmap=cm.terrain, vert_exag=0.1, blend_mode='overlay')
+    #     return ax.plot_surface(x, y, z, facecolors=rgb, rstride=5, cstride=5, linewidth=0, antialiased=True, shade=True)
+
+
+    def plot_fake_terrain(ax):
+        area = ((545000.0, 548000.0), (6211000.0, 6214000.0))
+        w = World()
+        elev = w.get_elevation(area)
+        Z = elev["elevation"][:]
+        X = np.arange(0, elev.data.shape[0], 1)
+        Y = np.arange(0, elev.data.shape[1], 1)
+        X, Y = np.meshgrid(X, Y)
+        plot3d_elevation_shade(ax, X, Y, Z)
 
     uav_speed = 18.  # m/s
     uav_max_turn_rate = 32. * np.pi / 180
@@ -45,32 +70,44 @@ if __name__ == '__main__':
     uav = up.UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
 
 
-    fig = plt.figure()
-    # Low altitude
-    ax = fig.add_subplot(131, projection='3d')
-    wp_ma = [(0, 0, 0, np.pi), (100, 50, 10, np.pi), (0, 100, 20, 0)]
+    # fig = plt.figure()
+    # # Low altitude
+    # ax = fig.add_subplot(131, projection='3d')
+
+    area = ((545000.0, 548000.0), (6211000.0, 6214000.0))
+
+    # Fetch scenario environment data
+    env = Environment(area, wind_speed=0, wind_dir=0)
+    terrain = env.raster.slice('elevation')
+
+    geo_dis = GeoDataDisplay3d.pyplot_figure(terrain)
+    geo_dis.draw_elevation_surface(with_colorbar=False)
+    wp_ma = [(area[0][0]+1000, area[1][0]+1000, 380, np.pi), (area[0][0]+1100, area[1][0]+1000, 400, np.pi), (area[0][0]+1000, area[1][0]+1100, 450, 0)]
     for i in range(len(wp_ma) - 1):
-        ax.plot(*traj(uav, wp_ma[i], wp_ma[i + 1]))
+        print(wp_ma)
+        tr = traj(uav, wp_ma[i], wp_ma[i + 1])
+        print(tr)
+        geo_dis.axis.plot(*tr, zorder=1000)
     plt.xlabel("x")
     plt.ylabel("y")
     plt.title("Low Altitude")
 
-    # Medium altitude
-    ax2 = fig.add_subplot(132, projection='3d')
-    wp_ma = [(0, 0, 0, 0), (100, 50, 20, np.pi/4), (0, 50, 60, np.pi/4)]
-    for i in range(len(wp_ma)-1):
-        ax2.plot(*traj(uav, wp_ma[i], wp_ma[i + 1]))
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.title("Medium Altitude")
-
-    # High altitude
-    ax3 = fig.add_subplot(133, projection='3d')
-    wp_ha = [(0, 0, 0, 0), (100, 50, 100, np.pi/4), (150, 150, 200, 3*np.pi/4), (0, 0, 0, 0),]
-    for i in range(len(wp_ha) - 1):
-        ax3.plot(*traj(uav, wp_ha[i], wp_ha[i + 1]))
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.title("High Altitude")
+    # # Medium altitude
+    # ax2 = fig.add_subplot(132, projection='3d')
+    # wp_ma = [(0, 0, 0, 0), (100, 50, 20, np.pi/4), (0, 50, 60, np.pi/4)]
+    # for i in range(len(wp_ma)-1):
+    #     ax2.plot(*traj(uav, wp_ma[i], wp_ma[i + 1]))
+    # plt.xlabel("x")
+    # plt.ylabel("y")
+    # plt.title("Medium Altitude")
+    #
+    # # High altitude
+    # ax3 = fig.add_subplot(133, projection='3d')
+    # wp_ha = [(0, 0, 0, 0), (100, 50, 100, np.pi/4), (150, 150, 200, 3*np.pi/4), (0, 0, 0, 0),]
+    # for i in range(len(wp_ha) - 1):
+    #     ax3.plot(*traj(uav, wp_ha[i], wp_ha[i + 1]))
+    # plt.xlabel("x")
+    # plt.ylabel("y")
+    # plt.title("High Altitude")
 
     plt.show(block=True)
