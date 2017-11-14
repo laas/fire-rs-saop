@@ -51,6 +51,17 @@ def get_pyplot_figure_and_axis():
     fire_ax.xaxis.set_major_formatter(ax_formatter)
     return fire_fig, fire_ax
 
+def get_pyplot_figure_and_axis_3d():
+    fire_fig = plt.figure()
+    fire_ax = fire_fig.gca(projection='3d', aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
+
+    ax_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
+    fire_ax.w_yaxis.set_major_formatter(ax_formatter)
+    fire_ax.w_xaxis.set_major_formatter(ax_formatter)
+    # niceMathTextForm = ticker.ScalarFormatter(useMathText=True)
+    fire_ax.w_zaxis.set_major_formatter(ax_formatter)
+    return fire_fig, fire_ax
+
 
 def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwargs):
     plane_vertices = (np.array([[3.5, 6], [4, 5], [4, 4], [7, 4], [7, 3],
@@ -191,6 +202,22 @@ class GeoDataDisplay:
         cb.set_label("Ignition time [min]")
         self._colorbars.append(cb)
 
+
+class GeoDataDisplay3d(GeoDataDisplay):
+    def __init__(self, figure, axis, geodata):
+        super().__init__(figure, axis, geodata)
+        self._x_mesh_geo, self._y_mesh_geo = np.meshgrid(self._x_ticks, self._y_ticks)
+
+    @classmethod
+    def pyplot_figure(cls, geodata):
+        figure, axis = get_pyplot_figure_and_axis_3d()
+        return cls(figure, axis, geodata)
+
+    def draw_elevation_surface(self, **kwargs):
+        shade = plot3d_elevation_shade(self.axis, self._x_mesh_geo, self._y_mesh_geo,
+                                     self._geodata['elevation'].T[::-1, ...],
+                                     dx=self._geodata.cell_width, dy=self._geodata.cell_height, **kwargs)
+        self._drawings.append(shade)
 
 # "DisplayExtension" classes attach new member functions to a GeoDataDisplay to make it able to display other data
 class DisplayExtension(metaclass=abc.ABCMeta):
