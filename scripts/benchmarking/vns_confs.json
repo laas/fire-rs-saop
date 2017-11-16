@@ -15,7 +15,7 @@
         ]
     },
     "with_smoothing": {
-        "max_restarts": "5",
+        "max_restarts": 5,
         "neighborhoods": [
             {"name": "trajectory-smoothing", 
                 "max_trials": 10},

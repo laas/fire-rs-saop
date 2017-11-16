@@ -558,7 +558,7 @@ vns_configurations = {
         ]
     },
     "with_smoothing": {
-        "max_restarts": "5",
+        "max_restarts": 5,
         "neighborhoods": [
             {"name": "trajectory-smoothing",
                 "max_trials": 10},
@@ -579,7 +579,6 @@ vns_configurations = {
             {"name": "dubins-opt",
                 "max_trials": 10,
                 "generators": [
-                    {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
