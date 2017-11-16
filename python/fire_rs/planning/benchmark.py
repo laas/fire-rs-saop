@@ -540,6 +540,7 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
                           'newsletter': generate_scenario_newsletter,}
 
+
 vns_configurations = {
     'base': {
         'max_restarts': 5,
@@ -587,8 +588,19 @@ def main():
     import os
     import argparse
     import joblib
+    import json
 
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
+
+
+    class JsonReadAction(argparse.Action):
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            try:
+               return json.load(values)
+            except json.JSONDecodeError as err:
+                raise argparse.ArgumentError(self, err)
+
 
     # CLI argument parsing
     FROMFILE_PREFIX_CHARS = '@'
@@ -615,9 +627,10 @@ def main():
                         help="Format of the output figures",
                         choices=['png', 'svg', 'eps', 'pdf'],
                         default='png')
+    parser.add_argument("--vns-conf", action=JsonReadAction, type=argparse.FileType('r'),
+                        help="Load VNS configurations from a JSON file")
     parser.add_argument("--vns",
-                        help="Select a predefined configuration for VNS search.",
-                        choices=vns_configurations.keys(),
+                        help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
                         default='base')
     parser.add_argument("--elevation",
                         help="Source of elevation considered by the planning algorithm",
@@ -651,6 +664,9 @@ def main():
     if args.format == 'eps' or args.format == 'pdf':
         matplotlib.rcParams['font.family'] = 'serif'
         matplotlib.rcParams['text.usetex'] = True
+
+    if args.vns_conf:
+        vns_configurations = vars(args.vns_conf)
 
     # Set-up output options
     output_options = {'plot':{}, 'planning':{}, }
