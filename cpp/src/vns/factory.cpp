@@ -39,12 +39,42 @@ void check_field_is_present(json json_obj, std::string field) {
     ASSERT((json_obj).find(field) != (json_obj).end())
 }
 
+shared_ptr<OrientationChangeGenerator> build_dubins_optimization_generator(const json& conf) {
+    check_field_is_present(conf, "name");
+    const std::string& name = conf["name"];
+
+    if(name == "MeanOrientationChangeGenerator") {
+        return shared_ptr<OrientationChangeGenerator>(new MeanOrientationChangeGenerator);
+    }
+
+    if(name == "RandomOrientationChangeGenerator") {
+        return shared_ptr<OrientationChangeGenerator>(new RandomOrientationChangeGenerator);
+    }
+
+    if(name == "FlipOrientationChangeGenerator") {
+        return shared_ptr<OrientationChangeGenerator>(new FlipOrientationChangeGenerator);
+    }
+
+    std::cerr << "Unrecognized OrientationChangeGenerator name: " << name << std::endl;
+    std::exit(1);
+
+}
+
 shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
     const std::string& name = conf["name"];
 
-
     if(name == "dubins-opt") {
-        return make_shared<DubinsOptimizationNeighborhood>();
+        check_field_is_present(conf, "max_trials");
+        const size_t max_trials = conf["max_trials"];
+
+        check_field_is_present(conf, "generators");
+        auto generators_j = conf["generators"];
+        vector<shared_ptr<OrientationChangeGenerator>> generators;
+        for(auto& it : generators_j) {
+            generators.push_back(build_dubins_optimization_generator(it));
+        }
+        
+        return make_shared<DubinsOptimizationNeighborhood>(generators, max_trials);
     }
     if(name == "one-insert") {
         check_field_is_present(conf, "max_trials");
@@ -58,7 +88,9 @@ shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
         );
     }
     if(name == "trajectory-smoothing") {
-        return make_shared<TrajectorySmoothingNeighborhood>();
+        check_field_is_present(conf, "max_trials");
+        const size_t max_trials = conf["max_trials"];
+        return make_shared<TrajectorySmoothingNeighborhood>(max_trials);
     }
 
     std::cerr << "Unrecognized neighborhood name: " << name << std::endl;

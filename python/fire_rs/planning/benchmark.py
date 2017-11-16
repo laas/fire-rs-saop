@@ -542,44 +542,60 @@ scenario_factory_funcs = {'default': generate_scenario,
 
 
 vns_configurations = {
-    'base': {
-        'max_restarts': 5,
-        'neighborhoods': [
-            {'name': 'dubins-opt'},
-            {'name': 'one-insert',
-             'max_trials': 50,
-             "select_arbitrary_trajectory": False,
-             "select_arbitrary_position": False}
+    "base": {
+        "max_restarts": 5,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 10,
+                "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False}
         ]
     },
-    'with_smoothing': {
-        'max_restarts': 5,
-        'neighborhoods': [
-            {'name': 'trajectory-smoothing'},
-            {'name': 'dubins-opt'},
-            {'name': 'one-insert',
-             'max_trials': 50,
-             "select_arbitrary_trajectory": False,
-             "select_arbitrary_position": False}]
+    "with_smoothing": {
+        "max_restarts": "5",
+        "neighborhoods": [
+            {"name": "trajectory-smoothing",
+                "max_trials": 10},
+            {"name": "dubins-opt",
+                "max_trials": 10,
+                "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False}]
     },
-    'full': {
-        'max_restarts': 5,
-        'neighborhoods': [
-            {'name': 'dubins-opt'},
-            {'name': 'one-insert',
-             'max_trials': 50,
-             "select_arbitrary_trajectory": False,
-             "select_arbitrary_position": False},
-            {'name': 'one-insert',
-             'max_trials': 200,
-             "select_arbitrary_trajectory": True,
-             "select_arbitrary_position": False},
-            {'name': 'one-insert',
-             'max_trials': 200,
-             "select_arbitrary_trajectory": True,
-             "select_arbitrary_position": True}
+    "full": {
+        "max_restarts": 5,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 10,
+                "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": True}
         ]
-    },
+    }
 }
 
 
