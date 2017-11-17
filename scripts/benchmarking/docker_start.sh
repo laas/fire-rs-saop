@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-DATA_REPO=${FIRERS_DATA:-git@github.com:fire-rs-laas/data.git}
+DATA_REPO=${FIRERS_DATA:-ssh://git@redmine.laas.fr/laas/users/simon/fire-rs/fire-rs-data.git}
 CODE_REPO="`pwd`/../.."
 
 # create a temporary directory in which to run the benchmark
@@ -13,7 +13,17 @@ cd $DIR
 
 # fetch clean data and code repository (non commited changes are ignored!)
 echo "Fetching repositories"
-git clone $DATA_REPO data
+if test -d $DATA_REPO; then
+	echo "Making a symbolic link to $DATA_REPO"
+    ln --symbolic $DATA_REPO data
+else
+	echo "FIRERS_DATA is not defined, trying to clone from "$DATA_REPO
+	if ! git clone $DATA_REPO data; then
+		echo "'git clone' failed! exiting..."
+		exit 1
+	fi
+fi
+
 git clone $CODE_REPO fire-rs-saop
 cd fire-rs-saop
 git submodule update --init --recursive
