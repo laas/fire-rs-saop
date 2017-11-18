@@ -14,8 +14,22 @@ cd $DIR
 # fetch clean data and code repository (non commited changes are ignored!)
 echo "Fetching repositories"
 if test -d $DATA_REPO; then
-	echo "Making a symbolic link to $DATA_REPO"
-    ln --symbolic $DATA_REPO data
+	echo "Creating "$(pwd)"/data"
+	mkdir data && cd data
+	echo "Making a symbolics link to $DATA_REPO"
+	if ! ln --symbolic $DATA_REPO/dem; then
+		echo "Cannot create a symbolic link to $DATA_REPO/dem"
+		exit 1
+	fi
+	if ! ln --symbolic $DATA_REPO/wind; then
+		echo "Cannot create a symbolic link to $DATA_REPO/wind"
+		exit 1
+	fi
+		if ! ln --symbolic $DATA_REPO/landcover; then
+		echo "Cannot create a symbolic link to $DATA_REPO/landcover"
+		exit 1
+	fi
+	cd ..
 else
 	echo "FIRERS_DATA is not defined, trying to clone from "$DATA_REPO
 	if ! git clone $DATA_REPO data; then
