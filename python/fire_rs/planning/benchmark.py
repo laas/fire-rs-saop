@@ -41,11 +41,12 @@ import fire_rs.geodata.display
 import fire_rs.uav_planning as up
 
 from fire_rs.geodata.geo_data import TimedPoint, Area
+from fire_rs.geodata.geo_data import Point as GeoData_Point
 
 
 _DBL_MAX = np.finfo(np.float64).max
 
-DISCRETE_ELEVATION_INTERVAL = 1
+DISCRETE_ELEVATION_INTERVAL = 100
 
 Waypoint = namedtuple('Waypoint', 'x, y, z, dir')
 
@@ -243,14 +244,21 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # This makes color bar ranges and fire front contour plots nicer
     ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
 
-    # Retrieve trajectory configurations
-    flights = [f.as_trajectory_config() for f in scenario.flights]
-
     # If 'use_elevation' option is True, plan using a 3d environment. If not, use a flat terrain.
     # This is independent of the output plot, because it can show the real terrain even in flat terrain mode.
     terrain = env.raster.slice('elevation')
     if (output_options_planning['use_elevation'] == False):
         terrain.data['elevation'] = np.zeros_like(terrain.data['elevation'])
+
+    # Transform altitude of UAV bases from agl (above ground level) to absolute
+    for f in scenario.flights:
+        base_h = terrain["elevation"][terrain.array_index(
+            GeoData_Point(f.uav.base_waypoint[0], f.uav.base_waypoint[1]))]
+        # The new WP is (old_x, old_y, old_z + elevation[old_x, old_y], old_dir)
+        f.uav.base_waypoint = Waypoint(
+            f.uav.base_waypoint[0], f.uav.base_waypoint[1], f.uav.base_waypoint[2] + base_h, f.uav.base_waypoint[3])
+    # Retrieve trajectory configurations in as C++ objects
+    flights = [f.as_trajectory_config() for f in scenario.flights]
 
     conf = {
         'min_time': scenario.time_window_start,
@@ -532,45 +540,61 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
                           'newsletter': generate_scenario_newsletter,}
 
+
 vns_configurations = {
-    'base': {
-        'max_restarts': 5,
-        'neighborhoods': [
-            {'name': 'dubins-opt'},
-            {'name': 'one-insert',
-             'max_trials': 50,
-             "select_arbitrary_trajectory": False,
-             "select_arbitrary_position": False}
+    "base": {
+        "max_restarts": 5,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 10,
+                "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False}
         ]
     },
-    'with_smoothing': {
-        'max_restarts': 5,
-        'neighborhoods': [
-            {'name': 'trajectory-smoothing'},
-            {'name': 'dubins-opt'},
-            {'name': 'one-insert',
-             'max_trials': 50,
-             "select_arbitrary_trajectory": False,
-             "select_arbitrary_position": False}]
+    "with_smoothing": {
+        "max_restarts": 5,
+        "neighborhoods": [
+            {"name": "trajectory-smoothing",
+                "max_trials": 10},
+            {"name": "dubins-opt",
+                "max_trials": 10,
+                "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False}]
     },
-    'full': {
-        'max_restarts': 5,
-        'neighborhoods': [
-            {'name': 'dubins-opt'},
-            {'name': 'one-insert',
-             'max_trials': 50,
-             "select_arbitrary_trajectory": False,
-             "select_arbitrary_position": False},
-            {'name': 'one-insert',
-             'max_trials': 200,
-             "select_arbitrary_trajectory": True,
-             "select_arbitrary_position": False},
-            {'name': 'one-insert',
-             'max_trials': 200,
-             "select_arbitrary_trajectory": True,
-             "select_arbitrary_position": True}
+    "full": {
+        "max_restarts": 5,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 10,
+                "generators": [
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": True}
         ]
-    },
+    }
 }
 
 
@@ -579,8 +603,19 @@ def main():
     import os
     import argparse
     import joblib
+    import json
 
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
+
+
+    class JsonReadAction(argparse.Action):
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            try:
+               return json.load(values)
+            except json.JSONDecodeError as err:
+                raise argparse.ArgumentError(self, err)
+
 
     # CLI argument parsing
     FROMFILE_PREFIX_CHARS = '@'
@@ -607,9 +642,10 @@ def main():
                         help="Format of the output figures",
                         choices=['png', 'svg', 'eps', 'pdf'],
                         default='png')
+    parser.add_argument("--vns-conf", action=JsonReadAction, type=argparse.FileType('r'),
+                        help="Load VNS configurations from a JSON file")
     parser.add_argument("--vns",
-                        help="Select a predefined configuration for VNS search.",
-                        choices=vns_configurations.keys(),
+                        help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
                         default='base')
     parser.add_argument("--elevation",
                         help="Source of elevation considered by the planning algorithm",
@@ -643,6 +679,9 @@ def main():
     if args.format == 'eps' or args.format == 'pdf':
         matplotlib.rcParams['font.family'] = 'serif'
         matplotlib.rcParams['text.usetex'] = True
+
+    if args.vns_conf:
+        vns_configurations = vars(args.vns_conf)
 
     # Set-up output options
     output_options = {'plot':{}, 'planning':{}, }
