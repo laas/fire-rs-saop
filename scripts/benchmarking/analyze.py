@@ -34,6 +34,8 @@ def sample(x_space, step_func):
 # sampled times on which to plot utility history in [0.001, 10] (seconds)
 x = np.logspace(-3, 1, num=10000)
 
+table_data_point = [0.1, 1, 10]
+
 bench_name = "default" if len(sys.argv) <= 1 else sys.argv[1]
 
 # set benchmark dir to the most recent sub folder(i.e. last by name since date is in the name)
@@ -71,6 +73,7 @@ for f in result_files:
     hist = [(pt[0], pt[1]) for pt in j["utility_history"]]
     y = np.array(sample(x, hist))
     res["utility_history"] = y
+    res["utility_history_short"] = np.array(sample(table_data_point, hist))
 
 
     for n in j["neighborhoods"]:
@@ -94,6 +97,8 @@ def best_util(instance):
 # Adds a column giving the best utility for each problem instance
 df["utility_star"] = df.apply(lambda row: best_util(row['instance']), axis=1)
 
+
+
 for conf in df["configuration_name"].unique():
     # create a new dataframe restricted to the current vns configuration
     df_of_conf = df[df["configuration_name"]==conf]
@@ -103,6 +108,16 @@ for conf in df["configuration_name"].unique():
                                      in df_of_conf[['utility_history', 'utility_star']].iterrows()]
     # mean of all utility histories for the current configuration
     mean_utility_history = np.mean(normalized_utility_histories, axis=0)
+
+
+    # extract all utility histories and normalize them (a normalized utility of 1 means the best utility for the given instance)
+    normalized_short_utility_histories = [ (hist+0.001) / (u_star+0.001) for (_, (hist, u_star))
+                                     in df_of_conf[['utility_history_short', 'utility_star']].iterrows()]
+    # mean of all utility histories for the current configuration
+    mean_short_utility_history = np.mean(normalized_short_utility_histories, axis=0)
+
+    fmt = " & ".join("{0:.2f}".format(i) for i in mean_short_utility_history)
+    print(conf.ljust(25)+" & "+str(fmt) + "  \\\\")
 
     plt.loglog(x, mean_utility_history, label=texify(conf))
 
