@@ -540,10 +540,11 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
                           'newsletter': generate_scenario_newsletter,}
 
+max_planning_time = 5.
 
 vns_configurations = {
     "base": {
-        "max_restarts": 5,
+        "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
                 "max_trials": 200,
@@ -558,7 +559,7 @@ vns_configurations = {
         ]
     },
     "base_no_dubins": {
-        "max_restarts": 5,
+        "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "trajectory-smoothing",
                 "max_trials": 200},
@@ -568,7 +569,7 @@ vns_configurations = {
                 "select_arbitrary_position": False}]
     },
     "full": {
-        "max_restarts": 5,
+        "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
                 "max_trials": 200,
@@ -587,6 +588,34 @@ vns_configurations = {
                 "max_trials": 200,
                 "select_arbitrary_trajectory": True,
                 "select_arbitrary_position": True}
+        ]
+    },
+    "insert_traj": {
+        "max_time": max_planning_time,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 200,
+                "generators": [
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 300,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": False},
+        ]
+    },
+    "insert_pos": {
+        "max_time": max_planning_time,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 200,
+                "generators": [
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 300,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": True},
         ]
     }
 }

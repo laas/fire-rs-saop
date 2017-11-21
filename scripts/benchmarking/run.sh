@@ -49,13 +49,15 @@ sleep 2
 
 BENCH_CMD="python3 python/fire_rs/planning/benchmark.py --num_instance=15 --elevation=flat --background=ignition_contour"
 
-mkdir -p data/benchmark_archive && mv -f data/benchmark/* data/benchmark_archive/
+mkdir -p data/benchmark_archive && sudo mv -f data/benchmark/* data/benchmark_archive/
 
 bash ${EXEC} "make build-release"
 
 bash ${EXEC} "${BENCH_CMD} --vns=base"
 bash ${EXEC} "${BENCH_CMD} --vns=full"
 bash ${EXEC} "${BENCH_CMD} --vns=base_no_dubins"
+bash ${EXEC} "${BENCH_CMD} --vns=insert_traj"
+bash ${EXEC} "${BENCH_CMD} --vns=insert_pos"
 
 cp -r data/benchmark results
 
