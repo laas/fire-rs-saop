@@ -105,8 +105,15 @@ shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string 
     for(auto& it : neighborhoods_confs) {
         ns.push_back(build_neighborhood(it));
     }
+    check_field_is_present(j, "shuffler");
+    check_field_is_present(j["shuffler"], "min_removal_ratio");
+    check_field_is_present(j["shuffler"], "max_removal_ratio");
+    const double min_removal_ratio = j["shuffler"]["min_removal_ratio"];
+    const double max_removal_ratio = j["shuffler"]["max_removal_ratio"];
 
-    return make_shared<VariableNeighborhoodSearch>(ns, make_shared<PlanPortionRemover>(0., 1.));
+    return make_shared<VariableNeighborhoodSearch>(
+            ns,
+            make_shared<PlanPortionRemover>(min_removal_ratio, max_removal_ratio));
 }
 
 std::shared_ptr<VariableNeighborhoodSearch> vns::build_default() {

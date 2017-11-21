@@ -556,7 +556,12 @@ vns_configurations = {
                 "max_trials": 50,
                 "select_arbitrary_trajectory": False,
                 "select_arbitrary_position": False}
-        ]
+        ],
+        "shuffler": {
+            "max_removal_ratio": 1.,
+            "min_removal_ratio": 0.
+
+        }
     },
     "base_no_dubins": {
         "max_time": max_planning_time,
@@ -564,7 +569,12 @@ vns_configurations = {
             {"name": "one-insert",
                 "max_trials": 50,
                 "select_arbitrary_trajectory": False,
-                "select_arbitrary_position": False}]
+                "select_arbitrary_position": False}],
+        "shuffler": {
+            "max_removal_ratio": 1.,
+            "min_removal_ratio": 0.
+
+        }
     },
     "full": {
         "max_time": max_planning_time,
@@ -572,6 +582,7 @@ vns_configurations = {
             {"name": "dubins-opt",
                 "max_trials": 200,
                 "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
@@ -586,7 +597,40 @@ vns_configurations = {
                 "max_trials": 200,
                 "select_arbitrary_trajectory": True,
                 "select_arbitrary_position": True}
-        ]
+        ],
+        "shuffler": {
+            "max_removal_ratio": 1.,
+            "min_removal_ratio": 0.
+
+        }
+    },
+    "full_no_shuffling": {
+        "max_time": max_planning_time,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 200,
+                "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": True}
+        ],
+        "shuffler": {
+            "max_removal_ratio": 0.,
+            "min_removal_ratio": 0.
+
+        }
     },
     "insert_traj": {
         "max_time": max_planning_time,
@@ -594,13 +638,19 @@ vns_configurations = {
             {"name": "dubins-opt",
                 "max_trials": 200,
                 "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
-                "max_trials": 300,
+                "max_trials": 200,
                 "select_arbitrary_trajectory": True,
                 "select_arbitrary_position": False},
-        ]
+        ],
+        "shuffler": {
+            "max_removal_ratio": 1.,
+            "min_removal_ratio": 0.
+
+        }
     },
     "insert_pos": {
         "max_time": max_planning_time,
@@ -608,13 +658,39 @@ vns_configurations = {
             {"name": "dubins-opt",
                 "max_trials": 200,
                 "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
-                "max_trials": 300,
+                "max_trials": 200,
                 "select_arbitrary_trajectory": True,
                 "select_arbitrary_position": True},
-        ]
+        ],
+        "shuffler": {
+            "max_removal_ratio": 1.,
+            "min_removal_ratio": 0.
+
+        }
+    },
+    "insert_pos_no_shuffling": {
+        "max_time": max_planning_time,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 200,
+                "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": True},
+        ],
+        "shuffler": {
+            "max_removal_ratio": 0.,
+            "min_removal_ratio": 0.
+
+        }
     },
     "full_smoothing": {
         "max_time": max_planning_time,
@@ -622,6 +698,7 @@ vns_configurations = {
             {"name": "dubins-opt",
                 "max_trials": 200,
                 "generators": [
+                    {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "trajectory-smoothing",
@@ -638,7 +715,12 @@ vns_configurations = {
                 "max_trials": 200,
                 "select_arbitrary_trajectory": True,
                 "select_arbitrary_position": True}
-        ]
+        ],
+        "shuffler": {
+            "max_removal_ratio": 1.,
+            "min_removal_ratio": 0.
+
+        }
     }
 }
 
