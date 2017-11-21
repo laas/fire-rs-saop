@@ -35,7 +35,10 @@ struct PlanPortionRemover : public Shuffler {
     const double min_removal_portion;
     const double max_removal_portion;
 
-    void suffle(shared_ptr<Plan> plan) override {
+    void shuffle(PlanPtr plan, size_t iter) override {
+        if(iter == 0)
+            return;
+
         for(auto& traj : plan->core.trajectories) {
             if(traj.first_modifiable() > traj.last_modifiable())
                 // trajectory has no modifiable parts, skip

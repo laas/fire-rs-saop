@@ -90,7 +90,7 @@ struct Neighborhood {
 
 struct Shuffler {
 public:
-    virtual void suffle(shared_ptr<Plan> plan) = 0;
+    virtual void shuffle(shared_ptr<Plan> plan, size_t iter) = 0;
 };
 
 
@@ -164,14 +164,13 @@ struct VariableNeighborhoodSearch {
         while(seconds_since_start() < max_time_secs) {
             // choose first neighborhood
             size_t current_neighborhood = 0;
-            if(num_restarts > 0) {
-                std::cout << "Shuffling\n";
-                best_plan_for_restart = std::make_shared<Plan>(*best_plan);
-                shuffler->suffle(best_plan_for_restart);
-                if(save_improvements) {
-                    // save plan even though its is probably not an improvement
-                    result.intermediate_plans.push_back(*best_plan_for_restart);
-                }
+            
+            std::cout << "Shuffling\n";
+            best_plan_for_restart = std::make_shared<Plan>(*best_plan);
+            shuffler->shuffle(best_plan_for_restart, num_restarts);
+            if(save_improvements) {
+                // save plan even though its is probably not an improvement
+                result.intermediate_plans.push_back(*best_plan_for_restart);
             }
 
             while(seconds_since_start() < max_time_secs && current_neighborhood < neighborhoods.size()) {
