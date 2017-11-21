@@ -8,6 +8,16 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
+from matplotlib import rc
+# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+## for Palatino and other serif fonts use:
+rc('font',**{'family':'serif','serif':['Times']})
+rc('text', usetex=True)
+
+
+def texify(name):
+    return name.replace("_", "-")
+
 
 def sample(x_space, step_func):
     """Sample a piecewise constant function at each point in x_space.
@@ -94,7 +104,7 @@ for conf in df["configuration_name"].unique():
     # mean of all utility histories for the current configuration
     mean_utility_history = np.mean(normalized_utility_histories, axis=0)
 
-    plt.loglog(x, mean_utility_history, label=conf)
+    plt.loglog(x, mean_utility_history, label=texify(conf))
 
 plt.legend(loc="upper right")
 plt.show()
