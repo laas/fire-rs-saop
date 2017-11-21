@@ -546,7 +546,7 @@ vns_configurations = {
         "max_restarts": 5,
         "neighborhoods": [
             {"name": "dubins-opt",
-                "max_trials": 10,
+                "max_trials": 200,
                 "generators": [
                     {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
@@ -557,17 +557,11 @@ vns_configurations = {
                 "select_arbitrary_position": False}
         ]
     },
-    "with_smoothing": {
+    "base_no_dubins": {
         "max_restarts": 5,
         "neighborhoods": [
             {"name": "trajectory-smoothing",
-                "max_trials": 10},
-            {"name": "dubins-opt",
-                "max_trials": 10,
-                "generators": [
-                    {"name": "MeanOrientationChangeGenerator"},
-                    {"name": "RandomOrientationChangeGenerator"},
-                    {"name": "FlipOrientationChangeGenerator"}]},
+                "max_trials": 200},
             {"name": "one-insert",
                 "max_trials": 50,
                 "select_arbitrary_trajectory": False,
@@ -577,7 +571,7 @@ vns_configurations = {
         "max_restarts": 5,
         "neighborhoods": [
             {"name": "dubins-opt",
-                "max_trials": 10,
+                "max_trials": 200,
                 "generators": [
                     {"name": "RandomOrientationChangeGenerator"},
                     {"name": "FlipOrientationChangeGenerator"}]},
@@ -651,6 +645,9 @@ def main():
                         help="Source of elevation considered by the planning algorithm",
                         choices=['flat', 'dem', 'discrete'],
                         default='dem')
+    parser.add_argument("--num_instances",
+                        help="Number of benchmarks to generate if needed",
+                        default=40)
     parser.add_argument("--dpi",
                         help="Resolution of the output figures",
                         type=int,
@@ -680,8 +677,9 @@ def main():
         matplotlib.rcParams['font.family'] = 'serif'
         matplotlib.rcParams['text.usetex'] = True
 
-    if args.vns_conf:
-        vns_configurations = vars(args.vns_conf)
+    # TODO: the vns conf file is not picked up (definitions used are the one defined in this file)
+    # if args.vns_conf:
+    #     vns_configurations = vars(args.vns_conf)
 
     # Set-up output options
     output_options = {'plot':{}, 'planning':{}, }
@@ -709,7 +707,7 @@ def main():
         scenario_generator = scenario_factory_funcs['default']
         if benchmark_name in scenario_factory_funcs:
             scenario_generator = scenario_factory_funcs[benchmark_name]
-        scenarios = [scenario_generator() for i in range(40)]
+        scenarios = [scenario_generator() for i in range(int(args.num_instances))]
         pickle.dump(scenarios, open(scenarios_file, "wb"))
     else:
         scenarios = pickle.load(open(scenarios_file, "rb"))
