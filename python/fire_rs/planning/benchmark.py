@@ -672,6 +672,20 @@ vns_configurations = {
 
         }
     },
+    "insert_pos_no_dubins": {
+        "max_time": max_planning_time,
+        "neighborhoods": [
+            {"name": "one-insert",
+             "max_trials": 200,
+             "select_arbitrary_trajectory": True,
+             "select_arbitrary_position": True},
+        ],
+        "shuffler": {
+            "max_removal_ratio": 1.,
+            "min_removal_ratio": 0.
+
+        }
+    },
     "insert_pos_no_shuffling": {
         "max_time": max_planning_time,
         "neighborhoods": [
