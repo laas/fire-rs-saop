@@ -31,7 +31,7 @@ subdirs = list(glob.glob("*/"))
 subdirs.sort()
 bench_dir = subdirs[-1]
 
-result_files = glob.glob(bench_dir + "data/benchmark/*/*.json")
+result_files = glob.glob(bench_dir + "results/*/*.json")
 
 # array that will be used to store one dictionnary per (benchmark-instance, vns-configuration) instance
 all_lines = []
