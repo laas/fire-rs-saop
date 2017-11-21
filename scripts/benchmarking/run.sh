@@ -36,7 +36,7 @@ cd ..
 
 # start container in the background
 echo "Starting docker container 'saop'"
-docker run -d -it --user=${USER_ID}:${GROUP_ID} --name saop \
+docker run -d -it --user=${UID}:${GID} --name saop \
        -v `pwd`/fire-rs-saop:/home/saop/code:z \
        -v ${DATA_REPO}:/home/saop/data:z \
        abitmonn/firers-saop-dev
@@ -47,14 +47,15 @@ docker ps
 echo "Docker container 'saop' started"
 sleep 2
 
+BENCH_CMD="python3 python/fire_rs/planning/benchmark.py --num_instance=15 --elevation=flat --background=ignition_contour"
 
-mkdir -p data/benchmark_archive && mv data/benchmark/* data/benchmark_archive/
+mkdir -p data/benchmark_archive && mv -f data/benchmark/* data/benchmark_archive/
 
 bash ${EXEC} "make build-release"
 
-bash ${EXEC} "python3 python/fire_rs/planning/benchmark.py --vns-conf=scripts/benchmarking/vns_confs.json --vns=base --elevation=flat"
-bash ${EXEC} "python3 python/fire_rs/planning/benchmark.py --vns-conf=scripts/benchmarking/vns_confs.json --vns=full --elevation=flat"
-#bash docker_exec.sh "python3 python/fire_rs/planning/benchmark.py --vns-conf=scripts/benchmarking/vns_confs.json --vns=with_smoothing --elevation=flat"
+bash ${EXEC} "${BENCH_CMD} --vns=base"
+bash ${EXEC} "${BENCH_CMD} --vns=full"
+bash ${EXEC} "${BENCH_CMD} --vns=base_no_dubins"
 
 cp -r data/benchmark results
 
