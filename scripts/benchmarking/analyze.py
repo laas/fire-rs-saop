@@ -89,7 +89,7 @@ for conf in df["configuration_name"].unique():
     df_of_conf = df[df["configuration_name"]==conf]
 
     # extract all utility histories and normalize them (a normalized utility of 1 means the best utility for the given instance)
-    normalized_utility_histories = [ hist / u_star for (_, (hist, u_star))
+    normalized_utility_histories = [ (hist+0.001) / (u_star+0.001) for (_, (hist, u_star))
                                      in df_of_conf[['utility_history', 'utility_star']].iterrows()]
     # mean of all utility histories for the current configuration
     mean_utility_history = np.mean(normalized_utility_histories, axis=0)
