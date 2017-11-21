@@ -119,6 +119,8 @@ public:
 };
 
 struct VariableNeighborhoodSearch {
+    const bool verbose = false;
+
     /** Sequence of neighborhoods to be considered by VNS. */
     vector<shared_ptr<Neighborhood>> neighborhoods;
 
@@ -165,7 +167,8 @@ struct VariableNeighborhoodSearch {
             // choose first neighborhood
             size_t current_neighborhood = 0;
 
-            std::cout << "Shuffling\n";
+            if(verbose)
+                std::cout << "Shuffling\n";
             best_plan_for_restart = std::make_shared<Plan>(*best_plan);
             shuffler->shuffle(best_plan_for_restart, num_restarts);
             if(save_improvements) {
@@ -196,8 +199,9 @@ struct VariableNeighborhoodSearch {
                         utility_history.emplace_back(std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                     }
 
-                    printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int)current_neighborhood,
-                           best_plan_for_restart->utility(), best_plan_for_restart->duration());
+                    if(verbose)
+                        printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int)current_neighborhood,
+                               best_plan_for_restart->utility(), best_plan_for_restart->duration());
 
                     if(save_improvements) {
                         result.intermediate_plans.push_back(*best_plan_for_restart);
