@@ -53,6 +53,7 @@ mkdir -p data/benchmark_archive && sudo mv -f data/benchmark/* data/benchmark_ar
 
 bash ${EXEC} "make build-release"
 
+bash ${EXEC} "${BENCH_CMD} --vns=full_smoothing"
 bash ${EXEC} "${BENCH_CMD} --vns=base"
 bash ${EXEC} "${BENCH_CMD} --vns=full"
 bash ${EXEC} "${BENCH_CMD} --vns=base_no_dubins"

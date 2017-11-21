@@ -540,7 +540,7 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
                           'newsletter': generate_scenario_newsletter,}
 
-max_planning_time = 5.
+max_planning_time = 10.
 
 vns_configurations = {
     "base": {
@@ -561,8 +561,6 @@ vns_configurations = {
     "base_no_dubins": {
         "max_time": max_planning_time,
         "neighborhoods": [
-            {"name": "trajectory-smoothing",
-                "max_trials": 200},
             {"name": "one-insert",
                 "max_trials": 50,
                 "select_arbitrary_trajectory": False,
@@ -616,6 +614,30 @@ vns_configurations = {
                 "max_trials": 300,
                 "select_arbitrary_trajectory": True,
                 "select_arbitrary_position": True},
+        ]
+    },
+    "full_smoothing": {
+        "max_time": max_planning_time,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 200,
+                "generators": [
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "trajectory-smoothing",
+             "max_trials": 200},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": True}
         ]
     }
 }
