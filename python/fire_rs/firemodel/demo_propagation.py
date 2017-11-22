@@ -33,11 +33,11 @@ if __name__ == "__main__":
     area = ((480060.0, 485060.0), (6210074.0, 6215074.0))
     env = propagation.Environment(area, wind_speed=5., wind_dir=0.)
     ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
-    fire = propagation.propagate_from_points(env, ignition_point, 3000)
+    fire = propagation.propagate_from_points(env, ignition_point, 9000)
 
     gdd = GeoDataDisplay.pyplot_figure(env.raster.combine(fire.ignitions().slice(["ignition"])))
     gdd.draw_elevation_shade(with_colorbar=False)
     gdd.draw_wind_quiver()
     gdd.draw_ignition_contour(with_labels=True)
-    plot_ignition_point(gdd.axis, ignition_point)
+    gdd.draw_ignition_points(ignition_point)
     plt.plot(block=True)
