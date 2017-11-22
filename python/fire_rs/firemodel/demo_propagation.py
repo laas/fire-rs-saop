@@ -23,6 +23,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """Simple demo showcasing how to use the fire propagation module and how to display the result"""
+import matplotlib.cm
 import matplotlib.pyplot as plt
 
 from fire_rs.firemodel import propagation
@@ -36,8 +37,8 @@ if __name__ == "__main__":
     fire = propagation.propagate_from_points(env, ignition_point, 9000)
 
     gdd = GeoDataDisplay.pyplot_figure(env.raster.combine(fire.ignitions().slice(["ignition"])))
-    gdd.draw_elevation_shade(with_colorbar=False)
+    gdd.draw_elevation_shade(with_colorbar=False, cmap=matplotlib.cm.terrain)
     gdd.draw_wind_quiver()
-    gdd.draw_ignition_contour(with_labels=True)
+    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.plasma)
     gdd.draw_ignition_points(ignition_point)
     plt.plot(block=True)

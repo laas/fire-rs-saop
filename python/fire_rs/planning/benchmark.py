@@ -157,8 +157,8 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         if colorbar_time_range is not None:
             color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0]/60, vmax=colorbar_time_range[1]/60)
         self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
-                                   norm=color_norm, cmap=matplotlib.cm.gist_rainbow,
-                                                zorder=PlanDisplayExtension.TRAJECTORY_LAYER))
+                                                norm=color_norm, cmap=matplotlib.cm.gist_rainbow,
+                                                zorder=PlanDisplayExtension.FOREGROUND_LAYER))
         if kwargs.get('with_colorbar', False):
             cb = self._figure.colorbar(self._drawings[-1], ax=self.axis, shrink=0.65, aspect=20)
             cb.set_label("Flight time [min]")
@@ -177,7 +177,7 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         x = [wp.x for wp in sampled_waypoints]
         y = [wp.y for wp in sampled_waypoints]
         self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color,
-                                                zorder=PlanDisplayExtension.TRAJECTORY_LAYER))
+                                                zorder=PlanDisplayExtension.FOREGROUND_LAYER))
         # TODO: implement legend
 
     def _draw_segments_extension(self, *args, **kwargs):
@@ -192,28 +192,28 @@ class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
         end_y = [s.end.y for s in segments]
 
         self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='D',
-                                                zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
+                                                zorder=PlanDisplayExtension.FOREGROUND_OVERLAY_LAYER))
         self._drawings.append(self.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>',
-                                                zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
+                                                zorder=PlanDisplayExtension.FOREGROUND_OVERLAY_LAYER))
 
         start_base = self.plan_trajectory.segments[0]
         finish_base = self.plan_trajectory.segments[-1]
 
         self._drawings.append(
             self.axis.scatter(start_base.start.x, start_base.start.y, s=10, edgecolor='black', c=color, marker='o',
-                              zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
+                              zorder=PlanDisplayExtension.FOREGROUND_OVERLAY_LAYER))
         self._drawings.append(
             self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10, edgecolor='black', c=color, marker='o',
-                              zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
+                              zorder=PlanDisplayExtension.FOREGROUND_OVERLAY_LAYER))
 
         for i in range(len(segments)):
             self._drawings.append(self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c=color, linewidth=2,
-                                                 zorder=PlanDisplayExtension.TRAJECTORY_LAYER))
+                                                 zorder=PlanDisplayExtension.FOREGROUND_LAYER))
 
     def _draw_observedcells(self, observations, **kwargs):
         for ptt in observations:
             self.axis.scatter(ptt.as_tuple()[0][0], ptt.as_tuple()[0][1], s=4, c=(0., 1., 0., .5),
-                              zorder=PlanDisplayExtension.RASTER_OVERLAY_LAYER, edgecolors='none', marker='s')
+                              zorder=PlanDisplayExtension.BACKGROUND_OVERLAY_LAYER, edgecolors='none', marker='s')
 
 
 def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):

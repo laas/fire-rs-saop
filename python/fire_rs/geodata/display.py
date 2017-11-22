@@ -80,11 +80,13 @@ def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):
     if not nfronts:
         lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
         nfronts = int(np.clip(int((lim[1]-lim[0])/60)*10, 3, 20))
-    return ax.contour(x, y, ignition_times, nfronts, cmap=matplotlib.cm.gist_rainbow, **kwargs)
+    if not 'cmap' in kwargs:
+        kwargs['cmap'] = matplotlib.cm.gist_rainbow
+    return ax.contour(x, y, ignition_times, nfronts, **kwargs)
 
 
 def plot_elevation_contour(ax, x, y, z, **kwargs):
-    contour = ax.contour(x, y, z, 15, cmap=matplotlib.cm.gist_earth)
+    contour = ax.contour(x, y, z, 15, cmap=kwargs.get('cmap', matplotlib.cm.gist_earth))
     # labels = plt.clabel(contour, inline=1, fontsize=10)
     return contour
 
@@ -95,9 +97,10 @@ def plot_elevation_shade(ax, x, y, z, dx=25, dy=25, image_scale=None, **kwargs):
         image_scale = (x[0][0], x[0][x.shape[0] - 1], y[0][0], y[y.shape[0] - 1][0])
     ls = LightSource(azdeg=315, altdeg=35)
     ax.imshow(ls.hillshade(z, vert_exag=1, dx=dx, dy=dy), extent=image_scale, cmap='gray')
-    return ax.imshow(ls.shade(z, cmap=matplotlib.cm.gist_earth, blend_mode='overlay', vert_exag=1, dx=dx, dy=dy,
-                              vmin=cbar_lim[0], vmax=cbar_lim[1]),
-                     extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1], cmap=matplotlib.cm.gist_earth)
+    return ax.imshow(ls.shade(z, cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), blend_mode='overlay', vert_exag=1,
+                              dx=dx, dy=dy, vmin=cbar_lim[0], vmax=cbar_lim[1]),
+                     extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
+                     cmap=kwargs.get('cmap', matplotlib.cm.gist_earth))
 
 
 def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
@@ -168,8 +171,7 @@ class GeoDataDisplay:
         igni[igni >= np.finfo(np.float64).max] = np.nan
 
         # plot fire front with contour lines in minutes
-        self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks, igni.T / 60.),
-                              **kwargs)
+        self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks, igni.T / 60., **kwargs))
 
         if with_labels:
             self._add_ignition_contour_labels()
@@ -205,10 +207,10 @@ class GeoDataDisplay:
 
 # "DisplayExtension" classes attach new member functions to a GeoDataDisplay to make it able to display other data
 class DisplayExtension(metaclass=abc.ABCMeta):
-    RASTER_LAYER = 0
-    RASTER_OVERLAY_LAYER = 100
-    TRAJECTORY_LAYER = 200
-    TRAJECTORY_OVERLAY_LAYER = 300
+    BACKGROUND_LAYER = 0
+    BACKGROUND_OVERLAY_LAYER = 100
+    FOREGROUND_LAYER = 200
+    FOREGROUND_OVERLAY_LAYER = 300
 
     @abc.abstractmethod
     def extend(self, geodatadisplay):
