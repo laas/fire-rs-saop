@@ -65,6 +65,7 @@ class Environment:
         self._clustering = None
 
     @property
+    @deprecated
     def clustering(self):
         if self._clustering is None:
             base_for_clustering = self.raster.slice(['wind_angle', 'wind_velocity', 'fuel', 'moisture'])
@@ -215,6 +216,7 @@ class FirePropagation:
                     d[x + dx, y + dy][2] = y
                     self._push_to_propagation_queue(x + dx, y + dy, t + dt)
 
+    @deprecated
     def information_matrix(self):
         d = self.prop_data.clone(fill_value=0, dtype=[('env_cluster', 'int32'), ('propagation_angle', 'float64'),
                                                       ('propagation_speed', 'float64'), ('error_on_speed', 'float64')])
@@ -231,6 +233,7 @@ class FirePropagation:
         cc = cluster_multi_layer(c, {'propagation_angle': 0.1}, already_clustered=['env_cluster'], cluster_layer_name='information_clustering')
         return d.combine(cc)
 
+    @deprecated
     def information_gain(self, x, y):
         def pred(x, y):
             return self.prop_data.data[x, y][1], self.prop_data.data[x, y][2]
