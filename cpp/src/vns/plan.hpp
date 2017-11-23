@@ -42,12 +42,14 @@ struct Plan {
     TimeWindow time_window;
     Trajectories core;
     shared_ptr<FireData> firedata;
-    vector<Point3dTimeWindow> possible_observations;
+    vector<PointTimeWindow> possible_observations;
+    vector<PointTimeWindow> actual_observations;
 
     Plan(const Plan& plan) = default;
 
-    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
-            : time_window(tw), core(traj_confs), firedata(fire_data)
+    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+         vector<PointTimeWindow> actual_observations)
+            : time_window(tw), core(traj_confs), firedata(fire_data), actual_observations(actual_observations)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
@@ -60,11 +62,15 @@ struct Plan {
                     Cell c{x, y};
                     possible_observations.push_back(
                             //FIXME: This shouldn't be 3D
-                            Point3dTimeWindow{Position3d {firedata->ignitions.as_position(c), 100}, {firedata->ignitions(c), firedata->traversal_end(c)}});
+                            PointTimeWindow{firedata->ignitions.as_position(c), {firedata->ignitions(c), firedata->traversal_end(c)}});
                 }
             }
         }
     }
+
+    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
+            : Plan(traj_confs, fire_data, tw, vector<PointTimeWindow>({}))
+    { }
 
     json metadata() const {
         json j;
@@ -98,12 +104,12 @@ struct Plan {
      * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
      **/
     double utility() const {
-        vector<Position3dTime> done_obs = observations();
+        vector<PositionTime> done_obs = observations();
         double global_cost = 0;
-        for(Point3dTimeWindow possible_obs : possible_observations) {
+        for(PointTimeWindow possible_obs : possible_observations) {
             double min_dist = MAX_INFORMATIVE_DISTANCE;
             // find the closest observation.
-            for(Position3dTime obs : done_obs) {
+            for(PositionTime obs : done_obs) {
                 min_dist = min(min_dist, possible_obs.pt.dist(obs.pt));
             }
             // utility is based on the minimal distance to the observation and normalized such that
@@ -122,8 +128,8 @@ struct Plan {
 
     /** All observations in the plan. Computed by taking the visibility center of all segments.
      * Each observation is tagged with a time, corresponding to the start time of the segment.*/
-    vector<Position3dTime> observations() const {
-        vector<Position3dTime> obs;
+    vector<PositionTime> observations() const {
+        vector<PositionTime> obs;
         for(auto& traj : core.trajectories) {
             UAV drone = traj.conf.uav;
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
@@ -136,7 +142,7 @@ struct Plan {
                     for (const auto &c : *opt_cells) {
                         if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
                             // If the cell is observable, add it to the observations list
-                            obs.push_back(Position3dTime {Position3d {firedata->ignitions.as_position(c), 100.0}, traj.start_time(seg_id)});
+                            obs.push_back(PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
                         }
                     }
                 }
