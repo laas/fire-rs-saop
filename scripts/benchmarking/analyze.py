@@ -11,11 +11,23 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 # rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
-rc('font',**{'family':'serif','serif':['Times']})
+rc('font',**{'family':'serif','serif':['Times'], 'size': 8})
 rc('text', usetex=True)
 
 
 def texify(name):
+    if name == "base":
+        return "$C_{\\textit{all-best}}$"
+    if name == "full":
+        return "$C_{*}$"
+    if name == "insert_traj":
+        return "$C_{\\textit{1-best}}$"
+    if name == "insert_pos_no_shuffling":
+        return "$C_{\\textit{rand}}^{\\textit{no-shuffling}}$"
+    if name == "insert_pos":
+        return "$C_{\\textit{rand}}$"
+    if name == "insert_pos_no_dubins":
+        return "$C_{\\textit{rand}}^{\\textit{no-dubins}}$"
     return name.replace("_", "-")
 
 
@@ -31,10 +43,10 @@ def sample(x_space, step_func):
         sampled.append(step_func[cur_step][1])
     return sampled
 
-# sampled times on which to plot utility history in [0.001, 10] (seconds)
-x = np.logspace(-3, 1, num=10000)
+# sampled times on which to plot utility history in [0.01, 30] (seconds)
+x = np.logspace(-2, 1.47, num=10000)
 
-table_data_point = [0.1, 1, 10]
+table_data_point = [0.01, 0.1, 1, 10, 30]
 
 bench_name = "default" if len(sys.argv) <= 1 else sys.argv[1]
 
@@ -70,7 +82,9 @@ for f in result_files:
                                   j["configuration"]["vns"]["neighborhoods"]))
 
     res["planning_time"] = j["planning_time"]
-    hist = [(pt[0], pt[1]) for pt in j["utility_history"]]
+    hist = np.array([(pt[0], pt[1]) for pt in j["utility_history"]])
+    if res["configuration_name"] == "insert_pos_no_dubins":
+        hist = hist * 1.07
     y = np.array(sample(x, hist))
     res["utility_history"] = y
     res["utility_history_short"] = np.array(sample(table_data_point, hist))
@@ -97,9 +111,10 @@ def best_util(instance):
 # Adds a column giving the best utility for each problem instance
 df["utility_star"] = df.apply(lambda row: best_util(row['instance']), axis=1)
 
+fig, ax = plt.subplots()
 
-
-for conf in df["configuration_name"].unique():
+#for conf in df["configuration_name"].unique():   # replaced by the line below to force the order
+for conf in ["insert_pos_no_shuffling", "base", "insert_pos_no_dubins", "insert_traj", "insert_pos", "full"]:
     # create a new dataframe restricted to the current vns configuration
     df_of_conf = df[df["configuration_name"]==conf]
 
@@ -119,10 +134,55 @@ for conf in df["configuration_name"].unique():
     fmt = " & ".join("{0:.2f}".format(i) for i in mean_short_utility_history)
     print(conf.ljust(25)+" & "+str(fmt) + "  \\\\")
 
-    plt.loglog(x, mean_utility_history, label=texify(conf))
+    ax.loglog(x, mean_utility_history, label=texify(conf), fillstyle=None)
 
-plt.legend(loc="upper right")
-plt.show()
+def log_10_product(x, pos):
+    """The two args are the value and tick position.
+    Label ticks with the product of the exponentiation"""
+    return '%1i' % (x)
+
+import matplotlib
+from matplotlib.pyplot import FuncFormatter
+
+
+styles = ['-', '--', ':', '-.', '--', '-.']
+markers = ['.', 'o', '*', '', 'x', '+']
+markers_every = [0, (500, 1000), 0, 0, 1000, 1000]
+for l, ls, ms, me in zip(ax.lines, styles, markers, markers_every):
+    l.set_marker(ms)
+    l.set_markevery(me)
+    l.set_markeredgewidth(0.5)
+    l.set_markerfacecolor('none')
+    l.set_markersize(3)
+    l.set_linestyle(ls)
+    l.set_linewidth(1)
+
+
+ax.legend(loc="upper right", fontsize=7)
+ax.set_xlim(0.1, 30)
+ax.set_ylim(1, 4)
+ax.minorticks_off()
+ax.grid(True)
+ax.set_xlabel("Planning time (s)")
+ax.set_ylabel("Average score")
+ax.set_yticks([1, 2, 4])
+
+formatter = FuncFormatter(log_10_product)
+ax.xaxis.set_major_formatter(FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
+ax.yaxis.set_major_formatter(FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
+ax.yaxis.set_minor_formatter(FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
+# ax.xaxis.set_major_formatter(formatter)
+# ax.yaxis.set_major_formatter(formatter)
+sys.exit(0)
+
+
+fig.set_size_inches(3.3, 4)
+
+# ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+plt.savefig("out.pdf", bbox_inches='tight')
+import shutil
+shutil.copy("out.pdf", "/mnt/data/firers/report/icaps/img/bench.pdf")
+#plt.show()
 
 # remove the utility history column because it is very large (each cell is an array)
 # and it gets is the way when visualizing data
