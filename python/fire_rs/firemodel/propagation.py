@@ -49,15 +49,18 @@ class Environment:
         """Abstract class providing access to the main properties of the environment
 
         :param area: ((x_min, x_max), (y_min, y_max))
-        :param wind_speed: wind speed in km/h
-        :param wind_dir: wind direction in radians
+        :param wind_speed: mean wind speed in km/h
+        :param wind_dir: mean wind direction in radians
         """
-        world = World()
-        elevation = world.get_elevation(area)
-        slope = world.get_slope(area)
-        wind = world.get_wind(area, domain_average=(wind_speed, wind_dir))
+        self._wind_speed = wind_speed  # type: float
+        self._wind_dir = wind_dir  # type: float
+        self._area = area  # type: ((float, float), (float, float))
+        self._world = World()  # type: World
+        elevation = self._world.get_elevation(area)
+        slope = self._world.get_slope(area)
+        wind = self._world.get_wind(area, domain_average=(wind_speed, wind_dir))
         moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
-        fuel = world.get_fuel_type(area)
+        fuel = self._world.get_fuel_type(area)
         self.raster = slope.combine(wind).combine(moisture).combine(fuel).combine(elevation)
         self._clustering = None
 
@@ -69,6 +72,11 @@ class Environment:
                                                    err_by_layer={'wind_angle': 0.2, 'wind_velocity': 2},
                                                    already_clustered=['fuel', 'moisture'])
         return self._clustering
+
+    def update_area_wind(self, wind_speed, wind_dir):
+        new_wind = self._world.get_wind(self._area, domain_average=(wind_speed, wind_dir))
+        self.raster['wind_velocity'] = new_wind['wind_velocity']
+        self.raster['wind_direction'] = new_wind['wind_direction']
 
     def get_fuel_type(self, x, y):
         """Returns the fuel type (e.g. 'SH5') in (x,y)"""
