@@ -240,6 +240,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("start_time", (double (Trajectory::*)() const)&Trajectory::start_time)
             .def("end_time", (double (Trajectory::*)() const)&Trajectory::end_time)
             .def_readonly("segments", &Trajectory::traj)
+            .def_readonly("start_times", &Trajectory::start_times)
             .def("length", &Trajectory::length)
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints)

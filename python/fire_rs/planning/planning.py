@@ -26,14 +26,14 @@ import json
 import logging
 import types
 from collections import namedtuple
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
 import fire_rs.uav_planning as up
 from fire_rs.firemodel.propagation import Environment, FirePropagation
 from fire_rs.geodata.geo_data import Area, GeoData, TimedPoint
-from fire_rs.planning.display import TrajectoryDisplayExtension
+from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
 
 
 class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
@@ -41,6 +41,10 @@ class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
 
     def as_cpp(self):
         return up.Waypoint(self.x, self.y, self.z, self.dir)
+
+    @classmethod
+    def from_cpp(cls, wp:'up.Waypoint'):
+        return cls(wp.x, wp.y, wp.z, wp.dir)
 
 
 class UAVConf:
@@ -130,7 +134,7 @@ class Planner:
         assert "ignition" in firemap.layers
         self._env = env  # type: PlanningEnvironment
         self._firemap = firemap  # type: GeoData
-        self._flights = flights[:]  # type: [FlightConf]
+        self._flights = flights[:]  # type: List[FlightConf]
         self._planning_conf = planning_conf  # type: dict
 
         self._searchresult = None  # type: Optional(up.SearchResult)
@@ -147,6 +151,29 @@ class Planner:
         self._searchresult = res
         return res
 
+    def replan(self, from_t, positions=None):
+        # At this moment we can only restart at segment start times. from_t is just a indication of
+        # wich segement we should pick to start from.
+        if self.search_result is None:
+            self.compute_plan()
+
+        if positions:
+            raise NotImplementedError("Cannot replan yet from arbitrary positions")
+
+        trajectories = self.search_result.final_plan().trajectories()
+
+        for f, t in zip(self.flights, trajectories):
+            seg_list = t.segments
+            segt_list = t.start_times
+            for segt, seg in zip(segt_list, seg_list):
+                if segt >= from_t:
+                    f.base_waypoint = Waypoint.from_cpp(seg.start)
+                    f.start_time = from_t
+                    break
+
+        self.planning_conf['min_time'] = from_t
+        self.compute_plan()
+
     def observed_cells(self, time_window=None):
         if time_window:
             tw_cpp = up.TimeWindow(time_window[0], time_window[1])
@@ -154,9 +181,26 @@ class Planner:
         else:
             return [o.as_tuple() for o in self._searchresult.final_plan().observations()]
 
+    def update_area_wind(self, wind_velocity, wind_direction):
+        self.environment.update_area_wind(wind_velocity, wind_direction)
+
+    def update_firemap(self, firemap: GeoData):
+        self.firemap = firemap
+
     @property
     def environment(self) -> 'Environment':
         return self._env
+
+    @property
+    def time_window(self):
+        if self._searchresult:
+            return self._searchresult.final_plan().time_window.as_tuple()
+        else:
+            return (self.planning_conf['min_time'], self.planning_conf['max_time'])
+
+    @time_window.setter
+    def time_window(self, value):
+        pass
 
     @property
     def firemap(self) -> 'GeoData':
@@ -191,21 +235,6 @@ class Planner:
         return self._planning_conf
 
 
-class PlanningManager:
-    def __init__(self, planner: Planner):
-        self._planner = planner  # type: Planner
-
-    def update_area_wind(self, wind_velocity, wind_direction):
-        self._planner.environment.update_area_wind(wind_velocity, wind_direction)
-
-    def update_firemap(self, firemap: GeoData):
-        self._planner.firemap = firemap
-
-    def replan(self):
-        """Replan should run Planner.compute_plan with the updated information."""
-        pass
-
-
 if __name__ == '__main__':
     import os
     import json
@@ -214,21 +243,21 @@ if __name__ == '__main__':
 
     # Geographic environment (elevation, landcover, wind...)
     area = ((480060.0, 485060.0), (6210074.0, 6215074.0))
-    env = PlanningEnvironment(area, wind_speed=5., wind_dir=0., planning_elevation_mode='dem')
+    env = PlanningEnvironment(area, wind_speed=10., wind_dir=0., planning_elevation_mode='flat')
 
     # Fire applied to the previous environment
     ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
-    fire = propagation.propagate_from_points(env, ignition_point, 9000)
+    fire = propagation.propagate_from_points(env, ignition_point, 180 * 60)
 
     # Configure some flight
     base_wp = Waypoint(area[0][0]+100., area[1][0]+100., 100., 0.)
-    start_t = 30 * 60  # 30 minutes after the ignition
+    start_t = 120 * 60  # 30 minutes after the ignition
     fgconf = FlightConf(UAVConf.X8(), start_t, base_wp)
 
     # Write down the desired VNS configuration
     conf_vns = {
-        "base": {
-            "max_restarts": 5,
+        "demo": {
+            "max_restarts": 0,
             "neighborhoods": [
                 {"name": "dubins-opt",
                  "max_trials": 10,
@@ -250,9 +279,9 @@ if __name__ == '__main__':
         'save_every': 0,
         'save_improvements': False,
         'discrete_elevation_interval': 0,
-        'vns': conf_vns['base']
+        'vns': conf_vns['demo']
     }
-    conf['vns']['configuration_name'] = 'base'
+    conf['vns']['configuration_name'] = 'demo'
 
     # Instantiate the planner
     pl = Planner(env, fire.ignitions(), [fgconf], conf)
@@ -260,14 +289,27 @@ if __name__ == '__main__':
     pl.compute_plan()
 
     observ = pl.observed_cells((fgconf.start_time, fgconf.start_time+fgconf.uav.max_flight_time))
-    observ_less = pl.observed_cells((fgconf.start_time, fgconf.start_time + fgconf.uav.max_flight_time/3))
-
     fm = pl.observed_firemap()
 
     import matplotlib
     import fire_rs.geodata.display
-    gdd = fire_rs.geodata.display.GeoDataDisplay(*fire_rs.geodata.display.get_pyplot_figure_and_axis(), fm)
+    gdd = fire_rs.geodata.display.GeoDataDisplay(
+        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm))
     TrajectoryDisplayExtension(None).extend(gdd)
     gdd.draw_observation_map(fm)
+    plot_plan_trajectories(pl.search_result.final_plan(), gdd, show=True)
+
+    # Replan
+    from_t = fgconf.start_time + 5 * 60
+    pl.replan(from_t)
+    fm = pl.observed_firemap()
+
+    gdd = fire_rs.geodata.display.GeoDataDisplay(
+        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm))
+    TrajectoryDisplayExtension(None).extend(gdd)
+    gdd.draw_observation_map(fm)
+    plot_plan_trajectories(pl.search_result.final_plan(), gdd, show=True)
+
+
     print(pl.search_result)
 
