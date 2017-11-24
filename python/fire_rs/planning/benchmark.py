@@ -361,7 +361,7 @@ scenario_factory_funcs = {'default': generate_scenario,
 
 
 vns_configurations = {
-    "base": {
+    "demo": {
         "max_restarts": 5,
         "neighborhoods": [
             {"name": "dubins-opt",
@@ -374,44 +374,6 @@ vns_configurations = {
                 "max_trials": 50,
                 "select_arbitrary_trajectory": False,
                 "select_arbitrary_position": False}
-        ]
-    },
-    "with_smoothing": {
-        "max_restarts": 5,
-        "neighborhoods": [
-            {"name": "trajectory-smoothing",
-                "max_trials": 10},
-            {"name": "dubins-opt",
-                "max_trials": 10,
-                "generators": [
-                    {"name": "MeanOrientationChangeGenerator"},
-                    {"name": "RandomOrientationChangeGenerator"},
-                    {"name": "FlipOrientationChangeGenerator"}]},
-            {"name": "one-insert",
-                "max_trials": 50,
-                "select_arbitrary_trajectory": False,
-                "select_arbitrary_position": False}]
-    },
-    "full": {
-        "max_restarts": 5,
-        "neighborhoods": [
-            {"name": "dubins-opt",
-                "max_trials": 10,
-                "generators": [
-                    {"name": "RandomOrientationChangeGenerator"},
-                    {"name": "FlipOrientationChangeGenerator"}]},
-            {"name": "one-insert",
-                "max_trials": 50,
-                "select_arbitrary_trajectory": False,
-                "select_arbitrary_position": False},
-            {"name": "one-insert",
-                "max_trials": 200,
-                "select_arbitrary_trajectory": True,
-                "select_arbitrary_position": False},
-            {"name": "one-insert",
-                "max_trials": 200,
-                "select_arbitrary_trajectory": True,
-                "select_arbitrary_position": True}
         ]
     }
 }
@@ -465,7 +427,7 @@ def main():
                         help="Load VNS configurations from a JSON file")
     parser.add_argument("--vns",
                         help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
-                        default='base')
+                        default='demo')
     parser.add_argument("--elevation",
                         help="Source of elevation considered by the planning algorithm",
                         choices=['flat', 'dem', 'discrete'],
