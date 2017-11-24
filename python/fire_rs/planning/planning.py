@@ -175,11 +175,11 @@ class Planner:
     def flights(self):
         return self._flights
 
-    def observed_firemap(self, time_window=None) -> 'GeoData':
-        observed_firemap = GeoData.full_like(self._firemap, np.nan)  # type: GeoData
+    def observed_firemap(self, time_window=None, layer_name='observed_ignition') -> 'GeoData':
+        observed_firemap = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name,'float64')])
         for (p, t) in self.observed_cells(time_window):
             array_pos = observed_firemap.array_index(p)
-            observed_firemap['ignition'][array_pos] = t
+            observed_firemap[layer_name][array_pos] = t
         return observed_firemap
 
     @property

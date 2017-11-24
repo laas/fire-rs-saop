@@ -147,8 +147,8 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                               zorder=TrajectoryDisplayExtension.BACKGROUND_OVERLAY_LAYER,
                               edgecolors='none', marker='s')
 
-    def _draw_observation_map(self, observation_map: 'GeoData', layer='ignition'):
-        o_map = np.array(observation_map['ignition'])
+    def _draw_observation_map(self, observation_map: 'GeoData', layer='observed_ignition'):
+        o_map = np.array(observation_map[layer])
         o_map[~np.isnan(o_map)] = 1
 
         # define the colors
