@@ -69,8 +69,10 @@ def plot_ignition_shade(ax, x, y, ignition_times, dx=25, dy=25, image_scale=None
     cbar_lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
     if not image_scale:
         image_scale = (x[0][0], x[0][x.shape[0] - 1], y[0][0], y[y.shape[0] - 1][0])
+    if not 'cmap' in kwargs:
+        kwargs['cmap'] = matplotlib.cm.gist_heat
     return ax.imshow(ignition_times, extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
-                     cmap=matplotlib.cm.gist_heat, **kwargs)
+                     **kwargs)
 
 
 def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):

@@ -138,7 +138,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
     TrajectoryDisplayExtension(None).extend(geodatadisplay)
 
-    plot_plan_with_background(plan, geodatadisplay, (first_ignition, last_ignition),
+    plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
                               output_options_plot)
 
     # Save the picture

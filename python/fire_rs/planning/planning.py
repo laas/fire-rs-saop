@@ -264,5 +264,10 @@ if __name__ == '__main__':
 
     fm = pl.observed_firemap()
 
+    import matplotlib
+    import fire_rs.geodata.display
+    gdd = fire_rs.geodata.display.GeoDataDisplay(*fire_rs.geodata.display.get_pyplot_figure_and_axis(), fm)
+    TrajectoryDisplayExtension(None).extend(gdd)
+    gdd.draw_observation_map(fm)
     print(pl.search_result)
 

@@ -30,8 +30,10 @@ from itertools import cycle
 import matplotlib.cm
 import matplotlib.colors
 import matplotlib.pyplot
+import numpy as np
 
 import fire_rs.geodata.display as gdd
+from fire_rs.geodata.geo_data import GeoData
 
 
 class TrajectoryDisplayExtension(gdd.DisplayExtension):
@@ -53,6 +55,9 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
             TrajectoryDisplayExtension._draw_segments_extension, geodatadisplay)
         geodatadisplay.draw_observedcells = types.MethodType(
             TrajectoryDisplayExtension._draw_observedcells, geodatadisplay)
+        geodatadisplay.draw_observation_map = types.MethodType(
+            TrajectoryDisplayExtension._draw_observation_map, geodatadisplay)
+
 
     def _draw_waypoints_extension(self, *args, **kwargs):
         '''Draw path waypoints in a GeoDataDisplay figure.'''
@@ -123,24 +128,41 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         start_base = self.plan_trajectory.segments[0]
         finish_base = self.plan_trajectory.segments[-1]
 
-        self._drawings.append(
-            self.axis.scatter(start_base.start.x, start_base.start.y, s=10, edgecolor='black', c=color, marker='o',
-                              zorder=TrajectoryDisplayExtension.FOREGROUND_OVERLAY_LAYER))
-        self._drawings.append(
-            self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10, edgecolor='black', c=color, marker='o',
-                              zorder=TrajectoryDisplayExtension.FOREGROUND_OVERLAY_LAYER))
+        self._drawings.append(self.axis.scatter(start_base.start.x, start_base.start.y, s=10,
+                                                edgecolor='black', c=color, marker='o',
+                                                zorder=TrajectoryDisplayExtension.FOREGROUND_OVERLAY_LAYER))
+        self._drawings.append(self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10,
+                                                edgecolor='black', c=color, marker='o',
+                                                zorder=TrajectoryDisplayExtension.FOREGROUND_OVERLAY_LAYER))
 
         for i in range(len(segments)):
-            self._drawings.append(self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c=color, linewidth=2,
-                                                 zorder=TrajectoryDisplayExtension.FOREGROUND_LAYER))
+            self._drawings.append(
+                self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c=color, linewidth=2,
+                               zorder=TrajectoryDisplayExtension.FOREGROUND_LAYER))
 
     def _draw_observedcells(self, observations, **kwargs):
+        """Plot observed cells as points"""
         for ptt in observations:
-            self.axis.scatter(ptt.as_tuple()[0][0], ptt.as_tuple()[0][1], s=4, c=(0., 1., 0., .5),
-                              zorder=TrajectoryDisplayExtension.BACKGROUND_OVERLAY_LAYER, edgecolors='none', marker='s')
+            self.axis.scatter(ptt[0][0], ptt[0][1], s=4, c=(0., 1., 0., .5),
+                              zorder=TrajectoryDisplayExtension.BACKGROUND_OVERLAY_LAYER,
+                              edgecolors='none', marker='s')
+
+    def _draw_observation_map(self, observation_map: 'GeoData', layer='ignition'):
+        o_map = np.array(observation_map['ignition'])
+        o_map[~np.isnan(o_map)] = 1
+
+        # define the colors
+        cmap = matplotlib.colors.ListedColormap(['g'])
+
+        shade = gdd.plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh,
+                                        np.around(o_map.T[::-1, ...]/60., 1),
+                                        dx=self._geodata.cell_width, dy=self._geodata.cell_height,
+                                        image_scale=self._image_scale, cmap=cmap)
+        self._drawings.append(shade)
 
 
-def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
+def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None,
+                           show=False):
     """Plot the trajectories of a plan."""
     colors = cycle(["red", "green", "blue", "black", "magenta"])
     for traj, color in zip(plan.trajectories(), colors):
@@ -151,7 +173,7 @@ def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[flo
         geodatadisplay.axis.get_figure().show()
 
 
-def plot_plan_with_background(plan, geodatadisplay, time_range, output_options_plot):
+def plot_plan_with_background(planner, geodatadisplay, time_range, output_options_plot):
     """Plot a plan trajectories with background geographic information in a geodata display."""
     # Draw background layers
     for layer in output_options_plot['background']:
@@ -162,7 +184,7 @@ def plot_plan_with_background(plan, geodatadisplay, time_range, output_options_p
             geodatadisplay.draw_ignition_shade(
                 with_colorbar=output_options_plot.get('colorbar', True))
         elif layer == 'observedcells':
-            geodatadisplay.draw_observedcells(plan.observations())
+            geodatadisplay.draw_observation_map(planner.observed_firemap())
         elif layer == 'ignition_contour':
             try:
                 geodatadisplay.draw_ignition_contour(with_labels=True)
@@ -172,4 +194,5 @@ def plot_plan_with_background(plan, geodatadisplay, time_range, output_options_p
             geodatadisplay.draw_wind_quiver()
 
     # Plot the plan
-    plot_plan_trajectories(plan, geodatadisplay, time_range=time_range, show=True)
+    plot_plan_trajectories(planner.search_result.final_plan(),
+                           geodatadisplay, time_range=time_range, show=True)
