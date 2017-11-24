@@ -500,6 +500,7 @@ def main():
         matplotlib.rcParams['text.usetex'] = True
 
     if args.vns_conf:
+        global vns_configurations
         vns_configurations = vars(args.vns_conf)
 
     # Set-up output options
