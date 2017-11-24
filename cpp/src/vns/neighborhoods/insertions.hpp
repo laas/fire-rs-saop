@@ -94,7 +94,7 @@ private:
 
         /** Select a random point in the pending list */
         const size_t index = rand(0, p->possible_observations.size());
-        const Point3dTimeWindow pt = p->possible_observations[index];
+        const PointTimeWindow pt = p->possible_observations[index];
 
         /** Pick an angle randomly */
         const double random_angle = drand(0, 2*M_PI);

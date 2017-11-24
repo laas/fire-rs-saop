@@ -72,8 +72,10 @@ def plot_ignition_shade(ax, x, y, ignition_times, dx=25, dy=25, image_scale=None
     cbar_lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
     if not image_scale:
         image_scale = (x[0][0], x[0][x.shape[0] - 1], y[0][0], y[y.shape[0] - 1][0])
+    if not 'cmap' in kwargs:
+        kwargs['cmap'] = matplotlib.cm.gist_heat
     return ax.imshow(ignition_times, extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
-                     cmap=matplotlib.cm.gist_heat, **kwargs)
+                     **kwargs)
 
 
 def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):
@@ -100,8 +102,7 @@ def plot_elevation_shade(ax, x, y, z, dx=25, dy=25, image_scale=None, **kwargs):
     return ax.imshow(ls.shade(z, cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), blend_mode='overlay', vert_exag=1,
                               dx=dx, dy=dy, vmin=cbar_lim[0], vmax=cbar_lim[1]),
                      extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
-                     cmap=kwargs.get('cmap', matplotlib.cm.gist_earth))
-
+                     cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), interpolation='bilinear')
 
 def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
     return ax.streamplot(x, y, wx, wy, density=1, linewidth=1, color='dimgrey')
@@ -142,9 +143,9 @@ class GeoDataDisplay:
         figure, axis = get_pyplot_figure_and_axis()
         return cls(figure, axis, geodata)
 
-    def draw_elevation_shade(self, with_colorbar=True, **kwargs):
+    def draw_elevation_shade(self, with_colorbar=True, layer='elevation', **kwargs):
         shade = plot_elevation_shade(self.axis, self._x_mesh, self._y_mesh,
-                                     self._geodata['elevation'].T[::-1, ...],
+                                     self._geodata[layer].T[::-1, ...],
                                      dx=self._geodata.cell_width, dy=self._geodata.cell_height,
                                      image_scale=self._image_scale, **kwargs)
         self._drawings.append(shade)
@@ -165,9 +166,9 @@ class GeoDataDisplay:
         self._drawings.append(plot_wind_quiver(self.axis, *np.meshgrid(self._x_ticks[::10], self._y_ticks[::10]),
                                                WX[::10, ::10], WY[::10, ::10], **kwargs))
 
-    def draw_ignition_contour(self, with_labels=True, **kwargs):
+    def draw_ignition_contour(self, with_labels=True, layer='ignition', **kwargs):
         # mask all cells whose ignition has not been computed
-        igni = np.array(self._geodata['ignition'])
+        igni = np.array(self._geodata[layer])
         igni[igni >= np.finfo(np.float64).max] = np.nan
 
         # plot fire front with contour lines in minutes
@@ -179,9 +180,9 @@ class GeoDataDisplay:
     def _add_ignition_contour_labels(self, **kwargs):
         self.axis.clabel(self._drawings[-1], inline=True, fontsize='smaller', inline_spacing=1, linewidth=2, fmt='%.0f')
 
-    def draw_ignition_shade(self, with_colorbar=True, **kwargs):
+    def draw_ignition_shade(self, with_colorbar=True, layer='ignition', **kwargs):
         # mask all cells whose ignition has not been computed
-        igni = np.array(self._geodata['ignition'])
+        igni = np.array(self._geodata[layer])
         igni[igni >= np.finfo(np.float64).max] = np.nan
 
         shade = plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh, np.around(igni.T[::-1, ...]/60., 1),

@@ -22,7 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from collections import namedtuple
+from collections import namedtuple, Sequence
 from functools import reduce
 
 import gdal
@@ -79,6 +79,17 @@ class GeoData:
         ar = np.array(lraster.as_numpy(), dtype=[(layer_name, 'int64')])
         gd = GeoData(ar, lraster.x_offset, lraster.y_offset, lraster.cell_width, lraster.cell_width)
         return gd
+
+    @classmethod
+    def zeros_like(cls, other: 'GeoData'):
+        return cls(np.zeros_like(other.data), other.x_offset, other.y_offset,
+                   other.cell_width, other.cell_height)
+
+    @classmethod
+    def full_like(cls, other: 'GeoData', fill_value):
+        return cls(np.full_like(other.data, fill_value), other.x_offset, other.y_offset,
+                   other.cell_width, other.cell_height)
+
 
     def __contains__(self, coordinates):
         (x, y) = coordinates

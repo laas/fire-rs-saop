@@ -98,6 +98,10 @@ PYBIND11_MODULE(uav_planning, m) {
                  py::arg("start"), py::arg("end"))
             .def_readonly("start", &TimeWindow::start)
             .def_readonly("end", &TimeWindow::end)
+            .def("contains", (bool (TimeWindow::*)(double time) const)&TimeWindow::contains,
+                 py::arg("time"))
+            .def("contains", (bool (TimeWindow::*)(const TimeWindow &) const)&TimeWindow::contains,
+                 py::arg("time_window"))
             .def("__repr__",
                  [](const TimeWindow &tw) {
                      std::stringstream repr;
@@ -162,7 +166,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def(py::init<Position, double>(),
                  py::arg("point"), py::arg("time"))
             .def_readonly("pt", &PositionTime::pt)
-            .def_readonly("y", &PositionTime::time)
+            .def_readonly("time", &PositionTime::time)
             .def("__repr__",
                  [](const PositionTime &p) {
                      std::stringstream repr;
@@ -178,7 +182,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def(py::init<Position3d, double>(),
                  py::arg("point"), py::arg("time"))
             .def_readonly("pt", &Position3dTime::pt)
-            .def_readonly("y", &Position3dTime::time)
+            .def_readonly("time", &Position3dTime::time)
             .def("__repr__",
                  [](const Position3dTime &p) {
                      std::stringstream repr;
@@ -257,7 +261,10 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("utility", &Plan::utility)
             .def("duration", &Plan::duration)
             .def_readonly("firedata", &Plan::firedata)
-            .def("observations", &Plan::observations);
+            .def_readonly("time_window", &Plan::time_window)
+            .def("observations", (vector<PositionTime> (Plan::*)() const) &Plan::observations)
+            .def("observations", (vector<PositionTime> (Plan::*)(const TimeWindow &) const) &Plan::observations,
+                 py::arg("tw"));
 
     py::class_<SearchResult>(m, "SearchResult")
             .def("initial_plan", &SearchResult::initial)
