@@ -43,13 +43,11 @@ struct Plan {
     Trajectories core;
     shared_ptr<FireData> firedata;
     vector<PointTimeWindow> possible_observations;
-    vector<PointTimeWindow> actual_observations;
 
     Plan(const Plan& plan) = default;
 
-    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
-         vector<PointTimeWindow> actual_observations)
-            : time_window(tw), core(traj_confs), firedata(fire_data), actual_observations(actual_observations)
+    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
+            : time_window(tw), core(traj_confs), firedata(fire_data)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
@@ -67,10 +65,6 @@ struct Plan {
             }
         }
     }
-
-    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
-            : Plan(traj_confs, fire_data, tw, vector<PointTimeWindow>({}))
-    { }
 
     json metadata() const {
         json j;
