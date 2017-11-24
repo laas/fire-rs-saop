@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "../core/structures/trajectory.hpp"
 #include "fire_data.hpp"
+#include "../raster.hpp"
 #include "../ext/json.hpp"
 #include "../core/structures/trajectories.hpp"
 
@@ -123,6 +124,12 @@ struct Plan {
     /** All observations in the plan. Computed by taking the visibility center of all segments.
      * Each observation is tagged with a time, corresponding to the start time of the segment.*/
     vector<PositionTime> observations() const {
+        return observations(time_window);
+    }
+
+    /* Observations done within an arbitrary time window
+     */
+    vector<PositionTime> observations(const TimeWindow& tw) const {
         vector<PositionTime> obs;
         for(auto& traj : core.trajectories) {
             UAV drone = traj.conf.uav;
@@ -130,13 +137,17 @@ struct Plan {
                 const Segment3d& seg = traj[seg_id];
 
                 double obs_time = traj.start_time(seg_id);
-                opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
-                                                                 firedata->ignitions);
-                if (opt_cells) {
-                    for (const auto &c : *opt_cells) {
-                        if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
-                            // If the cell is observable, add it to the observations list
-                            obs.push_back(PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
+                double obs_end_time = traj.end_time(seg_id);
+                TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
+                if (tw.contains(seg_tw)) {
+                    opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
+                                                                     firedata->ignitions);
+                    if (opt_cells) {
+                        for (const auto &c : *opt_cells) {
+                            if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
+                                // If the cell is observable, add it to the observations list
+                                obs.push_back(PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
+                            }
                         }
                     }
                 }

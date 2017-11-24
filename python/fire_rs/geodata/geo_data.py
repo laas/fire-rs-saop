@@ -82,7 +82,14 @@ class GeoData:
 
     @classmethod
     def zeros_like(cls, other: 'GeoData'):
-        return cls(np.zeros_like(other.data), other.x_offset, other.y_offset, other.cell_width, other.cell_height)
+        return cls(np.zeros_like(other.data), other.x_offset, other.y_offset,
+                   other.cell_width, other.cell_height)
+
+    @classmethod
+    def full_like(cls, other: 'GeoData', fill_value):
+        return cls(np.full_like(other.data, fill_value), other.x_offset, other.y_offset,
+                   other.cell_width, other.cell_height)
+
 
     def __contains__(self, coordinates):
         (x, y) = coordinates
