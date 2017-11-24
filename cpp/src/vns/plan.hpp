@@ -59,8 +59,8 @@ struct Plan {
                 if (time_window.start <= t && t <= time_window.end) {
                     Cell c{x, y};
                     possible_observations.push_back(
-                            //FIXME: This shouldn't be 3D
-                            PointTimeWindow{firedata->ignitions.as_position(c), {firedata->ignitions(c), firedata->traversal_end(c)}});
+                            PointTimeWindow{firedata->ignitions.as_position(c),
+                                            {firedata->ignitions(c), firedata->traversal_end(c)}});
                 }
             }
         }
