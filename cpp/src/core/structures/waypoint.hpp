@@ -307,6 +307,10 @@ struct TimeWindow final {
     bool contains(const TimeWindow &time_window) const {
         return start <= time_window.start && time_window.end < end;
     }
+
+    bool intersects(const TimeWindow &time_window) const {
+        return contains(time_window.start) || contains(time_window.end);
+    }
 };
 
 struct PointTimeWindow final {
