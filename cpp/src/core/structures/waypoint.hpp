@@ -289,7 +289,8 @@ struct TimeWindow final {
 
     TimeWindow() = default;
 
-    constexpr TimeWindow(const double start, const double end) : start(start), end(end) {}
+    constexpr TimeWindow(const double start, const double end) : start(start < end ? start : end),
+                                                                 end(start < end ? end : start) {}
 
     friend std::ostream& operator<<(std::ostream& os, const TimeWindow& time_window) {
         return os << "[" << time_window.start << ", " << time_window.end << ")";

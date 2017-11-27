@@ -201,10 +201,23 @@ void test_trajectory_as_waypoints() {
     traj.sampled(2);
 }
 
+void test_time_window_order() {
+    double s = 10;
+    double e = 25;
+    TimeWindow tw1 = TimeWindow(s, e);
+    TimeWindow tw2 = TimeWindow(e, s);
+
+    BOOST_CHECK(tw1.start == s);
+    BOOST_CHECK(tw1.end == e);
+    BOOST_CHECK(tw1.start == tw2.start);
+    BOOST_CHECK(tw1.end == tw1.end);
+}
+
 test_suite* position_manipulation_test_suite()
 {
     test_suite* ts2 = BOOST_TEST_SUITE( "position_manipulation_tests" );
     srand(time(0));
+    ts2->add(BOOST_TEST_CASE(&test_time_window_order));
     ts2->add(BOOST_TEST_CASE(&test_trajectory_as_waypoints));
     ts2->add(BOOST_TEST_CASE(&test_segment_rotation));
     ts2->add(BOOST_TEST_CASE(&test_single_point_to_observe));
