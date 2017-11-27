@@ -165,7 +165,7 @@ struct VariableNeighborhoodSearch {
             // choose first neighborhood
             size_t current_neighborhood = 0;
             if(num_restarts > 0) {
-                std::cout << "Shuffling\n";
+                std::cout << "Shuffling " << num_restarts << " of " << max_restarts << std::endl;
                 best_plan_for_restart = std::make_shared<Plan>(*best_plan);
                 shuffler->suffle(best_plan_for_restart);
                 if(save_improvements) {
