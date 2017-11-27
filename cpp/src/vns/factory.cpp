@@ -111,12 +111,13 @@ shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string 
 
 std::shared_ptr<VariableNeighborhoodSearch> vns::build_default() {
     json conf = R"(
-      { "neighborhoods": [
-          {"name": "dubins-opt"}, {
-           "name": "one-insert",
-           "max_trials": 50,
-           "select_arbitrary_trajectory": false,
-           "select_arbitrary_position": false}] }
+    { "neighborhoods": [
+        {"name": "one-insert",
+         "max_trials": 50,
+         "select_arbitrary_trajectory": false,
+         "select_arbitrary_position": false}
+        ]
+    }
 )"_json;
     return vns::build_from_config(conf.dump());
 }
