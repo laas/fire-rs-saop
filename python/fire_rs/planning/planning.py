@@ -151,7 +151,7 @@ class Planner:
         self._searchresult = res
         return res
 
-    def replan(self, from_t, positions=None):
+    def replan(self, from_t, positions=None) -> 'up.SearchResult':
         # At this moment we can only restart at segment start times. from_t is just a indication of
         # wich segement we should pick to start from.
         if self.search_result is None:
@@ -172,7 +172,7 @@ class Planner:
                     break
 
         self.planning_conf['min_time'] = from_t
-        self.compute_plan()
+        return self.compute_plan()
 
     def observed_cells(self, time_window=None):
         if time_window:
@@ -287,29 +287,31 @@ if __name__ == '__main__':
     pl = Planner(env, fire.ignitions(), [fgconf], conf)
 
     pl.compute_plan()
-
+    sr_1 = pl.search_result
     observ = pl.observed_cells((fgconf.start_time, fgconf.start_time+fgconf.uav.max_flight_time))
-    fm = pl.observed_firemap()
+    fm_1 = pl.observed_firemap()
 
     import matplotlib
     import fire_rs.geodata.display
     gdd = fire_rs.geodata.display.GeoDataDisplay(
-        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm))
+        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_1))
     TrajectoryDisplayExtension(None).extend(gdd)
-    gdd.draw_observation_map(fm)
-    plot_plan_trajectories(pl.search_result.final_plan(), gdd, show=True)
+    gdd.draw_observation_map(fm_1, color='green')
+    plot_plan_trajectories(sr_1.final_plan(), gdd, show=True)
 
     # Replan
-    from_t = fgconf.start_time + 5 * 60
-    pl.replan(from_t)
-    fm = pl.observed_firemap()
+    from_t = fgconf.start_time + 3 * 60
+    sr_2 =pl.replan(from_t)
+    fm_2 = pl.observed_firemap()
 
     gdd = fire_rs.geodata.display.GeoDataDisplay(
-        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm))
+        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_2))
     TrajectoryDisplayExtension(None).extend(gdd)
-    gdd.draw_observation_map(fm)
-    plot_plan_trajectories(pl.search_result.final_plan(), gdd, show=True)
-
+    gdd.draw_observation_map(fm_1, color='darkgreen')
+    gdd.draw_observation_map(fm_2, color='chartreuse')
+    plot_plan_trajectories(sr_1.final_plan(), gdd, time_range=(start_t, from_t+1),
+                           colors=["maroon"], show=False)
+    plot_plan_trajectories(sr_2.final_plan(), gdd, colors=["orangered"], show=True)
 
     print(pl.search_result)
 

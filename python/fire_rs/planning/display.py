@@ -26,7 +26,7 @@ import logging
 import types
 
 from itertools import cycle
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import matplotlib.cm
 import matplotlib.colors
@@ -170,6 +170,8 @@ def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[flo
         colors = ["red", "green", "blue", "black", "magenta"]
     colors = cycle(colors)
     for traj, color in zip(plan.trajectories(), colors):
+        if time_range:
+            traj = traj.slice(time_range)
         geodatadisplay.plan_trajectory = traj
         geodatadisplay.draw_solid_path(color=color)
         geodatadisplay.draw_segments(color=color)
