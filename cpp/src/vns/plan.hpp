@@ -44,24 +44,38 @@ struct Plan {
     Trajectories core;
     shared_ptr<FireData> firedata;
     vector<PointTimeWindow> possible_observations;
+    vector<PositionTime> observed_previously;
 
     Plan(const Plan& plan) = default;
 
-    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
-            : time_window(tw), core(traj_confs), firedata(fire_data)
+    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+         vector<PositionTime> observed_previously={})
+            : time_window(tw), core(traj_confs), firedata(fire_data), observed_previously(observed_previously)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
         }
+
+        std::vector<Cell> obs_prev_cells;
+        obs_prev_cells.reserve( observed_previously.size() );
+        std::transform( observed_previously.begin(), observed_previously.end(),
+                        std::back_inserter(obs_prev_cells),
+                        [this] (const PositionTime &pt) -> Cell { return firedata->ignitions.as_cell(pt.pt); });
 
         for(size_t x=0; x<firedata->ignitions.x_width; x++) {
             for (size_t y = 0; y < firedata->ignitions.y_height; y++) {
                 const double t = firedata->ignitions(x, y);
                 if (time_window.start <= t && t <= time_window.end) {
                     Cell c{x, y};
-                    possible_observations.push_back(
-                            PointTimeWindow{firedata->ignitions.as_position(c),
-                                            {firedata->ignitions(c), firedata->traversal_end(c)}});
+
+                    // If the cell is in the observed_previously list, do not add it to possible_observations
+                    if (std::find(obs_prev_cells.begin(), obs_prev_cells.end(), c)
+                        == obs_prev_cells.end())
+                    {
+                        possible_observations.push_back(
+                                PointTimeWindow{firedata->ignitions.as_position(c),
+                                                {firedata->ignitions(c), firedata->traversal_end(c)}});
+                    }
                 }
             }
         }
@@ -130,7 +144,7 @@ struct Plan {
     /* Observations done within an arbitrary time window
      */
     vector<PositionTime> observations(const TimeWindow& tw) const {
-        vector<PositionTime> obs;
+        vector<PositionTime> obs = std::vector<PositionTime>(observed_previously);
         for(auto& traj : core.trajectories) {
             UAV drone = traj.conf.uav;
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {

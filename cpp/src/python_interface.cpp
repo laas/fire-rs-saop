@@ -279,7 +279,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
             .def("metadata", [](SearchResult &self) { return self.metadata.dump(); } );
 
-    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) -> SearchResult {
+    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation,
+                         const std::string& json_conf, std::vector<PositionTime> observed={}) -> SearchResult {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -304,7 +305,7 @@ PYBIND11_MODULE(uav_planning, m) {
         double preprocessing_end = time();
 
         printf("Building initial plan\n");
-        Plan p(configs, fire_data, TimeWindow{min_time, max_time});
+        Plan p(configs, fire_data, TimeWindow{min_time, max_time}, observed);
 
         printf("Planning\n");
         auto vns = vns::build_from_config(conf["vns"].dump());
@@ -317,5 +318,5 @@ PYBIND11_MODULE(uav_planning, m) {
         res.metadata["configuration"] = conf;
         return res;
     }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
-          py::call_guard<py::gil_scoped_release>());
+       py::arg("observed"), py::call_guard<py::gil_scoped_release>());
 }

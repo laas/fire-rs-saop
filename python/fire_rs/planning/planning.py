@@ -139,7 +139,7 @@ class Planner:
 
         self._searchresult = None  # type: Optional(up.SearchResult)
 
-    def compute_plan(self) -> 'up.SearchResult':
+    def compute_plan(self, observed_previously=None) -> 'up.SearchResult':
         # Retrieve trajectory configurations in as C++ objects
         cpp_flights = [f.as_cpp() for f in self._flights]
 
@@ -147,7 +147,8 @@ class Planner:
         res = up.plan_vns(cpp_flights,
                           self._firemap.as_cpp_raster(),
                           self._env.raster.slice('elevation_planning').as_cpp_raster(),
-                          json.dumps(self._planning_conf))
+                          json.dumps(self._planning_conf),
+                          [] if observed_previously is None else observed_previously )
         self._searchresult = res
         return res
 
@@ -171,8 +172,10 @@ class Planner:
                     f.start_time = from_t
                     break
 
+        observed_previously = self._searchresult.final_plan().observations(up.TimeWindow(
+            self.planning_conf['min_time'], from_t))
         self.planning_conf['min_time'] = from_t
-        return self.compute_plan()
+        return self.compute_plan(observed_previously=observed_previously)
 
     def observed_cells(self, time_window=None):
         if time_window:
@@ -301,14 +304,16 @@ if __name__ == '__main__':
 
     # Replan
     from_t = fgconf.start_time + 3 * 60
-    sr_2 =pl.replan(from_t)
+    fm_1 = pl.observed_firemap((start_t, from_t + 1))
+    sr_2 = pl.replan(from_t)
     fm_2 = pl.observed_firemap()
+
 
     gdd = fire_rs.geodata.display.GeoDataDisplay(
         *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_2))
     TrajectoryDisplayExtension(None).extend(gdd)
-    gdd.draw_observation_map(fm_1, color='darkgreen')
     gdd.draw_observation_map(fm_2, color='chartreuse')
+    gdd.draw_observation_map(fm_1, color='darkgreen')
     plot_plan_trajectories(sr_1.final_plan(), gdd, time_range=(start_t, from_t+1),
                            colors=["maroon"], show=False)
     plot_plan_trajectories(sr_2.final_plan(), gdd, colors=["orangered"], show=True)
