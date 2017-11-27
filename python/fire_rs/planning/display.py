@@ -26,6 +26,7 @@ import logging
 import types
 
 from itertools import cycle
+from typing import List, Optional
 
 import matplotlib.cm
 import matplotlib.colors
@@ -147,12 +148,13 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                               zorder=TrajectoryDisplayExtension.BACKGROUND_OVERLAY_LAYER,
                               edgecolors='none', marker='s')
 
-    def _draw_observation_map(self, observation_map: 'GeoData', layer='observed_ignition'):
+    def _draw_observation_map(self, observation_map: 'GeoData', layer='observed_ignition',
+                              color='green'):
         o_map = np.array(observation_map[layer])
         o_map[~np.isnan(o_map)] = 1
 
         # define the colors
-        cmap = matplotlib.colors.ListedColormap(['g'])
+        cmap = matplotlib.colors.ListedColormap([color])
 
         shade = gdd.plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh,
                                         np.around(o_map.T[::-1, ...]/60., 1),
@@ -162,9 +164,11 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
 
 
 def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None,
-                           show=False):
+                           colors:Optional[List]=None, show=False):
     """Plot the trajectories of a plan."""
-    colors = cycle(["red", "green", "blue", "black", "magenta"])
+    if not colors:
+        colors = ["red", "green", "blue", "black", "magenta"]
+    colors = cycle(colors)
     for traj, color in zip(plan.trajectories(), colors):
         geodatadisplay.plan_trajectory = traj
         geodatadisplay.draw_solid_path(color=color)
