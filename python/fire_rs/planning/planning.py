@@ -260,20 +260,27 @@ if __name__ == '__main__':
     # Write down the desired VNS configuration
     conf_vns = {
         "demo": {
-            "max_restarts": 0,
-            "neighborhoods": [
-                {"name": "dubins-opt",
-                 "max_trials": 10,
-                 "generators": [
-                     {"name": "MeanOrientationChangeGenerator"},
-                     {"name": "RandomOrientationChangeGenerator"},
-                     {"name": "FlipOrientationChangeGenerator"}]},
-                {"name": "one-insert",
-                 "max_trials": 50,
-                 "select_arbitrary_trajectory": False,
-                 "select_arbitrary_position": False}
-            ]
-        }
+        "max_time": 15.,
+        "neighborhoods": [
+            {"name": "dubins-opt",
+                "max_trials": 200,
+                "generators": [
+                    {"name": "RandomOrientationChangeGenerator"},
+                    {"name": "FlipOrientationChangeGenerator"}]},
+            {"name": "one-insert",
+                "max_trials": 50,
+                "select_arbitrary_trajectory": False,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": False},
+            {"name": "one-insert",
+                "max_trials": 200,
+                "select_arbitrary_trajectory": True,
+                "select_arbitrary_position": True}
+        ]
+    }
     }
 
     conf = {
@@ -299,15 +306,14 @@ if __name__ == '__main__':
     gdd = fire_rs.geodata.display.GeoDataDisplay(
         *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_1))
     TrajectoryDisplayExtension(None).extend(gdd)
-    gdd.draw_observation_map(fm_1, color='green')
-    plot_plan_trajectories(sr_1.final_plan(), gdd, show=True)
+    gdd.draw_observation_map(fm_1, color='darkgreen')
+    plot_plan_trajectories(sr_1.final_plan(), gdd, colors=["maroon"], show=True)
 
     # Replan
-    from_t = fgconf.start_time + 3 * 60
+    from_t = fgconf.start_time + 5 * 60
     fm_1 = pl.observed_firemap((start_t, from_t + 1))
     sr_2 = pl.replan(from_t)
     fm_2 = pl.observed_firemap()
-
 
     gdd = fire_rs.geodata.display.GeoDataDisplay(
         *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_2))
