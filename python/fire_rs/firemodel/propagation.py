@@ -61,6 +61,7 @@ class Environment:
         wind = self._world.get_wind(area, domain_average=(wind_speed, wind_dir))
         moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
         fuel = self._world.get_fuel_type(area)
+        # type: GeoData
         self.raster = slope.combine(wind).combine(moisture).combine(fuel).combine(elevation)
         self._clustering = None
 
@@ -76,8 +77,8 @@ class Environment:
 
     def update_area_wind(self, wind_speed, wind_dir):
         new_wind = self._world.get_wind(self._area, domain_average=(wind_speed, wind_dir))
-        self.raster['wind_velocity'] = new_wind['wind_velocity']
-        self.raster['wind_direction'] = new_wind['wind_direction']
+        self.raster.data['wind_velocity'] = new_wind['wind_velocity']
+        self.raster.data['wind_angle'] = new_wind['wind_angle']
 
     def get_fuel_type(self, x, y):
         """Returns the fuel type (e.g. 'SH5') in (x,y)"""

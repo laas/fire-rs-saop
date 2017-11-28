@@ -184,8 +184,8 @@ class Planner:
         else:
             return [o.as_tuple() for o in self._searchresult.final_plan().observations()]
 
-    def update_area_wind(self, wind_velocity, wind_direction):
-        self.environment.update_area_wind(wind_velocity, wind_direction)
+    def update_area_wind(self, wind_velocity: float, wind_angle: float):
+        self.environment.update_area_wind(wind_velocity, wind_angle)
 
     def update_firemap(self, firemap: GeoData):
         self.firemap = firemap
