@@ -165,10 +165,14 @@ class Planner:
 
         for f, t in zip(self.flights, trajectories):
             seg_list = t.segments
-            segt_list = t.start_times
-            for segt, seg in zip(segt_list, seg_list):
-                if segt >= from_t:
-                    f.base_waypoint = Waypoint.from_cpp(seg.start)
+            for i, seg in enumerate(seg_list):
+                if t.end_time(i) >= from_t:
+                    # if from_t is in a segment start from the end of it because it is already
+                    # included in the previous part of the plan.
+                    if t.start_time(i) <= from_t:
+                        f.base_waypoint = Waypoint.from_cpp(seg.end)
+                    else:
+                        f.base_waypoint = Waypoint.from_cpp(seg.start)
                     f.start_time = from_t
                     break
 
@@ -216,7 +220,7 @@ class Planner:
         assert self._firemap.cell_width == value.cell_width
         assert self._firemap.cell_height == value.cell_height
 
-        self._firemap._firemap = value
+        self._firemap = value
 
     @property
     def flights(self):
