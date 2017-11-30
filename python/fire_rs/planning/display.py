@@ -148,9 +148,9 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                               zorder=TrajectoryDisplayExtension.BACKGROUND_OVERLAY_LAYER,
                               edgecolors='none', marker='s')
 
-    def _draw_observation_map(self, observation_map: 'GeoData', layer='observed',
-                              color='green'):
-        o_map = np.array(observation_map[layer])
+    def _draw_observation_map(self, obs_map: 'Optional[GeoData]'=None, layer='observed',
+                              color='green', **kwargs):
+        o_map = np.array(obs_map[layer]) if obs_map is not None else np.array(self._geodata[layer])
         o_map[~np.isnan(o_map)] = 1
 
         # define the colors
@@ -159,7 +159,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         shade = gdd.plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh,
                                         np.around(o_map.T[::-1, ...]/60., 1),
                                         dx=self._geodata.cell_width, dy=self._geodata.cell_height,
-                                        image_scale=self._image_scale, cmap=cmap)
+                                        image_scale=self._image_scale, cmap=cmap, **kwargs)
         self._drawings.append(shade)
 
 
