@@ -242,6 +242,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("end_time", (double (Trajectory::*)() const)&Trajectory::end_time)
             .def("end_time", (double (Trajectory::*)(size_t) const)&Trajectory::start_time, py::arg("segment_index"))
             .def_readonly("segments", &Trajectory::traj)
+            .def("segment", &Trajectory::operator[], py::arg("index"))
             .def_readonly("start_times", &Trajectory::start_times)
             .def("slice", (Trajectory (Trajectory::*)(TimeWindow) const) &Trajectory::slice, py::arg("time_window"))
             .def("slice", [](Trajectory self, py::tuple range) -> Trajectory {

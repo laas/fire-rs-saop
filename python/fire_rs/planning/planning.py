@@ -31,7 +31,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import fire_rs.uav_planning as up
-from fire_rs.firemodel.propagation import Environment
+from fire_rs.firemodel.propagation import Environment, FirePropagation
 from fire_rs.geodata.geo_data import GeoData
 
 
@@ -163,17 +163,12 @@ class Planner:
         trajectories = self.search_result.final_plan().trajectories()
 
         for f, t in zip(self.flights, trajectories):
-            seg_list = t.segments
-            for i, seg in enumerate(seg_list):
-                if t.end_time(i) >= from_t:
-                    # if from_t is in a segment start from the end of it because it is already
-                    # included in the previous part of the plan.
-                    if t.start_time(i) <= from_t:
-                        f.base_waypoint = Waypoint.from_cpp(seg.end)
-                    else:
-                        f.base_waypoint = Waypoint.from_cpp(seg.start)
-                    f.start_time = from_t
-                    break
+            sub_traj = t.slice((from_t, np.inf))
+            if t.start_time(0) <= from_t:
+                f.base_waypoint = Waypoint.from_cpp(sub_traj.segment(0).end)
+            else:
+                f.base_waypoint = Waypoint.from_cpp(sub_traj.segment(0).start)
+            f.start_time = from_t
 
         observed_previously = self._searchresult.final_plan().observations(up.TimeWindow(
             self.planning_conf['min_time'], from_t))
