@@ -31,9 +31,8 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import fire_rs.uav_planning as up
-from fire_rs.firemodel.propagation import Environment, FirePropagation
-from fire_rs.geodata.geo_data import Area, GeoData, TimedPoint
-from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
+from fire_rs.firemodel.propagation import Environment
+from fire_rs.geodata.geo_data import GeoData
 
 
 class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
@@ -187,9 +186,9 @@ class Planner:
             return [o.as_tuple() for o in self._searchresult.final_plan().observations(tw_cpp)]
         else:
             return [o.as_tuple() for o in self._searchresult.final_plan().observations()]
-
-    def update_area_wind(self, wind_velocity: float, wind_angle: float):
-        self.environment.update_area_wind(wind_velocity, wind_angle)
+    #
+    # def update_area_wind(self, wind_velocity: float, wind_angle: float):
+    #     self.environment.update_area_wind(wind_velocity, wind_angle)
 
     def update_firemap(self, firemap: GeoData):
         self.firemap = firemap
@@ -240,93 +239,3 @@ class Planner:
     @property
     def planning_conf(self) -> 'dict':
         return self._planning_conf
-
-
-if __name__ == '__main__':
-    import os
-    import json
-    from fire_rs.firemodel import propagation
-    from fire_rs.geodata.geo_data import TimedPoint
-
-    # Geographic environment (elevation, landcover, wind...)
-    area = ((480060.0, 485060.0), (6210074.0, 6215074.0))
-    env = PlanningEnvironment(area, wind_speed=10., wind_dir=0., planning_elevation_mode='flat')
-
-    # Fire applied to the previous environment
-    ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
-    fire = propagation.propagate_from_points(env, ignition_point, 180 * 60)
-
-    # Configure some flight
-    base_wp = Waypoint(area[0][0]+100., area[1][0]+100., 100., 0.)
-    start_t = 120 * 60  # 30 minutes after the ignition
-    fgconf = FlightConf(UAVConf.X8(), start_t, base_wp)
-
-    # Write down the desired VNS configuration
-    conf_vns = {
-        "demo": {
-        "max_time": 15.,
-        "neighborhoods": [
-            {"name": "dubins-opt",
-                "max_trials": 200,
-                "generators": [
-                    {"name": "RandomOrientationChangeGenerator"},
-                    {"name": "FlipOrientationChangeGenerator"}]},
-            {"name": "one-insert",
-                "max_trials": 50,
-                "select_arbitrary_trajectory": False,
-                "select_arbitrary_position": False},
-            {"name": "one-insert",
-                "max_trials": 200,
-                "select_arbitrary_trajectory": True,
-                "select_arbitrary_position": False},
-            {"name": "one-insert",
-                "max_trials": 200,
-                "select_arbitrary_trajectory": True,
-                "select_arbitrary_position": True}
-        ]
-    }
-    }
-
-    conf = {
-        'min_time': fgconf.start_time,
-        'max_time': fgconf.start_time + fgconf.uav.max_flight_time,
-        'save_every': 0,
-        'save_improvements': False,
-        'discrete_elevation_interval': 0,
-        'vns': conf_vns['demo']
-    }
-    conf['vns']['configuration_name'] = 'demo'
-
-    # Instantiate the planner
-    pl = Planner(env, fire.ignitions(), [fgconf], conf)
-
-    pl.compute_plan()
-    sr_1 = pl.search_result
-    observ = pl.observed_cells((fgconf.start_time, fgconf.start_time+fgconf.uav.max_flight_time))
-    fm_1 = pl.observed_firemap()
-
-    import matplotlib
-    import fire_rs.geodata.display
-    gdd = fire_rs.geodata.display.GeoDataDisplay(
-        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_1))
-    TrajectoryDisplayExtension(None).extend(gdd)
-    gdd.draw_observation_map(fm_1, color='darkgreen')
-    plot_plan_trajectories(sr_1.final_plan(), gdd, colors=["maroon"], show=True)
-
-    # Replan
-    from_t = fgconf.start_time + 5 * 60
-    fm_1 = pl.observed_firemap((start_t, from_t + 1))
-    sr_2 = pl.replan(from_t)
-    fm_2 = pl.observed_firemap()
-
-    gdd = fire_rs.geodata.display.GeoDataDisplay(
-        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_2))
-    TrajectoryDisplayExtension(None).extend(gdd)
-    gdd.draw_observation_map(fm_2, color='chartreuse')
-    gdd.draw_observation_map(fm_1, color='darkgreen')
-    plot_plan_trajectories(sr_1.final_plan(), gdd, time_range=(start_t, from_t+1),
-                           colors=["maroon"], show=False)
-    plot_plan_trajectories(sr_2.final_plan(), gdd, colors=["orangered"], show=True)
-
-    print(pl.search_result)
-
