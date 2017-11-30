@@ -86,8 +86,8 @@ if __name__ == '__main__':
 
     pl.compute_plan()
     sr_1 = pl.search_result
-    observ = pl.observed_cells((fgconf.start_time, fgconf.start_time+fgconf.uav.max_flight_time))
-    fm_1 = pl.observed_firemap()
+    observ = pl.expected_ignited_positions((fgconf.start_time, fgconf.start_time + fgconf.uav.max_flight_time))
+    fm_1 = pl.expected_ignited_map()
 
     import matplotlib
     import fire_rs.geodata.display
@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     # Replan
     from_t = fgconf.start_time + 5 * 60
-    fm_1 = pl.observed_firemap((start_t, from_t + 1))
+    fm_1 = pl.expected_observed_map((start_t, from_t + 1))
 
     # With different wind
     fire_old  = fire.ignitions().clone(data_array=fire.ignitions()["ignition"], dtype=[('ignition_old', 'float64')])
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     pl.update_firemap(fire2.ignitions())
 
     sr_2 = pl.replan(from_t)
-    fm_2 = pl.observed_firemap()
+    fm_2 = pl.expected_observed_map()
 
     gdd = fire_rs.geodata.display.GeoDataDisplay(
         *fire_rs.geodata.display.get_pyplot_figure_and_axis(),

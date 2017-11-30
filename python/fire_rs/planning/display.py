@@ -148,7 +148,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                               zorder=TrajectoryDisplayExtension.BACKGROUND_OVERLAY_LAYER,
                               edgecolors='none', marker='s')
 
-    def _draw_observation_map(self, observation_map: 'GeoData', layer='observed_ignition',
+    def _draw_observation_map(self, observation_map: 'GeoData', layer='observed',
                               color='green'):
         o_map = np.array(observation_map[layer])
         o_map[~np.isnan(o_map)] = 1
@@ -190,7 +190,7 @@ def plot_plan_with_background(planner, geodatadisplay, time_range, output_option
             geodatadisplay.draw_ignition_shade(
                 with_colorbar=output_options_plot.get('colorbar', True))
         elif layer == 'observedcells':
-            geodatadisplay.draw_observation_map(planner.observed_firemap())
+            geodatadisplay.draw_observation_map(planner.expected_ignited_map())
         elif layer == 'ignition_contour':
             try:
                 geodatadisplay.draw_ignition_contour(with_labels=True)

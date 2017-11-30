@@ -175,15 +175,23 @@ class Planner:
         self.planning_conf['min_time'] = from_t
         return self.compute_plan(observed_previously=observed_previously)
 
-    def observed_cells(self, time_window=None):
+    def expected_ignited_positions(self, time_window=None):
+        """Get the percieved positions where the fire is suposed to be."""
         if time_window:
             tw_cpp = up.TimeWindow(time_window[0], time_window[1])
             return [o.as_tuple() for o in self._searchresult.final_plan().observations(tw_cpp)]
         else:
             return [o.as_tuple() for o in self._searchresult.final_plan().observations()]
-    #
-    # def update_area_wind(self, wind_velocity: float, wind_angle: float):
-    #     self.environment.update_area_wind(wind_velocity, wind_angle)
+
+    def expected_observed_positions(self, time_window=None):
+        """Get all the positions percieved the UAV camera.
+        Arguments:
+            time_window: If None (default) all the trajectory segments"""
+        if time_window:
+            tw_cpp = up.TimeWindow(time_window[0], time_window[1])
+            return [o.as_tuple() for o in self._searchresult.final_plan().view_trace(tw_cpp)]
+        else:
+            return [o.as_tuple() for o in self._searchresult.final_plan().view_trace()]
 
     def update_firemap(self, firemap: GeoData):
         self.firemap = firemap
@@ -220,12 +228,21 @@ class Planner:
     def flights(self):
         return self._flights
 
-    def observed_firemap(self, time_window=None, layer_name='observed_ignition') -> 'GeoData':
+    def expected_ignited_map(self, time_window=None, layer_name='observed') -> 'GeoData':
         observed_firemap = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name,'float64')])
-        for (p, t) in self.observed_cells(time_window):
+        for (p, t) in self.expected_ignited_positions(time_window):
             array_pos = observed_firemap.array_index(p)
             observed_firemap[layer_name][array_pos] = t
         return observed_firemap
+
+    def expected_observed_map(self, time_window=None, layer_name='observed') -> GeoData:
+        """Get a GeoData with the time of all percieved cells by the UAV camera."""
+        cells = self.expected_observed_positions(time_window)
+        map = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name,'float64')])
+        for (p, t) in self.expected_observed_positions(time_window):
+            array_pos = map.array_index(p)
+            map[layer_name][array_pos] = t
+        return map
 
     @property
     def search_result(self):
