@@ -338,18 +338,21 @@ struct Plan {
         // the rectangle is placed right in front of the plane. Its width is given by the view width of the UAV
         // (half of it on each side) and as length equal to the length of the segment + the view depth of the UAV
         const double w = view_width; // width of rect
-        const double l = /*view_depth + */segment.length; // length of rect
+        const double l = segment.length; // length of rect
 
         // coordinates of A, B and C corners, where AB and BC are perpendicular. D is the corner opposing A
         // UAV is at the center of AB
-        const double ax = segment.start.x + cos(segment.start.dir + M_PI/2) * w/2;
-        const double ay = segment.start.y + sin(segment.start.dir + M_PI/2) * w/2;
-        const double bx = segment.start.x - cos(segment.start.dir + M_PI/2) * w/2;
-        const double by = segment.start.y - sin(segment.start.dir + M_PI/2) * w/2;
-        const double cx = ax + cos(segment.start.dir) * l;
-        const double cy = ay + sin(segment.start.dir) * l;
-        const double dx = bx + cos(segment.start.dir) * l;
-        const double dy = by + sin(segment.start.dir) * l;
+        const double ssx = segment.start.x - cos(segment.start.dir) * view_depth / 2;
+        const double ssy = segment.start.y - sin(segment.start.dir) * view_depth / 2;
+
+        const double ax = ssx + cos(segment.start.dir + M_PI/2) * w/2;
+        const double ay = ssy + sin(segment.start.dir + M_PI/2) * w/2;
+        const double bx = ssx - cos(segment.start.dir + M_PI/2) * w/2;
+        const double by = ssy - sin(segment.start.dir + M_PI/2) * w/2;
+        const double cx = ax + cos(segment.start.dir) * (l + view_depth);
+        const double cy = ay + sin(segment.start.dir) * (l + view_depth);
+        const double dx = bx + cos(segment.start.dir) * (l + view_depth);
+        const double dy = by + sin(segment.start.dir) * (l + view_depth);
 
         // limits of the area in which to search for visible points
         // this is a subset of the raster that strictly contains the visibility rectangle
