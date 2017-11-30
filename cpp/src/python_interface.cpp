@@ -245,7 +245,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("segment", &Trajectory::operator[], py::arg("index"))
             .def_readonly("start_times", &Trajectory::start_times)
             .def("slice", (Trajectory (Trajectory::*)(TimeWindow) const) &Trajectory::slice, py::arg("time_window"))
-            .def("slice", [](Trajectory self, py::tuple range) -> Trajectory {
+            .def("slice", [](Trajectory& self, py::tuple range) -> Trajectory {
                 auto tw = TimeWindow(range[0].cast<double>(), range[1].cast<double>());
                 return self.slice(tw);
             }, py::arg("time_window"))
@@ -255,7 +255,13 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("as_waypoints", &Trajectory::as_waypoints)
             .def("sampled", &Trajectory::sampled, py::arg("step_size") = 1)
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
-            .def("__repr__", &Trajectory::to_string);
+            .def("__repr__", &Trajectory::to_string)
+            .def("trace", [](Trajectory& self, const DRaster& r) {
+                     vector<PositionTime> trace = vector<PositionTime>{};
+                     for(auto& s: self.traj) {
+                        Plan::segment_trace(s, self.conf.uav.view_width, self.conf.uav.view_depth, r);}
+                     return trace;
+                 }, py::arg("raster"));
 
     py::class_<TrajectoryConfig>(m, "TrajectoryConfig")
             .def(py::init<UAV, Waypoint3d, Waypoint3d, double, double>())
@@ -274,6 +280,9 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("time_window", &Plan::time_window)
             .def("observations", (vector<PositionTime> (Plan::*)() const) &Plan::observations)
             .def("observations", (vector<PositionTime> (Plan::*)(const TimeWindow &) const) &Plan::observations,
+                 py::arg("tw"))
+            .def("view_trace", (vector<PositionTime> (Plan::*)() const) &Plan::view_trace)
+            .def("view_trace", (vector<PositionTime> (Plan::*)(const TimeWindow &) const) &Plan::view_trace,
                  py::arg("tw"));
 
     py::class_<SearchResult>(m, "SearchResult")

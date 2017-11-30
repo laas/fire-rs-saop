@@ -170,6 +170,36 @@ struct Plan {
         return obs;
     }
 
+    /*All the positions observed by the UAV camera*/
+    vector<PositionTime> view_trace(const TimeWindow& tw) const {
+        vector<PositionTime> obs = {};
+        for(auto& traj : core.trajectories) {
+            UAV drone = traj.conf.uav;
+            for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
+                const Segment3d& seg = traj[seg_id];
+
+                double obs_time = traj.start_time(seg_id);
+                double obs_end_time = traj.end_time(seg_id);
+                TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
+                if (tw.contains(seg_tw)) {
+                    opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
+                                                                     firedata->ignitions);
+                    if (opt_cells) {
+                        for (const auto &c : *opt_cells) {
+                            obs.emplace_back(PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
+                        }
+                    }
+                }
+            }
+        }
+        return obs;
+    }
+
+    /*All the positions observed by the UAV camera*/
+    vector<PositionTime> view_trace() const {
+        return view_trace(time_window);
+    }
+
     void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true) {
         ASSERT(traj_id < core.size());
         ASSERT(insert_loc <= core[traj_id].traj.size());
