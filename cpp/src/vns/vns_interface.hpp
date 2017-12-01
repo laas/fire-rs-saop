@@ -139,7 +139,7 @@ struct VariableNeighborhoodSearch {
      *                    Warning: this is very heavy on memory usage.
      * @return
      */
-    SearchResult search(Plan p, size_t max_restarts, size_t save_every=0, bool save_improvements=false) {
+    SearchResult search(Plan p, double max_time_secs, size_t save_every=0, bool save_improvements=false) {
         const clock_t search_start = clock();
         auto seconds_since_start = [search_start]() { return (double (clock() - search_start)) / CLOCKS_PER_SEC; };
 
@@ -161,11 +161,11 @@ struct VariableNeighborhoodSearch {
 
         bool saved = false; /*True if an improvement was saved so save_every do not take an snapshot again*/
 
-        while(num_restarts <= max_restarts) {
+        while(seconds_since_start() < max_time_secs) {
             // choose first neighborhood
             size_t current_neighborhood = 0;
             if(num_restarts > 0) {
-                std::cout << "Shuffling\n";
+                std::cout << "Shuffle no. " << num_restarts << std::endl;
                 best_plan_for_restart = std::make_shared<Plan>(*best_plan);
                 shuffler->suffle(best_plan_for_restart);
                 if(save_improvements) {
@@ -174,7 +174,7 @@ struct VariableNeighborhoodSearch {
                 }
             }
 
-            while(current_neighborhood < neighborhoods.size()) {
+            while(seconds_since_start() < max_time_secs && current_neighborhood < neighborhoods.size()) {
                 // current neighborhood
                 shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 

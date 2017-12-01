@@ -359,10 +359,11 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
                           'newsletter': generate_scenario_newsletter,}
 
+max_planning_time = 5.
 
 vns_configurations = {
     "demo": {
-        "max_restarts": 5,
+        "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
                 "max_trials": 10,

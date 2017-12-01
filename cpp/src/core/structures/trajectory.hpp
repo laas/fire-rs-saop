@@ -154,6 +154,51 @@ public:
     /** Accesses the index-th segment of the trajectory */
     const Segment3d& operator[] (size_t index) const { return traj[index]; }
 
+    /*Returns the part of a Trajectory within the TimewWindow as a new Trajectory.*/
+    Trajectory slice(TimeWindow tw) const {
+
+//        ASSERT(conf.start_time <= tw.start && tw.end < conf.max_flight_time);
+
+        if (traj.size() == 0) {
+            // If the trajectory is void, a subtrajectory is the trajectory
+            std::cerr << "Slicing an empty trajectory" << std::endl;
+            return Trajectory(*this);
+        }
+
+        opt<size_t> new_traj_start_i = {};
+        size_t new_traj_end_i = {};
+
+        for (size_t i=0; i<size(); ++i) {
+            TimeWindow seg_range = TimeWindow(start_time(i), end_time(i));
+            if (tw.intersects(seg_range)) {
+                if (!new_traj_start_i) {
+                    new_traj_start_i = i;
+                }
+                new_traj_end_i = i;
+            }
+        }
+
+        // When the new trajectory does not contain any vector
+        if (!new_traj_start_i) {
+            TrajectoryConfig new_conf = TrajectoryConfig(conf.uav, tw.start, tw.end);
+            return Trajectory(new_conf);
+        }
+
+        /* TODO: Start and end waypoints should be set to the position at tw.start and tw.end and not at the closest
+         * segment. However, this requires to implement a function to get the position at any time in the trajectory.*/
+        TrajectoryConfig new_conf = TrajectoryConfig(
+                conf.uav, traj.at(*new_traj_start_i).start, traj.at(new_traj_end_i).end,
+                ((*new_traj_start_i) == 0) ? conf.start_time : start_time(*new_traj_start_i),
+                (new_traj_end_i == (size() - 1)) ? conf.max_flight_time : end_time(new_traj_end_i));
+
+        Trajectory new_trajectory = Trajectory(new_conf);
+        for (size_t i=*new_traj_start_i, j=new_trajectory.first_modifiable(); i<=new_traj_end_i; ++i, ++j) {
+            new_trajectory.insert_segment(traj[i], j);
+        }
+
+        return new_trajectory;
+    };
+
     /** Returns the trajectory as a set of waypoints.
      * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
      * Otherwise, there will one waypoint every 'step_size' distance units of the path. */

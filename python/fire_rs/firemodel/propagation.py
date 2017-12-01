@@ -29,7 +29,7 @@
 import heapq
 import logging
 
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import numpy as np
 
@@ -61,6 +61,7 @@ class Environment:
         wind = self._world.get_wind(area, domain_average=(wind_speed, wind_dir))
         moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
         fuel = self._world.get_fuel_type(area)
+        # type: GeoData
         self.raster = slope.combine(wind).combine(moisture).combine(fuel).combine(elevation)
         self._clustering = None
 
@@ -76,8 +77,8 @@ class Environment:
 
     def update_area_wind(self, wind_speed, wind_dir):
         new_wind = self._world.get_wind(self._area, domain_average=(wind_speed, wind_dir))
-        self.raster['wind_velocity'] = new_wind['wind_velocity']
-        self.raster['wind_direction'] = new_wind['wind_direction']
+        self.raster.data['wind_velocity'] = new_wind['wind_velocity']
+        self.raster.data['wind_angle'] = new_wind['wind_angle']
 
     def get_fuel_type(self, x, y):
         """Returns the fuel type (e.g. 'SH5') in (x,y)"""
@@ -133,35 +134,41 @@ neighborhood = [(1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1), (0,-1), (1,-1),
 class FirePropagation:
     """Class to compute and store fire propagation data."""
 
-    def __init__(self, environment: 'Environment'):
+    def __init__(self, environment: 'Environment', ignition_layer='ignition'):
         self.environment = environment
+        self._ignition_layer = ignition_layer
         # build internal data structure compose of three layers ['ignition', 'x_pred', 'y_pred']
-        self.prop_data = environment.raster.clone(fill_value=np.finfo(np.float64).max, dtype=[('ignition', 'float64')])
-        tmp2 = environment.raster.clone(fill_value=-1, dtype=[('x_pred', 'int32'), ('y_pred', 'int32')])
+        self.prop_data = environment.raster.clone(fill_value=np.finfo(np.float64).max,
+                                                  dtype=[(self._ignition_layer, 'float64')])
+        tmp2 = environment.raster.clone(fill_value=-1, dtype=[('x_pred', 'int32'),
+                                                              ('y_pred', 'int32')])
         self.prop_data = self.prop_data.combine(tmp2)
 
-        self._propagation_queue = []
+        self._propagation_queue = []  # type: List[float, Tuple[int, int]]
         heapq.heapify(self._propagation_queue)
         (self.max_x, self.max_y) = self.prop_data.data.shape
-        self._ignition_points = []
+        self._ignition_cells = []  # type: List[Tuple[int, int]]
 
-    def set_ignition_point(self, ignition_point: TimedPoint):
+    def set_ignition_point(self, ignition_point: Union[TimedPoint, Tuple[float, float, float]]):
         """Sets the given (x, y) point as on fire at the given time.
         Multiple ignition points can be provided.
         """
-        (xi, yi) = self.environment.raster.array_index((ignition_point.x, ignition_point.y))
-        # ignition time of (x, y) is time
-        self.prop_data.data[xi, yi][0] = ignition_point.time
+        (xi, yi) = self.environment.raster.array_index((ignition_point[0], ignition_point[1]))
+        self.set_ignition_cell((xi, yi, ignition_point[2]))
+
+    def set_ignition_cell(self, ign_cell: Tuple[int, int, float]):
+        """Sets the given (x, y) cells as on fire at the given time t."""
+        self.prop_data.data[ign_cell[0], ign_cell[1]][self._ignition_layer] = ign_cell[2]
         # predecessor of (x, y) is itself (i.e. meaning no predecessor)
-        self.prop_data.data[xi, yi][1] = xi
-        self.prop_data.data[xi, yi][2] = yi
-        self._push_to_propagation_queue(xi, yi, ignition_point.time)
-        self._ignition_points.append((xi, yi))
+        self.prop_data.data[ign_cell[0], ign_cell[1]]['x_pred'] = ign_cell[0]
+        self.prop_data.data[ign_cell[0], ign_cell[1]]['y_pred'] = ign_cell[1]
+        self._push_to_propagation_queue(ign_cell[0], ign_cell[1], ign_cell[2])
+        self._ignition_cells.append((ign_cell[0], ign_cell[1]))
 
     def ignitions(self) -> GeoData:
-        return self.prop_data.slice(['ignition'])
+        return self.prop_data.slice([self._ignition_layer])
 
-    def _push_to_propagation_queue(self, x, y, time):
+    def _push_to_propagation_queue(self, x: int, y: int, time: float):
         heapq.heappush(self._propagation_queue, (time, (x, y)))
 
     def _pick_from_propagation_queue(self):
@@ -176,7 +183,7 @@ class FirePropagation:
     def propagation_finished(self):
         return len(self._propagation_queue) == 0
 
-    def propagate(self, horizon):
+    def propagate(self, horizon: float):
         assert self.prop_data.cell_width == self.prop_data.cell_height
         cell_size = self.prop_data.cell_height
 

@@ -201,6 +201,30 @@ void test_trajectory_as_waypoints() {
     traj.sampled(2);
 }
 
+void test_trajectory_slice() {
+
+    TimeWindow tw1 = TimeWindow(10, 300);
+
+    TrajectoryConfig config1 = TrajectoryConfig(uav, tw1.start, tw1.end);
+    Trajectory traj = Trajectory(config1);
+    traj.append_segment(Segment3d(Waypoint3d(0, 0, 0, 0)));
+    traj.append_segment(Segment3d(Waypoint3d(100, 100, 0, 0), 50));
+    traj.append_segment(Segment3d(Waypoint3d(300, 200, 0, 0), 50));
+    traj.append_segment(Segment3d(Waypoint3d(500, 500, 0, 0)));
+
+    Trajectory sliced1 = traj.slice(TimeWindow(tw1.start + 1, tw1.end - 1));
+    Trajectory sliced2 = traj.slice(TimeWindow(tw1.start + 1, 85));
+
+    BOOST_CHECK(sliced1.size() == traj.size() - 1);
+    BOOST_CHECK(sliced2.size() == traj.size() - 2);
+
+    BOOST_CHECK_CLOSE(traj.start_time(1), sliced1.start_time(0), 0.1);
+    BOOST_CHECK_CLOSE(traj.start_time(1), sliced2.start_time(0), 0.1);
+    BOOST_CHECK_CLOSE(traj.start_time(3), sliced1.start_time(2), 0.1);
+    BOOST_CHECK_CLOSE(traj.start_time(2), sliced2.start_time(1), 0.1);
+
+}
+
 void test_time_window_order() {
     double s = 10;
     double e = 25;
@@ -217,6 +241,7 @@ test_suite* position_manipulation_test_suite()
 {
     test_suite* ts2 = BOOST_TEST_SUITE( "position_manipulation_tests" );
     srand(time(0));
+    ts2->add(BOOST_TEST_CASE(&test_trajectory_slice));
     ts2->add(BOOST_TEST_CASE(&test_time_window_order));
     ts2->add(BOOST_TEST_CASE(&test_trajectory_as_waypoints));
     ts2->add(BOOST_TEST_CASE(&test_segment_rotation));

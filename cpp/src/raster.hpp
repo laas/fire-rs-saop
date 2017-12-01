@@ -37,6 +37,8 @@ struct Cell final {
 
     bool operator!=(Cell& pt) { return x != pt.x || y != pt.y; }
 
+    bool operator==(const Cell& pt) { return x == pt.x && y == pt.y; }
+
     friend std::ostream& operator<< (std::ostream& stream, const Cell& pt) {
         return stream << "(" << pt.x << ", " << pt.y <<")";
     }

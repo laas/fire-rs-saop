@@ -26,14 +26,13 @@ import json
 import logging
 import types
 from collections import namedtuple
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
 import fire_rs.uav_planning as up
 from fire_rs.firemodel.propagation import Environment, FirePropagation
-from fire_rs.geodata.geo_data import Area, GeoData, TimedPoint
-from fire_rs.planning.display import TrajectoryDisplayExtension
+from fire_rs.geodata.geo_data import GeoData
 
 
 class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
@@ -41,6 +40,10 @@ class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
 
     def as_cpp(self):
         return up.Waypoint(self.x, self.y, self.z, self.dir)
+
+    @classmethod
+    def from_cpp(cls, wp:'up.Waypoint'):
+        return cls(wp.x, wp.y, wp.z, wp.dir)
 
 
 class UAVConf:
@@ -130,12 +133,12 @@ class Planner:
         assert "ignition" in firemap.layers
         self._env = env  # type: PlanningEnvironment
         self._firemap = firemap  # type: GeoData
-        self._flights = flights[:]  # type: [FlightConf]
+        self._flights = flights[:]  # type: List[FlightConf]
         self._planning_conf = planning_conf  # type: dict
 
         self._searchresult = None  # type: Optional(up.SearchResult)
 
-    def compute_plan(self) -> 'up.SearchResult':
+    def compute_plan(self, observed_previously=None) -> 'up.SearchResult':
         # Retrieve trajectory configurations in as C++ objects
         cpp_flights = [f.as_cpp() for f in self._flights]
 
@@ -143,20 +146,70 @@ class Planner:
         res = up.plan_vns(cpp_flights,
                           self._firemap.as_cpp_raster(),
                           self._env.raster.slice('elevation_planning').as_cpp_raster(),
-                          json.dumps(self._planning_conf))
+                          json.dumps(self._planning_conf),
+                          [] if observed_previously is None else observed_previously )
         self._searchresult = res
         return res
 
-    def observed_cells(self, time_window=None):
+    def replan(self, from_t, positions=None) -> 'up.SearchResult':
+        # At this moment we can only restart at segment start times. from_t is just a indication of
+        # wich segement we should pick to start from.
+        if self.search_result is None:
+            self.compute_plan()
+
+        if positions:
+            raise NotImplementedError("Cannot replan yet from arbitrary positions")
+
+        trajectories = self.search_result.final_plan().trajectories()
+
+        for f, t in zip(self.flights, trajectories):
+            sub_traj = t.slice((from_t, np.inf))
+            if t.start_time(0) <= from_t:
+                f.base_waypoint = Waypoint.from_cpp(sub_traj.segment(0).end)
+            else:
+                f.base_waypoint = Waypoint.from_cpp(sub_traj.segment(0).start)
+            f.start_time = from_t
+
+        observed_previously = self._searchresult.final_plan().observations(up.TimeWindow(
+            self.planning_conf['min_time'], from_t))
+        self.planning_conf['min_time'] = from_t
+        return self.compute_plan(observed_previously=observed_previously)
+
+    def expected_ignited_positions(self, time_window=None):
+        """Get the percieved positions where the fire is suposed to be."""
         if time_window:
             tw_cpp = up.TimeWindow(time_window[0], time_window[1])
             return [o.as_tuple() for o in self._searchresult.final_plan().observations(tw_cpp)]
         else:
             return [o.as_tuple() for o in self._searchresult.final_plan().observations()]
 
+    def expected_observed_positions(self, time_window=None):
+        """Get all the positions percieved the UAV camera.
+        Arguments:
+            time_window: If None (default) all the trajectory segments"""
+        if time_window:
+            tw_cpp = up.TimeWindow(time_window[0], time_window[1])
+            return [o.as_tuple() for o in self._searchresult.final_plan().view_trace(tw_cpp)]
+        else:
+            return [o.as_tuple() for o in self._searchresult.final_plan().view_trace()]
+
+    def update_firemap(self, firemap: GeoData):
+        self.firemap = firemap
+
     @property
     def environment(self) -> 'Environment':
         return self._env
+
+    @property
+    def time_window(self):
+        if self._searchresult:
+            return self._searchresult.final_plan().time_window.as_tuple()
+        else:
+            return (self.planning_conf['min_time'], self.planning_conf['max_time'])
+
+    @time_window.setter
+    def time_window(self, value):
+        pass
 
     @property
     def firemap(self) -> 'GeoData':
@@ -169,18 +222,27 @@ class Planner:
         assert self._firemap.cell_width == value.cell_width
         assert self._firemap.cell_height == value.cell_height
 
-        self._firemap._firemap = value
+        self._firemap = value
 
     @property
     def flights(self):
         return self._flights
 
-    def observed_firemap(self, time_window=None, layer_name='observed_ignition') -> 'GeoData':
+    def expected_ignited_map(self, time_window=None, layer_name='observed') -> 'GeoData':
         observed_firemap = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name,'float64')])
-        for (p, t) in self.observed_cells(time_window):
+        for (p, t) in self.expected_ignited_positions(time_window):
             array_pos = observed_firemap.array_index(p)
             observed_firemap[layer_name][array_pos] = t
         return observed_firemap
+
+    def expected_observed_map(self, time_window=None, layer_name='observed') -> GeoData:
+        """Get a GeoData with the time of all percieved cells by the UAV camera."""
+        cells = self.expected_observed_positions(time_window)
+        map = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name,'float64')])
+        for (p, t) in self.expected_observed_positions(time_window):
+            array_pos = map.array_index(p)
+            map[layer_name][array_pos] = t
+        return map
 
     @property
     def search_result(self):
@@ -189,85 +251,3 @@ class Planner:
     @property
     def planning_conf(self) -> 'dict':
         return self._planning_conf
-
-
-class PlanningManager:
-    def __init__(self, planner: Planner):
-        self._planner = planner  # type: Planner
-
-    def update_area_wind(self, wind_velocity, wind_direction):
-        self._planner.environment.update_area_wind(wind_velocity, wind_direction)
-
-    def update_firemap(self, firemap: GeoData):
-        self._planner.firemap = firemap
-
-    def replan(self):
-        """Replan should run Planner.compute_plan with the updated information."""
-        pass
-
-
-if __name__ == '__main__':
-    import os
-    import json
-    from fire_rs.firemodel import propagation
-    from fire_rs.geodata.geo_data import TimedPoint
-
-    # Geographic environment (elevation, landcover, wind...)
-    area = ((480060.0, 485060.0), (6210074.0, 6215074.0))
-    env = PlanningEnvironment(area, wind_speed=5., wind_dir=0., planning_elevation_mode='dem')
-
-    # Fire applied to the previous environment
-    ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
-    fire = propagation.propagate_from_points(env, ignition_point, 9000)
-
-    # Configure some flight
-    base_wp = Waypoint(area[0][0]+100., area[1][0]+100., 100., 0.)
-    start_t = 30 * 60  # 30 minutes after the ignition
-    fgconf = FlightConf(UAVConf.X8(), start_t, base_wp)
-
-    # Write down the desired VNS configuration
-    conf_vns = {
-        "base": {
-            "max_restarts": 5,
-            "neighborhoods": [
-                {"name": "dubins-opt",
-                 "max_trials": 10,
-                 "generators": [
-                     {"name": "MeanOrientationChangeGenerator"},
-                     {"name": "RandomOrientationChangeGenerator"},
-                     {"name": "FlipOrientationChangeGenerator"}]},
-                {"name": "one-insert",
-                 "max_trials": 50,
-                 "select_arbitrary_trajectory": False,
-                 "select_arbitrary_position": False}
-            ]
-        }
-    }
-
-    conf = {
-        'min_time': fgconf.start_time,
-        'max_time': fgconf.start_time + fgconf.uav.max_flight_time,
-        'save_every': 0,
-        'save_improvements': False,
-        'discrete_elevation_interval': 0,
-        'vns': conf_vns['base']
-    }
-    conf['vns']['configuration_name'] = 'base'
-
-    # Instantiate the planner
-    pl = Planner(env, fire.ignitions(), [fgconf], conf)
-
-    pl.compute_plan()
-
-    observ = pl.observed_cells((fgconf.start_time, fgconf.start_time+fgconf.uav.max_flight_time))
-    observ_less = pl.observed_cells((fgconf.start_time, fgconf.start_time + fgconf.uav.max_flight_time/3))
-
-    fm = pl.observed_firemap()
-
-    import matplotlib
-    import fire_rs.geodata.display
-    gdd = fire_rs.geodata.display.GeoDataDisplay(*fire_rs.geodata.display.get_pyplot_figure_and_axis(), fm)
-    TrajectoryDisplayExtension(None).extend(gdd)
-    gdd.draw_observation_map(fm)
-    print(pl.search_result)
-

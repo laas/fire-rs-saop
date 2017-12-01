@@ -135,7 +135,7 @@ class GeoData:
         ary = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
         return GeoData(ary, *self.coordinates(Cell(xi_min, yi_min)), self.cell_width, self.cell_height)
 
-    def array_index(self, coordinates: Point) -> Cell:
+    def array_index(self, coordinates: Point) -> Union[Cell, Tuple[int, int]]:
         (x, y) = coordinates
         xi = int(round((x - self.x_offset) / self.cell_width))
         yi = int(round((y - self.y_offset) / self.cell_height))
