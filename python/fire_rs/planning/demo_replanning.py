@@ -25,6 +25,9 @@
 
 if __name__ == '__main__':
     import numpy as np
+    import matplotlib
+    import matplotlib.cm
+    import fire_rs.geodata.display
     from fire_rs.firemodel import propagation
     from fire_rs.geodata.geo_data import TimedPoint
     from fire_rs.planning.planning import Planner, PlanningEnvironment, Waypoint, FlightConf, UAVConf
@@ -81,45 +84,58 @@ if __name__ == '__main__':
     }
     conf['vns']['configuration_name'] = 'demo'
 
-    # Instantiate the planner
+    # First plan
     pl = Planner(env, fire.ignitions(), [fgconf], conf)
-
     pl.compute_plan()
     sr_1 = pl.search_result
-    observ = pl.expected_ignited_positions((fgconf.start_time, fgconf.start_time + fgconf.uav.max_flight_time))
-    fm_1 = pl.expected_ignited_map()
-
-    import matplotlib
-    import fire_rs.geodata.display
+    ei_1 = pl.expected_ignited_map(layer_name="expected_ignited")
+    eo_1 = pl.expected_observed_map(layer_name="expected_observed")
     gdd = fire_rs.geodata.display.GeoDataDisplay(
-        *fire_rs.geodata.display.get_pyplot_figure_and_axis(), env.raster.combine(fm_1).combine(fire.ignitions()))
+        *fire_rs.geodata.display.get_pyplot_figure_and_axis(),
+        env.raster.combine(fire.ignitions()).combine(ei_1).combine(eo_1))
     TrajectoryDisplayExtension(None).extend(gdd)
     gdd.draw_ignition_contour()
-    gdd.draw_observation_map(fm_1, color='darkgreen')
+    gdd.draw_observation_map(layer='expected_observed', color='darkgreen', alpha=0.5)
+    gdd.draw_observation_map(layer='expected_ignited', color='darkred', alpha=0.5)
     plot_plan_trajectories(sr_1.final_plan(), gdd, colors=["maroon"], show=True)
 
-    # Replan
+    # Re-plan from the part of the first plan
     from_t = fgconf.start_time + 5 * 60
-    fm_1 = pl.expected_observed_map((start_t, from_t + 1))
+    ei_1 = pl.expected_ignited_map((start_t, from_t + 1), layer_name="expected_ignited")
+    eo_1 = pl.expected_observed_map((start_t, from_t + 1), layer_name="expected_observed")
 
     # With different wind
     fire_old  = fire.ignitions().clone(data_array=fire.ignitions()["ignition"], dtype=[('ignition_old', 'float64')])
-    env.update_area_wind(wind[0]+1, wind[1]-10/180*np.pi)
-    ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
+    env.update_area_wind(wind[0]+1, wind[1])
+
+    ignition_point = []
+    for x in range(fire_old.max_x):
+        for y in range(fire_old.max_y):
+            t = pl.firemap["ignition"][x, y]
+            if t <= from_t:
+                p = pl.firemap.coordinates((x, y))
+                ignition_point.append(TimedPoint(p[0], p[1], t))
+
     fire2 = propagation.propagate_from_points(env, ignition_point, 180 * 60)
     pl.update_firemap(fire2.ignitions())
 
+    fire_difference = fire_old.clone(data_array=np.abs(fire_old['ignition_old']-fire2.ignitions()['ignition']), dtype=[('difference', 'float64')])
+
     sr_2 = pl.replan(from_t)
-    fm_2 = pl.expected_observed_map()
+    ei_2 = pl.expected_ignited_map(layer_name="expected_ignited")
+    eo_2 = pl.expected_observed_map(layer_name="expected_observed")
 
     gdd = fire_rs.geodata.display.GeoDataDisplay(
         *fire_rs.geodata.display.get_pyplot_figure_and_axis(),
-        env.raster.combine(fm_2).combine(fire2.ignitions()).combine(fire_old))
+        env.raster.combine(fire2.ignitions()).combine(fire_old))
     TrajectoryDisplayExtension(None).extend(gdd)
     gdd.draw_ignition_contour()
     gdd.draw_ignition_contour(layer="ignition_old")
-    gdd.draw_observation_map(fm_2, color='chartreuse')
-    gdd.draw_observation_map(fm_1, color='darkgreen')
+    gdd.draw_ignition_shade(geodata=fire_difference, layer="difference", cmap=matplotlib.cm.Oranges)
+    gdd.draw_observation_map(eo_1, layer='expected_observed', color='green', alpha=0.5)
+    gdd.draw_observation_map(ei_1, layer='expected_ignited', color='red', alpha=0.5)
+    gdd.draw_observation_map(eo_2, layer='expected_observed', color='darkgreen', alpha=0.5)
+    gdd.draw_observation_map(ei_2, layer='expected_ignited', color='darkred', alpha=0.5)
     plot_plan_trajectories(sr_1.final_plan(), gdd, time_range=(start_t, from_t+1),
                            colors=["maroon"], show=False)
     plot_plan_trajectories(sr_2.final_plan(), gdd, colors=["orangered"], show=True)
