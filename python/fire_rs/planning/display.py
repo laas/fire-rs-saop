@@ -190,7 +190,12 @@ def plot_plan_with_background(planner, geodatadisplay, time_range, output_option
             geodatadisplay.draw_ignition_shade(
                 with_colorbar=output_options_plot.get('colorbar', True))
         elif layer == 'observedcells':
-            geodatadisplay.draw_observation_map(planner.expected_ignited_map())
+            geodatadisplay.draw_observation_map(
+                planner.expected_observed_map(layer_name="expected_observed"),
+                layer='expected_observed', color='green', alpha=0.9)
+            geodatadisplay.draw_observation_map(
+                planner.expected_ignited_map(layer_name="expected_ignited"),
+                layer='expected_ignited', color='red', alpha=0.9)
         elif layer == 'ignition_contour':
             try:
                 geodatadisplay.draw_ignition_contour(with_labels=True)
