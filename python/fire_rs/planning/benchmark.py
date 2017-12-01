@@ -22,70 +22,35 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import json
 import logging
-import matplotlib
-matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
-import matplotlib.cm
-import matplotlib.colors
-import matplotlib.pyplot
 import numpy as np
+import os
 import random
 import time
 import types
 
 from collections import namedtuple, Sequence
-from itertools import cycle
 from typing import Optional, Tuple, Union
 
-import fire_rs.geodata.display
+import matplotlib
+matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
+import matplotlib.cm
+import matplotlib.colors
+import matplotlib.pyplot
+
 import fire_rs.uav_planning as up
 
+from fire_rs.firemodel import propagation
+from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.geodata.geo_data import TimedPoint, Area
 from fire_rs.geodata.geo_data import Point as GeoData_Point
+from fire_rs.planning.display import plot_plan_with_background, TrajectoryDisplayExtension
+from fire_rs.planning.planning import FlightConf, Planner, PlanningEnvironment, UAVConf, Waypoint
 
 
 _DBL_MAX = np.finfo(np.float64).max
-
 DISCRETE_ELEVATION_INTERVAL = 100
-
-Waypoint = namedtuple('Waypoint', 'x, y, z, dir')
-
-
-class UAV:
-
-    def __init__(self, max_air_speed: float, max_angular_velocity: float, max_pitch_angle: float,
-                 base_waypoint: 'Union(Waypoint, (float, float, float, float)]'):
-        self.max_air_speed = max_air_speed
-        self.max_angular_velocity = max_angular_velocity
-        self.max_pitch_angle = max_pitch_angle
-        self.base_waypoint = base_waypoint
-
-    def as_cpp(self):
-        return up.UAV(self.max_air_speed, self.max_angular_velocity, self.max_pitch_angle)
-
-    def __repr__(self):
-        return "".join(("UAV(max_air_speed=", repr(self.max_air_speed),
-                        ", max_angular_velocity=", repr(self.max_angular_velocity),
-                        ", base_waypoint=", repr(self.base_waypoint), ")"))
-
-
-class Flight:
-
-    def __init__(self, uav: UAV, start_time: float, max_flight_time: float):
-        assert max_flight_time > 0
-        assert start_time > 0
-        self.uav = uav
-        self.start_time = start_time
-        self.max_flight_time = max_flight_time
-
-    def as_trajectory_config(self):
-        x = self.uav.base_waypoint
-        wp = up.Waypoint(x[0], x[1], x[2], x[3])
-        return up.TrajectoryConfig(self.uav.as_cpp(), wp, wp, self.start_time, self.max_flight_time)
-
-    def __repr__(self):
-        return "".join(("Flight(uav=", repr(self.uav), ", start_time=", repr(self.start_time),
-                        ", max_flight_time=", repr(self.max_flight_time), ")"))
 
 
 class Scenario:
@@ -94,14 +59,14 @@ class Scenario:
                  wind_speed: float,
                  wind_direction: float,
                  ignitions: [TimedPoint],
-                 flights: [Flight]):
-        self.area = area
-        self.wind_speed = wind_speed
-        self.wind_direction = wind_direction
+                 flights: [FlightConf]):
+        self.area = area  # type: Area
+        self.wind_speed = wind_speed  # type: float
+        self.wind_direction = wind_direction  # type: float
         assert len(ignitions) > 0
-        self.ignitions = ignitions
+        self.ignitions = ignitions  # type: [TimedPoint]
         assert len(flights) > 0
-        self.flights = flights
+        self.flights = flights  # type: [FlightConf]
 
         self.time_window_start = np.inf
         self.time_window_end = -np.inf
@@ -115,150 +80,34 @@ class Scenario:
                         ", flights=", repr(self.flights), ")"])
 
 
-class PlanDisplayExtension(fire_rs.geodata.display.DisplayExtension):
-    """Extension to GeoDataDisplay that an observation plan."""
-
-    def __init__(self, plan_trajectory):
-        self.plan_trajectory = plan_trajectory
-
-    def extend(self, geodatadisplay):
-        '''Bounds drawing methods to a GeoDataDisplayInstance.'''
-        geodatadisplay.plan_trajectory = self.plan_trajectory
-        geodatadisplay.draw_waypoints = types.MethodType(PlanDisplayExtension._draw_waypoints_extension, geodatadisplay)
-        geodatadisplay.draw_flighttime_path = types.MethodType(PlanDisplayExtension._draw_flighttime_path_extension, geodatadisplay)
-        geodatadisplay.draw_solid_path = types.MethodType(PlanDisplayExtension._draw_solid_path_extension, geodatadisplay)
-        geodatadisplay.draw_segments = types.MethodType(PlanDisplayExtension._draw_segments_extension, geodatadisplay)
-        geodatadisplay.draw_observedcells = types.MethodType(PlanDisplayExtension._draw_observedcells, geodatadisplay)
-
-    def _draw_waypoints_extension(self, *args, **kwargs):
-        '''Draw path waypoints in a GeoDataDisplay figure.'''
-        color = kwargs.get('color', 'C0')
-        waypoints = self.plan_trajectory.as_waypoints()
-        x = [wp.x for wp in waypoints]
-        y = [wp.y for wp in waypoints]
-        self._drawings.append(self.axis.scatter(x[::2], y[::2], s=7, c=color, marker='D'))
-        self._drawings.append(self.axis.scatter(x[1::2], y[1::2], s=7, c=color, marker='>'))
-
-    def _draw_flighttime_path_extension(self, *args, colorbar_time_range: 'Optional[Tuple[float, float]]' = None,
-                                        **kwargs):
-        '''Draw trajectory in a GeoDataDisplay figure.
-
-        The color of the trajectory will reflect the time taken by the trajectory.
-        Optional argument colorbar_time_range may be a tuple of start and end times in seconds.
-        If the Optional argument with_colorbar is set to True, a color bar will be displayed of the trajectory.
-        '''
-        if len(self.plan_trajectory.segments) < 2:
-            return
-        sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
-        x = [wp.x for wp in sampled_waypoints]
-        y = [wp.y for wp in sampled_waypoints]
-        color_range = np.linspace(self.plan_trajectory.start_time() / 60, self.plan_trajectory.end_time() / 60, len(x))
-        color_norm = matplotlib.colors.Normalize(vmin=color_range[0], vmax=color_range[-1])
-        if colorbar_time_range is not None:
-            color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0]/60, vmax=colorbar_time_range[1]/60)
-        self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
-                                   norm=color_norm, cmap=matplotlib.cm.gist_rainbow,
-                                                zorder=PlanDisplayExtension.TRAJECTORY_LAYER))
-        if kwargs.get('with_colorbar', False):
-            cb = self._figure.colorbar(self._drawings[-1], ax=self.axis, shrink=0.65, aspect=20)
-            cb.set_label("Flight time [min]")
-            self._colorbars.append(cb)
-
-    def _draw_solid_path_extension(self, *args, **kwargs):
-        '''Draw trajectory in a GeoDataDisplay figure with solid color
-
-        kwargs:
-            color: desired color. Default: C0.
-        '''
-        if len(self.plan_trajectory.segments) < 2:
-            return
-        sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
-        color = kwargs.get('color', 'C0')
-        x = [wp.x for wp in sampled_waypoints]
-        y = [wp.y for wp in sampled_waypoints]
-        self._drawings.append(self.axis.scatter(x, y, s=1, edgecolors='none', c=color,
-                                                zorder=PlanDisplayExtension.TRAJECTORY_LAYER))
-        # TODO: implement legend
-
-    def _draw_segments_extension(self, *args, **kwargs):
-        '''Draw observation segments with start and end points in a GeoDataDisplay figure.'''
-        if len(self.plan_trajectory.segments) < 2:
-            return
-        color = kwargs.get('color', 'C0')
-        segments = self.plan_trajectory.segments[1:-1]
-        start_x = [s.start.x for s in segments]
-        start_y = [s.start.y for s in segments]
-        end_x = [s.end.x for s in segments]
-        end_y = [s.end.y for s in segments]
-
-        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='D',
-                                                zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
-        self._drawings.append(self.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>',
-                                                zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
-
-        start_base = self.plan_trajectory.segments[0]
-        finish_base = self.plan_trajectory.segments[-1]
-
-        self._drawings.append(
-            self.axis.scatter(start_base.start.x, start_base.start.y, s=10, edgecolor='black', c=color, marker='o',
-                              zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
-        self._drawings.append(
-            self.axis.scatter(finish_base.start.x, finish_base.start.y, s=10, edgecolor='black', c=color, marker='o',
-                              zorder=PlanDisplayExtension.TRAJECTORY_OVERLAY_LAYER))
-
-        for i in range(len(segments)):
-            self._drawings.append(self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c=color, linewidth=2,
-                                                 zorder=PlanDisplayExtension.TRAJECTORY_LAYER))
-
-    def _draw_observedcells(self, observations, **kwargs):
-        for ptt in observations:
-            self.axis.scatter(ptt.as_tuple()[0][0], ptt.as_tuple()[0][1], s=4, c=(0., 1., 0., .5),
-                              zorder=PlanDisplayExtension.RASTER_OVERLAY_LAYER, edgecolors='none', marker='s')
-
-
-def plot_plan(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None, show=False):
-    colors = cycle(["red", "green", "blue", "black", "magenta"])
-    for traj, color in zip(plan.trajectories(), colors):
-        geodatadisplay.plan_trajectory = traj
-        geodatadisplay.draw_solid_path(color=color)
-        geodatadisplay.draw_segments(color=color)
-    if show:
-        geodatadisplay.axis.get_figure().show()
-
-
 def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, output_options_planning: dict,
                   snapshots, vns_name, plot=False):
-    import os
-    import json
-    from fire_rs.firemodel import propagation
 
-    # Fetch scenario environment data
-    env = propagation.Environment(scenario.area, wind_speed=scenario.wind_speed, wind_dir=scenario.wind_direction)
+    # Fetch scenario environment data with additional elevation mode for planning
+    env = PlanningEnvironment(scenario.area, wind_speed=scenario.wind_speed,
+                              wind_dir=scenario.wind_direction,
+                              planning_elevation_mode=output_options_planning['elevation_mode'])
 
     # Propagate fires in the environment
-    prop = propagation.propagate_from_points(env, scenario.ignitions, horizon=scenario.time_window_end + 60 * 10)
+    prop = propagation.propagate_from_points(env, scenario.ignitions,
+                                             horizon=scenario.time_window_end + 60 * 10)
     ignitions = prop.ignitions()
 
     # Propagation was running more time than desired in order to reduce edge effect.
-    # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next 10-minute mark (minus 1).
-    # This makes color bar ranges and fire front contour plots nicer
-    ignitions['ignition'][ignitions['ignition'] > int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
-
-    # If 'use_elevation' option is True, plan using a 3d environment. If not, use a flat terrain.
-    # This is independent of the output plot, because it can show the real terrain even in flat terrain mode.
-    terrain = env.raster.slice('elevation')
-    if (output_options_planning['use_elevation'] == False):
-        terrain.data['elevation'] = np.zeros_like(terrain.data['elevation'])
+    # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next
+    # 10-minute mark (minus 1). This makes color bar ranges and fire front contour plots nicer
+    ignitions['ignition'][ignitions['ignition'] > \
+                          int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
 
     # Transform altitude of UAV bases from agl (above ground level) to absolute
     for f in scenario.flights:
-        base_h = terrain["elevation"][terrain.array_index(
-            GeoData_Point(f.uav.base_waypoint[0], f.uav.base_waypoint[1]))]
+        base_h = 100  # If flat, start at the default segment insertion h
+        if output_options_planning['elevation_mode'] != 'flat':
+            base_h = env.raster["elevation"]\
+                [env.raster.array_index((f.base_waypoint[0], f.base_waypoint[1]))]
         # The new WP is (old_x, old_y, old_z + elevation[old_x, old_y], old_dir)
-        f.uav.base_waypoint = Waypoint(
-            f.uav.base_waypoint[0], f.uav.base_waypoint[1], f.uav.base_waypoint[2] + base_h, f.uav.base_waypoint[3])
-    # Retrieve trajectory configurations in as C++ objects
-    flights = [f.as_trajectory_config() for f in scenario.flights]
+        f.base_waypoint = Waypoint(f.base_waypoint[0], f.base_waypoint[1],
+                                   f.base_waypoint[2] + base_h, f.base_waypoint[3])
 
     conf = {
         'min_time': scenario.time_window_start,
@@ -270,9 +119,9 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     }
     conf['vns']['configuration_name'] = vns_name
 
-    # Call the C++ library that calculates the plan
-    res = up.plan_vns(flights, ignitions.as_cpp_raster(), terrain.as_cpp_raster(), json.dumps(conf))
-
+    # Call the planner
+    pl = Planner(env, ignitions, scenario.flights, conf)
+    res = pl.compute_plan()
     plan = res.final_plan()
 
     # Representation of unburned cells using max double is not suitable for display,
@@ -282,37 +131,15 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     first_ignition = np.nanmin(ignitions_nan)
     last_ignition = np.nanmax(ignitions_nan)
 
-    # If 'discrete_elevation_interval' is set, discretize the elevation raster that will be displayed
-    if (output_options_planning['discrete_elevation_interval']):
-        a = env.raster.data['elevation'] + output_options_planning['discrete_elevation_interval']
-        b = np.fmod(env.raster.data['elevation'], output_options_planning['discrete_elevation_interval'])
-        env.raster.data['elevation'] = a-b
+    # Move elevation_planning data to elevation, so we plot the elevation the planner has seen
+    env.raster.data['elevation'] = env.raster.data['elevation_planning']
 
     # Create the geodatadisplay object & extensions that are going to be used
-    geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
-    PlanDisplayExtension(None).extend(geodatadisplay)
+    geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
+    TrajectoryDisplayExtension(None).extend(geodatadisplay)
 
-    # Draw background layers
-    for layer in output_options_plot['background']:
-        if layer == 'elevation_shade':
-            geodatadisplay.draw_elevation_shade(with_colorbar=output_options_plot.get('colorbar', True))
-        elif layer == 'ignition_shade':
-            geodatadisplay.draw_ignition_shade(with_colorbar=output_options_plot.get('colorbar', True))
-        elif layer == 'observedcells':
-            geodatadisplay.draw_observedcells(res.final_plan().observations())
-        elif layer == 'ignition_contour':
-            try:
-                geodatadisplay.draw_ignition_contour(with_labels=True)
-            except ValueError as e:
-                logging.warn(e)
-        elif layer == 'wind_quiver':
-            geodatadisplay.draw_wind_quiver()
-
-    for i, t in enumerate(res.final_plan().trajectories()):
-        print("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
-
-    # Plot the final plan
-    plot_plan(res.final_plan(), geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
+    plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
+                              output_options_plot)
 
     # Save the picture
     print("saving as: " + str(os.path.join(
@@ -321,6 +148,10 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     geodatadisplay.axis.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
+
+    # Log planned trajectories metadata
+    for i, t in enumerate(plan.trajectories()):
+        logging.info("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
 
     # save metadata to file
     with open(os.path.join(save_directory, instance_name+".json"), "w") as metadata_file:
@@ -335,20 +166,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     # If intermediate plans are available, save them
     for i, i_plan in enumerate(res.intermediate_plans):
-        geodatadisplay = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
-        PlanDisplayExtension(None).extend(geodatadisplay)
-        for layer in output_options_plot['background']:
-            if layer == 'elevation_shade':
-                geodatadisplay.draw_elevation_shade(with_colorbar=output_options_plot.get('colorbar', True))
-            elif layer == 'ignition_shade':
-                geodatadisplay.draw_ignition_shade(with_colorbar=output_options_plot.get('colorbar', True))
-            elif layer == 'observedcells':
-                geodatadisplay.draw_observedcells(i_plan.observations())
-            elif layer == 'ignition_contour':
-                geodatadisplay.draw_ignition_contour(with_labels=True)
-            elif layer == 'wind_quiver':
-                geodatadisplay.draw_wind_quiver()
-        plot_plan(i_plan, geodatadisplay, time_range=(first_ignition, last_ignition), show=True)
+        plot_plan_with_background(i_plan, geodatadisplay, (first_ignition, last_ignition),
+                                  output_options_plot)
 
         i_plan_dir = os.path.join(save_directory, instance_name)
         if not os.path.exists(i_plan_dir):
@@ -388,10 +207,10 @@ def generate_scenario_newsletter():
     num_flights = 1
     flights = []
     for i in range(num_flights):
-        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = start + 3000
         max_flight_time = 450
-        flights.append(Flight(uav, uav_start, max_flight_time))
+        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -421,10 +240,10 @@ def generate_scenario_singlefire_singleuav_3d():
     num_flights = 1
     flights = []
     for i in range(num_flights):
-        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start + 2500, start + 7500.)
         max_flight_time = random.uniform(1000, 1500)
-        flights.append(Flight(uav, uav_start, max_flight_time))
+        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -455,10 +274,10 @@ def generate_scenario_singlefire_singleuav_shortrange():
     num_flights = 1
     flights = []
     for i in range(num_flights):
-        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start + 5000, start + 7000.)
         max_flight_time = random.uniform(500, 1000)
-        flights.append(Flight(uav, uav_start, max_flight_time))
+        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -471,7 +290,7 @@ def generate_scenario_singlefire_singleuav():
     uav_speed = 18.  # m/s
     uav_max_pitch_angle = 6. / 180. * np.pi
     uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
-    uav_bases = [Waypoint(area.xmin +100, area.ymin+100, 0)]
+    uav_bases = [Waypoint(area.xmin + 100, area.ymin + 100, 0)]
 
     wind_speed = 15.
     wind_dir = 0.
@@ -487,10 +306,10 @@ def generate_scenario_singlefire_singleuav():
     num_flights = 1
     flights = []
     for i in range(num_flights):
-        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(1000, 1500)
-        flights.append(Flight(uav, uav_start, max_flight_time))
+        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -524,10 +343,10 @@ def generate_scenario():
     num_flights = random.randint(1, 3)
     flights = []
     for i in range(num_flights):
-        uav = UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, random.choice(uav_bases))
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(500, 1200)
-        flights.append(Flight(uav, uav_start, max_flight_time))
+        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -540,10 +359,11 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
                           'newsletter': generate_scenario_newsletter,}
 
+max_planning_time = 5.
 
 vns_configurations = {
-    "base": {
-        "max_restarts": 5,
+    "demo": {
+        "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
                 "max_trials": 10,
@@ -555,44 +375,6 @@ vns_configurations = {
                 "max_trials": 50,
                 "select_arbitrary_trajectory": False,
                 "select_arbitrary_position": False}
-        ]
-    },
-    "with_smoothing": {
-        "max_restarts": 5,
-        "neighborhoods": [
-            {"name": "trajectory-smoothing",
-                "max_trials": 10},
-            {"name": "dubins-opt",
-                "max_trials": 10,
-                "generators": [
-                    {"name": "MeanOrientationChangeGenerator"},
-                    {"name": "RandomOrientationChangeGenerator"},
-                    {"name": "FlipOrientationChangeGenerator"}]},
-            {"name": "one-insert",
-                "max_trials": 50,
-                "select_arbitrary_trajectory": False,
-                "select_arbitrary_position": False}]
-    },
-    "full": {
-        "max_restarts": 5,
-        "neighborhoods": [
-            {"name": "dubins-opt",
-                "max_trials": 10,
-                "generators": [
-                    {"name": "RandomOrientationChangeGenerator"},
-                    {"name": "FlipOrientationChangeGenerator"}]},
-            {"name": "one-insert",
-                "max_trials": 50,
-                "select_arbitrary_trajectory": False,
-                "select_arbitrary_position": False},
-            {"name": "one-insert",
-                "max_trials": 200,
-                "select_arbitrary_trajectory": True,
-                "select_arbitrary_position": False},
-            {"name": "one-insert",
-                "max_trials": 200,
-                "select_arbitrary_trajectory": True,
-                "select_arbitrary_position": True}
         ]
     }
 }
@@ -646,7 +428,7 @@ def main():
                         help="Load VNS configurations from a JSON file")
     parser.add_argument("--vns",
                         help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
-                        default='base')
+                        default='demo')
     parser.add_argument("--elevation",
                         help="Source of elevation considered by the planning algorithm",
                         choices=['flat', 'dem', 'discrete'],
@@ -681,6 +463,7 @@ def main():
         matplotlib.rcParams['text.usetex'] = True
 
     if args.vns_conf:
+        global vns_configurations
         vns_configurations = vars(args.vns_conf)
 
     # Set-up output options
@@ -690,9 +473,9 @@ def main():
     output_options['plot']['colorbar'] = args.colorbar
     output_options['plot']['dpi'] = args.dpi
     output_options['plot']['size'] = args.size
-    output_options['planning']['use_elevation'] = False if args.elevation == "flat" else True
+    output_options['planning']['elevation_mode'] = args.elevation
     output_options['planning']['discrete_elevation_interval'] = \
-        DISCRETE_ELEVATION_INTERVAL if args.elevation == "discrete" else 0
+        DISCRETE_ELEVATION_INTERVAL if args.elevation == 'discrete' else 0
 
     # benchmark folder handling
     benchmark_name = args.name

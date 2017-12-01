@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "../core/structures/trajectory.hpp"
 #include "fire_data.hpp"
+#include "../raster.hpp"
 #include "../ext/json.hpp"
 #include "../core/structures/trajectories.hpp"
 
@@ -42,25 +43,39 @@ struct Plan {
     TimeWindow time_window;
     Trajectories core;
     shared_ptr<FireData> firedata;
-    vector<Point3dTimeWindow> possible_observations;
+    vector<PointTimeWindow> possible_observations;
+    vector<PositionTime> observed_previously;
 
     Plan(const Plan& plan) = default;
 
-    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw)
-            : time_window(tw), core(traj_confs), firedata(fire_data)
+    Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+         vector<PositionTime> observed_previously={})
+            : time_window(tw), core(traj_confs), firedata(fire_data), observed_previously(observed_previously)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
         }
+
+        std::vector<Cell> obs_prev_cells;
+        obs_prev_cells.reserve( observed_previously.size() );
+        std::transform( observed_previously.begin(), observed_previously.end(),
+                        std::back_inserter(obs_prev_cells),
+                        [this] (const PositionTime &pt) -> Cell { return firedata->ignitions.as_cell(pt.pt); });
 
         for(size_t x=0; x<firedata->ignitions.x_width; x++) {
             for (size_t y = 0; y < firedata->ignitions.y_height; y++) {
                 const double t = firedata->ignitions(x, y);
                 if (time_window.start <= t && t <= time_window.end) {
                     Cell c{x, y};
-                    possible_observations.push_back(
-                            //FIXME: This shouldn't be 3D
-                            Point3dTimeWindow{Position3d {firedata->ignitions.as_position(c), 100}, {firedata->ignitions(c), firedata->traversal_end(c)}});
+
+                    // If the cell is in the observed_previously list, do not add it to possible_observations
+                    if (std::find(obs_prev_cells.begin(), obs_prev_cells.end(), c)
+                        == obs_prev_cells.end())
+                    {
+                        possible_observations.push_back(
+                                PointTimeWindow{firedata->ignitions.as_position(c),
+                                                {firedata->ignitions(c), firedata->traversal_end(c)}});
+                    }
                 }
             }
         }
@@ -98,12 +113,12 @@ struct Plan {
      * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
      **/
     double utility() const {
-        vector<Position3dTime> done_obs = observations();
+        vector<PositionTime> done_obs = observations();
         double global_cost = 0;
-        for(Point3dTimeWindow possible_obs : possible_observations) {
+        for(PointTimeWindow possible_obs : possible_observations) {
             double min_dist = MAX_INFORMATIVE_DISTANCE;
             // find the closest observation.
-            for(Position3dTime obs : done_obs) {
+            for(PositionTime obs : done_obs) {
                 min_dist = min(min_dist, possible_obs.pt.dist(obs.pt));
             }
             // utility is based on the minimal distance to the observation and normalized such that
@@ -122,32 +137,71 @@ struct Plan {
 
     /** All observations in the plan. Computed by taking the visibility center of all segments.
      * Each observation is tagged with a time, corresponding to the start time of the segment.*/
-    vector<Position3dTime> observations() const {
-        vector<Position3dTime> obs;
+    vector<PositionTime> observations() const {
+        return observations(time_window);
+    }
+
+    /* Observations done within an arbitrary time window
+     */
+    vector<PositionTime> observations(const TimeWindow& tw) const {
+        vector<PositionTime> obs = std::vector<PositionTime>(observed_previously);
         for(auto& traj : core.trajectories) {
             UAV drone = traj.conf.uav;
             for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
                 const Segment3d& seg = traj[seg_id];
 
                 double obs_time = traj.start_time(seg_id);
+                double obs_end_time = traj.end_time(seg_id);
+                TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
+                if (tw.contains(seg_tw)) {
+                    // Determine the view depth and width from the segment height.
+                    double view_d = drone.view_depth_at_height(seg.start.z);
+                    double view_w = drone.view_width_at_height(seg.start.z);
 
-                // Determine the view depth and width from the segment height.
-                double view_d = drone.view_depth_at_height(seg.start.z);
-                double view_w = drone.view_width_at_height(seg.start.z);
-
-                opt<std::vector<Cell>> opt_cells = segment_trace(seg, view_d, view_w,
-                                                                 firedata->ignitions);
-                if (opt_cells) {
-                    for (const auto &c : *opt_cells) {
-                        if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
-                            // If the cell is observable, add it to the observations list
-                            obs.push_back(Position3dTime {Position3d {firedata->ignitions.as_position(c), 100.0}, traj.start_time(seg_id)});
+                    opt<std::vector<Cell>> opt_cells = segment_trace(seg, view_d, view_w,
+                                                                     firedata->ignitions);
+                    if (opt_cells) {
+                        for (const auto &c : *opt_cells) {
+                            if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
+                                // If the cell is observable, add it to the observations list
+                                obs.push_back(PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
+                            }
                         }
                     }
                 }
             }
         }
         return obs;
+    }
+
+    /*All the positions observed by the UAV camera*/
+    vector<PositionTime> view_trace(const TimeWindow& tw) const {
+        vector<PositionTime> obs = {};
+        for(auto& traj : core.trajectories) {
+            UAV drone = traj.conf.uav;
+            for(size_t seg_id=0; seg_id<traj.size(); seg_id++) {
+                const Segment3d& seg = traj[seg_id];
+
+                double obs_time = traj.start_time(seg_id);
+                double obs_end_time = traj.end_time(seg_id);
+                TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
+                if (tw.contains(seg_tw)) {
+                    opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
+                                                                     firedata->ignitions);
+                    if (opt_cells) {
+                        for (const auto &c : *opt_cells) {
+                            obs.emplace_back(PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
+                        }
+                    }
+                }
+            }
+        }
+        return obs;
+    }
+
+    /*All the positions observed by the UAV camera*/
+    vector<PositionTime> view_trace() const {
+        return view_trace(time_window);
     }
 
     void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true) {
@@ -288,18 +342,21 @@ struct Plan {
         // the rectangle is placed right in front of the plane. Its width is given by the view width of the UAV
         // (half of it on each side) and as length equal to the length of the segment + the view depth of the UAV
         const double w = view_width; // width of rect
-        const double l = /*view_depth + */segment.length; // length of rect
+        const double l = segment.length; // length of rect
 
         // coordinates of A, B and C corners, where AB and BC are perpendicular. D is the corner opposing A
         // UAV is at the center of AB
-        const double ax = segment.start.x + cos(segment.start.dir + M_PI/2) * w/2;
-        const double ay = segment.start.y + sin(segment.start.dir + M_PI/2) * w/2;
-        const double bx = segment.start.x - cos(segment.start.dir + M_PI/2) * w/2;
-        const double by = segment.start.y - sin(segment.start.dir + M_PI/2) * w/2;
-        const double cx = ax + cos(segment.start.dir) * l;
-        const double cy = ay + sin(segment.start.dir) * l;
-        const double dx = bx + cos(segment.start.dir) * l;
-        const double dy = by + sin(segment.start.dir) * l;
+        const double ssx = segment.start.x - cos(segment.start.dir) * view_depth / 2;
+        const double ssy = segment.start.y - sin(segment.start.dir) * view_depth / 2;
+
+        const double ax = ssx + cos(segment.start.dir + M_PI/2) * w/2;
+        const double ay = ssy + sin(segment.start.dir + M_PI/2) * w/2;
+        const double bx = ssx - cos(segment.start.dir + M_PI/2) * w/2;
+        const double by = ssy - sin(segment.start.dir + M_PI/2) * w/2;
+        const double cx = ax + cos(segment.start.dir) * (l + view_depth);
+        const double cy = ay + sin(segment.start.dir) * (l + view_depth);
+        const double dx = bx + cos(segment.start.dir) * (l + view_depth);
+        const double dy = by + sin(segment.start.dir) * (l + view_depth);
 
         // limits of the area in which to search for visible points
         // this is a subset of the raster that strictly contains the visibility rectangle

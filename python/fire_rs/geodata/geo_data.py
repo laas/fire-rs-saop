@@ -22,7 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from collections import namedtuple
+from collections import namedtuple, Sequence
 from functools import reduce
 
 import gdal
@@ -80,6 +80,17 @@ class GeoData:
         gd = GeoData(ar, lraster.x_offset, lraster.y_offset, lraster.cell_width, lraster.cell_width)
         return gd
 
+    @classmethod
+    def zeros_like(cls, other: 'GeoData'):
+        return cls(np.zeros_like(other.data), other.x_offset, other.y_offset,
+                   other.cell_width, other.cell_height)
+
+    @classmethod
+    def full_like(cls, other: 'GeoData', fill_value):
+        return cls(np.full_like(other.data, fill_value), other.x_offset, other.y_offset,
+                   other.cell_width, other.cell_height)
+
+
     def __contains__(self, coordinates):
         (x, y) = coordinates
         x_lim_low = self.x_offset - self.cell_width/2
@@ -124,7 +135,7 @@ class GeoData:
         ary = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
         return GeoData(ary, *self.coordinates(Cell(xi_min, yi_min)), self.cell_width, self.cell_height)
 
-    def array_index(self, coordinates: Point) -> Cell:
+    def array_index(self, coordinates: Point) -> Union[Cell, Tuple[int, int]]:
         (x, y) = coordinates
         xi = int(round((x - self.x_offset) / self.cell_width))
         yi = int(round((y - self.y_offset) / self.cell_height))

@@ -289,7 +289,8 @@ struct TimeWindow final {
 
     TimeWindow() = default;
 
-    constexpr TimeWindow(const double start, const double end) : start(start), end(end) {}
+    constexpr TimeWindow(const double start, const double end) : start(start < end ? start : end),
+                                                                 end(start < end ? end : start) {}
 
     friend std::ostream& operator<<(std::ostream& os, const TimeWindow& time_window) {
         return os << "[" << time_window.start << ", " << time_window.end << ")";
@@ -299,12 +300,16 @@ struct TimeWindow final {
         return (start+end)/2;
     }
 
-    bool contains(const double time) const {
-        return time >= start && time < end;
+    bool contains(double time) const {
+        return start <= time && time < end;
     }
 
-    bool is_within(const TimeWindow& time_window) const {
-        return start <= time_window.start && end < time_window.end;
+    bool contains(const TimeWindow &time_window) const {
+        return start <= time_window.start && time_window.end < end;
+    }
+
+    bool intersects(const TimeWindow &time_window) const {
+        return contains(time_window.start) || contains(time_window.end);
     }
 };
 
