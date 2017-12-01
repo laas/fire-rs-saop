@@ -44,6 +44,8 @@ from matplotlib.colors import LightSource
 from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.mplot3d import Axes3D
 
+from fire_rs.geodata.geo_data import GeoData
+
 
 def get_pyplot_figure_and_axis():
     fire_fig = plt.figure()
@@ -163,29 +165,35 @@ class GeoDataDisplay:
         WX = wind_vel * np.cos(wind_ang)
         WY = wind_vel * np.sin(wind_ang)
 
-        self._drawings.append(plot_wind_quiver(self.axis, *np.meshgrid(self._x_ticks[::10], self._y_ticks[::10]),
-                                               WX[::10, ::10], WY[::10, ::10], **kwargs))
+        self._drawings.append(
+            plot_wind_quiver(self.axis, *np.meshgrid(self._x_ticks[::10], self._y_ticks[::10]),
+                             WX[::10, ::10], WY[::10, ::10], **kwargs))
 
-    def draw_ignition_contour(self, with_labels=True, layer='ignition', **kwargs):
+    def draw_ignition_contour(self, with_labels=True, geodata: GeoData=None, layer='ignition',
+                              **kwargs):
         # mask all cells whose ignition has not been computed
-        igni = np.array(self._geodata[layer])
+        igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
         igni[igni >= np.finfo(np.float64).max] = np.nan
 
         # plot fire front with contour lines in minutes
-        self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks, igni.T / 60., **kwargs))
+        self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks,
+                                                    igni.T / 60., **kwargs))
 
         if with_labels:
             self._add_ignition_contour_labels()
 
     def _add_ignition_contour_labels(self, **kwargs):
-        self.axis.clabel(self._drawings[-1], inline=True, fontsize='smaller', inline_spacing=1, linewidth=2, fmt='%.0f')
+        self.axis.clabel(self._drawings[-1], inline=True, fontsize='smaller', inline_spacing=1,
+                         linewidth=2, fmt='%.0f')
 
-    def draw_ignition_shade(self, with_colorbar=True, layer='ignition', **kwargs):
+    def draw_ignition_shade(self, with_colorbar=True, geodata: GeoData=None, layer='ignition',
+                            **kwargs):
         # mask all cells whose ignition has not been computed
-        igni = np.array(self._geodata[layer])
-        igni[igni >= np.finfo(np.float64).max] = np.nan
+        igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
+        igni[np.abs(igni) >= np.finfo(np.float64).max] = np.nan
 
-        shade = plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh, np.around(igni.T[::-1, ...]/60., 1),
+        shade = plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh,
+                                    np.around(igni.T[::-1, ...]/60., 1),
                                     dx=self._geodata.cell_width, dy=self._geodata.cell_height,
                                     image_scale=self._image_scale, **kwargs)
         self._drawings.append(shade)
