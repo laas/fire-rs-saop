@@ -30,3 +30,11 @@ IF (BUILD_TESTING)
     target_link_libraries(tests ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
     add_test(tests tests)
 ENDIF(BUILD_TESTING)
+
+IF (BUILD_IMC)
+   add_subdirectory("IMC")
+   find_package(Boost COMPONENTS system REQUIRED)
+
+   add_executable(imc_test src/test/main_imc.cpp IMC/Base/Factory.cpp)
+   target_link_libraries(imc_test IMC_INTERFACE ${Boost_SYSTEM_LIBRARY})
+ENDIF (BUILD_IMC)
