@@ -39,6 +39,9 @@ IF (BUILD_IMC)
    add_executable(imc_server src/test/main_imc_server.cpp IMC/Base/Factory.cpp)
    target_link_libraries(imc_server IMC_INTERFACE ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
+   add_executable(saop_to_dune src/test/main_saop_to_dune.cpp IMC/Base/Factory.cpp src/exec/IMCMessageFactory.hpp)
+   target_link_libraries(saop_to_dune IMC_INTERFACE ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
    add_executable(imc_client src/test/main_imc_client.cpp IMC/Base/Factory.cpp)
    target_link_libraries(imc_client IMC_INTERFACE ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 ENDIF (BUILD_IMC)
