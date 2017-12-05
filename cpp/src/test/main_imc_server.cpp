@@ -5,14 +5,108 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 
-#include "../../IMC/Base/Packet.hpp"
 #include "../../IMC/Base/Message.hpp"
+#include "../../IMC/Base/Packet.hpp"
+#include "../../IMC/Spec/Enumerations.hpp"
+#include "../../IMC/Spec/PlanManeuver.hpp"
+#include "../../IMC/Spec/PlanSpecification.hpp"
+#include "../../IMC/Spec/PlanTransition.hpp"
+#include "../../IMC/Spec/Goto.hpp"
+#include "../../IMC/Spec/EntityParameter.hpp"
+#include "../../IMC/Spec/EntityParameters.hpp"
+#include "../../IMC/Spec/SetEntityParameters.hpp"
+#include "../../IMC/Spec/Announce.hpp"
 
 using boost::asio::ip::tcp;
+using boost::asio::ip::udp;
 
 const int max_length = 1024;
 
 typedef boost::shared_ptr<tcp::socket> socket_ptr;
+
+IMC::Announce create_announce() {
+    auto announce = IMC::Announce();
+    announce.sys_name = "ccu-test-158-226";
+    announce.sys_type = IMC::SystemType::SYSTEMTYPE_CCU;
+    announce.owner = 65535;
+    announce.services = "imc+tcp://193.137.158.226:60000";
+
+    return announce;
+}
+
+void send_announce(const std::string &host, const std::string &port) {
+    boost::asio::io_service io_service;
+
+    udp::socket s(io_service, udp::endpoint(udp::v4(), 0));
+
+    udp::resolver resolver(io_service);
+    udp::resolver::query query(udp::v4(), host, port);
+    udp::resolver::iterator iterator = resolver.resolve(query);
+    auto bb = IMC::ByteBuffer();
+    auto pk = IMC::Packet();
+    auto ann = create_announce();
+    pk.serialize(&ann, bb);
+    s.send_to(boost::asio::buffer(bb.getBuffer(), bb.getSize()), *iterator);
+}
+
+IMC::PlanSpecification create_imc_plan() {
+
+    auto h_ctrl_set_entity_parameters = IMC::SetEntityParameters();
+    h_ctrl_set_entity_parameters.name = "Height Control";
+    h_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
+    auto h_ctrl_entity_parameter = IMC::EntityParameter();
+    h_ctrl_entity_parameter.name = "Active";
+    h_ctrl_entity_parameter.value = "true";
+    h_ctrl_set_entity_parameters.params.push_back(h_ctrl_entity_parameter);
+
+    auto p_ctrl_set_entity_parameters = IMC::SetEntityParameters();
+    p_ctrl_set_entity_parameters.name = "Path Control";
+    p_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
+    auto p_ctrl_entity_parameter = IMC::EntityParameter();
+    p_ctrl_entity_parameter.name = "Use controller";
+    p_ctrl_entity_parameter.value = "true";
+    p_ctrl_set_entity_parameters.params.push_back(h_ctrl_entity_parameter);
+
+    auto start_actions = IMC::MessageList<IMC::Message>();
+    start_actions.push_back(h_ctrl_set_entity_parameters);
+    start_actions.push_back(p_ctrl_set_entity_parameters);
+
+    auto man_goto0 = IMC::Goto();
+    man_goto0.timeout=10000;
+    man_goto0.lat = 0.73050675;
+    man_goto0.lon = -0.11706505;
+    man_goto0.z = 800;
+    man_goto0.z_units = IMC::ZUnits::Z_HEIGHT;
+    man_goto0.speed = 17.0;
+    man_goto0.speed_units = IMC::SpeedUnits::SUNITS_METERS_PS;
+    man_goto0.roll = -1;
+    man_goto0.pitch = -1;
+    man_goto0.yaw = -1;
+    man_goto0.custom = "tuplelist";
+
+
+    auto pm = IMC::PlanManeuver();
+    pm.maneuver_id = "Goto0";
+    pm.data = IMC::InlineMessage<IMC::Maneuver>();
+    pm.data.set(man_goto0);
+    pm.start_actions = start_actions;
+
+    auto pt = IMC::PlanTransition();
+    pt.source_man = "Goto0";
+    pt.dest_man = "Goto0";
+    pt.conditions = "ManeuverIsDone";
+
+    auto plan_spec = IMC::PlanSpecification();
+    plan_spec.plan_id = "Simple plan";
+    plan_spec.start_man_id = "Goto0";
+    plan_spec.maneuvers = IMC::MessageList<IMC::PlanManeuver>();
+    plan_spec.maneuvers.push_back(pm);
+    plan_spec.transitions = IMC::MessageList<IMC::PlanTransition>();
+    plan_spec.transitions.push_back(pt);
+
+    return plan_spec;
+}
+
 
 void session(socket_ptr sock)
 {
@@ -38,20 +132,21 @@ void session(socket_ptr sock)
 
             std::cout << "Received: " << hb->toString() << std::endl;
 
-            // Invert source and destination
-            auto src = hb->getSource();
-            auto src_ent = hb->getSourceEntity();
-            auto dst = hb->getDestination();
-            auto dst_ent = hb->getDestinationEntity();
-            hb->setDestination(src);
-            hb->setDestinationEntity(src_ent);
-            hb->setSource(dst);
-            hb->setSourceEntity(dst_ent);
+//            // Invert source and destination
+//            auto src = hb->getSource();
+//            auto src_ent = hb->getSourceEntity();
+//            auto dst = hb->getDestination();
+//            auto dst_ent = hb->getDestinationEntity();
+//            hb->setDestination(src);
+//            hb->setDestinationEntity(src_ent);
+//            hb->setSource(dst);
+//            hb->setSourceEntity(dst_ent);
 
             // Serialize the message
-            pk.serialize(hb, bb);
+            auto hbb = create_imc_plan();
+            pk.serialize(&hbb, bb);
 
-            std::cout << "Sent: " << hb->toString() << std::endl;
+            std::cout << "Sent: " << hbb.toString() << std::endl;
 
             // Send
             boost::asio::write(*sock, boost::asio::buffer(bb.getBuffer(), bb.getSize()));
@@ -83,6 +178,11 @@ int main(int argc, char* argv[])
             std::cerr << "Usage: blocking_tcp_echo_server <port>\n";
             return 1;
         }
+
+        // Send announce to dune
+//        send_announce("127.0.0.1", "6002");
+//        send_announce("193.137.158.226", "6002");
+//        send_announce("193.137.159.255", "6002");
 
         boost::asio::io_service io_service;
 
