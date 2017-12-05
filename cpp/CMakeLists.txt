@@ -35,6 +35,6 @@ IF (BUILD_IMC)
    add_subdirectory("IMC")
    find_package(Boost COMPONENTS system REQUIRED)
 
-   add_executable(imc_test src/test/main_imc.cpp IMC/Base/Factory.cpp)
-   target_link_libraries(imc_test IMC_INTERFACE ${Boost_SYSTEM_LIBRARY})
+   add_executable(imc_client src/test/main_imc_client.cpp IMC/Base/Factory.cpp)
+   target_link_libraries(imc_client IMC_INTERFACE ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 ENDIF (BUILD_IMC)
