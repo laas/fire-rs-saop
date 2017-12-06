@@ -199,6 +199,23 @@ public:
         return new_trajectory;
     };
 
+    Trajectory with_longer_segments(double inc_length) {
+        ASSERT(inc_length>=0);
+        Trajectory ext_traj = Trajectory(*this);
+        for (size_t i = 0; i != size(); ++i) {
+            if (ALMOST_EQUAL(ext_traj.traj[i].length, 0)) { continue; }
+            auto wps = Waypoint3d(ext_traj.traj[i].start.x - std::cos(ext_traj.traj[i].start.dir) * inc_length / 2,
+                                  ext_traj.traj[i].start.y - std::sin(ext_traj.traj[i].start.dir) * inc_length / 2,
+                                  ext_traj.traj[i].start.z, ext_traj.traj[i].start.dir);
+            auto wpe = Waypoint3d(ext_traj.traj[i].end.x + std::cos(ext_traj.traj[i].end.dir) * inc_length / 2,
+                                  ext_traj.traj[i].end.y + std::sin(ext_traj.traj[i].end.dir) * inc_length / 2,
+                                  ext_traj.traj[i].end.z, ext_traj.traj[i].end.dir);
+            ext_traj.replace_segment(i, Segment3d(wps, wpe));
+        }
+        return ext_traj;
+
+    }
+
     /** Returns the trajectory as a set of waypoints.
      * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
      * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
