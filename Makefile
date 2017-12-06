@@ -16,6 +16,16 @@ build-testing: FORCE
 	mkdir -p build
 	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
 	cd build && make
+	
+build-imc: FORCE
+	mkdir -p build
+	cd build && cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IMC_INTERFACE=ON ..
+	cd build && make
+
+build-imc-debug: FORCE
+	mkdir -p build
+	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DWITH_IMC_INTERFACE=ON -DBUILD_TESTING=ON ..
+	cd build && make
 
 # rebuilds project each time a C++ source is modified
 # this requires the "when-changed" program" that is installed in the docker container

@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/EntityParameters.hpp"
 #include "../../IMC/Spec/Enumerations.hpp"
 #include "../../IMC/Spec/Goto.hpp"
+#include "../../IMC/Spec/Loiter.hpp"
 #include "../../IMC/Spec/PlanDB.hpp"
 #include "../../IMC/Spec/PlanManeuver.hpp"
 #include "../../IMC/Spec/PlanSpecification.hpp"
@@ -73,11 +74,12 @@ namespace SAOP {
 
         class PlanManeuverFactory {
         public:
-            static IMC::PlanManeuver make_message(const std::string &maneuver_id, const IMC::Goto &goto_message) {
+            static IMC::PlanManeuver make_message(const std::string &maneuver_id,
+                                                  const IMC::Maneuver &maneuver_message) {
                 auto pm = IMC::PlanManeuver();
                 pm.maneuver_id = maneuver_id;
                 pm.data = IMC::InlineMessage<IMC::Maneuver>();
-                pm.data.set(goto_message);
+                pm.data.set(maneuver_message);
                 pm.start_actions = StartActionsFactory::make_message();
 
                 return pm;
@@ -86,10 +88,8 @@ namespace SAOP {
 
         class GotoFactory {
         public:
-            static IMC::Goto make_message(uint16_t timeout, double lat, double lon,
-                                          float z, uint8_t z_units,
-                                          float speed, uint8_t speed_units,
-                                          double roll, double pitch, double yaw,
+            static IMC::Goto make_message(uint16_t timeout, double lat, double lon,  float z, uint8_t z_units,
+                                          float speed, uint8_t speed_units, double roll, double pitch, double yaw,
                                           const std::string &custom) {
                 auto maneuver_goto = IMC::Goto();
                 maneuver_goto.timeout = timeout;
@@ -107,15 +107,47 @@ namespace SAOP {
             };
 
             static IMC::Goto make_message(double lat, double lon, float z) {
-                return make_message(1000,lat, lon, z, IMC::ZUnits::Z_HEIGHT,
+                return make_message(1000, lat, lon, z, IMC::ZUnits::Z_HEIGHT,
                                     17.0, IMC::SpeedUnits::SUNITS_METERS_PS,
                                     0, 0, 0, "tuplelist");
             };
         };
 
+        class LoiterFactory {
+        public:
+            static IMC::Loiter make_message(uint16_t timeout, double lat, double lon, float z, uint8_t z_units,
+                                            uint16_t duration, float speed, uint8_t speed_units,  uint8_t type,
+                                            float radius, float length, double bearing, uint8_t direction,
+                                            const std::string &custom) {
+                auto maneuver_loiter = IMC::Loiter();
+                maneuver_loiter.timeout = timeout;
+                maneuver_loiter.lat = lat;
+                maneuver_loiter.lon = lon;
+                maneuver_loiter.z = z;
+                maneuver_loiter.z_units = z_units;
+                maneuver_loiter.duration = duration;
+                maneuver_loiter.speed = speed;
+                maneuver_loiter.speed_units = speed_units;
+                maneuver_loiter.type = type;
+                maneuver_loiter.radius = radius;
+                maneuver_loiter.length = length;
+                maneuver_loiter.bearing = bearing;
+                maneuver_loiter.direction = direction;
+                maneuver_loiter.custom = custom;
+                return maneuver_loiter;
+            };
+
+            static IMC::Loiter make_message(double lat, double lon, float z, uint16_t duration,
+                                            float radius, IMC::Loiter::DirectionEnum direction) {
+                return make_message(1000, lat, lon, z, IMC::ZUnits::Z_HEIGHT,
+                                    duration, 17.0, IMC::SpeedUnits::SUNITS_METERS_PS,
+                                    IMC::Loiter::LoiterTypeEnum::LT_CIRCULAR, radius, 1, 1, direction, "tuplelist");
+            };
+        };
+
         class SequentialPlanTransitionListFactory {
         public:
-            static IMC::MessageList<IMC::PlanTransition> make_message(const std::vector<IMC::PlanManeuver> &maneuvers){
+            static IMC::MessageList<IMC::PlanTransition> make_message(const std::vector<IMC::PlanManeuver> &maneuvers) {
                 auto transitions = IMC::MessageList<IMC::PlanTransition>();
 
                 for(size_t i = 0; i < maneuvers.size()-1; ++i) {
@@ -179,6 +211,12 @@ namespace SAOP {
                     pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message("Goto" + std::to_string(i),
                                                                                    man_gotox));
                 }
+
+                // Loiter when finished
+                auto man_loiterend = SAOP::neptus::LoiterFactory::make_message(
+                        wgs_waypoints.back().y, wgs_waypoints.back().x, static_cast<float>(wgs_waypoints.back().z), 0,
+                        200, IMC::Loiter::DirectionEnum::LD_CLOCKW);
+                pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message("Loiter", man_loiterend));
 
                 auto plan_spec = IMC::PlanSpecification();
                 plan_spec.plan_id = name;

@@ -5,7 +5,7 @@
 
 using boost::asio::ip::udp;
 
-#include "../exec/IMCMessageFactory.hpp"
+#include "../exec/imc_message_factories.hpp"
 
 
 enum { max_length = 1024 };
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
     auto pk = IMC::Packet();
     IMC::ByteBuffer bb = IMC::ByteBuffer();
     bb.setSize(max_length);
-    auto hbb = SAOP::Exec::PlanDBFactory::make_message();
+    auto hbb = SAOP::neptus::PlanDBFactory::make_message();
     hbb.setSource(3088);
     hbb.setSourceEntity(25);
     hbb.setDestination(24290);

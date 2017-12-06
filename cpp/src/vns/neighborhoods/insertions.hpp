@@ -38,7 +38,7 @@ struct OneInsertNbhd final : public Neighborhood {
         return "one-insert";
     }
 
-    const double default_segment_length = 50;
+    const double default_segment_length = 100;
 
     const double default_height = 100;
 

@@ -21,7 +21,26 @@ set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/ext/json.hpp src/core/s
         src/vns/neighborhoods/smoothing.hpp src/dubins3d.hpp src/core/structures/trajectories.hpp src/core/updates/updates.cpp
         src/core/updates/updates.hpp src/utils.cpp src/vns/factory.cpp src/vns/factory.hpp)
 
-pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
+IF (WITH_IMC_INTERFACE)
+    add_subdirectory("IMC")
+    find_package(Boost COMPONENTS system thread REQUIRED)
+    find_package(Threads)
+
+    add_executable(imc_server src/test/main_imc_server.cpp)
+    target_link_libraries(imc_server imc_interface ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(saop_to_dune src/test/main_saop_to_dune.cpp src/exec/imc_message_factories.hpp)
+    target_link_libraries(saop_to_dune imc_interface ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(imc_client src/test/main_imc_client.cpp)
+    target_link_libraries(imc_client imc_interface ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+    pybind11_add_module(uav_planning ${SOURCE_FILES} src/exec/imc_message_factories.hpp src/ext/coordinates.hpp src/exec/saop_neptus.hpp src/python_interface.cpp)
+    target_link_libraries(uav_planning PRIVATE imc_interface ${Boost_LIBRARIES})
+ELSE()
+    pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
+ENDIF(WITH_IMC_INTERFACE)
+
 
 IF (BUILD_TESTING)
     find_package(Boost COMPONENTS unit_test_framework REQUIRED)
@@ -30,18 +49,3 @@ IF (BUILD_TESTING)
     target_link_libraries(tests ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
     add_test(tests tests)
 ENDIF(BUILD_TESTING)
-
-IF (BUILD_IMC)
-   add_subdirectory("IMC")
-   find_package(Boost COMPONENTS system thread REQUIRED)
-   find_package(Threads)
-
-   add_executable(imc_server src/test/main_imc_server.cpp IMC/Base/Factory.cpp)
-   target_link_libraries(imc_server IMC_INTERFACE ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
-   add_executable(saop_to_dune src/test/main_saop_to_dune.cpp IMC/Base/Factory.cpp src/exec/IMCMessageFactory.hpp)
-   target_link_libraries(saop_to_dune IMC_INTERFACE ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
-   add_executable(imc_client src/test/main_imc_client.cpp IMC/Base/Factory.cpp)
-   target_link_libraries(imc_client IMC_INTERFACE ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-ENDIF (BUILD_IMC)

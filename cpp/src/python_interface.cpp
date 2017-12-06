@@ -30,6 +30,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "raster.hpp"
 #include "vns/factory.hpp"
 
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <boost/asio.hpp>
+using boost::asio::ip::udp;
+#include "exec/imc_message_factories.hpp"
+#include "exec/saop_neptus.hpp"
+
 namespace py = pybind11;
 
 /** Converts a numpy array to a vector */
@@ -331,4 +339,48 @@ PYBIND11_MODULE(uav_planning, m) {
         return res;
     }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
        py::arg("observed"), py::call_guard<py::gil_scoped_release>());
+
+#ifdef WITH_IMC_INTERFACE
+    m.def("send_plan_to_dune", [](const std::string& ip, const std::string& port, Plan plan, std::string name, double segment_ext=50, double sampled=-1) {
+
+        auto ep = plan.core[0].with_longer_segments(segment_ext);
+        std::vector<Waypoint3d> wp;
+        if (sampled <= 0) {
+            wp = ep.as_waypoints();
+        } else {
+            wp = ep.sampled(sampled);
+        }
+
+        std::cout << "(extended) Expected duration: " << ep.duration() << std::endl;
+        auto wgs84_wp = SAOP::neptus::WGS84_waypoints(wp, Position(690487, 4636304));
+
+        try {
+            size_t max_length = 1024;
+
+            boost::asio::io_service io_service;
+            udp::socket s(io_service, udp::endpoint(udp::v4(), 0));
+            udp::resolver resolver(io_service);
+            udp::resolver::query query(udp::v4(), ip, port);
+            udp::resolver::iterator iterator = resolver.resolve(query);
+
+            auto pk = IMC::Packet();
+            IMC::ByteBuffer bb = IMC::ByteBuffer(max_length);
+            auto hbb = SAOP::neptus::PlanDBFactory::make_message(name, wgs84_wp);
+            hbb.setSource(3088);
+            hbb.setSourceEntity(25);
+            hbb.setDestination(24290);
+            hbb.setDestinationEntity(8);
+            hbb.setTimeStamp();
+            pk.serialize(&hbb, bb);
+
+            std::cout << "Sent: " << hbb.toString() << std::endl;
+
+            s.send_to(boost::asio::buffer(bb.getBuffer(), bb.getSize()), *iterator);
+        }
+        catch (std::exception& e)
+        {
+            std::cerr << "Exception: " << e.what() << std::endl;
+        }
+    }, py::arg("ip"), py::arg("port"), py::arg("plan"), py::arg("name"), py::arg("segment_extension"), py::arg("sampled"));
+#endif
 }
