@@ -38,9 +38,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/PlanTransition.hpp"
 #include "../../IMC/Spec/SetEntityParameters.hpp"
 
+#include "../core/structures/waypoint.hpp"
+
 namespace SAOP {
 
-    namespace Exec {
+    namespace neptus {
 
         class StartActionsFactory{
         public:
@@ -126,19 +128,34 @@ namespace SAOP {
                 return transitions;
 
             }
+
+            static IMC::MessageList<IMC::PlanTransition> make_message(const IMC::MessageList<IMC::PlanManeuver> &maneuvers){
+                auto transitions = IMC::MessageList<IMC::PlanTransition>();
+
+                for(auto it = maneuvers.begin(); it != maneuvers.end()-1; ++it) {
+                    auto pt = IMC::PlanTransition();
+                    pt.source_man = (*it)->maneuver_id;
+                    pt.dest_man = (*(it+1))->maneuver_id;
+                    pt.conditions = "ManeuverIsDone";
+                    transitions.push_back(pt);
+                }
+                return transitions;
+
+            }
+
         };
 
         class PlanSpecificationFactory {
         public:
             static IMC::PlanSpecification make_message() {
 
-                auto man_goto0 = SAOP::Exec::GotoFactory::make_message(0.73050675, -0.11706505, 800);
-                auto man_goto1 = SAOP::Exec::GotoFactory::make_message(0.73060675, -0.11706505, 800);
-                auto man_goto2 = SAOP::Exec::GotoFactory::make_message(0.73060675, -0.11716505, 800);
+                auto man_goto0 = SAOP::neptus::GotoFactory::make_message(0.73050675, -0.11706505, 800);
+                auto man_goto1 = SAOP::neptus::GotoFactory::make_message(0.73060675, -0.11706505, 800);
+                auto man_goto2 = SAOP::neptus::GotoFactory::make_message(0.73060675, -0.11716505, 800);
 
-                auto pm0 = SAOP::Exec::PlanManeuverFactory::make_message("Goto0", man_goto0);
-                auto pm1 = SAOP::Exec::PlanManeuverFactory::make_message("Goto1", man_goto1);
-                auto pm2 = SAOP::Exec::PlanManeuverFactory::make_message("Goto2", man_goto2);
+                auto pm0 = SAOP::neptus::PlanManeuverFactory::make_message("Goto0", man_goto0);
+                auto pm1 = SAOP::neptus::PlanManeuverFactory::make_message("Goto1", man_goto1);
+                auto pm2 = SAOP::neptus::PlanManeuverFactory::make_message("Goto2", man_goto2);
 
                 auto plan_spec = IMC::PlanSpecification();
                 plan_spec.plan_id = "Simple plan";
@@ -152,12 +169,46 @@ namespace SAOP {
                 return plan_spec;
             }
 
+            static IMC::PlanSpecification make_message(const std::string &name, std::vector<Waypoint3d> wgs_waypoints) {
+
+                auto pmx = IMC::MessageList<IMC::PlanManeuver>();
+
+                for (size_t i=0; i != wgs_waypoints.size(); ++i) {
+                    auto man_gotox = SAOP::neptus::GotoFactory::make_message(
+                            wgs_waypoints[i].y, wgs_waypoints[i].x, static_cast<float>(wgs_waypoints[i].z));
+                    pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message("Goto" + std::to_string(i),
+                                                                                   man_gotox));
+                }
+
+                auto plan_spec = IMC::PlanSpecification();
+                plan_spec.plan_id = name;
+                plan_spec.start_man_id = "Goto0";
+                plan_spec.maneuvers = pmx;
+                plan_spec.transitions = SequentialPlanTransitionListFactory::make_message(pmx);
+
+                return plan_spec;
+            }
+
         };
 
         class PlanDBFactory {
         public:
             static IMC::PlanDB make_message() {
-                auto plan_spec = SAOP::Exec::PlanSpecificationFactory::make_message();
+                auto plan_spec = SAOP::neptus::PlanSpecificationFactory::make_message();
+                auto pdb = IMC::PlanDB();
+                pdb.type = IMC::PlanDB::TypeEnum::DBT_REQUEST;
+                pdb.op = IMC::PlanDB::OperationEnum::DBOP_SET;
+                pdb.request_id = 0;
+                pdb.plan_id = plan_spec.plan_id;
+                pdb.arg = IMC::InlineMessage<IMC::Message>();
+                pdb.arg.set(plan_spec);
+                pdb.info = "some useless info";
+
+                return pdb;
+            }
+
+            static IMC::PlanDB make_message(const std::string &name, std::vector<Waypoint3d> wgs84_waypoints) {
+                auto plan_spec = SAOP::neptus::PlanSpecificationFactory::make_message(name, wgs84_waypoints);
                 auto pdb = IMC::PlanDB();
                 pdb.type = IMC::PlanDB::TypeEnum::DBT_REQUEST;
                 pdb.op = IMC::PlanDB::OperationEnum::DBOP_SET;

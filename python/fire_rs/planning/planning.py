@@ -100,7 +100,7 @@ class PlanningEnvironment(Environment):
     """Propagation environment with optional discrete elevation only for planning """
 
     def __init__(self, area, wind_speed, wind_dir, planning_elevation_mode: 'str'='dem',
-                 discrete_elevation_interval:'int'=0):
+                 discrete_elevation_interval:'int'=0, flat_altitude=700.):
         super().__init__(area, wind_speed, wind_dir)
 
         self.planning_elevation_mode = planning_elevation_mode
@@ -109,7 +109,7 @@ class PlanningEnvironment(Environment):
         elev_planning = None
 
         if self.planning_elevation_mode == 'flat':
-            elev_planning = self.raster.clone(fill_value=0.,
+            elev_planning = self.raster.clone(fill_value=flat_altitude,
                                               dtype=[('elevation_planning', 'float64')])
         elif self.planning_elevation_mode == 'dem':
             elev_planning = self.raster.clone(data_array=self.raster["elevation"],
