@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/PlanSpecification.hpp"
 #include "../../IMC/Spec/PlanTransition.hpp"
 #include "../../IMC/Spec/SetEntityParameters.hpp"
+#include "../../IMC/Spec/WindSpeed.hpp"
 
 #include "../core/structures/waypoint.hpp"
 
@@ -272,6 +273,18 @@ namespace SAOP {
                 pc.flags = 0;
 
                 return pc;
+            }
+        };
+
+        class WindSpeedFactory {
+        public:
+            static IMC::WindSpeed make_message(float direction, float speed) {
+                auto ws = IMC::WindSpeed();
+                ws.direction = direction;
+                ws.speed = speed;
+                ws.turbulence = 0;
+
+                return ws;
             }
         };
     }

@@ -46,6 +46,13 @@ PYBIND11_MODULE(neptus_interface, m) {
     m.def("start_plan", SAOP::neptus::send_plan_start_request, py::arg("ip"), py::arg("port"),
           py::arg("plan_id"));
 
+    m.def("set_wind", [](const std::string &ip, const std::string &port,
+                         float direction, float speed) {
+        SAOP::neptus::DuneLink dl(ip, port);
+        auto wsm = SAOP::neptus::WindSpeedFactory::make_message(direction, speed);
+        dl.send(wsm);
+    }, py::arg("ip"), py::arg("port"), py::arg("direction"), py::arg("speed"));
+
     py::class_<SAOP::neptus::DuneLink>(m, "DuneLink")
             .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
 

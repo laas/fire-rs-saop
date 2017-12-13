@@ -33,7 +33,7 @@ if __name__ == '__main__':
     from fire_rs.planning.planning import Planner, PlanningEnvironment, Waypoint, FlightConf, UAVConf
     from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
 
-    from fire_rs.neptus_interface import upload_plan, start_plan
+    from fire_rs.neptus_interface import upload_plan, start_plan, set_wind
 
     # Geographic environment (elevation, landcover, wind...)
     wind = (10., 0.)
@@ -104,6 +104,7 @@ if __name__ == '__main__':
 
     upload_plan("127.0.0.1", "6002", sr_1.final_plan(), "Fire plan long obs sampled(-1)", 50., -1)
     start_plan("127.0.0.1", "6002", "Fire plan long obs sampled(-1)")
+    set_wind("127.0.0.1", "6002", *wind)
 
     print("Expected duration: " + str(sr_1.final_plan().duration()))
     print(" - - END - - ")
