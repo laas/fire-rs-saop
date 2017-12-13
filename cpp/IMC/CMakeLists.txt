@@ -321,4 +321,4 @@ set(SPEC_SOURCES Spec/Abort.hpp
         Spec/WindSpeed.hpp
         Spec/YoYo.hpp)
 
-add_library(imc_interface SHARED ${BASE_SOURCES} ${SPEC_SOURCES} )
+add_library(libimc SHARED ${BASE_SOURCES} ${SPEC_SOURCES} )

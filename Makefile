@@ -4,27 +4,17 @@ build: build-release
 # Builds all python extensions 
 build-release: FORCE
 	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Release ..
+	cd build && cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IMC_INTERFACE=ON ..
 	cd build && make
 
 build-debug: FORCE
 	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Debug ..
+	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DWITH_IMC_INTERFACE=ON ..
 	cd build && make
 	
 build-testing: FORCE
 	mkdir -p build
 	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
-	cd build && make
-	
-build-imc: FORCE
-	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IMC_INTERFACE=ON ..
-	cd build && make
-
-build-imc-debug: FORCE
-	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DWITH_IMC_INTERFACE=ON -DBUILD_TESTING=ON ..
 	cd build && make
 
 # rebuilds project each time a C++ source is modified
@@ -57,9 +47,10 @@ benchmark: build-release FORCE
 
 # Remove the build folder and clean python source dir
 clean:
-	rm -r build
-	cd python && python3 setup.py clean --all
-	rm python/fire_rs/uav_planning.cpython-*.so
+	rm -r build || true
+	cd python && python3 setup.py clean --all || true
+	rm python/fire_rs/uav_planning.cpython-*.so || true
+	rm python/fire_rs/neptus_interface.cpython-*.so || true
 
 # phantom task that always need to be run
 FORCE: ;

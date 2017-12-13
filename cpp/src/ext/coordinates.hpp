@@ -32,6 +32,8 @@ namespace SAOP {
 
     namespace ext {
 
+        /* Copied from DUNE source code */
+
         //! Semi-major axis.
         static const double c_wgs84_a = 6378137.0;
         //! Semi-minor axis.

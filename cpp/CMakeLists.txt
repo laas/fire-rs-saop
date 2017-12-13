@@ -14,38 +14,86 @@ set(CMAKE_CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-set(SOURCE_FILES src/ext/dubins.cpp src/ext/dubins.h src/ext/json.hpp src/core/structures/trajectory.hpp
-        src/core/structures/uav.hpp src/core/structures/waypoint.hpp src/raster.hpp src/vns/visibility.hpp src/ext/optional.hpp
-        src/utils.hpp src/vns/neighborhoods/dubins_optimization.hpp src/vns/neighborhoods/insertions.hpp src/vns/vns_interface.hpp
-        src/vns/plan.hpp src/vns/fire_data.hpp src/vns/neighborhoods/moves.hpp src/vns/neighborhoods/shuffling.hpp
-        src/vns/neighborhoods/smoothing.hpp src/dubins3d.hpp src/core/structures/trajectories.hpp src/core/updates/updates.cpp
-        src/core/updates/updates.hpp src/utils.cpp src/vns/factory.cpp src/vns/factory.hpp)
+set(PLANNING_SOURCE_FILES
+        src/core/structures/trajectories.hpp
+        src/core/structures/trajectory.hpp
+        src/core/structures/uav.hpp
+        src/core/structures/waypoint.hpp
+        src/core/updates/updates.cpp
+        src/core/updates/updates.hpp
+        src/ext/dubins.cpp
+        src/ext/dubins.h
+        src/ext/json.hpp
+        src/ext/optional.hpp
+        src/vns/vns_interface.hpp
+        src/vns/neighborhoods/dubins_optimization.hpp
+        src/vns/neighborhoods/insertions.hpp
+        src/vns/neighborhoods/moves.hpp
+        src/vns/neighborhoods/shuffling.hpp
+        src/vns/neighborhoods/smoothing.hpp
+        src/vns/factory.cpp
+        src/vns/factory.hpp
+        src/vns/fire_data.hpp
+        src/vns/plan.hpp
+        src/vns/visibility.hpp
+        src/dubins3d.hpp
+        src/raster.hpp
+        src/utils.cpp
+        src/utils.hpp
+        )
+
+set(NEPTUSINTERFACE_SOURCE_FILES
+        src/ext/coordinates.hpp
+        src/neptus/imc_message_factories.hpp
+        src/neptus/saop_neptus.hpp
+        )
+
+pybind11_add_module(uav_planning ${PLANNING_SOURCE_FILES} src/planning_py.cpp)
 
 IF (WITH_IMC_INTERFACE)
     add_subdirectory("IMC")
     find_package(Boost COMPONENTS system thread REQUIRED)
-    find_package(Threads)
 
-    add_executable(imc_server src/test/main_imc_server.cpp)
-    target_link_libraries(imc_server imc_interface ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    add_executable(imc_server
+            src/test/main_imc_server.cpp)
+    target_link_libraries(imc_server
+            libimc
+            ${Boost_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT})
 
-    add_executable(saop_to_dune src/test/main_saop_to_dune.cpp src/exec/imc_message_factories.hpp)
-    target_link_libraries(saop_to_dune imc_interface ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    add_executable(saop_to_dune
+            src/test/main_saop_to_dune.cpp
+            src/neptus/imc_message_factories.hpp)
+    target_link_libraries(saop_to_dune
+            libimc
+            ${Boost_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT})
 
-    add_executable(imc_client src/test/main_imc_client.cpp)
-    target_link_libraries(imc_client imc_interface ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    add_executable(imc_client
+            src/test/main_imc_client.cpp)
+    target_link_libraries(imc_client
+            libimc
+            ${Boost_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT})
 
-    pybind11_add_module(uav_planning ${SOURCE_FILES} src/exec/imc_message_factories.hpp src/ext/coordinates.hpp src/exec/saop_neptus.hpp src/python_interface.cpp)
-    target_link_libraries(uav_planning PRIVATE imc_interface ${Boost_LIBRARIES})
-ELSE()
-    pybind11_add_module(uav_planning ${SOURCE_FILES} src/python_interface.cpp)
+    pybind11_add_module(neptus_interface
+            ${PLANNING_SOURCE_FILES}
+            ${NEPTUSINTERFACE_SOURCE_FILES}
+            src/neptus_py.cpp)
+    target_link_libraries(neptus_interface
+            PUBLIC libimc
+            ${Boost_LIBRARIES})
 ENDIF(WITH_IMC_INTERFACE)
-
 
 IF (BUILD_TESTING)
     find_package(Boost COMPONENTS unit_test_framework REQUIRED)
-    add_executable(tests ${SOURCE_FILES} src/test/core/test_reversible_updates.hpp src/test/test_dubins.hpp
-            src/test/test_position_manipulation.hpp src/test/main_tests.cpp)
-    target_link_libraries(tests ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+    add_executable(tests
+            ${PLANNING_SOURCE_FILES}
+            src/test/core/test_reversible_updates.hpp
+            src/test/test_dubins.hpp
+            src/test/test_position_manipulation.hpp
+            src/test/main_tests.cpp)
+    target_link_libraries(tests
+            ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
     add_test(tests tests)
 ENDIF(BUILD_TESTING)

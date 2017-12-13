@@ -22,34 +22,26 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#ifndef PLANNING_CPP_SAOP_NEPTUS_H
-#define PLANNING_CPP_SAOP_NEPTUS_H
+#ifndef PLANNING_CPP_PYTHON_NEPTUS_H
+#define PLANNING_CPP_PYTHON_NEPTUS_H
 
-#include <vector>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h> // for conversions between c++ and python collections
+#include <pybind11/numpy.h> // support for numpy arrays
 
-#include "../ext/coordinates.hpp"
-#include "../core/structures/waypoint.hpp"
+#include "neptus/saop_neptus.hpp"
 
 
-namespace SAOP {
+namespace py = pybind11;
 
-    namespace neptus {
-        static std::vector<Waypoint3d> WGS84_waypoints(std::vector<Waypoint3d> waypoints, Position origin,
-                                                       int utm_zone=29, bool northern_hemisphere=true) {
-            auto wgs84_wp = std::vector<Waypoint3d>();
-            auto wp0 = waypoints[0];
 
-            for (auto& wp: waypoints) {
-                double lat;
-                double lon;
-                SAOP::ext::toWGS84(wp.y-wp0.y+origin.y, wp.x-wp0.x+origin.x, utm_zone, northern_hemisphere, &lat, &lon);
-                wgs84_wp.emplace_back(Waypoint3d(lon, lat, wp.z, wp.dir));
-            }
+PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
-            return wgs84_wp;
-        }
-    }
+PYBIND11_MODULE(neptus_interface, m) {
+    m.doc() = "Python module for interfacing with neptus/dune software";
+
+    m.def("send_plan_to_dune", SAOP::neptus::send_plan_to_dune, py::arg("ip"), py::arg("port"),
+          py::arg("plan"), py::arg("name"), py::arg("segment_extension"), py::arg("sampled"));
 }
 
-
-#endif //PLANNING_CPP_SAOP_NEPTUS_H
+#endif //PLANNING_CPP_PYTHON_NEPTUS_H

@@ -33,7 +33,7 @@ if __name__ == '__main__':
     from fire_rs.planning.planning import Planner, PlanningEnvironment, Waypoint, FlightConf, UAVConf
     from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
 
-    from fire_rs.uav_planning import send_plan_to_dune
+    from fire_rs.neptus_interface import send_plan_to_dune
 
     # Geographic environment (elevation, landcover, wind...)
     wind = (10., 0.)

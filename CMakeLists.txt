@@ -11,11 +11,23 @@ add_subdirectory("cpp")
 add_subdirectory("python")
 
 add_custom_command(
-    OUTPUT export_module_command
+    OUTPUT export_uav_planning_command
     COMMAND cp "${CMAKE_CURRENT_BINARY_DIR}/cpp/uav_planning.cpython*.so" ${CMAKE_CURRENT_SOURCE_DIR}/python/fire_rs/
     DEPENDS uav_planning
     )
 
 add_custom_target(
-     export_module ALL DEPENDS export_module_command
-    )
+     export_uav_planning ALL DEPENDS export_uav_planning_command
+)
+
+if(WITH_IMC_INTERFACE)
+add_custom_command(
+    OUTPUT export_neptus_interface_command
+    COMMAND cp "${CMAKE_CURRENT_BINARY_DIR}/cpp/neptus_interface.cpython*.so" ${CMAKE_CURRENT_SOURCE_DIR}/python/fire_rs/
+    DEPENDS neptus_interface
+)
+
+add_custom_target(
+     export_neptus_interface ALL DEPENDS export_neptus_interface_command
+)
+endif(WITH_IMC_INTERFACE)
