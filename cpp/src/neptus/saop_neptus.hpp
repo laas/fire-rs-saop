@@ -39,24 +39,77 @@ using boost::asio::ip::udp;
 namespace SAOP {
 
     namespace neptus {
-        static std::vector<Waypoint3d> WGS84_waypoints(std::vector<Waypoint3d> waypoints, Position origin,
-                                                       int utm_zone = 29, bool northern_hemisphere = true) {
+
+        static uint16_t request_counter = 0; // FIXME: Not thread-safe!!
+
+        static std::vector<Waypoint3d> WGS84_waypoints(std::vector<Waypoint3d> waypoints,
+                                                       Position origin, int utm_zone = 29,
+                                                       bool northern_hemisphere = true) {
             auto wgs84_wp = std::vector<Waypoint3d>();
             auto wp0 = waypoints[0];
 
             for (auto &wp: waypoints) {
                 double lat;
                 double lon;
-                SAOP::ext::toWGS84(wp.y - wp0.y + origin.y, wp.x - wp0.x + origin.x, utm_zone, northern_hemisphere,
-                                   &lat, &lon);
+                SAOP::ext::toWGS84(wp.y - wp0.y + origin.y, wp.x - wp0.x + origin.x,
+                                   utm_zone, northern_hemisphere, &lat, &lon);
                 wgs84_wp.emplace_back(Waypoint3d(lon, lat, wp.z, wp.dir));
             }
 
             return wgs84_wp;
         }
 
-        static void send_plan_to_dune(const std::string &ip, const std::string &port, Plan plan, std::string name,
-                                      double segment_ext = 50, double sampled = -1) {
+        class DuneLink {
+        private:
+            std::string ip;
+            std::string port;
+
+            size_t capacity = 1024;
+        public:
+            DuneLink(std::string ip, std::string port) : ip(std::move(ip)), port(std::move(port))
+            {}
+
+            void send(IMC::Message &message) {
+                send(message, 3088, 25, 24290, 8);
+            }
+
+            void send(IMC::Message &message, uint16_t src, uint8_t src_ent,
+                      uint16_t dst, uint8_t dst_ent) {
+                try {
+                    boost::asio::io_service io_service;
+                    udp::socket s(io_service, udp::endpoint(udp::v4(), 0));
+                    udp::resolver resolver(io_service);
+                    udp::resolver::query query(udp::v4(), ip, port);
+                    udp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+
+                    IMC::ByteBuffer bb(capacity);
+
+                    message.setSource(src);
+                    message.setSourceEntity(src_ent);
+                    message.setDestination(dst);
+                    message.setDestinationEntity(dst_ent);
+                    message.setTimeStamp();
+
+                    IMC::Packet::serialize(&message, bb);
+
+                    s.send_to(boost::asio::buffer(bb.getBuffer(), bb.getSize()),
+                              *endpoint_iterator);
+                }
+                catch (std::exception &e) {
+                    std::cerr << "Exception: " << e.what() << std::endl;
+                }
+            }
+        };
+
+        static void send_message_to_dune(const std::string &ip, const std::string &port,
+                                         IMC::Message &message) {
+            DuneLink dl(ip, port);
+            dl.send(message);
+        }
+
+        static void send_plan_to_dune(const std::string &ip, const std::string &port, Plan plan,
+                                      const std::string &plan_id, double segment_ext = 50,
+                                      double sampled = -1) {
             auto ep = plan.core[0].with_longer_segments(segment_ext);
             std::vector<Waypoint3d> wp;
             if (sampled <= 0) {
@@ -68,33 +121,19 @@ namespace SAOP {
             std::cout << "(extended) Expected duration: " << ep.duration() << std::endl;
             auto wgs84_wp = SAOP::neptus::WGS84_waypoints(wp, Position(690487, 4636304));
 
-            try {
-                size_t max_length = 1024;
-
-                boost::asio::io_service io_service;
-                udp::socket s(io_service, udp::endpoint(udp::v4(), 0));
-                udp::resolver resolver(io_service);
-                udp::resolver::query query(udp::v4(), ip, port);
-                udp::resolver::iterator iterator = resolver.resolve(query);
-
-                auto pk = IMC::Packet();
-                IMC::ByteBuffer bb = IMC::ByteBuffer(max_length);
-                auto hbb = SAOP::neptus::PlanDBFactory::make_message(name, wgs84_wp);
-                hbb.setSource(3088);
-                hbb.setSourceEntity(25);
-                hbb.setDestination(24290);
-                hbb.setDestinationEntity(8);
-                hbb.setTimeStamp();
-                pk.serialize(&hbb, bb);
-
-                std::cout << "Sent: " << hbb.toString() << std::endl;
-
-                s.send_to(boost::asio::buffer(bb.getBuffer(), bb.getSize()), *iterator);
-            }
-            catch (std::exception &e) {
-                std::cerr << "Exception: " << e.what() << std::endl;
-            }
+            auto pdb = SAOP::neptus::PlanDBFactory::make_message(plan_id, wgs84_wp);
+            send_message_to_dune(ip, port, pdb);
         }
+
+        static void send_plan_start_request(const std::string &ip, const std::string &port,
+                                            const std::string &plan_id ) {
+            auto pc_start = SAOP::neptus::PlanControlFactory::make_start_plan_message(
+                    plan_id, request_counter++);
+
+            DuneLink dl(ip, port);
+            dl.send(pc_start);
+        }
+
     }
 }
 

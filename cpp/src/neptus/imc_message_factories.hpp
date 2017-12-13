@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/Enumerations.hpp"
 #include "../../IMC/Spec/Goto.hpp"
 #include "../../IMC/Spec/Loiter.hpp"
+#include "../../IMC/Spec/PlanControl.hpp"
 #include "../../IMC/Spec/PlanDB.hpp"
 #include "../../IMC/Spec/PlanManeuver.hpp"
 #include "../../IMC/Spec/PlanSpecification.hpp"
@@ -205,11 +206,11 @@ namespace SAOP {
 
                 auto pmx = IMC::MessageList<IMC::PlanManeuver>();
 
-                for (size_t i=0; i != wgs_waypoints.size(); ++i) {
+                for (size_t i = 0; i != wgs_waypoints.size(); ++i) {
                     auto man_gotox = SAOP::neptus::GotoFactory::make_message(
                             wgs_waypoints[i].y, wgs_waypoints[i].x, static_cast<float>(wgs_waypoints[i].z));
                     pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message("Goto" + std::to_string(i),
-                                                                                   man_gotox));
+                                                                                  man_gotox));
                 }
 
                 // Loiter when finished
@@ -226,7 +227,6 @@ namespace SAOP {
 
                 return plan_spec;
             }
-
         };
 
         class PlanDBFactory {
@@ -257,6 +257,21 @@ namespace SAOP {
                 pdb.info = "some useless info";
 
                 return pdb;
+            }
+        };
+
+        class PlanControlFactory {
+        public:
+            static IMC::PlanControl make_start_plan_message(const std::string &plan_id,
+                                                            uint16_t request_id=0) {
+                auto pc = IMC::PlanControl();
+                pc.type = IMC::PlanControl::TypeEnum::PC_REQUEST;
+                pc.op = IMC::PlanControl::OperationEnum::PC_START;
+                pc.request_id = request_id;
+                pc.plan_id = plan_id;
+                pc.flags = 0;
+
+                return pc;
             }
         };
     }

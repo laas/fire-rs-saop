@@ -33,7 +33,7 @@ if __name__ == '__main__':
     from fire_rs.planning.planning import Planner, PlanningEnvironment, Waypoint, FlightConf, UAVConf
     from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
 
-    from fire_rs.neptus_interface import send_plan_to_dune
+    from fire_rs.neptus_interface import upload_plan, start_plan
 
     # Geographic environment (elevation, landcover, wind...)
     wind = (10., 0.)
@@ -102,7 +102,8 @@ if __name__ == '__main__':
     gdd.draw_observation_map(layer='expected_ignited', color='darkred', alpha=0.5)
     plot_plan_trajectories(sr_1.final_plan(), gdd, colors=["maroon"], show=True)
 
-    send_plan_to_dune("127.0.0.1", "6002", sr_1.final_plan(), "Fire plan long obs sampled(-1)", 50.,-1)
+    upload_plan("127.0.0.1", "6002", sr_1.final_plan(), "Fire plan long obs sampled(-1)", 50., -1)
+    start_plan("127.0.0.1", "6002", "Fire plan long obs sampled(-1)")
 
     print("Expected duration: " + str(sr_1.final_plan().duration()))
     print(" - - END - - ")

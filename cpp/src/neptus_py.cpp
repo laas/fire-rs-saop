@@ -40,8 +40,15 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 PYBIND11_MODULE(neptus_interface, m) {
     m.doc() = "Python module for interfacing with neptus/dune software";
 
-    m.def("send_plan_to_dune", SAOP::neptus::send_plan_to_dune, py::arg("ip"), py::arg("port"),
-          py::arg("plan"), py::arg("name"), py::arg("segment_extension"), py::arg("sampled"));
+    m.def("upload_plan", SAOP::neptus::send_plan_to_dune, py::arg("ip"), py::arg("port"),
+          py::arg("plan"), py::arg("plan_id"), py::arg("segment_extension"), py::arg("sampled"));
+
+    m.def("start_plan", SAOP::neptus::send_plan_start_request, py::arg("ip"), py::arg("port"),
+          py::arg("plan_id"));
+
+    py::class_<SAOP::neptus::DuneLink>(m, "DuneLink")
+            .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
+
 }
 
 #endif //PLANNING_CPP_PYTHON_NEPTUS_H
