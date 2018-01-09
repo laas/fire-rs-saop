@@ -26,7 +26,7 @@ import logging
 import types
 
 from itertools import cycle
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.cm
 import matplotlib.colors
@@ -35,6 +35,7 @@ import numpy as np
 
 import fire_rs.geodata.display as gdd
 from fire_rs.geodata.geo_data import GeoData
+from fire_rs.planning.planning import Planner
 
 
 class TrajectoryDisplayExtension(gdd.DisplayExtension):
@@ -179,7 +180,8 @@ def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[flo
         geodatadisplay.axis.get_figure().show()
 
 
-def plot_plan_with_background(planner, geodatadisplay, time_range, output_options_plot):
+def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, output_options_plot,
+                              plan: 'Union[str, int]'='final'):
     """Plot a plan trajectories with background geographic information in a geodata display."""
     # Draw background layers
     for layer in output_options_plot['background']:
@@ -208,5 +210,13 @@ def plot_plan_with_background(planner, geodatadisplay, time_range, output_option
             geodatadisplay.draw_wind_quiver()
 
     # Plot the plan
-    plot_plan_trajectories(planner.search_result.final_plan(),
-                           geodatadisplay, time_range=time_range, show=True)
+    if plan == 'final':
+        plot_plan_trajectories(planner.search_result.final_plan(), geodatadisplay,
+                               time_range=time_range, show=True)
+    elif plan == 'initial':
+        plot_plan_trajectories(planner.search_result.initial_plan(), geodatadisplay,
+                               time_range=time_range, show=True)
+    else:
+        plot_plan_trajectories(planner.search_result.intermediate_plans[plan], geodatadisplay,
+                               time_range=time_range, show=True)
+

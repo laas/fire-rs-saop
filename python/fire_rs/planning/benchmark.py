@@ -162,9 +162,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
 
     # If intermediate plans are available, save them
-    for i, i_plan in enumerate(res.intermediate_plans):
-        plot_plan_with_background(i_plan, geodatadisplay, (first_ignition, last_ignition),
-                                  output_options_plot)
+    for i in range(len(res.intermediate_plans)):
+        geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
+        TrajectoryDisplayExtension(None).extend(geodatadisplay)
+        plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
+                                  output_options_plot, plan=i)
 
         i_plan_dir = os.path.join(save_directory, instance_name)
         if not os.path.exists(i_plan_dir):
