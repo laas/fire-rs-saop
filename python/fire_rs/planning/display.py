@@ -185,7 +185,10 @@ def plot_plan_with_background(planner, geodatadisplay, time_range, output_option
     for layer in output_options_plot['background']:
         if layer == 'elevation_shade':
             geodatadisplay.draw_elevation_shade(
-                with_colorbar=output_options_plot.get('colorbar', True))
+                with_colorbar=output_options_plot.get('colorbar', True), layer='elevation')
+        if layer == 'elevation_planning_shade':
+            geodatadisplay.draw_elevation_shade(
+                with_colorbar=output_options_plot.get('colorbar', True), layer='elevation_planning')
         elif layer == 'ignition_shade':
             geodatadisplay.draw_ignition_shade(
                 with_colorbar=output_options_plot.get('colorbar', True))

@@ -131,9 +131,6 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     first_ignition = np.nanmin(ignitions_nan)
     last_ignition = np.nanmax(ignitions_nan)
 
-    # Move elevation_planning data to elevation, so we plot the elevation the planner has seen
-    env.raster.data['elevation'] = env.raster.data['elevation_planning']
-
     # Create the geodatadisplay object & extensions that are going to be used
     geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
     TrajectoryDisplayExtension(None).extend(geodatadisplay)
@@ -413,7 +410,7 @@ def main():
                         default=DEFAULT_FIRERS_DATA_FOLDER)
     parser.add_argument("--background", nargs='+',
                         help="List of background layers for the output figures, from bottom to top.",
-                        choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
+                        choices=['elevation_shade', 'elevation_planning_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument('--colorbar', dest='colorbar', action='store_true',
                         help="Display colorbars")
