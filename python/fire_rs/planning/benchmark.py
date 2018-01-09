@@ -86,7 +86,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # Fetch scenario environment data with additional elevation mode for planning
     env = PlanningEnvironment(scenario.area, wind_speed=scenario.wind_speed,
                               wind_dir=scenario.wind_direction,
-                              planning_elevation_mode=output_options_planning['elevation_mode'])
+                              planning_elevation_mode=output_options_planning['elevation_mode'],
+                              discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL)
 
     # Propagate fires in the environment
     prop = propagation.propagate_from_points(env, scenario.ignitions,
