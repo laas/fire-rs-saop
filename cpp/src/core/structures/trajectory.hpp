@@ -45,22 +45,37 @@ struct TrajectoryConfig {
     const opt<Waypoint3d> end_position;
     const double max_flight_time;
 
-    TrajectoryConfig(const UAV& uav, double start_time = 0, double max_flight_time = std::numeric_limits<double>::max())
-            : uav(uav), start_time(start_time), start_position((opt<Waypoint3d>){}), end_position((opt<Waypoint3d>){}), max_flight_time(max_flight_time) {}
-
-    TrajectoryConfig(const UAV& uav,
-                               const Waypoint3d& start_position,
-                               double start_time = 0,
-                               double max_flight_time = std::numeric_limits<double>::max())
-            : uav(uav), start_time(start_time), start_position(start_position), end_position(opt<Waypoint3d>()), max_flight_time(std::numeric_limits<double>::max()) {}
-
-    TrajectoryConfig(const UAV& uav,
-                               const Waypoint3d& start_position,
-                               const Waypoint3d& end_position,
-                               double start_time = 0,
-                               double max_flight_time = std::numeric_limits<double>::max())
-            : uav(uav), start_time(start_time), start_position(start_position), end_position(end_position),
+    TrajectoryConfig(const UAV &uav,
+                     double start_time = 0,
+                     double max_flight_time = std::numeric_limits<double>::max())
+            : uav(uav),
+              start_time(start_time),
+              start_position((opt<Waypoint3d>) {}),
+              end_position((opt<Waypoint3d>) {}),
               max_flight_time(max_flight_time) {}
+
+    TrajectoryConfig(const UAV &uav,
+                     const Waypoint3d &start_position,
+                     double start_time = 0,
+                     double max_flight_time = std::numeric_limits<double>::max())
+            : uav(uav),
+              start_time(start_time),
+              start_position(start_position),
+              end_position(opt<Waypoint3d>()),
+              max_flight_time(std::numeric_limits<double>::max()) {}
+
+    TrajectoryConfig(const UAV &uav,
+                     const Waypoint3d &start_position,
+                     const Waypoint3d &end_position,
+                     double start_time = 0,
+                     double max_flight_time = std::numeric_limits<double>::max())
+            : uav(uav),
+              start_time(start_time),
+              start_position(start_position),
+              end_position(end_position),
+              max_flight_time(max_flight_time) {}
+
+
 };
 
 class Trajectory {
