@@ -87,13 +87,21 @@ public:
 
     Trajectory(const Trajectory &trajectory) = default;
 
+    /*Trajectory copy with modifiable segment interval*/
+    Trajectory(const Trajectory &trajectory, IndexRange mod_range)
+            : Trajectory(trajectory) {
+        modifiable_range = mod_range;
+    };
+
     /* Empty trajectory constructor */
     explicit Trajectory(const TrajectoryConfig &_config)
             : conf(_config) {
         if (conf.start_position)
             append_segment(Segment3d(*conf.start_position));
+        modifiable_range = IndexRange::end_unbounded(1);
         if (conf.end_position)
             append_segment(Segment3d(*conf.end_position));
+        modifiable_range = modifiable_range.intersection_with(IndexRange::start_unbounded(2));
         is_set_up = true;
         check_validity();
     }
@@ -109,17 +117,17 @@ public:
         return traj.size() == 0 ? start_time() : end_time(traj.size() - 1);
     }
 
-    double start_time(size_t segment_index) const {
-        ASSERT(traj.size() == start_times.size())
-        ASSERT(segment_index >= 0 && segment_index < traj.size())
-        return start_times[segment_index];
+    /* Time (s) at which the UAV reaches the start waypoint of a given segment. */
+    double start_time(size_t man_index) const {
+        ASSERT(man_index >= 0 && man_index < traj.size())
+        return start_times[man_index];
     }
 
     /* Time (s) at which the UAV reaches the end waypoint of a given segment. */
     double end_time(size_t segment_index) const {
-        ASSERT(traj.size() == start_times.size())
         ASSERT(segment_index >= 0 && segment_index < traj.size())
-        return start_time(segment_index) + traj[segment_index].length / conf.uav.max_air_speed;
+        return start_time(segment_index) +
+               traj[segment_index].length / conf.uav.max_air_speed;
     }
 
     /* Duration (s) of the path. */
@@ -175,9 +183,58 @@ public:
     /* Accesses the index-th segment of the trajectory */
     const Segment3d &operator[](size_t index) const { return traj[index]; }
 
-    Trajectory slice(TimeWindow tw) const {
+//    /* Returns the part of a Trajectory within the IndexRange as a new Trajectory.
+//     * For each cut argument, if it is true: fixed start/end on cut
+//     * false: free start/end on cut
+//     * unspecified: keep original start/end */
+//    Trajectory
+//    slice(IndexRange range, opt<bool> cut_start_time={}, opt<bool> cut_max_flight_time={}) const {
+//        if (size() == 0) {
+//            // If the trajectory is void, a subtrajectory is the trajectory
+//            std::cerr << "Slicing an empty trajectory" << std::endl;
+//            return Trajectory(*this);
+//        }
+//
+//        auto traj_range = IndexRange(0, size()).intersection_with(range);
+//
+//        if (!traj_range.is_empty()) {
+//             return Trajectory(TrajectoryConfig(conf.uav, start_time(traj_range.start),
+//                                               end_time(traj_range.end - 1)));
+//        }
+//
+//        if (!cut_start_time) {
+//            cut_start_time = conf.start_position ? true : false;
+//        } else if (!cut_max_flight_time) {
+//            cut_max_flight_time = conf.end_position ? true : false;
+//        }
+//
+//        if (conf.start_position && conf.end_position) {
+//            TrajectoryConfig new_conf = TrajectoryConfig(
+//                    conf.uav,
+//                    *conf.start_position,
+//                    *conf.end_position,
+//                    cut_start_time ? start_time(traj_range.start) : conf.start_time ,
+//                    cut_max_flight_time ? end_time(traj_range.end - 1) : conf.max_flight_time);
+//        } else if (conf.start_position ) {
+//
+//        } else {
+//            TrajectoryConfig new_conf = TrajectoryConfig(
+//                    conf.uav,
+//                    cut_start_time ? start_time(traj_range.start) : conf.start_time ,
+//                    cut_max_flight_time ? end_time(traj_range.end - 1) : conf.max_flight_time);
+//        }
+//
+//
+//        Trajectory new_trajectory = Trajectory(new_conf);
+//        for (size_t i=*new_traj_start_i, j= new_trajectory.first_modifiable_id(); i<=new_traj_end_i; ++i, ++j) {
+//            new_trajectory.insert_segment(traj[i], j);
+//        }
+//
+//
+//    }
 
-//        ASSERT(conf.start_time <= tw.start && tw.end < conf.max_flight_time);
+    /* Returns the part of a Trajectory within the TimewWindow as a new Trajectory. */
+    Trajectory slice(TimeWindow tw) const {
 
         if (traj.size() == 0) {
             // If the trajectory is void, a subtrajectory is the trajectory
@@ -349,18 +406,28 @@ public:
         return newTraj;
     }
 
-    /** Adds segment to the end of the trajectory */
-    void append_segment(const Segment3d& seg) {
+    /* In a new trajectory, replaces the N segments at [index, index+N] with the N segments given in parameter. */
+    Trajectory with_replaced_section(size_t index, const std::vector<Segment3d> &segments) const {
+        Trajectory newTraj(*this);
+        newTraj.replace_section(index, segments);
+        return newTraj;
+    }
+
+    /* Adds segment to the end of the trajectory */
+    void append_segment(const Segment3d &seg) {
+        ASSERT(modifiable_range.end > size())
         insert_segment(seg, traj.size());
         ASSERT(traj.size() == start_times.size())
+
+        check_validity();
     }
 
     /* Inserts the given segment at the given index */
     void insert_segment(const Segment3d &seg, size_t at_index) {
         ASSERT(at_index >= 0 && at_index <= traj.size())
-        const double start = at_index == 0 ?
-                          conf.start_time :
-                          end_time(at_index-1) + conf.uav.travel_time(traj[at_index-1].end, seg.start);
+        ASSERT(IndexRange(modifiable_range.start, modifiable_range.end + 1).contains(at_index))
+        const double start = at_index == 0 ? conf.start_time :
+                             end_time(at_index - 1) + conf.uav.travel_time(traj[at_index - 1].end, seg.start);
 
         const double added_delay = insertion_duration_cost(at_index, seg);
         ASSERT(ALMOST_GREATER_EQUAL(added_delay, 0))
@@ -372,6 +439,7 @@ public:
         }
 
         check_validity();
+        modifiable_range = IndexRange(modifiable_range.start, modifiable_range.end - 1);
     }
 
     /* Returns a new trajectory without the segment at the given index */
@@ -383,6 +451,8 @@ public:
 
     /* Removes the segment at the given index. */
     void erase_segment(size_t at_index) {
+        ASSERT(at_index >= 0 && at_index <= traj.size())
+        ASSERT(modifiable_range.contains(at_index))
         const double gained_delay = removal_duration_gain(at_index);
         traj.erase(traj.begin() + at_index);
         start_times.erase(start_times.begin() + at_index);
@@ -390,6 +460,7 @@ public:
             start_times[i] -= gained_delay;
         }
         check_validity();
+        modifiable_range = IndexRange(modifiable_range.start, modifiable_range.end - 1);
     }
 
     void replace_segment(size_t at_index, const Segment3d &by_segment) {
@@ -424,6 +495,11 @@ private:
     /* Boolean flag that is set to true once the trajectory is initialized.
      * Validity checks are only performed when this flag is true. */
     bool is_set_up = false;
+
+    /* Range of vector<Segment3d> ids where segments can be modified, removed or inserted.
+     * This is independent of the start and end points that can be fixed independently of this
+     * setting */
+    IndexRange modifiable_range = IndexRange::unbounded(); // All by default
 
     /* Recomputes length from scratch and returns it. */
     double non_incremental_length() const {
