@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "plan.hpp"
 
 #include "../ext/json.hpp"
+
 using json = nlohmann::json;
 
 class LocalMove {
@@ -36,6 +37,7 @@ class LocalMove {
 public:
     /** Reference to the plan this move is created for. */
     PlanPtr base_plan;
+
     explicit LocalMove(PlanPtr base) : base_plan(base) {};
 
     /** Cost that would result in applying the move. */
@@ -68,6 +70,7 @@ private:
     /** NEVER ACCESS. This is only to make the plan visible in gdb which has problems with shared points. */
     Plan* plan_raw = base_plan.get();
 };
+
 typedef shared_ptr<LocalMove> PLocalMove;
 
 
@@ -103,8 +106,7 @@ public:
 
     SearchResult(Plan& init_plan)
             : init_plan(shared_ptr<Plan>(new Plan(init_plan))),
-              final_plan(shared_ptr<Plan>())
-    {}
+              final_plan(shared_ptr<Plan>()) {}
 
     void set_final_plan(Plan& p) {
         ASSERT(!final_plan)
@@ -113,6 +115,7 @@ public:
     }
 
     Plan initial() const { return *init_plan; }
+
     Plan final() const { return *final_plan; }
 
     json metadata;
@@ -124,7 +127,8 @@ struct VariableNeighborhoodSearch {
 
     shared_ptr<Shuffler> shuffler;
 
-    explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler> shuffler) :
+    explicit VariableNeighborhoodSearch(vector<shared_ptr<Neighborhood>>& neighborhoods, shared_ptr<Shuffler> shuffler)
+            :
             neighborhoods(neighborhoods), shuffler(shuffler) {
         ASSERT(neighborhoods.size() > 0);
     }
@@ -139,9 +143,9 @@ struct VariableNeighborhoodSearch {
      *                    Warning: this is very heavy on memory usage.
      * @return
      */
-    SearchResult search(Plan p, double max_time_secs, size_t save_every=0, bool save_improvements=false) {
+    SearchResult search(Plan p, double max_time_secs, size_t save_every = 0, bool save_improvements = false) {
         const clock_t search_start = clock();
-        auto seconds_since_start = [search_start]() { return (double (clock() - search_start)) / CLOCKS_PER_SEC; };
+        auto seconds_since_start = [search_start]() { return (double(clock() - search_start)) / CLOCKS_PER_SEC; };
 
         SearchResult result(p);
 
@@ -161,20 +165,20 @@ struct VariableNeighborhoodSearch {
 
         bool saved = false; /*True if an improvement was saved so save_every do not take an snapshot again*/
 
-        while(seconds_since_start() < max_time_secs) {
+        while (seconds_since_start() < max_time_secs) {
             // choose first neighborhood
             size_t current_neighborhood = 0;
-            if(num_restarts > 0) {
+            if (num_restarts > 0) {
                 std::cout << "Shuffle no. " << num_restarts << std::endl;
                 best_plan_for_restart = std::make_shared<Plan>(*best_plan);
                 shuffler->suffle(best_plan_for_restart);
-                if(save_improvements) {
+                if (save_improvements) {
                     // save plan even though its is probably not an improvement
                     result.intermediate_plans.push_back(*best_plan_for_restart);
                 }
             }
 
-            while(seconds_since_start() < max_time_secs && current_neighborhood < neighborhoods.size()) {
+            while (seconds_since_start() < max_time_secs && current_neighborhood < neighborhoods.size()) {
                 // current neighborhood
                 shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
 
@@ -184,7 +188,7 @@ struct VariableNeighborhoodSearch {
                 const clock_t end = clock();
                 runtime_per_neighborhood[current_neighborhood] += double(end - start) / CLOCKS_PER_SEC;
 
-                if(move) {
+                if (move) {
                     // neighborhood generate a move, apply it
                     LocalMove& m = **move;
                     ASSERT(m.is_valid());
@@ -192,15 +196,16 @@ struct VariableNeighborhoodSearch {
                     // apply the move on best_plan_for_restart
                     m.apply();
 
-                    if(best_plan_for_restart->utility() < best_plan->utility()) {
+                    if (best_plan_for_restart->utility() < best_plan->utility()) {
                         best_plan = make_shared<Plan>(*best_plan_for_restart);
-                        utility_history.emplace_back(std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
+                        utility_history.emplace_back(
+                                std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                     }
 
-                    printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int)current_neighborhood,
+                    printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int) current_neighborhood,
                            best_plan_for_restart->utility(), best_plan_for_restart->duration());
 
-                    if(save_improvements) {
+                    if (save_improvements) {
                         result.intermediate_plans.push_back(*best_plan_for_restart);
                         saved = true;
                     }
@@ -211,14 +216,14 @@ struct VariableNeighborhoodSearch {
                     // no move
                     current_neighborhood += 1;
                 }
-                if(!saved && save_every != 0 && (current_iter % save_every) == 0) {
+                if (!saved && save_every != 0 && (current_iter % save_every) == 0) {
                     result.intermediate_plans.push_back(*best_plan_for_restart);
                 }
                 saved = false;
                 current_iter += 1;
             }
 
-            if(best_plan_for_restart->utility() < best_plan->utility()) {
+            if (best_plan_for_restart->utility() < best_plan->utility()) {
                 best_plan = best_plan_for_restart;
             }
 
@@ -229,7 +234,7 @@ struct VariableNeighborhoodSearch {
 
         // save neighborhoods metadata
         result.metadata["neighborhoods"] = json::array();
-        for(size_t i=0; i<neighborhoods.size(); i++) {
+        for (size_t i = 0; i < neighborhoods.size(); i++) {
             json j;
             auto& n = *neighborhoods[i];
             j["name"] = std::to_string(i) + "-" + n.name();
@@ -237,7 +242,7 @@ struct VariableNeighborhoodSearch {
             result.metadata["neighborhoods"].push_back(j);
         }
         result.metadata["utility_history"] = json::array();
-        for(auto time_utility : utility_history)
+        for (auto time_utility : utility_history)
             result.metadata["utility_history"].push_back(json::array({time_utility.first, time_utility.second}));
         return result;
     }

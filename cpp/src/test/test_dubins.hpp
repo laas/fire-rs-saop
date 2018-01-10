@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <iostream>
 #include "../core/structures/waypoint.hpp"
 #include <boost/test/included/unit_test.hpp>
+
 using namespace boost::unit_test;
 using namespace std;
 
@@ -34,31 +35,31 @@ static double r_min = 25; // m
 static double gamma_max = 0.1; // rad
 
 void test_helix_optimization_convergence() {
-    Waypoint3d orig {546003.90363695205, 6212215.7933926694, 514, 1.9718229235899096};
-    Waypoint3d dest {545600, 6213400, 100, 0};
+    Waypoint3d orig{546003.90363695205, 6212215.7933926694, 514, 1.9718229235899096};
+    Waypoint3d dest{545600, 6213400, 100, 0};
 
     Dubins3dPath path(orig, dest, 64.457751952217606, 0.10471975511965977); // Should not fail
 }
 
 void test_length_high_alt() {
-    Waypoint3d orig {100, 100,   0, M_PI_2};
-    Waypoint3d dest {  0,   0, 200, 3 * M_PI_2};
+    Waypoint3d orig{100, 100, 0, M_PI_2};
+    Waypoint3d dest{0, 0, 200, 3 * M_PI_2};
 
     Dubins3dPath path(orig, dest, r_min, gamma_max);
     BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::High);
 }
 
 void test_length_medium_alt() {
-    Waypoint3d orig {100, 100,  0, M_PI_2};
-    Waypoint3d dest {  0,   0, 25, 3 * M_PI_2};
+    Waypoint3d orig{100, 100, 0, M_PI_2};
+    Waypoint3d dest{0, 0, 25, 3 * M_PI_2};
 
     Dubins3dPath path(orig, dest, r_min, gamma_max);
     BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::Medium);
 }
 
 void test_medium_alt_SSLS() {
-    Waypoint3d orig {100, 100,  0, M_PI_2};
-    Waypoint3d dest {  0,   0, 25, 3 * M_PI_2};
+    Waypoint3d orig{100, 100, 0, M_PI_2};
+    Waypoint3d dest{0, 0, 25, 3 * M_PI_2};
 
     Dubins3dPath path(orig, dest, r_min, gamma_max);
     BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::Medium);
@@ -66,14 +67,14 @@ void test_medium_alt_SSLS() {
 }
 
 void test_length_low_alt() {
-    Waypoint3d orig {100, 100,  0, M_PI_2};
-    Waypoint3d dest {  0,   0, 15, 3 * M_PI_2};
+    Waypoint3d orig{100, 100, 0, M_PI_2};
+    Waypoint3d dest{0, 0, 15, 3 * M_PI_2};
 
     Dubins3dPath path(orig, dest, r_min, gamma_max);
     BOOST_CHECK(path.goal_altitude == Dubins3dGoalAltitude::Low);
 
-    double orig_array[3] {orig.x, orig.y, orig.dir};
-    double dest_array[3] {dest.x, dest.y, dest.dir};
+    double orig_array[3]{orig.x, orig.y, orig.dir};
+    double dest_array[3]{dest.x, dest.y, dest.dir};
     DubinsPath path2d;
     dubins_init(orig_array, dest_array, r_min, &path2d);
     BOOST_CHECK_CLOSE(path.L_2d, dubins_path_length(&path2d), 1);
@@ -81,9 +82,9 @@ void test_length_low_alt() {
 
 /* Triangle inequality should exist for low altitude paths */
 void test_triangleineq_flat() {
-    Waypoint3d a {  0,   0, 0, 0};
-    Waypoint3d b {100, 100, 0, M_PI_2};
-    Waypoint3d c {  0, 100, 0, M_PI};
+    Waypoint3d a{0, 0, 0, 0};
+    Waypoint3d b{100, 100, 0, M_PI_2};
+    Waypoint3d c{0, 100, 0, M_PI};
     Dubins3dPath path_ab(a, b, r_min, gamma_max);
     Dubins3dPath path_bc(b, c, r_min, gamma_max);
     Dubins3dPath path_ac(a, c, r_min, gamma_max);
@@ -94,9 +95,9 @@ void test_triangleineq_flat() {
 
 /* Triangle inequality should NOT exist for high altitude paths */
 void test_triangleineq_high() {
-    Waypoint3d a {  0,   0,   0, 0};
-    Waypoint3d b {100, 100,  50, M_PI_2};
-    Waypoint3d c {200, 100, 100, M_PI};
+    Waypoint3d a{0, 0, 0, 0};
+    Waypoint3d b{100, 100, 50, M_PI_2};
+    Waypoint3d c{200, 100, 100, M_PI};
     Dubins3dPath path_ab(a, b, r_min, gamma_max);
     Dubins3dPath path_bc(b, c, r_min, gamma_max);
     Dubins3dPath path_ac(a, c, r_min, gamma_max);
@@ -107,11 +108,11 @@ void test_triangleineq_high() {
 
 void test_length_flat() {
     DubinsPath path2d;
-    Waypoint3d orig {100, 100, 0, M_PI_2};
-    Waypoint3d dest {  0,   0, 0, 3 * M_PI_2};
+    Waypoint3d orig{100, 100, 0, M_PI_2};
+    Waypoint3d dest{0, 0, 0, 3 * M_PI_2};
 
-    double orig_array[3] {orig.x, orig.y, orig.dir};
-    double dest_array[3] {dest.x, dest.y, dest.dir};
+    double orig_array[3]{orig.x, orig.y, orig.dir};
+    double dest_array[3]{dest.x, dest.y, dest.dir};
 
     Dubins3dPath path3d(orig, dest, r_min, gamma_max);
     dubins_init(orig_array, dest_array, r_min, &path2d);

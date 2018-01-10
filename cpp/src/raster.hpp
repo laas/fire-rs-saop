@@ -39,12 +39,12 @@ struct Cell final {
 
     bool operator==(const Cell& pt) { return x == pt.x && y == pt.y; }
 
-    friend std::ostream& operator<< (std::ostream& stream, const Cell& pt) {
-        return stream << "(" << pt.x << ", " << pt.y <<")";
+    friend std::ostream& operator<<(std::ostream& stream, const Cell& pt) {
+        return stream << "(" << pt.x << ", " << pt.y << ")";
     }
 };
 
-template <typename T>
+template<typename T>
 struct GenRaster {
     std::vector<T> data;
 
@@ -54,10 +54,10 @@ struct GenRaster {
     const double y_offset;
     const double cell_width;
 
-    GenRaster<T>(std::vector<T> data, size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width) :
+    GenRaster<T>(std::vector<T> data, size_t x_width, size_t y_height, double x_offset, double y_offset,
+                 double cell_width) :
             data(data), x_width(x_width), y_height(y_height),
-            x_offset(x_offset), y_offset(y_offset), cell_width(cell_width)
-    {
+            x_offset(x_offset), y_offset(y_offset), cell_width(cell_width) {
         ASSERT(data.size() == x_width * y_height)
     }
 
@@ -65,7 +65,7 @@ struct GenRaster {
             : GenRaster<T>(std::vector<T>(x_width * y_height, 0), x_width, y_height, x_offset, y_offset, cell_width) {}
 
     void reset() {
-        for(size_t i=0; i<x_width*y_height; i++)
+        for (size_t i = 0; i < x_width * y_height; i++)
             data[i] = 0;
     }
 
@@ -76,11 +76,11 @@ struct GenRaster {
     inline virtual T operator()(size_t x, size_t y) const {
         ASSERT(x >= 0 && x < x_width);
         ASSERT(y >= 0 && y <= y_height);
-        return data[x + y*x_width];
+        return data[x + y * x_width];
     }
 
     inline void set(size_t x, size_t y, T value) {
-        data[x + y*x_width] = value;
+        data[x + y * x_width] = value;
     }
 
     bool is_in(Cell cell) const {
@@ -89,7 +89,7 @@ struct GenRaster {
 
     Position as_position(Cell cell) const {
         ASSERT(is_in(cell));
-        return Position{ x_coords(cell.x), y_coords(cell.y) };
+        return Position{x_coords(cell.x), y_coords(cell.y)};
     }
 
     double x_coords(size_t x_index) const {
@@ -117,31 +117,31 @@ struct GenRaster {
     }
 
     bool is_x_in(double x_coord) const {
-        return x_offset-cell_width/2 <= x_coord && x_coord <= x_offset + cell_width * x_width-cell_width/2;
+        return x_offset - cell_width / 2 <= x_coord && x_coord <= x_offset + cell_width * x_width - cell_width / 2;
     }
 
     bool is_y_in(double y_coord) const {
-        return y_offset-cell_width/2 <= y_coord && y_coord <= y_offset + cell_width * y_height-cell_width/2;
+        return y_offset - cell_width / 2 <= y_coord && y_coord <= y_offset + cell_width * y_height - cell_width / 2;
     }
 
     Cell as_cell(const Waypoint& wp) const {
         ASSERT(is_in(wp));
-        return Cell{ x_index(wp.x), y_index(wp.y) };
+        return Cell{x_index(wp.x), y_index(wp.y)};
     }
 
     Cell as_cell(const Waypoint3d& wp) const {
         ASSERT(is_in(wp));
-        return Cell{ x_index(wp.x), y_index(wp.y) };
+        return Cell{x_index(wp.x), y_index(wp.y)};
     }
 
     Cell as_cell(const Position& pos) const {
         ASSERT(is_in(pos));
-        return Cell{ x_index(pos.x), y_index(pos.y) };
+        return Cell{x_index(pos.x), y_index(pos.y)};
     }
 
     Cell as_cell(const Position3d& pos) const {
         ASSERT(is_in(pos));
-        return Cell{ x_index(pos.x), y_index(pos.y) };
+        return Cell{x_index(pos.x), y_index(pos.y)};
     }
 
     size_t x_index(double x_coord) const {
@@ -163,16 +163,14 @@ struct DiscreteDRaster : public DRaster {
     size_t interval = 100;
 
     DiscreteDRaster(std::vector<double> data, size_t x_width, size_t y_height, double x_offset, double y_offset,
-                      double cell_width, size_t _interval) :
-            DRaster(data, x_width, y_height, x_offset, y_offset, cell_width)
-    {
+                    double cell_width, size_t _interval) :
+            DRaster(data, x_width, y_height, x_offset, y_offset, cell_width) {
         interval = _interval;
     }
 
     DiscreteDRaster(size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width,
                     size_t _interval)
-    : DRaster(std::vector<double>(x_width * y_height, 0), x_width, y_height, x_offset, y_offset, cell_width)
-    {
+            : DRaster(std::vector<double>(x_width * y_height, 0), x_width, y_height, x_offset, y_offset, cell_width) {
         interval = _interval;
     }
 
@@ -180,7 +178,7 @@ struct DiscreteDRaster : public DRaster {
         interval = _interval;
     }
 
-    DiscreteDRaster(DRaster &&raster, size_t _interval) : DRaster(std::move(raster)) {
+    DiscreteDRaster(DRaster&& raster, size_t _interval) : DRaster(std::move(raster)) {
         interval = _interval;
     }
 
@@ -191,8 +189,9 @@ struct DiscreteDRaster : public DRaster {
     inline double operator()(size_t x, size_t y) const override {
         ASSERT(x >= 0 && x < x_width);
         ASSERT(y >= 0 && y <= y_height);
-        double val = data[x + y*x_width];
-        val = val + interval - fmod(val,interval); //FIXME: if interval is "1", does val stay the same after this operation?
+        double val = data[x + y * x_width];
+        val = val + interval -
+              fmod(val, interval); //FIXME: if interval is "1", does val stay the same after this operation?
         return val;
     }
 };

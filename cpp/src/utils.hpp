@@ -37,8 +37,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <cassert>
 
 void print_trace();
+
 double drand(double min, double max);
+
 size_t rand(size_t min, size_t non_inclusive_max);
+
 double positive_modulo(double left, double right);
 
 /** Macro that test equality of to floating point number, disregarding rounding errors. */

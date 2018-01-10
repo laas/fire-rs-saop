@@ -52,25 +52,23 @@ public:
     /* Terrain elevation */
     const shared_ptr<DRaster> elevation;
 
-    FireData(const DRaster &ignitions, const DRaster &elevation)
+    FireData(const DRaster& ignitions, const DRaster& elevation)
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
-              elevation(make_shared<DRaster>(elevation))
-    {}
+              elevation(make_shared<DRaster>(elevation)) {}
 
-    FireData(const DRaster &ignitions, const DiscreteDRaster &elevation)
+    FireData(const DRaster& ignitions, const DiscreteDRaster& elevation)
             : ignitions(ignitions),
               traversal_end(compute_traversal_ends(ignitions)),
               propagation_directions(compute_propagation_direction(ignitions)),
-              elevation(make_shared<DiscreteDRaster>(elevation))
-    {}
+              elevation(make_shared<DiscreteDRaster>(elevation)) {}
 
     FireData(const FireData& from) = default;
 
     /** Returns true if the cell is eventually ignited. */
     bool eventually_ignited(Cell cell) const {
-        return ignitions(cell) < numeric_limits<double>::max() /2;
+        return ignitions(cell) < numeric_limits<double>::max() / 2;
     }
 
     /** Lookup a cell that ignited at `time`. Returns an empty option if no such cell was found. */
@@ -91,26 +89,26 @@ public:
         if (time >= ignitions(cell) && time <= traversal_end(cell)) {
             return cell;
         } else {
-            const double dir = positive_modulo(propagation_directions(cell), 2*M_PI);
+            const double dir = positive_modulo(propagation_directions(cell), 2 * M_PI);
 
             /** Make it discrete, a value of 0<= N <8 means the angle was rounded to N*PI/4 */
-            long discrete_dir = lround(dir / (M_PI /4));
+            long discrete_dir = lround(dir / (M_PI / 4));
             ASSERT(discrete_dir >= 0 && discrete_dir <= 8)
             discrete_dir = discrete_dir % 8;  // 2PI == 0
 
             // compute relative coordinates of the cell in the main fire direction.
             int dx = -100;
-            if(discrete_dir == 0 || discrete_dir == 1 || discrete_dir == 7)
+            if (discrete_dir == 0 || discrete_dir == 1 || discrete_dir == 7)
                 dx = 1;
-            else if(discrete_dir == 3 || discrete_dir == 4 || discrete_dir == 5)
+            else if (discrete_dir == 3 || discrete_dir == 4 || discrete_dir == 5)
                 dx = -1;
             else
                 dx = 0;
 
             int dy = -100;
-            if(discrete_dir == 1 || discrete_dir == 2 || discrete_dir == 3)
+            if (discrete_dir == 1 || discrete_dir == 2 || discrete_dir == 3)
                 dy = 1;
-            else if(discrete_dir == 5 || discrete_dir == 6 || discrete_dir == 7)
+            else if (discrete_dir == 5 || discrete_dir == 6 || discrete_dir == 7)
                 dy = -1;
             else
                 dy = 0;
@@ -119,21 +117,21 @@ public:
             ASSERT(dy >= -1 && dy <= 1);
 
             Cell next_cell;
-            if(time > traversal_end(cell)) {
+            if (time > traversal_end(cell)) {
                 // move towards propagation direction
-                next_cell = { cell.x+dx, cell.y + dy };
-                if(!ignitions.is_in(next_cell) || ignitions(cell) > ignitions(next_cell))
+                next_cell = {cell.x + dx, cell.y + dy};
+                if (!ignitions.is_in(next_cell) || ignitions(cell) > ignitions(next_cell))
                     // ignitions are not growing, we are in strange geometrical pattern inducing a local maximum, abandon
                     return cell;
             } else {
                 // move backwards the propagation direction
                 ASSERT(time < ignitions(cell))
-                next_cell = { cell.x-dx, cell.y-dy };
-                if(!ignitions.is_in(next_cell) || ignitions(cell) < ignitions(next_cell))
+                next_cell = {cell.x - dx, cell.y - dy};
+                if (!ignitions.is_in(next_cell) || ignitions(cell) < ignitions(next_cell))
                     // ignitions are not decreasing, we are in strange geometrical pattern inducing a local minimum, abandon
                     return cell;
             }
-            if(!ignitions.is_in(next_cell) || ! eventually_ignited(next_cell)) {
+            if (!ignitions.is_in(next_cell) || !eventually_ignited(next_cell)) {
                 return cell;
             } else {
                 return project_closest_to_fire_front(next_cell, time);
@@ -149,11 +147,11 @@ public:
      **/
     opt<Segment3d> project_on_firefront(const Segment3d& seg, const UAV& uav, double time) const {
         const Waypoint3d center = uav.visibility_center(seg);
-        if(!ignitions.is_in(center))
+        if (!ignitions.is_in(center))
             return {};
         const Cell cell = ignitions.as_cell(center);
         const opt<Cell> projected_cell = project_on_fire_front(cell, time);
-        if(projected_cell)
+        if (projected_cell)
             return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y),
                                            center.z, seg.start.dir, seg.length);
         else
@@ -166,11 +164,11 @@ public:
      **/
     Segment3d project_closest_to_fire_front(const Segment3d& seg, const UAV& uav, double time) const {
         const Waypoint3d center = uav.visibility_center(seg);
-        if(!ignitions.is_in(center))
+        if (!ignitions.is_in(center))
             return seg;
         const Cell cell = ignitions.as_cell(center);
         const opt<Cell> projected_cell = project_closest_to_fire_front(cell, time);
-        if(projected_cell)
+        if (projected_cell)
             return uav.observation_segment(ignitions.x_coords(projected_cell->x), ignitions.y_coords(projected_cell->y),
                                            center.z, seg.start.dir, seg.length);
         else
@@ -178,15 +176,14 @@ public:
     }
 
 
-
 private:
     /** Builds a raster containing the times at which the firefront leaves the cells. */
-    static DRaster compute_traversal_ends(const DRaster &ignitions) {
+    static DRaster compute_traversal_ends(const DRaster& ignitions) {
         DRaster ie(ignitions.x_width, ignitions.y_height, ignitions.x_offset, ignitions.y_offset, ignitions.cell_width);
 
-        for(size_t x=0; x<ignitions.x_width; x++) {
-            for(size_t y=0; y<ignitions.y_height; y++) {
-                if(ignitions(x, y) < numeric_limits<double>::max() /2) {
+        for (size_t x = 0; x < ignitions.x_width; x++) {
+            for (size_t y = 0; y < ignitions.y_height; y++) {
+                if (ignitions(x, y) < numeric_limits<double>::max() / 2) {
                     // cell is ignited
                     // find the neighbor with highest ignition time
                     double max_neighbor = 0;
@@ -223,17 +220,17 @@ private:
         /** Returns the ignitions time of (x+dx, y+dy). If it is out of the raster, or not ignited, it defaults to the ignition of (x,y).*/
         auto default_ignition = [ignitions](size_t x, size_t y, int dx, int dy) {
             const double def = ignitions(x, y);
-            if(x == 0 && dx < 0) return def;
-            if(x+dx >= ignitions.x_width) return def;
-            if(y == 0 && dy < 0) return def;
-            if(y+dy >= ignitions.y_height) return def;
-            if(ignitions(x+dx, y+dy) >= numeric_limits<double>::max() /2) return def;
-            return ignitions(x+dx, y+dy);
+            if (x == 0 && dx < 0) return def;
+            if (x + dx >= ignitions.x_width) return def;
+            if (y == 0 && dy < 0) return def;
+            if (y + dy >= ignitions.y_height) return def;
+            if (ignitions(x + dx, y + dy) >= numeric_limits<double>::max() / 2) return def;
+            return ignitions(x + dx, y + dy);
         };
 
-        for(size_t x=0; x<ignitions.x_width; x++) {
-            for(size_t y=0; y<ignitions.y_height; y++) {
-                if(ignitions(x, y) < numeric_limits<double>::max() /2) {
+        for (size_t x = 0; x < ignitions.x_width; x++) {
+            for (size_t y = 0; y < ignitions.y_height; y++) {
+                if (ignitions(x, y) < numeric_limits<double>::max() / 2) {
                     // cell is ignited, compute slope
                     auto ign = [x, y, default_ignition](int dx, int dy) { return default_ignition(x, y, dx, dy); };
                     const double prop_dx =

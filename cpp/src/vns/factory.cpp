@@ -27,7 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 using json = nlohmann::json;
 
 void vns::check_field_is_present(json json_obj, std::string field) {
-    if((json_obj).find(field) == (json_obj).end()) {
+    if ((json_obj).find(field) == (json_obj).end()) {
         std::cerr << "Missing field " << field << " in json object:\n" << (json_obj).dump() << std::endl;
     }
     ASSERT((json_obj).find(field) != (json_obj).end())
@@ -37,15 +37,15 @@ shared_ptr<OrientationChangeGenerator> build_dubins_optimization_generator(const
     vns::check_field_is_present(conf, "name");
     const std::string& name = conf["name"];
 
-    if(name == "MeanOrientationChangeGenerator") {
+    if (name == "MeanOrientationChangeGenerator") {
         return shared_ptr<OrientationChangeGenerator>(new MeanOrientationChangeGenerator);
     }
 
-    if(name == "RandomOrientationChangeGenerator") {
+    if (name == "RandomOrientationChangeGenerator") {
         return shared_ptr<OrientationChangeGenerator>(new RandomOrientationChangeGenerator);
     }
 
-    if(name == "FlipOrientationChangeGenerator") {
+    if (name == "FlipOrientationChangeGenerator") {
         return shared_ptr<OrientationChangeGenerator>(new FlipOrientationChangeGenerator);
     }
 
@@ -57,20 +57,20 @@ shared_ptr<OrientationChangeGenerator> build_dubins_optimization_generator(const
 shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
     const std::string& name = conf["name"];
 
-    if(name == "dubins-opt") {
+    if (name == "dubins-opt") {
         vns::check_field_is_present(conf, "max_trials");
         const size_t max_trials = conf["max_trials"];
 
         vns::check_field_is_present(conf, "generators");
         auto generators_j = conf["generators"];
         vector<shared_ptr<OrientationChangeGenerator>> generators;
-        for(auto& it : generators_j) {
+        for (auto& it : generators_j) {
             generators.push_back(build_dubins_optimization_generator(it));
         }
 
         return make_shared<DubinsOptimizationNeighborhood>(generators, max_trials);
     }
-    if(name == "one-insert") {
+    if (name == "one-insert") {
         vns::check_field_is_present(conf, "max_trials");
         const size_t max_trials = conf["max_trials"];
         vns::check_field_is_present(conf, "select_arbitrary_trajectory");
@@ -81,7 +81,7 @@ shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
                 max_trials, select_arbitrary_trajectory, select_arbitrary_position
         );
     }
-    if(name == "trajectory-smoothing") {
+    if (name == "trajectory-smoothing") {
         vns::check_field_is_present(conf, "max_trials");
         const size_t max_trials = conf["max_trials"];
         return make_shared<TrajectorySmoothingNeighborhood>(max_trials);
@@ -91,12 +91,12 @@ shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
     std::exit(1);
 }
 
-shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string &json_config) {
+shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string& json_config) {
     auto j = json::parse(json_config);
 
     auto neighborhoods_confs = j["neighborhoods"];
     std::vector<shared_ptr<Neighborhood>> ns;
-    for(auto& it : neighborhoods_confs) {
+    for (auto& it : neighborhoods_confs) {
         ns.push_back(build_neighborhood(it));
     }
 

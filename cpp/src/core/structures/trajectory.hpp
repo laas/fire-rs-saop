@@ -45,7 +45,7 @@ struct TrajectoryConfig {
     const opt<Waypoint3d> end_position;
     const double max_flight_time;
 
-    TrajectoryConfig(const UAV &uav,
+    TrajectoryConfig(const UAV& uav,
                      double start_time = 0,
                      double max_flight_time = std::numeric_limits<double>::max())
             : uav(uav),
@@ -54,8 +54,8 @@ struct TrajectoryConfig {
               end_position((opt<Waypoint3d>) {}),
               max_flight_time(max_flight_time) {}
 
-    TrajectoryConfig(const UAV &uav,
-                     const Waypoint3d &start_position,
+    TrajectoryConfig(const UAV& uav,
+                     const Waypoint3d& start_position,
                      double start_time = 0,
                      double max_flight_time = std::numeric_limits<double>::max())
             : uav(uav),
@@ -64,9 +64,9 @@ struct TrajectoryConfig {
               end_position(opt<Waypoint3d>()),
               max_flight_time(std::numeric_limits<double>::max()) {}
 
-    TrajectoryConfig(const UAV &uav,
-                     const Waypoint3d &start_position,
-                     const Waypoint3d &end_position,
+    TrajectoryConfig(const UAV& uav,
+                     const Waypoint3d& start_position,
+                     const Waypoint3d& end_position,
                      double start_time = 0,
                      double max_flight_time = std::numeric_limits<double>::max())
             : uav(uav),
@@ -85,16 +85,16 @@ public:
     std::vector<Segment3d> traj;
     std::vector<double> start_times;
 
-    Trajectory(const Trajectory &trajectory) = default;
+    Trajectory(const Trajectory& trajectory) = default;
 
     /*Trajectory copy with modifiable segment interval*/
-    Trajectory(const Trajectory &trajectory, IndexRange mod_range)
+    Trajectory(const Trajectory& trajectory, IndexRange mod_range)
             : Trajectory(trajectory) {
         modifiable_range = mod_range;
     };
 
     /* Empty trajectory constructor */
-    explicit Trajectory(const TrajectoryConfig &_config)
+    explicit Trajectory(const TrajectoryConfig& _config)
             : conf(_config) {
         if (conf.start_position)
             append_segment(Segment3d(*conf.start_position));
@@ -181,7 +181,7 @@ public:
     }
 
     /* Accesses the index-th segment of the trajectory */
-    const Segment3d &operator[](size_t index) const { return traj[index]; }
+    const Segment3d& operator[](size_t index) const { return traj[index]; }
 
 //    /* Returns the part of a Trajectory within the IndexRange as a new Trajectory.
 //     * For each cut argument, if it is true: fixed start/end on cut
@@ -281,7 +281,7 @@ public:
      * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
     std::vector<Waypoint3d> as_waypoints() const {
         std::vector<Waypoint3d> waypoints;
-        for (auto &segment : traj) {
+        for (auto& segment : traj) {
             waypoints.push_back(segment.start);
             if (segment.length > 0)
                 waypoints.push_back(segment.end);
@@ -349,12 +349,12 @@ public:
     }
 
     /* Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
-    double replacement_length_cost(size_t index, const std::vector<Segment3d> &segments) const {
+    double replacement_length_cost(size_t index, const std::vector<Segment3d>& segments) const {
         return replacement_length_cost(index, segments.size(), segments);
     }
 
     /* Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
-    double replacement_length_cost(size_t index, size_t n_replaced, const std::vector<Segment3d> &segments) const {
+    double replacement_length_cost(size_t index, size_t n_replaced, const std::vector<Segment3d>& segments) const {
         ASSERT(n_replaced > 0);
         const unsigned long end_index = index + n_replaced - 1;
         ASSERT(index >= 0 && end_index < traj.size())
@@ -374,47 +374,47 @@ public:
     }
 
     /* Increase in time (s) as a result of replacing the segment at the given index by the one provided.*/
-    double replacement_duration_cost(size_t index, const Segment3d &segment) const {
+    double replacement_duration_cost(size_t index, const Segment3d& segment) const {
         return replacement_duration_cost(index, std::vector<Segment3d>{segment});
     }
 
     /* Increase in time (s) as a result of replacing the N segments at the given index by the N segemnts provided.*/
-    double replacement_duration_cost(size_t index, const std::vector<Segment3d> &segments) const {
+    double replacement_duration_cost(size_t index, const std::vector<Segment3d>& segments) const {
         return replacement_length_cost(index, segments) / conf.uav.max_air_speed;
     }
 
     /* Increase in time (s) as a result of replacing n segments at the given index by the N segments provided.*/
-    double replacement_duration_cost(size_t index, size_t n_replaced, const std::vector<Segment3d> &segments) const {
+    double replacement_duration_cost(size_t index, size_t n_replaced, const std::vector<Segment3d>& segments) const {
         return replacement_length_cost(index, n_replaced, segments) / conf.uav.max_air_speed;
     }
 
     /* Returns a new trajectory with the given waypoint appended (as a segment of length 0) */
-    Trajectory with_waypoint_at_end(Waypoint3d &waypoint) const {
+    Trajectory with_waypoint_at_end(Waypoint3d& waypoint) const {
         Segment3d s(waypoint);
         return with_segment_at_end(s);
     }
 
     /* Returns a new Trajectory with the given segment appended. */
-    Trajectory with_segment_at_end(const Segment3d &segment) const {
+    Trajectory with_segment_at_end(const Segment3d& segment) const {
         return with_additional_segment(traj.size(), segment);
     }
 
     /* Returns a new trajectory with an additional segment at the given index */
-    Trajectory with_additional_segment(size_t index, const Segment3d &seg) const {
+    Trajectory with_additional_segment(size_t index, const Segment3d& seg) const {
         Trajectory newTraj(*this);
         newTraj.insert_segment(seg, index);
         return newTraj;
     }
 
     /* In a new trajectory, replaces the N segments at [index, index+N] with the N segments given in parameter. */
-    Trajectory with_replaced_section(size_t index, const std::vector<Segment3d> &segments) const {
+    Trajectory with_replaced_section(size_t index, const std::vector<Segment3d>& segments) const {
         Trajectory newTraj(*this);
         newTraj.replace_section(index, segments);
         return newTraj;
     }
 
     /* Adds segment to the end of the trajectory */
-    void append_segment(const Segment3d &seg) {
+    void append_segment(const Segment3d& seg) {
         ASSERT(modifiable_range.end > size())
         insert_segment(seg, traj.size());
         ASSERT(traj.size() == start_times.size())
@@ -423,7 +423,7 @@ public:
     }
 
     /* Inserts the given segment at the given index */
-    void insert_segment(const Segment3d &seg, size_t at_index) {
+    void insert_segment(const Segment3d& seg, size_t at_index) {
         ASSERT(at_index >= 0 && at_index <= traj.size())
         ASSERT(IndexRange(modifiable_range.start, modifiable_range.end + 1).contains(at_index))
         const double start = at_index == 0 ? conf.start_time :
@@ -463,14 +463,14 @@ public:
         modifiable_range = IndexRange(modifiable_range.start, modifiable_range.end - 1);
     }
 
-    void replace_segment(size_t at_index, const Segment3d &by_segment) {
+    void replace_segment(size_t at_index, const Segment3d& by_segment) {
         ASSERT(at_index >= 0 && at_index < traj.size())
         erase_segment(at_index);
         insert_segment(by_segment, at_index);
         check_validity();
     }
 
-    void replace_section(size_t index, const std::vector<Segment3d> &segments) {
+    void replace_section(size_t index, const std::vector<Segment3d>& segments) {
         ASSERT(index >= 0 && index + segments.size() - 1 < traj.size())
         for (size_t i = 0; i < segments.size(); i++) {
             erase_segment(index);
@@ -523,12 +523,12 @@ private:
     static std::vector<Segment3d> segments_from_waypoints(std::vector<Waypoint3d> waypoints) {
         std::vector<Segment3d> segments;
         std::transform(waypoints.begin(), waypoints.end(), segments.begin(),
-                       [](const Waypoint3d &wp) { return Segment3d(wp); });
+                       [](const Waypoint3d& wp) { return Segment3d(wp); });
         return segments;
     }
 
     /* Computes the cost of a sub-trajectory composed of the given segments. */
-    double segments_length(const std::vector<Segment3d> &segments, size_t start, size_t length) const {
+    double segments_length(const std::vector<Segment3d>& segments, size_t start, size_t length) const {
         ASSERT(start + length <= segments.size());
         double cost = 0.;
         auto end_it = segments.begin() + start + length;

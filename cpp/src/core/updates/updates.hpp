@@ -40,7 +40,7 @@ struct ReversibleTrajectoriesUpdate {
 };
 
 struct NoOp final : public ReversibleTrajectoriesUpdate {
-    PReversibleTrajectoriesUpdate apply(Trajectories &p) override {
+    PReversibleTrajectoriesUpdate apply(Trajectories& p) override {
         return make_shared<NoOp>();
     }
 
@@ -50,10 +50,11 @@ struct SequencedUpdates final : public ReversibleTrajectoriesUpdate {
     PReversibleTrajectoriesUpdate first;
     PReversibleTrajectoriesUpdate second;
 
-    SequencedUpdates(const PReversibleTrajectoriesUpdate& first, const PReversibleTrajectoriesUpdate& second) : first(first),
-                                                                                              second(second) {}
+    SequencedUpdates(const PReversibleTrajectoriesUpdate& first, const PReversibleTrajectoriesUpdate& second) : first(
+            first),
+                                                                                                                second(second) {}
 
-    PReversibleTrajectoriesUpdate apply(Trajectories &p) override;
+    PReversibleTrajectoriesUpdate apply(Trajectories& p) override;
 };
 
 struct InsertSegment final : public ReversibleTrajectoriesUpdate {
@@ -66,10 +67,10 @@ struct InsertSegment final : public ReversibleTrajectoriesUpdate {
     /** Place in the trajectory where this segment should be inserted. */
     const size_t insert_loc;
 
-    InsertSegment(size_t traj_id, const Segment3d &seg, size_t insert_loc) : traj_id(traj_id), seg(seg),
+    InsertSegment(size_t traj_id, const Segment3d& seg, size_t insert_loc) : traj_id(traj_id), seg(seg),
                                                                              insert_loc(insert_loc) {}
 
-    PReversibleTrajectoriesUpdate apply(Trajectories &p) override;
+    PReversibleTrajectoriesUpdate apply(Trajectories& p) override;
 };
 
 struct DeleteSegment final : public ReversibleTrajectoriesUpdate {
@@ -82,9 +83,8 @@ struct DeleteSegment final : public ReversibleTrajectoriesUpdate {
 
     DeleteSegment(const size_t traj_id, const size_t at_index) : traj_id(traj_id), at_index(at_index) {}
 
-    PReversibleTrajectoriesUpdate apply(Trajectories &p) override;
+    PReversibleTrajectoriesUpdate apply(Trajectories& p) override;
 };
-
 
 
 #endif //PROJECT_TRAJECTORIES_H

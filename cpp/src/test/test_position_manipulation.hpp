@@ -33,9 +33,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../vns/neighborhoods/dubins_optimization.hpp"
 #include "../vns/fire_data.hpp"
 #include <boost/test/included/unit_test.hpp>
+
 using namespace boost::unit_test;
 
-UAV uav(10., 32.*M_PI/180, 0.1);
+UAV uav(10., 32. * M_PI / 180, 0.1);
 
 void test_single_point_to_observe() {
     // all points ignited at time 0, except ont at time 100
@@ -47,7 +48,7 @@ void test_single_point_to_observe() {
     auto fd = make_shared<FireData>(ignitions, elevation);
 
     // only interested in the point ignited at time 100
-    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 100) };
+    vector<TrajectoryConfig> confs{TrajectoryConfig(uav, 100)};
     Plan p(confs, fd, TimeWindow{90, 110});
 
 
@@ -65,14 +66,14 @@ void test_many_points_to_observe() {
     DRaster ignitions(100, 100, 0, 0, 1);
     for (size_t x = 0; x < 100; x++) {
         for (size_t y = 0; y < 100; y++) {
-            ignitions.set(x, y, sqrt(pow((double) x-50,2) + pow((double) y-50, 2)));
+            ignitions.set(x, y, sqrt(pow((double) x - 50, 2) + pow((double) y - 50, 2)));
         }
     }
 
     DRaster elevation(100, 100, 0, 0, 1);
 
     auto fd = make_shared<FireData>(ignitions, elevation);
-    vector<TrajectoryConfig> confs { TrajectoryConfig(uav, 10) };
+    vector<TrajectoryConfig> confs{TrajectoryConfig(uav, 10)};
     Plan p(confs, fd, TimeWindow{0, 110});
 
     auto vns = vns::build_default();
@@ -85,25 +86,25 @@ void test_many_points_to_observe() {
 }
 
 void test_many_points_to_observe_with_start_end_positions() {
-    Waypoint3d start(5,5,0,0);
-    Waypoint3d end(11,11,0,0);
+    Waypoint3d start(5, 5, 0, 0);
+    Waypoint3d end(11, 11, 0, 0);
 
     // circular firedata spread
     DRaster ignitions(100, 100, 0, 0, 1);
     for (size_t x = 0; x < 100; x++) {
         for (size_t y = 0; y < 100; y++) {
-            ignitions.set(x, y, sqrt(pow((double) x-50,2) + pow((double) y-50, 2)));
+            ignitions.set(x, y, sqrt(pow((double) x - 50, 2) + pow((double) y - 50, 2)));
         }
     }
 
     DRaster elevation(100, 100, 0, 0, 1);
 
     auto fd = make_shared<FireData>(ignitions, elevation);
-    vector<TrajectoryConfig> confs { TrajectoryConfig(
+    vector<TrajectoryConfig> confs{TrajectoryConfig(
             uav,
             start,
             end,
-            10) };
+            10)};
     Plan p(confs, fd, TimeWindow{0, 110});
 
     auto vns = vns::build_default();
@@ -116,18 +117,18 @@ void test_many_points_to_observe_with_start_end_positions() {
 //    ASSERT(traj[0] == start);
 //    ASSERT(traj[traj.size()-1] == end);
     BOOST_CHECK(traj.first_modifiable_id() == 1);
-    BOOST_CHECK(traj.last_modifiable_id() == traj.size()-2);
+    BOOST_CHECK(traj.last_modifiable_id() == traj.size() - 2);
 
     cout << "SUCCESS" << endl;
 }
 
 
 void test_segment_rotation() {
-    for(size_t i=0; i<100; i++) {
-        Waypoint wp(drand(-100000, 10000), drand(-100000, 100000), drand(-10*M_PI, 10*M_PI));
+    for (size_t i = 0; i < 100; i++) {
+        Waypoint wp(drand(-100000, 10000), drand(-100000, 100000), drand(-10 * M_PI, 10 * M_PI));
         Segment seg(wp, drand(0, 1000));
 
-        Segment seg_rotated = uav.rotate_on_visibility_center(seg, drand(-10*M_PI, 10*M_PI));
+        Segment seg_rotated = uav.rotate_on_visibility_center(seg, drand(-10 * M_PI, 10 * M_PI));
         Segment seg_back = uav.rotate_on_visibility_center(seg_rotated, wp.dir);
         BOOST_CHECK(seg == seg_back);
     }
@@ -187,11 +188,11 @@ void test_projection_on_firefront() {
         DRaster elevation(100, 100, 0, 0, 1);
 
         FireData fd(ignitions, elevation);
-        for(size_t i=0; i<100; i++) {
+        for (size_t i = 0; i < 100; i++) {
             const size_t x = rand(0, 100);
             const size_t y = rand(0, 100);
             auto res = fd.project_on_fire_front(Cell{x, y}, 25);
-            BOOST_CHECK(res && abs(dist(res->x, res->y) - 25) <1.5);
+            BOOST_CHECK(res && abs(dist(res->x, res->y) - 25) < 1.5);
         }
     }
 }
@@ -254,13 +255,12 @@ void test_time_window() {
     BOOST_CHECK(tw3.union_with(tw1) == tw3);
     BOOST_CHECK(tw4.intersection_with(tw3) == tw1);
 
-    auto empty_intersect = TimeWindow(s-1, s).intersection_with(TimeWindow(e, e + 1));
+    auto empty_intersect = TimeWindow(s - 1, s).intersection_with(TimeWindow(e, e + 1));
     BOOST_CHECK(empty_intersect.is_empty());
 }
 
-test_suite* position_manipulation_test_suite()
-{
-    test_suite* ts2 = BOOST_TEST_SUITE( "position_manipulation_tests" );
+test_suite* position_manipulation_test_suite() {
+    test_suite* ts2 = BOOST_TEST_SUITE("position_manipulation_tests");
     srand(time(0));
     ts2->add(BOOST_TEST_CASE(&test_trajectory_slice));
     ts2->add(BOOST_TEST_CASE(&test_time_window_order));

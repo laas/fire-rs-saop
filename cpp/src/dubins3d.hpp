@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 enum Dubins2dPathType {
     /* Enum values compatible with those defined in dubins.h */
     /* L = Turn left, S = Straight line, R = Turn right */
-    LSL = 0,
+            LSL = 0,
     LSR = 1,
     RSL = 2,
     RSR = 3,
@@ -53,7 +53,7 @@ enum Dubins2dPathType {
 
 enum Dubins3dPathType {
     /* S = Spiral, L = Line */
-    SLS = 1,
+            SLS = 1,
     SSS,
     SSLS,
     SLSS,
@@ -73,8 +73,8 @@ struct Dubins3dPathLength {
     Dubins3dGoalAltitude goal_altitude = {};
 
     // start and end waypoints
-    Waypoint3d wp_s {0,0,0,0}; // start waypoint
-    Waypoint3d wp_e {0,0,0,0}; // end waypoint
+    Waypoint3d wp_s{0, 0, 0, 0}; // start waypoint
+    Waypoint3d wp_e{0, 0, 0, 0}; // end waypoint
 
     // general path parameters
     double gamma = 0; // flight path angle (constant throughout maneuver)
@@ -111,7 +111,7 @@ struct Dubins3dPathLength {
             return;
         }
 
-        if (abs_delta_z <= L_path2d*tan(gamma_max)) {
+        if (abs_delta_z <= L_path2d * tan(gamma_max)) {
             /* Low altitude case: Just perform the 2d path with a linear increment in z */
             goal_altitude = Dubins3dGoalAltitude::Low;
             gamma = atan2(delta_z, L_path2d);
@@ -123,8 +123,8 @@ struct Dubins3dPathLength {
             /* High altitude case */
             goal_altitude = Dubins3dGoalAltitude::High;
             gamma = delta_z >= 0 ? gamma_max : -gamma_max; // gamma > 0 means up.
-            L_2d = fabs(delta_z/tan(gamma_max));
-            L = fabs(L_2d/cos(gamma_max));
+            L_2d = fabs(delta_z / tan(gamma_max));
+            L = fabs(L_2d / cos(gamma_max));
             return;
         }
 
@@ -133,8 +133,8 @@ struct Dubins3dPathLength {
         gamma = delta_z >= 0 ? gamma_max : -gamma_max; // gamma > 0 means up.
         // We don't need to call the spiral extension as we already know the desired full and xy path length.
         // We go up at full gamma_max rate.
-        L_2d = fabs(delta_z/tan(gamma_max));
-        L = fabs(L_2d/cos(gamma_max));
+        L_2d = fabs(delta_z / tan(gamma_max));
+        L = fabs(L_2d / cos(gamma_max));
     }
 
 protected:
@@ -152,7 +152,7 @@ struct Dubins3dPath : public Dubins3dPathLength {
     int k = 0; // Number of full turns in the helix
 
     Dubins3dPath(const Waypoint3d& from, const Waypoint3d& to, double r_min, double gamma_max) :
-        Dubins3dPathLength(from, to, r_min, gamma_max) {
+            Dubins3dPathLength(from, to, r_min, gamma_max) {
 
         if (goal_altitude == Dubins3dGoalAltitude::Flat || goal_altitude == Dubins3dGoalAltitude::Low) {
             Dubins2dPathType type_path2d = static_cast<Dubins2dPathType>(dubins_path_type(&path2d));
@@ -164,9 +164,9 @@ struct Dubins3dPath : public Dubins3dPathLength {
             configuration_2d = type_path2d;
             R = r_min;
             unprecise_L_2d = L_2d;
-        } else if (goal_altitude == Dubins3dGoalAltitude::High)  {
+        } else if (goal_altitude == Dubins3dGoalAltitude::High) {
             double delta_z = wp_e.z - wp_s.z;
-            k = static_cast<int>((fabs(delta_z) / tan(gamma_max) - dubins_path_length(&path2d)) / ( 2 * M_PI * r_min));
+            k = static_cast<int>((fabs(delta_z) / tan(gamma_max) - dubins_path_length(&path2d)) / (2 * M_PI * r_min));
             HelixOptimizationResult optimal = helix_optimization(from, to, r_min, gamma_max, k, delta_z);
             R = optimal.R;
             path2d = optimal.path_2d;
@@ -181,7 +181,7 @@ struct Dubins3dPath : public Dubins3dPathLength {
             }
 
             //Get cs
-            double chi_s = wp_s.dir + M_PI_2*(lambda_s); // Direction of the zs->cs vector
+            double chi_s = wp_s.dir + M_PI_2 * (lambda_s); // Direction of the zs->cs vector
             double cs_x = wp_s.x + R * cos(chi_s);
             double cs_y = wp_s.y + R * sin(chi_s);
             cs = Waypoint3d{cs_x, cs_y, wp_s.z, chi_s + M_PI};
@@ -229,7 +229,7 @@ struct Dubins3dPath : public Dubins3dPathLength {
             }
 
             // Direction of the zs->cs vector
-            double chi_s = wp_s.dir + M_PI_2*(lambda_s);
+            double chi_s = wp_s.dir + M_PI_2 * (lambda_s);
             // cs: center of the starting circle
             double cs_x = wp_s.x + R * cos(chi_s);
             double cs_y = wp_s.y + R * sin(chi_s);
@@ -251,14 +251,14 @@ struct Dubins3dPath : public Dubins3dPathLength {
 
     /* Get the pose in the path at distance t from the beginning */
     Waypoint3d sample(double t) {
-        ASSERT(t>=0);
+        ASSERT(t >= 0);
         ASSERT(t < L_2d);
 
         /* Scale t to unprecise_L_2d. If helix_optimization or spiral_extension don't find the exact
          * value, unprecise_L_2d and L_2d will differ a bit. */
         t = t / L_2d * unprecise_L_2d;
 
-        double new_z = wp_s.z + (wp_e.z - wp_s.z)/L_2d*t;
+        double new_z = wp_s.z + (wp_e.z - wp_s.z) / L_2d * t;
         double new_pos_arr[3] = {0, 0, 0};
 
         if (goal_altitude == Dubins3dGoalAltitude::Flat || goal_altitude == Dubins3dGoalAltitude::Low) {
@@ -269,7 +269,7 @@ struct Dubins3dPath : public Dubins3dPathLength {
 
         if (goal_altitude == Dubins3dGoalAltitude::High || goal_altitude == Dubins3dGoalAltitude::Medium) {
             // NOTE: For now the helix is a t the beginning of the path independently of the sign of delta_z
-            if (t <= L_helix ) { // Helix/spiral part
+            if (t <= L_helix) { // Helix/spiral part
                 // alpha: Fraction of the helix that have been executed (in radians)
                 // if t = L_helix, alpha should be 2*pi*k
                 double alpha = t / R * lambda_s;
@@ -287,7 +287,7 @@ struct Dubins3dPath : public Dubins3dPathLength {
         } else {
             ASSERT(false); // Not implemented yet
         }
-        return {0,0,0,0};
+        return {0, 0, 0, 0};
     };
 
 protected:
@@ -313,7 +313,7 @@ protected:
 
     /* Find the optimal turning radius when climbing using the bisection method */
     HelixOptimizationResult
-    helix_optimization(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max, int k,
+    helix_optimization(const Waypoint3d& start, const Waypoint3d& end, double r_min, double gamma_max, int k,
                        double delta_z) const {
 
         DubinsPath a_path2d = {};
@@ -339,7 +339,7 @@ protected:
             ASSERT(ret == 0);
             L_2d = dubins_path_length(&a_path2d);
             err = (L_2d + 2 * M_PI * k * R) * tan(fabs(gamma_max)) - fabs(delta_z);
-            if (fabs(fabs(err) - fabs(best_err)) < TOLERANCE/2) {
+            if (fabs(fabs(err) - fabs(best_err)) < TOLERANCE / 2) {
                 break;
             }
 
@@ -350,7 +350,7 @@ protected:
                 best_path2d = a_path2d;
             }
 
-            if (err > 0) {R_h = R;} else {R_l = R;}
+            if (err > 0) { R_h = R; } else { R_l = R; }
             R = (R_l + R_h) / 2;
 
             n_loops++;
@@ -365,7 +365,7 @@ protected:
     }
 
     SpiralExtensionResult
-    spiral_extension_beginning(const Waypoint3d &start, const Waypoint3d &end, double r_min, double gamma_max,
+    spiral_extension_beginning(const Waypoint3d& start, const Waypoint3d& end, double r_min, double gamma_max,
                                double lambda_s, Waypoint3d cs, DubinsPath path2d) {
         // Parametrization of alpha based in section 4.2.3 of Beard & McLain, 2013. Case SSLS
         double alpha_l = 0; // |Lowest| acceptable alpha
@@ -376,11 +376,11 @@ protected:
         double dest[3] = {end.x, end.y, end.dir};
         double L_init = dubins_path_length(&path2d); // Initial guess for length
 
-        double delta_z = wp_e.z-wp_s.z;
+        double delta_z = wp_e.z - wp_s.z;
 
         DubinsPath path_ext; // Extension path starting after the intermediate spiral
         path_ext.type = path2d.type;
-        switch ((Dubins2dPathType)path2d.type) {
+        switch ((Dubins2dPathType) path2d.type) {
             case Dubins2dPathType::LSL:
                 path_ext.type = Dubins2dPathType::RSL;
                 break;
@@ -404,7 +404,7 @@ protected:
                 break;
         }
 
-        double err = L_init - fabs(delta_z/tan(gamma_max));
+        double err = L_init - fabs(delta_z / tan(gamma_max));
         double best_err = std::numeric_limits<double>::infinity();
         double best_L_si = 0;
         double best_L_ie = 0;
@@ -425,16 +425,16 @@ protected:
             ASSERT(ret == 0);
             L_ie = dubins_path_length(&path_ext);
 
-            err = (L_ie + L_si) - fabs(delta_z/tan(gamma_max));
+            err = (L_ie + L_si) - fabs(delta_z / tan(gamma_max));
 
-            if (fabs(fabs(err) - fabs(best_err)) < TOLERANCE/2) {
+            if (fabs(fabs(err) - fabs(best_err)) < TOLERANCE / 2) {
                 break;
             }
 
             if (fabs(err) < fabs(best_err)) {
                 best_err = err;
-                best_L_si= L_si;
-                best_L_ie= L_ie;
+                best_L_si = L_si;
+                best_L_ie = L_ie;
                 best_path_ext = path_ext;
             }
 
@@ -448,7 +448,8 @@ protected:
             n_loops++;
             ASSERT(n_loops < MAX_LOOPS);
             if (n_loops > MAX_LOOPS) {
-                std::cerr << "WARNING: Spiral extension do not converge. n_loops = " << n_loops << std::endl; // This loop should converge faster than MAX_LOOPS
+                std::cerr << "WARNING: Spiral extension do not converge. n_loops = " << n_loops
+                          << std::endl; // This loop should converge faster than MAX_LOOPS
                 break;
             }
         }

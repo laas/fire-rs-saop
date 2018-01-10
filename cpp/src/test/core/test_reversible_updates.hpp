@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../core/structures/trajectories.hpp"
 #include "../../core/updates/updates.hpp"
 #include <boost/test/included/unit_test.hpp>
+
 using namespace boost::unit_test;
 
 Segment3d seg(double xy) {
@@ -36,7 +37,7 @@ Segment3d seg(double xy) {
 }
 
 Trajectories default_plan() {
-    UAV uav(10., 32.*M_PI/180, 0.1);
+    UAV uav(10., 32. * M_PI / 180, 0.1);
     Waypoint3d start(5, 5, 0, 0);
     Waypoint3d end(11, 11, 0, 0);
 
@@ -69,7 +70,7 @@ Trajectories default_plan() {
 }
 
 test_suite* reversible_updates_test_suite() {
-    test_suite* ts3 = BOOST_TEST_SUITE( "reversible_updates_tests" );
+    test_suite* ts3 = BOOST_TEST_SUITE("reversible_updates_tests");
     ts3->add(BOOST_TEST_CASE(&default_plan));
 
     return ts3;

@@ -58,16 +58,25 @@ struct CloneBasedLocalMove : public LocalMove {
     explicit CloneBasedLocalMove(PlanPtr base) : LocalMove(base) {}
 
     /** Cost that would result in applying the move. */
-    double utility() override { init(); return _cost; };
+    double utility() override {
+        init();
+        return _cost;
+    };
 
     /** Total duration that would result in applying the move */
-    double duration() override { init(); return _duration; };
+    double duration() override {
+        init();
+        return _duration;
+    };
 
-    bool is_valid() override { init(); return _valid; }
+    bool is_valid() override {
+        init();
+        return _valid;
+    }
 
 private:
     void init() {
-        if(!lazily_initialized) {
+        if (!lazily_initialized) {
             PlanPtr clone = apply_on_new();
             _cost = clone->utility();
             _duration = clone->duration();
@@ -85,15 +94,25 @@ private:
 };
 
 struct ReverseBasedMove : public LocalMove {
-    ReverseBasedMove(const PlanPtr &base, const PReversibleTrajectoriesUpdate &update) : LocalMove(base), update(update) {}
+    ReverseBasedMove(const PlanPtr& base, const PReversibleTrajectoriesUpdate& update) : LocalMove(base),
+                                                                                         update(update) {}
 
     /** Cost that would result in applying the move. */
-    double utility() override { init(); return _cost; };
+    double utility() override {
+        init();
+        return _cost;
+    };
 
     /** Total duration that would result in applying the move */
-    double duration() override { init(); return _duration; };
+    double duration() override {
+        init();
+        return _duration;
+    };
 
-    bool is_valid() override { init(); return _valid; }
+    bool is_valid() override {
+        init();
+        return _valid;
+    }
 
 protected:
     void apply_on(PlanPtr target) override {
@@ -113,7 +132,7 @@ private:
     mutable bool _valid = false;
 
     void init() {
-        if(!lazily_initialized) {
+        if (!lazily_initialized) {
             const double duration = base_plan->duration();
             auto rev = update->apply(base_plan->core);
             _cost = base_plan->utility();
@@ -138,10 +157,9 @@ struct Insert final : public CloneBasedLocalMove {
     /** Place in the trajectory where this segment should be inserted. */
     size_t insert_loc;
 
-    Insert(PlanPtr base, size_t traj_id, Segment3d &seg, size_t insert_loc)
+    Insert(PlanPtr base, size_t traj_id, Segment3d& seg, size_t insert_loc)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id), seg(seg), insert_loc(insert_loc)
-    {
+              traj_id(traj_id), seg(seg), insert_loc(insert_loc) {
         ASSERT(traj_id < base->core.size());
         ASSERT(insert_loc <= base->core[traj_id].traj.size());
     }
@@ -152,33 +170,32 @@ struct Insert final : public CloneBasedLocalMove {
 
     /** Generates an insert move that include the segment at the best place in the given trajectory.
      * Currently, this does not checks the trajectory constraints. */
-    static opt<Insert> best_insert(PlanPtr base, size_t traj_id, Segment3d &seg) {
+    static opt<Insert> best_insert(PlanPtr base, size_t traj_id, Segment3d& seg) {
         ASSERT(traj_id < base->core.size());
 
         long best_loc = -1;
         double best_dur = 999999;
         Trajectory& traj = base->core[traj_id];
-        for(size_t i=0; i<=traj.traj.size(); i++) {
+        for (size_t i = 0; i <= traj.traj.size(); i++) {
             const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
-            if(dur <=  traj.conf.max_flight_time) {
+            if (dur <= traj.conf.max_flight_time) {
                 if (best_dur > dur) {
                     best_dur = dur;
                     best_loc = i;
                 }
             }
         }
-        if(best_loc < 0) {
+        if (best_loc < 0) {
             return {};
-        }
-        else {
+        } else {
             return Insert(base, traj_id, seg, (size_t) best_loc);
         }
     }
 
     /** Tries to insert each of the segments at the best place in the given trajectory of the given plan */
-    static PlanPtr smart_insert(PlanPtr &base, size_t traj_id, vector<Segment3d> segments) {
+    static PlanPtr smart_insert(PlanPtr& base, size_t traj_id, vector<Segment3d> segments) {
         opt<PlanPtr> current = base;
-        for(auto it=segments.begin(); it!=segments.end() && current; it++) {
+        for (auto it = segments.begin(); it != segments.end() && current; it++) {
             current = best_insert(*current, traj_id, *it)->apply_on_new();
         }
         return *current;
@@ -212,13 +229,12 @@ struct SegmentReplacement : public CloneBasedLocalMove {
     const std::vector<Segment3d> replacements;
 
     SegmentReplacement(PlanPtr base, size_t traj_id, size_t segment_index, size_t n_replaced,
-                       const std::vector<Segment3d> &replacements)
+                       const std::vector<Segment3d>& replacements)
             : CloneBasedLocalMove(base),
-              traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements)
-    {
+              traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements) {
         ASSERT(n_replaced > 0);
         ASSERT(traj_id < base->core.size());
-        ASSERT(segment_index + n_replaced - 1< base->core[traj_id].traj.size());
+        ASSERT(segment_index + n_replaced - 1 < base->core[traj_id].traj.size());
         ASSERT(replacements.size() > 0);
     }
 
@@ -232,12 +248,12 @@ struct SegmentRotation final : public CloneBasedLocalMove {
     const size_t traj_id;
     const size_t segment_index;
     const Segment3d newSegment;
+
     SegmentRotation(PlanPtr base, size_t traj_id, size_t segment_index, double target_dir)
             : CloneBasedLocalMove(base),
               traj_id(traj_id), segment_index(segment_index),
               newSegment(base->core.uav(traj_id).rotate_on_visibility_center(base->core[traj_id][segment_index],
-                                                                        target_dir))
-    {
+                                                                             target_dir)) {
         ASSERT(duration() >= 0)
     }
 

@@ -44,7 +44,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
     opt<PLocalMove> get_move(PlanPtr plan) override {
 
         size_t trials = 0;
-        while(++trials < max_trials) {
+        while (++trials < max_trials) {
             // pick a random trajectory in plan.
             const size_t traj_id = rand(0, plan->core.size());
             const Trajectory& traj = plan->core[traj_id];
@@ -59,7 +59,7 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
             if (!opt_seg_id) {
                 continue;
             }
-            
+
             const size_t seg_id = *opt_seg_id;
             const Segment3d seg = traj[seg_id];
 
@@ -75,7 +75,8 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
             if (can_join_backwards) {
                 prev = traj[seg_id - 1];
-                Segment3d prev_replacement_seg = Segment3d(prev->start.as_point().as_2d(), seg.end.as_point().as_2d(), max(prev->start.z, seg.end.z));
+                Segment3d prev_replacement_seg = Segment3d(prev->start.as_point().as_2d(), seg.end.as_point().as_2d(),
+                                                           max(prev->start.z, seg.end.z));
                 if (prev_replacement_seg.xy_length <= 500) {
                     prev_replacement.push_back(prev_replacement_seg);
 
@@ -91,7 +92,8 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
 
             if (can_join_forward) {
                 next = traj[seg_id + 1];
-                Segment3d next_replacement_seg = Segment3d(seg.start.as_point().as_2d(), next->end.as_point().as_2d(), max(seg.start.z, next->end.z));
+                Segment3d next_replacement_seg = Segment3d(seg.start.as_point().as_2d(), next->end.as_point().as_2d(),
+                                                           max(seg.start.z, next->end.z));
                 if (next_replacement_seg.xy_length <= 500) {
                     next_replacement.push_back(next_replacement_seg);
 

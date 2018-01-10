@@ -29,28 +29,29 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 struct PlanPortionRemover : public Shuffler {
 
-    explicit PlanPortionRemover(double min_removal_portion = 0., double max_removal_portion=1.) :
+    explicit PlanPortionRemover(double min_removal_portion = 0., double max_removal_portion = 1.) :
             min_removal_portion(min_removal_portion), max_removal_portion(max_removal_portion) {}
 
     const double min_removal_portion;
     const double max_removal_portion;
 
     void suffle(shared_ptr<Plan> plan) override {
-        for(auto& traj : plan->core.trajectories) {
-            if(traj.first_modifiable_id() > traj.last_modifiable_id())
+        for (auto& traj : plan->core.trajectories) {
+            if (traj.first_modifiable_id() > traj.last_modifiable_id())
                 // trajectory has no modifiable parts, skip
                 continue;
-            
+
             const size_t num_removable = traj.last_modifiable_id() + 1 - traj.first_modifiable_id();
             const size_t to_remove_lb = (size_t) max(0, (int) floor(min_removal_portion * num_removable));
-            const size_t to_remove_ub = (size_t) min((int) num_removable, (int) floor(max_removal_portion * num_removable));
+            const size_t to_remove_ub = (size_t) min((int) num_removable,
+                                                     (int) floor(max_removal_portion * num_removable));
             // number of segments to remove
-            const size_t to_remove = rand(to_remove_lb, to_remove_ub+1);
+            const size_t to_remove = rand(to_remove_lb, to_remove_ub + 1);
 
-            size_t next_removal = rand(traj.first_modifiable_id(), traj.last_modifiable_id()+1);
+            size_t next_removal = rand(traj.first_modifiable_id(), traj.last_modifiable_id() + 1);
             size_t removed = 0;
-            while(removed < to_remove) {
-                if(next_removal > traj.last_modifiable_id())
+            while (removed < to_remove) {
+                if (next_removal > traj.last_modifiable_id())
                     next_removal = traj.first_modifiable_id();
                 traj.erase_segment(next_removal);
                 removed++;

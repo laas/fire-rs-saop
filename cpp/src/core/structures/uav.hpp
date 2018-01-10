@@ -52,34 +52,34 @@ struct UAV {
     UAV(const UAV& uav) = default;
 
     /** Returns the Dubins travel distance between the two waypoints. */
-    double travel_distance(const Waypoint &origin, const Waypoint &target) const {
+    double travel_distance(const Waypoint& origin, const Waypoint& target) const {
         DubinsPath path = dubins_path(origin, target);
         return dubins_path_length(&path);
     }
 
     /** Returns the Dubins travel distance between the two waypoints. */
-    double travel_distance(const Waypoint3d &origin, const Waypoint3d &target) const  {
-         Dubins3dPathLength path(origin, target, min_turn_radius, max_pitch_angle);
-         return path.L;
+    double travel_distance(const Waypoint3d& origin, const Waypoint3d& target) const {
+        Dubins3dPathLength path(origin, target, min_turn_radius, max_pitch_angle);
+        return path.L;
     }
 
     /** Returns the travel time between the two waypoints. */
-    double travel_time(const Waypoint& origin, const Waypoint &target) const {
+    double travel_time(const Waypoint& origin, const Waypoint& target) const {
         return travel_distance(origin, target) / max_air_speed;
     }
 
     /** Returns the travel time between the two waypoints. */
-    double travel_time(const Waypoint3d& origin, const Waypoint3d &target) const {
+    double travel_time(const Waypoint3d& origin, const Waypoint3d& target) const {
         return travel_distance(origin, target) / max_air_speed;
     }
 
     /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
-    std::vector<Waypoint> path_sampling(const Waypoint &origin, const Waypoint &target, const double step_size) const {
+    std::vector<Waypoint> path_sampling(const Waypoint& origin, const Waypoint& target, const double step_size) const {
         ASSERT(step_size > 0);
         const double length = travel_distance(origin, target);
         DubinsPath path = dubins_path(origin, target);
         std::vector<Waypoint> waypoints;
-        for(double it=0; it<length; it += step_size) {
+        for (double it = 0; it < length; it += step_size) {
             double q[3];
             dubins_path_sample(&path, it, q);
             Waypoint wp(q[0], q[1], q[2]);
@@ -90,11 +90,12 @@ struct UAV {
     }
 
     /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
-    std::vector<Waypoint3d> path_sampling(const Waypoint3d &origin, const Waypoint3d &target, const double step_size) const {
+    std::vector<Waypoint3d>
+    path_sampling(const Waypoint3d& origin, const Waypoint3d& target, const double step_size) const {
         ASSERT(step_size > 0);
         Dubins3dPath path = Dubins3dPath(origin, target, min_turn_radius, max_pitch_angle);
         std::vector<Waypoint3d> waypoints;
-        for(double it=0; it<path.L_2d; it += step_size) {
+        for (double it = 0; it < path.L_2d; it += step_size) {
             waypoints.push_back(path.sample(it));
         }
         waypoints.push_back(target);
@@ -104,10 +105,10 @@ struct UAV {
     /** Rotates the given segment on the center of the visibility area. */
     Segment rotate_on_visibility_center(const Segment& segment, double target_dir) const {
         const double visibility_depth = segment.length + view_depth;
-        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth/2;
-        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth/2;
-        const double new_segment_start_x = vis_center_x - cos(target_dir) * visibility_depth/2;
-        const double new_segment_start_y = vis_center_y - sin(target_dir) * visibility_depth/2;
+        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth / 2;
+        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth / 2;
+        const double new_segment_start_x = vis_center_x - cos(target_dir) * visibility_depth / 2;
+        const double new_segment_start_y = vis_center_y - sin(target_dir) * visibility_depth / 2;
 
         return Segment(Waypoint(new_segment_start_x, new_segment_start_y, target_dir), segment.length);
     }
@@ -116,10 +117,10 @@ struct UAV {
     Segment3d rotate_on_visibility_center(const Segment3d& segment, double target_dir) const {
         ASSERT(ALMOST_EQUAL(segment.start.z, segment.end.z));
         const double visibility_depth = segment.length + view_depth;
-        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth/2;
-        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth/2;
-        const double new_segment_start_x = vis_center_x - cos(target_dir) * visibility_depth/2;
-        const double new_segment_start_y = vis_center_y - sin(target_dir) * visibility_depth/2;
+        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth / 2;
+        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth / 2;
+        const double new_segment_start_x = vis_center_x - cos(target_dir) * visibility_depth / 2;
+        const double new_segment_start_y = vis_center_y - sin(target_dir) * visibility_depth / 2;
         return Segment3d(Waypoint3d(new_segment_start_x, new_segment_start_y, segment.start.z, target_dir),
                          segment.length);
     }
@@ -128,8 +129,8 @@ struct UAV {
      *  such that (x_coords, y_coords) is at the center of the visibility area. */
     Segment observation_segment(double x_coords, double y_coords, double dir, double length) const {
         const double visibility_depth = length + view_depth;
-        const double segment_start_x = x_coords - cos(dir) * visibility_depth/2;
-        const double segment_start_y = y_coords - sin(dir) * visibility_depth/2;
+        const double segment_start_x = x_coords - cos(dir) * visibility_depth / 2;
+        const double segment_start_y = y_coords - sin(dir) * visibility_depth / 2;
         return Segment(Waypoint(segment_start_x, segment_start_y, dir), length);
     }
 
@@ -137,28 +138,28 @@ struct UAV {
      *  such that (x_coords, y_coords) is at the center of the visibility area. */
     Segment3d observation_segment(double x_coords, double y_coords, double z_coords, double dir, double length) const {
         const double visibility_depth = length + view_depth;
-        const double segment_start_x = x_coords - cos(dir) * visibility_depth/2;
-        const double segment_start_y = y_coords - sin(dir) * visibility_depth/2;
+        const double segment_start_x = x_coords - cos(dir) * visibility_depth / 2;
+        const double segment_start_y = y_coords - sin(dir) * visibility_depth / 2;
         return Segment3d(Waypoint3d(segment_start_x, segment_start_y, z_coords, dir), length);
     }
 
-    Waypoint visibility_center(const Segment &segment) const {
+    Waypoint visibility_center(const Segment& segment) const {
         const double visibility_depth = segment.length + view_depth;
-        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth/2;
-        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth/2;
+        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth / 2;
+        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth / 2;
         return Waypoint(vis_center_x, vis_center_y, segment.start.dir);
     }
 
-    Waypoint3d visibility_center(const Segment3d &segment) const {
+    Waypoint3d visibility_center(const Segment3d& segment) const {
         ASSERT(ALMOST_EQUAL(segment.start.z, segment.end.z));
         const double visibility_depth = segment.length + view_depth;
-        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth/2;
-        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth/2;
+        const double vis_center_x = segment.start.x + cos(segment.start.dir) * visibility_depth / 2;
+        const double vis_center_y = segment.start.y + sin(segment.start.dir) * visibility_depth / 2;
         return Waypoint3d(vis_center_x, vis_center_y, segment.start.z, segment.start.dir);
     }
 
 private:
-    DubinsPath dubins_path(const Waypoint &origin, const Waypoint &target) const {
+    DubinsPath dubins_path(const Waypoint& origin, const Waypoint& target) const {
         DubinsPath path;
         double orig[3] = {origin.x, origin.y, origin.dir};
         double dest[3] = {target.x, target.y, target.dir};
