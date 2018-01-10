@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_WAYPOINT_H
 
 #include <cmath>
+#include <limits>
 #include <sstream>
 #include "../../utils.hpp"
 
@@ -283,35 +284,103 @@ struct Position3dTime final {
     Position3dTime(const Position3d& p , const double t) : pt(p), time(t) {};
 };
 
-struct TimeWindow final {
-    double start;
-    double end;
+template <typename T>
+struct HalfOpenInterval {
+    T start;
+    T end;
 
-    TimeWindow() = default;
+    HalfOpenInterval() = default;
 
-    constexpr TimeWindow(const double start, const double end) : start(start < end ? start : end),
+    constexpr HalfOpenInterval(const T start, const T end) : start(start < end ? start : end),
                                                                  end(start < end ? end : start) {}
 
-    friend std::ostream& operator<<(std::ostream& os, const TimeWindow& time_window) {
-        return os << "[" << time_window.start << ", " << time_window.end << ")";
+    friend std::ostream& operator<<(std::ostream& os, const HalfOpenInterval& interval) {
+        return os << "[" << interval.start << ", " << interval.end << ")";
     }
 
     double center() const {
-        return (start+end)/2;
+        return (start + end) / 2;
     }
 
-    bool contains(double time) const {
-        return start <= time && time < end;
+    bool contains(T value) const {
+        return start <= value && value < end;
     }
 
-    bool contains(const TimeWindow &time_window) const {
-        return start <= time_window.start && time_window.end < end;
+    bool contains(const HalfOpenInterval<T> &interval) const {
+        return contains(interval.start) && contains(interval.start);
     }
 
-    bool intersects(const TimeWindow &time_window) const {
-        return contains(time_window.start) || contains(time_window.end);
+    bool intersects(const HalfOpenInterval<T> &interval) const {
+        return contains(interval.start) || contains(interval.end);
     }
+
+    bool is_empty() const {
+        return start >= end;
+    }
+
+    HalfOpenInterval<T>
+    intersection_with(const HalfOpenInterval<T> &interval) const {
+        if (intersects(interval)) {
+            return HalfOpenInterval<T>(
+                    std::max(start, interval.start), std::min(end, interval.end));
+        } else {
+            return HalfOpenInterval<T>::empty();
+        }
+    }
+
+    HalfOpenInterval<T> operator*(const HalfOpenInterval<T> &interval) const {
+        return intersection_with(interval);
+    }
+
+    HalfOpenInterval<T>
+    union_with(const HalfOpenInterval<T> &interval) const {
+        return HalfOpenInterval<T>(
+                std::min(start, interval.start), std::max(end, interval.end));
+    }
+
+    HalfOpenInterval<T> operator+(const HalfOpenInterval<T> &interval) const {
+        return union_with(interval);
+    }
+
+    bool operator==(const HalfOpenInterval<T> &interval) const {
+        return start == interval.start && end == interval.end;
+    }
+
+    bool operator!=(const HalfOpenInterval<T> &interval) const {
+        return !(operator==(interval));
+    }
+
+    static HalfOpenInterval<T> empty() {
+        HalfOpenInterval<T> empty_interval = HalfOpenInterval<T>();
+        empty_interval.start == empty_interval.end;
+        return empty_interval;
+    }
+
+    static HalfOpenInterval<T> end_unbounded(T start) {
+        return HalfOpenInterval<T>(
+                start, std::numeric_limits<T>::has_infinity ?
+                       std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max());
+    }
+
+    static HalfOpenInterval<T> start_unbounded(T end) {
+        return HalfOpenInterval<T>(std::numeric_limits<T>::has_infinity ?
+                -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::min(),
+                end);
+    }
+
+    static HalfOpenInterval<T> unbounded() {
+        return HalfOpenInterval<T>(
+                std::numeric_limits<T>::has_infinity ?
+                -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::min(),
+                std::numeric_limits<T>::has_infinity ?
+                std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max());
+    }
+
 };
+
+typedef HalfOpenInterval<double> TimeWindow;
+
+typedef HalfOpenInterval<size_t> IndexRange;
 
 struct PointTimeWindow final {
     Position pt;
