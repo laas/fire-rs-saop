@@ -365,7 +365,7 @@ namespace SAOP {
 
         static HalfOpenInterval<T> empty() {
             HalfOpenInterval<T> empty_interval = HalfOpenInterval<T>();
-            empty_interval.start == empty_interval.end;
+            empty_interval.start = empty_interval.end;
             return empty_interval;
         }
 
