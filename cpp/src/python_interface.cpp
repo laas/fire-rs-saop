@@ -299,11 +299,18 @@ PYBIND11_MODULE(uav_planning, m) {
             return (double) tp.tv_sec + ((double)(tp.tv_usec / 1000) /1000.);
         };
         json conf = json::parse(json_conf);
+        vns::check_field_is_present(conf, "min_time");
         const double min_time = conf["min_time"];
+        vns::check_field_is_present(conf, "max_time");
         const double max_time = conf["max_time"];
+        vns::check_field_is_present(conf, "save_every");
         const size_t save_every = conf["save_every"];
+        vns::check_field_is_present(conf, "save_improvements");
         const bool save_improvements = conf["save_improvements"];
+        vns::check_field_is_present(conf, "discrete_elevation_interval");
         const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
+        vns::check_field_is_present(conf, "vns");
+        vns::check_field_is_present(conf["vns"], "max_time");
         const size_t max_planning_time = conf["vns"]["max_time"];
 
         printf("Processing firedata data\n");
