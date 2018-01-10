@@ -33,8 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "neighborhoods/smoothing.hpp"
 #include "neighborhoods/shuffling.hpp"
 
-
-namespace vns {
+namespace SAOP {
 
     std::shared_ptr<VariableNeighborhoodSearch> build_from_config(const std::string& json_config);
 

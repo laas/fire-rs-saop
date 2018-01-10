@@ -30,60 +30,62 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 using namespace std;
 
-struct Trajectories {
+namespace SAOP {
 
-    vector<Trajectory> trajectories;
+    struct Trajectories {
 
-    explicit Trajectories(const vector<Trajectory>& trajectories) : trajectories(trajectories) {}
+        vector<Trajectory> trajectories;
 
-    explicit Trajectories(vector<TrajectoryConfig> traj_confs) {
-        for (auto& conf : traj_confs) {
-            auto traj = Trajectory(conf);
-            trajectories.push_back(traj);
+        explicit Trajectories(const vector<Trajectory>& trajectories) : trajectories(trajectories) {}
+
+        explicit Trajectories(vector<TrajectoryConfig> traj_confs) {
+            for (auto& conf : traj_confs) {
+                auto traj = Trajectory(conf);
+                trajectories.push_back(traj);
+            }
         }
-    }
 
-    friend ostream& operator<<(ostream& os, const Trajectories& trajectories) {
-        os << "#trajectories: " << trajectories.trajectories.size();
-        return os;
-    }
+        friend ostream& operator<<(ostream& os, const Trajectories& trajectories) {
+            os << "#trajectories: " << trajectories.trajectories.size();
+            return os;
+        }
 
-    /** A plan is valid iff all trajectories are valid (match their configuration. */
-    bool is_valid() const {
-        for (auto& traj : trajectories)
-            if (!traj.has_valid_flight_time())
-                return false;
-        return true;
-    }
+        /** A plan is valid iff all trajectories are valid (match their configuration. */
+        bool is_valid() const {
+            for (auto& traj : trajectories)
+                if (!traj.has_valid_flight_time())
+                    return false;
+            return true;
+        }
 
-    /** Sum of all trajectory durations. */
-    double duration() const {
-        double duration = 0;
-        for (auto& traj : trajectories)
-            duration += traj.duration();
-        return duration;
-    }
+        /** Sum of all trajectory durations. */
+        double duration() const {
+            double duration = 0;
+            for (auto& traj : trajectories)
+                duration += traj.duration();
+            return duration;
+        }
 
-    size_t num_segments() const {
-        size_t total = 0;
-        for (auto& traj : trajectories)
-            total += traj.traj.size();
-        return total;
-    }
+        size_t num_segments() const {
+            size_t total = 0;
+            for (auto& traj : trajectories)
+                total += traj.traj.size();
+            return total;
+        }
 
-    /** Returns the UAV performing the given trajectory */
-    UAV uav(size_t traj_id) const {
-        ASSERT(traj_id < trajectories.size())
-        return trajectories[traj_id].conf.uav;
-    }
+        /** Returns the UAV performing the given trajectory */
+        UAV uav(size_t traj_id) const {
+            ASSERT(traj_id < trajectories.size())
+            return trajectories[traj_id].conf.uav;
+        }
 
-    size_t size() const { return trajectories.size(); }
+        size_t size() const { return trajectories.size(); }
 
-    bool empty() const { return size() == 0; }
+        bool empty() const { return size() == 0; }
 
-    Trajectory& operator[](size_t id) { return trajectories[id]; }
+        Trajectory& operator[](size_t id) { return trajectories[id]; }
 
-    const Trajectory& operator[](size_t id) const { return trajectories[id]; }
-};
-
+        const Trajectory& operator[](size_t id) const { return trajectories[id]; }
+    };
+}
 #endif //PROJECT_TRAJECTORIES_H

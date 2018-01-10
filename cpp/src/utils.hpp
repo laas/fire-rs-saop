@@ -36,13 +36,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <cstdlib>
 #include <cassert>
 
-void print_trace();
+ namespace SAOP {
 
-double drand(double min, double max);
+     void print_trace();
 
-size_t rand(size_t min, size_t non_inclusive_max);
+     double drand(double min, double max);
 
-double positive_modulo(double left, double right);
+     size_t rand(size_t min, size_t non_inclusive_max);
+
+     double positive_modulo(double left, double right);
 
 /** Macro that test equality of to floating point number, disregarding rounding errors. */
 #define ALMOST_EQUAL(x, y) (fabs((double) (x) - (double) (y)) < 0.000001)
@@ -63,5 +65,5 @@ assert(test);
 #else
 #define ASSERT(test)
 #endif
-
+}
 #endif //PLANNING_CPP_DEBUG_H

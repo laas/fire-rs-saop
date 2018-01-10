@@ -33,31 +33,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 namespace py = pybind11;
 
 /** Converts a numpy array to a vector */
-template<class T>
-std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
-    std::vector<T> data(array.size());
-    for (ssize_t x = 0; x < array.shape(0); x++) {
-        for (ssize_t y = 0; y < array.shape(1); y++) {
-            data[x + y * array.shape(0)] = *(array.data(x, y));
+    template<class T>
+    std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
+        std::vector<T> data(array.size());
+        for (ssize_t x = 0; x < array.shape(0); x++) {
+            for (ssize_t y = 0; y < array.shape(1); y++) {
+                data[x + y * array.shape(0)] = *(array.data(x, y));
+            }
         }
+        return data;
     }
-    return data;
-}
 
 /** Converts a vector to a 2D numpy array. */
-template<class T>
-py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
-    ASSERT(vec.size() == x_width * y_height)
-    py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> { x_width, y_height });
-    auto s_x_width = static_cast<ssize_t>(x_width);
-    auto s_y_height = static_cast<ssize_t>(y_height);
-    for (ssize_t x = 0; x < s_x_width; x++) {
-        for (ssize_t y = 0; y < s_y_height; y++) {
-            *(array.mutable_data(x, y)) = vec[x + y * x_width];
+    template<class T>
+    py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
+        ASSERT(vec.size() == x_width * y_height)
+        py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> { x_width, y_height });
+        auto s_x_width = static_cast<ssize_t>(x_width);
+        auto s_y_height = static_cast<ssize_t>(y_height);
+        for (ssize_t x = 0; x < s_x_width; x++) {
+            for (ssize_t y = 0; y < s_y_height; y++) {
+                *(array.mutable_data(x, y)) = vec[x + y * x_width];
+            }
         }
+        return array;
     }
-    return array;
-}
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
@@ -301,18 +301,18 @@ PYBIND11_MODULE(uav_planning, m) {
                   return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
               };
               json conf = json::parse(json_conf);
-              vns::check_field_is_present(conf, "min_time");
+              SAOP::check_field_is_present(conf, "min_time");
               const double min_time = conf["min_time"];
-              vns::check_field_is_present(conf, "max_time");
+              SAOP::check_field_is_present(conf, "max_time");
               const double max_time = conf["max_time"];
-              vns::check_field_is_present(conf, "save_every");
+              SAOP::check_field_is_present(conf, "save_every");
               const size_t save_every = conf["save_every"];
-              vns::check_field_is_present(conf, "save_improvements");
+              SAOP::check_field_is_present(conf, "save_improvements");
               const bool save_improvements = conf["save_improvements"];
-              vns::check_field_is_present(conf, "discrete_elevation_interval");
+              SAOP::check_field_is_present(conf, "discrete_elevation_interval");
               const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
-              vns::check_field_is_present(conf, "vns");
-              vns::check_field_is_present(conf["vns"], "max_time");
+              SAOP::check_field_is_present(conf, "vns");
+              SAOP::check_field_is_present(conf["vns"], "max_time");
               const size_t max_planning_time = conf["vns"]["max_time"];
 
               printf("Processing firedata data\n");
@@ -329,7 +329,7 @@ PYBIND11_MODULE(uav_planning, m) {
               Plan p(configs, fire_data, TimeWindow{min_time, max_time}, observed);
 
               printf("Planning\n");
-              auto vns = vns::build_from_config(conf["vns"].dump());
+              auto vns = build_from_config(conf["vns"].dump());
               const double planning_start = time();
               auto res = vns->search(p, max_planning_time, save_every, save_improvements);
               const double planning_end = time();

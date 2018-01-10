@@ -26,85 +26,87 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 using json = nlohmann::json;
 
-void vns::check_field_is_present(json json_obj, std::string field) {
-    if ((json_obj).find(field) == (json_obj).end()) {
-        std::cerr << "Missing field " << field << " in json object:\n" << (json_obj).dump() << std::endl;
-    }
-    ASSERT((json_obj).find(field) != (json_obj).end())
-}
+namespace SAOP {
 
-shared_ptr<OrientationChangeGenerator> build_dubins_optimization_generator(const json& conf) {
-    vns::check_field_is_present(conf, "name");
-    const std::string& name = conf["name"];
-
-    if (name == "MeanOrientationChangeGenerator") {
-        return shared_ptr<OrientationChangeGenerator>(new MeanOrientationChangeGenerator);
+    void check_field_is_present(json json_obj, std::string field) {
+        if ((json_obj).find(field) == (json_obj).end()) {
+            std::cerr << "Missing field " << field << " in json object:\n" << (json_obj).dump() << std::endl;
+        }
+        ASSERT((json_obj).find(field) != (json_obj).end())
     }
 
-    if (name == "RandomOrientationChangeGenerator") {
-        return shared_ptr<OrientationChangeGenerator>(new RandomOrientationChangeGenerator);
-    }
+    shared_ptr<OrientationChangeGenerator> build_dubins_optimization_generator(const json& conf) {
+        check_field_is_present(conf, "name");
+        const std::string& name = conf["name"];
 
-    if (name == "FlipOrientationChangeGenerator") {
-        return shared_ptr<OrientationChangeGenerator>(new FlipOrientationChangeGenerator);
-    }
-
-    std::cerr << "Unrecognized OrientationChangeGenerator name: " << name << std::endl;
-    std::exit(1);
-
-}
-
-shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
-    const std::string& name = conf["name"];
-
-    if (name == "dubins-opt") {
-        vns::check_field_is_present(conf, "max_trials");
-        const size_t max_trials = conf["max_trials"];
-
-        vns::check_field_is_present(conf, "generators");
-        auto generators_j = conf["generators"];
-        vector<shared_ptr<OrientationChangeGenerator>> generators;
-        for (auto& it : generators_j) {
-            generators.push_back(build_dubins_optimization_generator(it));
+        if (name == "MeanOrientationChangeGenerator") {
+            return shared_ptr<OrientationChangeGenerator>(new MeanOrientationChangeGenerator);
         }
 
-        return make_shared<DubinsOptimizationNeighborhood>(generators, max_trials);
-    }
-    if (name == "one-insert") {
-        vns::check_field_is_present(conf, "max_trials");
-        const size_t max_trials = conf["max_trials"];
-        vns::check_field_is_present(conf, "select_arbitrary_trajectory");
-        const bool select_arbitrary_trajectory = conf["select_arbitrary_trajectory"];
-        vns::check_field_is_present(conf, "select_arbitrary_position");
-        const bool select_arbitrary_position = conf["select_arbitrary_position"];
-        return make_shared<OneInsertNbhd>(
-                max_trials, select_arbitrary_trajectory, select_arbitrary_position
-        );
-    }
-    if (name == "trajectory-smoothing") {
-        vns::check_field_is_present(conf, "max_trials");
-        const size_t max_trials = conf["max_trials"];
-        return make_shared<TrajectorySmoothingNeighborhood>(max_trials);
+        if (name == "RandomOrientationChangeGenerator") {
+            return shared_ptr<OrientationChangeGenerator>(new RandomOrientationChangeGenerator);
+        }
+
+        if (name == "FlipOrientationChangeGenerator") {
+            return shared_ptr<OrientationChangeGenerator>(new FlipOrientationChangeGenerator);
+        }
+
+        std::cerr << "Unrecognized OrientationChangeGenerator name: " << name << std::endl;
+        std::exit(1);
+
     }
 
-    std::cerr << "Unrecognized neighborhood name: " << name << std::endl;
-    std::exit(1);
-}
+    shared_ptr<Neighborhood> build_neighborhood(const json& conf) {
+        const std::string& name = conf["name"];
 
-shared_ptr<VariableNeighborhoodSearch> vns::build_from_config(const std::string& json_config) {
-    auto j = json::parse(json_config);
+        if (name == "dubins-opt") {
+            check_field_is_present(conf, "max_trials");
+            const size_t max_trials = conf["max_trials"];
 
-    auto neighborhoods_confs = j["neighborhoods"];
-    std::vector<shared_ptr<Neighborhood>> ns;
-    for (auto& it : neighborhoods_confs) {
-        ns.push_back(build_neighborhood(it));
+            check_field_is_present(conf, "generators");
+            auto generators_j = conf["generators"];
+            vector<shared_ptr<OrientationChangeGenerator>> generators;
+            for (auto& it : generators_j) {
+                generators.push_back(build_dubins_optimization_generator(it));
+            }
+
+            return make_shared<DubinsOptimizationNeighborhood>(generators, max_trials);
+        }
+        if (name == "one-insert") {
+            check_field_is_present(conf, "max_trials");
+            const size_t max_trials = conf["max_trials"];
+            check_field_is_present(conf, "select_arbitrary_trajectory");
+            const bool select_arbitrary_trajectory = conf["select_arbitrary_trajectory"];
+            check_field_is_present(conf, "select_arbitrary_position");
+            const bool select_arbitrary_position = conf["select_arbitrary_position"];
+            return make_shared<OneInsertNbhd>(
+                    max_trials, select_arbitrary_trajectory, select_arbitrary_position
+            );
+        }
+        if (name == "trajectory-smoothing") {
+            check_field_is_present(conf, "max_trials");
+            const size_t max_trials = conf["max_trials"];
+            return make_shared<TrajectorySmoothingNeighborhood>(max_trials);
+        }
+
+        std::cerr << "Unrecognized neighborhood name: " << name << std::endl;
+        std::exit(1);
     }
 
-    return make_shared<VariableNeighborhoodSearch>(ns, make_shared<PlanPortionRemover>(0., 1.));
-}
+    shared_ptr<VariableNeighborhoodSearch> build_from_config(const std::string& json_config) {
+        auto j = json::parse(json_config);
 
-std::shared_ptr<VariableNeighborhoodSearch> vns::build_default() {
-    json conf = R"(
+        auto neighborhoods_confs = j["neighborhoods"];
+        std::vector<shared_ptr<Neighborhood>> ns;
+        for (auto& it : neighborhoods_confs) {
+            ns.push_back(build_neighborhood(it));
+        }
+
+        return make_shared<VariableNeighborhoodSearch>(ns, make_shared<PlanPortionRemover>(0., 1.));
+    }
+
+    std::shared_ptr<VariableNeighborhoodSearch> build_default() {
+        json conf = R"(
     { "neighborhoods": [
         {"name": "one-insert",
          "max_trials": 50,
@@ -113,5 +115,6 @@ std::shared_ptr<VariableNeighborhoodSearch> vns::build_default() {
         ]
     }
 )"_json;
-    return vns::build_from_config(conf.dump());
+        return build_from_config(conf.dump());
+    }
 }
