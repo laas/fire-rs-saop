@@ -363,6 +363,7 @@ max_planning_time = 5.
 
 vns_configurations = {
     "demo": {
+        "max_restarts": 0,
         "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
@@ -394,7 +395,8 @@ def main():
 
         def __call__(self, parser, namespace, values, option_string=None):
             try:
-               return json.load(values)
+               vnsconf = json.load(values)
+               setattr(namespace, self.dest, vnsconf)
             except json.JSONDecodeError as err:
                 raise argparse.ArgumentError(self, err)
 
@@ -425,7 +427,7 @@ def main():
                         choices=['png', 'svg', 'eps', 'pdf'],
                         default='png')
     parser.add_argument("--vns-conf", action=JsonReadAction, type=argparse.FileType('r'),
-                        help="Load VNS configurations from a JSON file")
+                        help="Load VNS configurations from a JSON file. The full path must be used.")
     parser.add_argument("--vns",
                         help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
                         default='demo')
@@ -464,7 +466,7 @@ def main():
 
     if args.vns_conf:
         global vns_configurations
-        vns_configurations = vars(args.vns_conf)
+        vns_configurations = args.vns_conf
 
     # Set-up output options
     output_options = {'plot':{}, 'planning':{}, }
