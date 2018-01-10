@@ -248,8 +248,8 @@ struct Plan {
      * */
     void project_on_fire_front() {
         for(auto &traj : core.trajectories) {
-            size_t seg_id = traj.first_modifiable();
-            while(seg_id <= traj.last_modifiable()) {
+            size_t seg_id = traj.first_modifiable_id();
+            while(seg_id <= traj.last_modifiable_id()) {
                 const Segment3d& seg = traj[seg_id];
                 const double t = traj.start_time(seg_id);
                 opt<Segment3d> projected = firedata->project_on_firefront(seg, traj.conf.uav, t);
@@ -271,8 +271,8 @@ struct Plan {
     /** Goes through all trajectories and erase segments causing very tight loops. */
      void smooth_trajectory() {
         for(auto &traj : core.trajectories) {
-            size_t seg_id = traj.first_modifiable();
-            while(seg_id < traj.last_modifiable()) {
+            size_t seg_id = traj.first_modifiable_id();
+            while(seg_id < traj.last_modifiable_id()) {
                 const Segment3d& current = traj[seg_id];
                 const Segment3d& next = traj[seg_id+1];
 

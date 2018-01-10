@@ -37,21 +37,21 @@ struct PlanPortionRemover : public Shuffler {
 
     void suffle(shared_ptr<Plan> plan) override {
         for(auto& traj : plan->core.trajectories) {
-            if(traj.first_modifiable() > traj.last_modifiable())
+            if(traj.first_modifiable_id() > traj.last_modifiable_id())
                 // trajectory has no modifiable parts, skip
                 continue;
             
-            const size_t num_removable = traj.last_modifiable() + 1 - traj.first_modifiable();
+            const size_t num_removable = traj.last_modifiable_id() + 1 - traj.first_modifiable_id();
             const size_t to_remove_lb = (size_t) max(0, (int) floor(min_removal_portion * num_removable));
             const size_t to_remove_ub = (size_t) min((int) num_removable, (int) floor(max_removal_portion * num_removable));
             // number of segments to remove
             const size_t to_remove = rand(to_remove_lb, to_remove_ub+1);
 
-            size_t next_removal = rand(traj.first_modifiable(), traj.last_modifiable()+1);
+            size_t next_removal = rand(traj.first_modifiable_id(), traj.last_modifiable_id()+1);
             size_t removed = 0;
             while(removed < to_remove) {
-                if(next_removal > traj.last_modifiable())
-                    next_removal = traj.first_modifiable();
+                if(next_removal > traj.last_modifiable_id())
+                    next_removal = traj.first_modifiable_id();
                 traj.erase_segment(next_removal);
                 removed++;
             }

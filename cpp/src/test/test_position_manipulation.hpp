@@ -115,8 +115,8 @@ void test_many_points_to_observe_with_start_end_positions() {
     auto& traj = solution.core[0];
 //    ASSERT(traj[0] == start);
 //    ASSERT(traj[traj.size()-1] == end);
-    BOOST_CHECK(traj.first_modifiable() == 1);
-    BOOST_CHECK(traj.last_modifiable() == traj.size()-2);
+    BOOST_CHECK(traj.first_modifiable_id() == 1);
+    BOOST_CHECK(traj.last_modifiable_id() == traj.size()-2);
 
     cout << "SUCCESS" << endl;
 }
@@ -237,12 +237,34 @@ void test_time_window_order() {
     BOOST_CHECK(tw1.end == tw1.end);
 }
 
+void test_time_window() {
+    double s = 10;
+    double e = 25;
+    TimeWindow tw1 = TimeWindow(s, e);
+    TimeWindow tw2 = TimeWindow(e, s);
+    TimeWindow tw3 = TimeWindow(s - 1, e);
+    TimeWindow tw4 = TimeWindow(s, e + 1);
+
+    BOOST_CHECK(tw1 == tw2);
+    BOOST_CHECK(tw1 != tw3);
+
+    BOOST_CHECK(tw3.contains(tw1));
+    BOOST_CHECK(tw3.contains(tw1.center()));
+    BOOST_CHECK(tw3.intersects(tw4));
+    BOOST_CHECK(tw3.union_with(tw1) == tw3);
+    BOOST_CHECK(tw4.intersection_with(tw3) == tw1);
+
+    auto empty_intersect = TimeWindow(s-1, s).intersection_with(TimeWindow(e, e + 1));
+    BOOST_CHECK(empty_intersect.is_empty());
+}
+
 test_suite* position_manipulation_test_suite()
 {
     test_suite* ts2 = BOOST_TEST_SUITE( "position_manipulation_tests" );
     srand(time(0));
     ts2->add(BOOST_TEST_CASE(&test_trajectory_slice));
     ts2->add(BOOST_TEST_CASE(&test_time_window_order));
+    ts2->add(BOOST_TEST_CASE(&test_time_window));
     ts2->add(BOOST_TEST_CASE(&test_trajectory_as_waypoints));
     ts2->add(BOOST_TEST_CASE(&test_segment_rotation));
     ts2->add(BOOST_TEST_CASE(&test_single_point_to_observe));

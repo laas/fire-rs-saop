@@ -133,28 +133,27 @@ public:
         return ALMOST_LESSER_EQUAL(duration(), conf.max_flight_time);
     }
 
-    /** Index of the first modifiable segment. */
-    size_t first_modifiable() const {
-        return conf.start_position ? 1 : 0;
+    /* Index of the first modifiable segment. */
+    size_t first_modifiable_id() const {
+        return conf.start_position ? 1UL : 0UL;
     }
 
-    /** Index of the last modifiable segment */
-    size_t last_modifiable() const {
-        return conf.end_position ? traj.size()-2 : traj.size() -1;
+    /* Index of the last modifiable segment */
+    size_t last_modifiable_id() const {
+        return conf.end_position ? traj.size() - 2 : traj.size() - 1;
     }
 
     /* Random segment index selected among modifiable segments */
     inline opt<size_t> get_random_modifiable_id() const {
-        if (first_modifiable() > last_modifiable()) {
+        if (first_modifiable_id() > last_modifiable_id()) {
             return {};
         }
-        return rand(first_modifiable(), last_modifiable() + 1);
+        return rand(first_modifiable_id(), last_modifiable_id() + 1);
     }
 
     /** Accesses the index-th segment of the trajectory */
     const Segment3d& operator[] (size_t index) const { return traj[index]; }
 
-    /*Returns the part of a Trajectory within the TimewWindow as a new Trajectory.*/
     Trajectory slice(TimeWindow tw) const {
 
 //        ASSERT(conf.start_time <= tw.start && tw.end < conf.max_flight_time);
@@ -192,7 +191,7 @@ public:
                 (new_traj_end_i == (size() - 1)) ? conf.max_flight_time : end_time(new_traj_end_i));
 
         Trajectory new_trajectory = Trajectory(new_conf);
-        for (size_t i=*new_traj_start_i, j=new_trajectory.first_modifiable(); i<=new_traj_end_i; ++i, ++j) {
+        for (size_t i = *new_traj_start_i, j = new_trajectory.first_modifiable_id(); i <= new_traj_end_i; ++i, ++j) {
             new_trajectory.insert_segment(traj[i], j);
         }
 

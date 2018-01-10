@@ -63,8 +63,8 @@ struct TrajectorySmoothingNeighborhood final : public Neighborhood {
             const size_t seg_id = *opt_seg_id;
             const Segment3d seg = traj[seg_id];
 
-            const bool can_join_backwards = seg_id - 1 >= traj.first_modifiable();
-            const bool can_join_forward = seg_id + 1 <= traj.last_modifiable();
+            const bool can_join_backwards = seg_id - 1 >= traj.first_modifiable_id();
+            const bool can_join_forward = seg_id + 1 <= traj.last_modifiable_id();
 
             opt<Segment3d> prev;
             opt<Segment3d> next;
