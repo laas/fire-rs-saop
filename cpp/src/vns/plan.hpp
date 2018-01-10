@@ -50,7 +50,8 @@ struct Plan {
 
     Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
          vector<PositionTime> observed_previously={})
-            : time_window(tw), core(traj_confs), firedata(fire_data), observed_previously(observed_previously)
+            : time_window(tw), core(traj_confs), firedata(std::move(fire_data)),
+              observed_previously(observed_previously)
     {
         for(auto conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
