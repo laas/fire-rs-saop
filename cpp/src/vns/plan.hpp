@@ -26,11 +26,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_PLAN_H
 
 
-#include "../core/structures/trajectory.hpp"
-#include "fire_data.hpp"
-#include "../raster.hpp"
+#include "../core/trajectory.hpp"
+#include "../core/fire_data.hpp"
+#include "../core/raster.hpp"
 #include "../ext/json.hpp"
-#include "../core/structures/trajectories.hpp"
+#include "../core/trajectories.hpp"
 
 using json = nlohmann::json;
 

@@ -18,10 +18,10 @@ set(SOURCE_FILES
         src/ext/dubins.cpp
         src/ext/dubins.h
         src/ext/json.hpp
-        src/core/structures/trajectory.hpp
-        src/core/structures/uav.hpp
-        src/core/structures/waypoint.hpp
-        src/raster.hpp
+        src/core/trajectory.hpp
+        src/core/uav.hpp
+        src/core/waypoint.hpp
+        src/core/raster.hpp
         src/vns/visibility.hpp
         src/ext/optional.hpp
         src/utils.hpp
@@ -29,12 +29,12 @@ set(SOURCE_FILES
         src/vns/neighborhoods/insertions.hpp
         src/vns/vns_interface.hpp
         src/vns/plan.hpp
-        src/vns/fire_data.hpp
+        src/core/fire_data.hpp
         src/vns/neighborhoods/moves.hpp
         src/vns/neighborhoods/shuffling.hpp
         src/vns/neighborhoods/smoothing.hpp
-        src/dubins3d.hpp
-        src/core/structures/trajectories.hpp
+        src/core/dubins3d.hpp
+        src/core/trajectories.hpp
         src/core/updates/updates.cpp
         src/core/updates/updates.hpp
         src/utils.cpp

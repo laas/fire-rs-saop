@@ -27,11 +27,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <vector>
 #include <cassert>
-#include "../../ext/dubins.h"
+#include "../ext/dubins.h"
 #include "waypoint.hpp"
-#include "../../utils.hpp"
+#include "../utils.hpp"
 #include "trajectory.hpp"
-#include "../../dubins3d.hpp"
+#include "dubins3d.hpp"
 
 namespace SAOP {
 

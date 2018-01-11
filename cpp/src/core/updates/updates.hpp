@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef CORE_STRUCTURES_UPDATES_H
 #define CORE_STRUCTURES_UPDATES_H
 
-#include "../structures/trajectories.hpp"
+#include "../trajectories.hpp"
 
 using namespace std;
 

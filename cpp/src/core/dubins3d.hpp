@@ -25,9 +25,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_DUBINS3D_H
 #define PLANNING_CPP_DUBINS3D_H
 
-#include "ext/dubins.h"
-#include "ext/optional.hpp"
-#include "core/structures/waypoint.hpp"
+#include "../ext/dubins.h"
+#include "../ext/optional.hpp"
+#include "waypoint.hpp"
 #include <cmath>
 #include <limits>
 #include <memory>

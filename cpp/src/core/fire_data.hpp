@@ -28,10 +28,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <algorithm>
 #include <iostream>
 #include <set>
-#include "../raster.hpp"
-#include "../core/structures/waypoint.hpp"
+#include "raster.hpp"
+#include "waypoint.hpp"
 #include "../ext/optional.hpp"
-#include "../core/structures/uav.hpp"
+#include "uav.hpp"
 #include "../utils.hpp"
 
 using namespace std;

@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_DUBINS_OPTIMIZATION_H
 
 #include <cmath>
-#include "../../core/structures/trajectory.hpp"
+#include "../../core/trajectory.hpp"
 #include "../vns_interface.hpp"
 #include "moves.hpp"
 

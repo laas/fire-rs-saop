@@ -32,11 +32,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <algorithm>
 #include <cassert>
 #include <memory>
-#include "../../ext/dubins.h"
+#include "../ext/dubins.h"
 #include "waypoint.hpp"
 #include "uav.hpp"
-#include "../../utils.hpp"
-#include "../../ext/optional.hpp"
+#include "../utils.hpp"
+#include "../ext/optional.hpp"
 
 namespace SAOP {
 
