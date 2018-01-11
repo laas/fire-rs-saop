@@ -41,7 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/SetEntityParameters.hpp"
 #include "../../IMC/Spec/WindSpeed.hpp"
 
-#include "../core/structures/waypoint.hpp"
+#include "../core/waypoint.hpp"
 
 namespace SAOP {
 

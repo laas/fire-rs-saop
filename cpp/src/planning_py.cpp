@@ -29,8 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
-#include "core/structures/trajectory.hpp"
-#include "raster.hpp"
+#include "core/trajectory.hpp"
+#include "core/raster.hpp"
 #include "vns/factory.hpp"
 
 #include <cstdlib>
@@ -40,31 +40,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 namespace py = pybind11;
 
 /** Converts a numpy array to a vector */
-template<class T>
-std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
-    std::vector<T> data(array.size());
-    for(ssize_t x=0; x<array.shape(0); x++) {
-        for(ssize_t y=0; y<array.shape(1); y++) {
-            data[x + y*array.shape(0)] = *(array.data(x, y));
+    template<class T>
+    std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
+        std::vector<T> data(array.size());
+        for (ssize_t x = 0; x < array.shape(0); x++) {
+            for (ssize_t y = 0; y < array.shape(1); y++) {
+                data[x + y * array.shape(0)] = *(array.data(x, y));
+            }
         }
+        return data;
     }
-    return data;
-}
 
 /** Converts a vector to a 2D numpy array. */
-template<class T>
-py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
-    ASSERT(vec.size() == x_width * y_height)
-    py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> {x_width, y_height});
-    auto s_x_width = static_cast<ssize_t>(x_width);
-    auto s_y_height = static_cast<ssize_t>(y_height);
-    for(ssize_t x=0; x<s_x_width; x++) {
-        for (ssize_t y = 0; y < s_y_height; y++) {
-            *(array.mutable_data(x, y)) = vec[x + y*x_width];
+    template<class T>
+    py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
+        ASSERT(vec.size() == x_width * y_height)
+        py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> { x_width, y_height });
+        auto s_x_width = static_cast<ssize_t>(x_width);
+        auto s_y_height = static_cast<ssize_t>(y_height);
+        for (ssize_t x = 0; x < s_x_width; x++) {
+            for (ssize_t y = 0; y < s_y_height; y++) {
+                *(array.mutable_data(x, y)) = vec[x + y * x_width];
+            }
         }
+        return array;
     }
-    return array;
-}
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
@@ -105,20 +105,20 @@ PYBIND11_MODULE(uav_planning, m) {
                  py::arg("start"), py::arg("end"))
             .def_readonly("start", &TimeWindow::start)
             .def_readonly("end", &TimeWindow::end)
-            .def("contains", (bool (TimeWindow::*)(double time) const)&TimeWindow::contains,
+            .def("contains", (bool (TimeWindow::*)(double time) const) &TimeWindow::contains,
                  py::arg("time"))
-            .def("contains", (bool (TimeWindow::*)(const TimeWindow &) const)&TimeWindow::contains,
+            .def("contains", (bool (TimeWindow::*)(const TimeWindow&) const) &TimeWindow::contains,
                  py::arg("time_window"))
             .def("__repr__",
-                 [](const TimeWindow &tw) {
+                 [](const TimeWindow& tw) {
                      std::stringstream repr;
                      repr << "TimeWindow(" << tw.start << ", " << tw.end << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](TimeWindow &self) {
+            .def("as_tuple", [](TimeWindow& self) {
                 return py::make_tuple(self.start, self.end);
-            } );
+            });
 
     py::class_<Cell>(m, "Cell")
             .def(py::init<const size_t, const size_t>(),
@@ -126,15 +126,15 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("x", &Cell::x)
             .def_readonly("y", &Cell::y)
             .def("__repr__",
-                 [](const Cell &c) {
+                 [](const Cell& c) {
                      std::stringstream repr;
                      repr << "Cell(" << c.x << ", " << c.y << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](Cell &self) {
+            .def("as_tuple", [](Cell& self) {
                 return py::make_tuple(self.x, self.y);
-            } );
+            });
 
     py::class_<Position>(m, "Position2d")
             .def(py::init<double, double>(),
@@ -142,15 +142,15 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("x", &Position::x)
             .def_readonly("y", &Position::y)
             .def("__repr__",
-                 [](const Position &p) {
+                 [](const Position& p) {
                      std::stringstream repr;
                      repr << "Position2d(" << p.x << ", " << p.y << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](Position &self) {
+            .def("as_tuple", [](Position& self) {
                 return py::make_tuple(self.x, self.y);
-            } );
+            });
 
     py::class_<Position3d>(m, "Position")
             .def(py::init<double, double, double>(),
@@ -159,15 +159,15 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("y", &Position3d::y)
             .def_readonly("z", &Position3d::z)
             .def("__repr__",
-                 [](const Position3d &p) {
+                 [](const Position3d& p) {
                      std::stringstream repr;
                      repr << "Position(" << p.x << ", " << p.y << ", " << p.z << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](Position3d &self) {
+            .def("as_tuple", [](Position3d& self) {
                 return py::make_tuple(self.x, self.y, self.z);
-            } );
+            });
 
     py::class_<PositionTime>(m, "Position2dTime")
             .def(py::init<Position, double>(),
@@ -175,15 +175,15 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("pt", &PositionTime::pt)
             .def_readonly("time", &PositionTime::time)
             .def("__repr__",
-                 [](const PositionTime &p) {
+                 [](const PositionTime& p) {
                      std::stringstream repr;
                      repr << "Position2dTime(" << p.pt.x << ", " << p.pt.y << ", " << p.time << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](PositionTime &self) {
+            .def("as_tuple", [](PositionTime& self) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y), self.time);
-            } );
+            });
 
     py::class_<Position3dTime>(m, "PositionTime")
             .def(py::init<Position3d, double>(),
@@ -191,15 +191,15 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("pt", &Position3dTime::pt)
             .def_readonly("time", &Position3dTime::time)
             .def("__repr__",
-                 [](const Position3dTime &p) {
+                 [](const Position3dTime& p) {
                      std::stringstream repr;
                      repr << "PositionTime(" << p.pt.x << ", " << p.pt.y << ", " << p.pt.z << ", " << p.time << ")";
                      return repr.str();
                  }
             )
-            .def("as_tuple", [](Position3dTime &self) {
+            .def("as_tuple", [](Position3dTime& self) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y, self.pt.z), self.time);
-            } );
+            });
 
     py::class_<FireData>(m, "FireData")
             .def(py::init<DRaster&, DiscreteDRaster&>(), py::arg("ignitions"), py::arg("elevation"))
@@ -230,24 +230,25 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("min_turn_radius", &UAV::min_turn_radius)
             .def_readonly("max_air_speed", &UAV::max_air_speed)
             .def_readonly("max_pitch_angle", &UAV::max_pitch_angle)
-            .def("travel_distance", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)
+            .def("travel_distance", (double (UAV::*)(const Waypoint3d&, const Waypoint3d&) const)
                     &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
-            .def("travel_distance", (double (UAV::*)(const Waypoint &, const Waypoint &) const)
+            .def("travel_distance", (double (UAV::*)(const Waypoint&, const Waypoint&) const)
                     &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", (double (UAV::*)(const Waypoint3d &, const Waypoint3d &) const)
+            .def("travel_time", (double (UAV::*)(const Waypoint3d&, const Waypoint3d&) const)
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", (double (UAV::*)(const Waypoint &, const Waypoint &) const)
+            .def("travel_time", (double (UAV::*)(const Waypoint&, const Waypoint&) const)
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"))
-            .def("path_sampling", (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d &, const Waypoint3d &, const double) const)
-                    &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"));
+            .def("path_sampling",
+                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const double) const)
+                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"));
 
-    py::class_<Trajectory>(m, "Trajectory") 
+    py::class_<Trajectory>(m, "Trajectory")
             .def(py::init<const TrajectoryConfig&>())
             .def_readonly("conf", &Trajectory::conf)
-            .def("start_time", (double (Trajectory::*)() const)&Trajectory::start_time)
-            .def("start_time", (double (Trajectory::*)(size_t) const)&Trajectory::start_time, py::arg("segment_index"))
-            .def("end_time", (double (Trajectory::*)() const)&Trajectory::end_time)
-            .def("end_time", (double (Trajectory::*)(size_t) const)&Trajectory::start_time, py::arg("segment_index"))
+            .def("start_time", (double (Trajectory::*)() const) &Trajectory::start_time)
+            .def("start_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
+            .def("end_time", (double (Trajectory::*)() const) &Trajectory::end_time)
+            .def("end_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
             .def_readonly("segments", &Trajectory::traj)
             .def("segment", &Trajectory::operator[], py::arg("index"))
             .def_readonly("start_times", &Trajectory::start_times)
@@ -264,19 +265,20 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
             .def("__repr__", &Trajectory::to_string)
             .def("trace", [](Trajectory& self, const DRaster& r) {
-                     vector<PositionTime> trace = vector<PositionTime>{};
-                     for(auto& s: self.traj) {
-                        Plan::segment_trace(s, self.conf.uav.view_width, self.conf.uav.view_depth, r);}
-                     return trace;
-                 }, py::arg("raster"));
+                vector<PositionTime> trace = vector<PositionTime>{};
+                for (auto& s: self.traj) {
+                    Plan::segment_trace(s, self.conf.uav.view_width, self.conf.uav.view_depth, r);
+                }
+                return trace;
+            }, py::arg("raster"));
 
     py::class_<TrajectoryConfig>(m, "TrajectoryConfig")
             .def(py::init<UAV, Waypoint3d, Waypoint3d, double, double>())
             .def_readonly("uav", &TrajectoryConfig::uav)
             .def_readonly("max_flight_time", &TrajectoryConfig::max_flight_time)
             .def_static("build", [](UAV uav, double start_time, double max_flight_time) -> TrajectoryConfig {
-                return TrajectoryConfig(uav, start_time, max_flight_time);
-            }, "Constructor", py::arg("uav"), py::arg("start_time") = 0,
+                            return TrajectoryConfig(uav, start_time, max_flight_time);
+                        }, "Constructor", py::arg("uav"), py::arg("start_time") = 0,
                         py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
@@ -286,58 +288,65 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("firedata", &Plan::firedata)
             .def_readonly("time_window", &Plan::time_window)
             .def("observations", (vector<PositionTime> (Plan::*)() const) &Plan::observations)
-            .def("observations", (vector<PositionTime> (Plan::*)(const TimeWindow &) const) &Plan::observations,
+            .def("observations", (vector<PositionTime> (Plan::*)(const TimeWindow&) const) &Plan::observations,
                  py::arg("tw"))
             .def("view_trace", (vector<PositionTime> (Plan::*)() const) &Plan::view_trace)
-            .def("view_trace", (vector<PositionTime> (Plan::*)(const TimeWindow &) const) &Plan::view_trace,
+            .def("view_trace", (vector<PositionTime> (Plan::*)(const TimeWindow&) const) &Plan::view_trace,
                  py::arg("tw"));
 
     py::class_<SearchResult>(m, "SearchResult")
             .def("initial_plan", &SearchResult::initial)
             .def("final_plan", &SearchResult::final)
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
-            .def("metadata", [](SearchResult &self) { return self.metadata.dump(); } );
+            .def("metadata", [](SearchResult& self) { return self.metadata.dump(); });
 
     m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation,
-                         const std::string& json_conf, std::vector<PositionTime> observed={}) -> SearchResult {
-        auto time = []() {
-            struct timeval tp;
-            gettimeofday(&tp, NULL);
-            return (double) tp.tv_sec + ((double)(tp.tv_usec / 1000) /1000.);
-        };
-        json conf = json::parse(json_conf);
-        const double min_time = conf["min_time"];
-        const double max_time = conf["max_time"];
-        const size_t save_every = conf["save_every"];
-        const bool save_improvements = conf["save_improvements"];
-        const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
-        const size_t max_planning_time = conf["vns"]["max_time"];
+                         const std::string& json_conf, std::vector<PositionTime> observed = {}) -> SearchResult {
+              auto time = []() {
+                  struct timeval tp;
+                  gettimeofday(&tp, NULL);
+                  return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
+              };
+              json conf = json::parse(json_conf);
+              SAOP::check_field_is_present(conf, "min_time");
+              const double min_time = conf["min_time"];
+              SAOP::check_field_is_present(conf, "max_time");
+              const double max_time = conf["max_time"];
+              SAOP::check_field_is_present(conf, "save_every");
+              const size_t save_every = conf["save_every"];
+              SAOP::check_field_is_present(conf, "save_improvements");
+              const bool save_improvements = conf["save_improvements"];
+              SAOP::check_field_is_present(conf, "discrete_elevation_interval");
+              const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
+              SAOP::check_field_is_present(conf, "vns");
+              SAOP::check_field_is_present(conf["vns"], "max_time");
+              const size_t max_planning_time = conf["vns"]["max_time"];
 
-        printf("Processing firedata data\n");
-        double preprocessing_start = time();
-        shared_ptr<FireData> fire_data;
-        if (discrete_elevation_interval > 0) {
-            fire_data = make_shared<FireData>(ignitions, DiscreteDRaster(elevation, discrete_elevation_interval));
-        } else {
-            fire_data = make_shared<FireData>(ignitions, elevation);
-        }
-        double preprocessing_end = time();
+              printf("Processing firedata data\n");
+              double preprocessing_start = time();
+              shared_ptr<FireData> fire_data;
+              if (discrete_elevation_interval > 0) {
+                  fire_data = make_shared<FireData>(ignitions, DiscreteDRaster(elevation, discrete_elevation_interval));
+              } else {
+                  fire_data = make_shared<FireData>(ignitions, elevation);
+              }
+              double preprocessing_end = time();
 
-        printf("Building initial plan\n");
-        Plan p(configs, fire_data, TimeWindow{min_time, max_time}, observed);
+              printf("Building initial plan\n");
+              Plan p(configs, fire_data, TimeWindow{min_time, max_time}, observed);
 
-        printf("Planning\n");
-        auto vns = vns::build_from_config(conf["vns"].dump());
-        const double planning_start = time();
-        auto res = vns->search(p, max_planning_time, save_every, save_improvements);
-        const double planning_end = time();
-        printf("Plan found\n");
-        res.metadata["planning_time"] = planning_end - planning_start;
-        res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
-        res.metadata["configuration"] = conf;
-        return res;
-    }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
-       py::arg("observed"), py::call_guard<py::gil_scoped_release>());
+              printf("Planning\n");
+              auto vns = build_from_config(conf["vns"].dump());
+              const double planning_start = time();
+              auto res = vns->search(p, max_planning_time, save_every, save_improvements);
+              const double planning_end = time();
+              printf("Plan found\n");
+              res.metadata["planning_time"] = planning_end - planning_start;
+              res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
+              res.metadata["configuration"] = conf;
+              return res;
+          }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
+          py::arg("observed"), py::call_guard<py::gil_scoped_release>());
 }
 
 #endif //PLANNING_CPP_PYTHON_VNS_H

@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.5)
 project(planning_cpp)
 
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pybind11")
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pybind11")
     add_subdirectory("pybind11")
-else()
+else ()
     find_package(pybind11 2.2.1 REQUIRED)
-endif()
+endif ()
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -15,32 +15,31 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(PLANNING_SOURCE_FILES
-        src/core/structures/trajectories.hpp
-        src/core/structures/trajectory.hpp
-        src/core/structures/uav.hpp
-        src/core/structures/waypoint.hpp
-        src/core/updates/updates.cpp
-        src/core/updates/updates.hpp
         src/ext/dubins.cpp
         src/ext/dubins.h
         src/ext/json.hpp
+        src/core/trajectory.hpp
+        src/core/uav.hpp
+        src/core/waypoint.hpp
+        src/core/raster.hpp
+        src/vns/visibility.hpp
         src/ext/optional.hpp
-        src/vns/vns_interface.hpp
+        src/utils.hpp
         src/vns/neighborhoods/dubins_optimization.hpp
         src/vns/neighborhoods/insertions.hpp
+        src/vns/vns_interface.hpp
+        src/vns/plan.hpp
+        src/core/fire_data.hpp
         src/vns/neighborhoods/moves.hpp
         src/vns/neighborhoods/shuffling.hpp
         src/vns/neighborhoods/smoothing.hpp
-        src/vns/factory.cpp
-        src/vns/factory.hpp
-        src/vns/fire_data.hpp
-        src/vns/plan.hpp
-        src/vns/visibility.hpp
-        src/dubins3d.hpp
-        src/raster.hpp
+        src/core/dubins3d.hpp
+        src/core/trajectories.hpp
+        src/core/updates/updates.cpp
+        src/core/updates/updates.hpp
         src/utils.cpp
-        src/utils.hpp
-        )
+        src/vns/factory.cpp
+        src/vns/factory.hpp)
 
 set(NEPTUSINTERFACE_SOURCE_FILES
         src/ext/coordinates.hpp
@@ -96,4 +95,4 @@ IF (BUILD_TESTING)
     target_link_libraries(tests
             ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
     add_test(tests tests)
-ENDIF(BUILD_TESTING)
+ENDIF (BUILD_TESTING)

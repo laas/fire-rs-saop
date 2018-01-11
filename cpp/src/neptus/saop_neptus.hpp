@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <boost/asio.hpp>
 
 #include "../ext/coordinates.hpp"
-#include "../core/structures/waypoint.hpp"
+#include "../core/waypoint.hpp"
 #include "../neptus/imc_message_factories.hpp"
 #include "../vns/plan.hpp"
 

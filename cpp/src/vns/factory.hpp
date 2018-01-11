@@ -25,14 +25,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PROJECT_VNS_FACTORY_H
 #define PROJECT_VNS_FACTORY_H
 
-
 #include "vns_interface.hpp"
+#include "../ext/json.hpp"
 
-namespace vns {
+#include "neighborhoods/dubins_optimization.hpp"
+#include "neighborhoods/insertions.hpp"
+#include "neighborhoods/smoothing.hpp"
+#include "neighborhoods/shuffling.hpp"
+
+namespace SAOP {
 
     std::shared_ptr<VariableNeighborhoodSearch> build_from_config(const std::string& json_config);
 
     std::shared_ptr<VariableNeighborhoodSearch> build_default();
+
+    void check_field_is_present(json json_obj, std::string field);
 
 }
 

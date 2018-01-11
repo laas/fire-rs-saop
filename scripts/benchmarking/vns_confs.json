@@ -1,6 +1,7 @@
 {
     "base": {
         "max_restarts": 5,
+        "max_time": 10.0,
         "neighborhoods": [
             {"name": "dubins-opt", 
                 "max_trials": 10,
@@ -10,12 +11,13 @@
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
                 "max_trials": 50,
-                "select_arbitrary_trajectory": "false",
-                "select_arbitrary_position": "false"}
+                "select_arbitrary_trajectory": false,
+                "select_arbitrary_position": false}
         ]
     },
     "with_smoothing": {
         "max_restarts": 5,
+        "max_time": 10.0,
         "neighborhoods": [
             {"name": "trajectory-smoothing", 
                 "max_trials": 10},
@@ -27,30 +29,31 @@
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
                 "max_trials": 50,
-                "select_arbitrary_trajectory": "false",
-                "select_arbitrary_position": "false"}]
+                "select_arbitrary_trajectory": false,
+                "select_arbitrary_position": false}]
     },
     "full": {
         "max_restarts": 5,
+        "max_time": 10.0,
         "neighborhoods": [
             {"name": "dubins-opt", 
-                "max_trials": 10,
+                "max_trials": 100,
                 "generators": [
                     {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
                     {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
                 "max_trials": 50,
-                "select_arbitrary_trajectory": "false",
-                "select_arbitrary_position": "false"},
+                "select_arbitrary_trajectory": false,
+                "select_arbitrary_position": false},
             {"name": "one-insert",
                 "max_trials": 200,
-                "select_arbitrary_trajectory": "true",
-                "select_arbitrary_position": "false"},
+                "select_arbitrary_trajectory": true,
+                "select_arbitrary_position": false},
             {"name": "one-insert",
                 "max_trials": 200,
-                "select_arbitrary_trajectory": "true",
-                "select_arbitrary_position": "true"}
+                "select_arbitrary_trajectory": true,
+                "select_arbitrary_position": true}
         ]
     }
 }

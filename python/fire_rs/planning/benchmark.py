@@ -86,7 +86,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # Fetch scenario environment data with additional elevation mode for planning
     env = PlanningEnvironment(scenario.area, wind_speed=scenario.wind_speed,
                               wind_dir=scenario.wind_direction,
-                              planning_elevation_mode=output_options_planning['elevation_mode'])
+                              planning_elevation_mode=output_options_planning['elevation_mode'],
+                              discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL)
 
     # Propagate fires in the environment
     prop = propagation.propagate_from_points(env, scenario.ignitions,
@@ -131,9 +132,6 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     first_ignition = np.nanmin(ignitions_nan)
     last_ignition = np.nanmax(ignitions_nan)
 
-    # Move elevation_planning data to elevation, so we plot the elevation the planner has seen
-    env.raster.data['elevation'] = env.raster.data['elevation_planning']
-
     # Create the geodatadisplay object & extensions that are going to be used
     geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
     TrajectoryDisplayExtension(None).extend(geodatadisplay)
@@ -165,9 +163,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
 
     # If intermediate plans are available, save them
-    for i, i_plan in enumerate(res.intermediate_plans):
-        plot_plan_with_background(i_plan, geodatadisplay, (first_ignition, last_ignition),
-                                  output_options_plot)
+    for i in range(len(res.intermediate_plans)):
+        geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
+        TrajectoryDisplayExtension(None).extend(geodatadisplay)
+        plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
+                                  output_options_plot, plan=i)
 
         i_plan_dir = os.path.join(save_directory, instance_name)
         if not os.path.exists(i_plan_dir):
@@ -363,6 +363,7 @@ max_planning_time = 5.
 
 vns_configurations = {
     "demo": {
+        "max_restarts": 0,
         "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
@@ -394,7 +395,8 @@ def main():
 
         def __call__(self, parser, namespace, values, option_string=None):
             try:
-               return json.load(values)
+               vnsconf = json.load(values)
+               setattr(namespace, self.dest, vnsconf)
             except json.JSONDecodeError as err:
                 raise argparse.ArgumentError(self, err)
 
@@ -413,7 +415,7 @@ def main():
                         default=DEFAULT_FIRERS_DATA_FOLDER)
     parser.add_argument("--background", nargs='+',
                         help="List of background layers for the output figures, from bottom to top.",
-                        choices=['elevation_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
+                        choices=['elevation_shade', 'elevation_planning_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument('--colorbar', dest='colorbar', action='store_true',
                         help="Display colorbars")
@@ -425,7 +427,7 @@ def main():
                         choices=['png', 'svg', 'eps', 'pdf'],
                         default='png')
     parser.add_argument("--vns-conf", action=JsonReadAction, type=argparse.FileType('r'),
-                        help="Load VNS configurations from a JSON file")
+                        help="Load VNS configurations from a JSON file. The full path must be used.")
     parser.add_argument("--vns",
                         help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
                         default='demo')
@@ -464,7 +466,7 @@ def main():
 
     if args.vns_conf:
         global vns_configurations
-        vns_configurations = vars(args.vns_conf)
+        vns_configurations = args.vns_conf
 
     # Set-up output options
     output_options = {'plot':{}, 'planning':{}, }

@@ -42,7 +42,7 @@ class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
         return up.Waypoint(self.x, self.y, self.z, self.dir)
 
     @classmethod
-    def from_cpp(cls, wp:'up.Waypoint'):
+    def from_cpp(cls, wp: 'up.Waypoint'):
         return cls(wp.x, wp.y, wp.z, wp.dir)
 
 
@@ -57,8 +57,8 @@ class UAVConf:
 
     @classmethod
     def X8(cls):
-        return cls(max_air_speed=17., max_angular_velocity=32./180.*np.pi*.5,
-                   max_pitch_angle=6./180.*np.pi, max_flight_time=3000.)
+        return cls(max_air_speed=17., max_angular_velocity=32. / 180. * np.pi * .5,
+                   max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000.)
 
     def as_cpp(self):
         return up.UAV(self.max_air_speed, self.max_angular_velocity, self.max_pitch_angle)
@@ -99,8 +99,8 @@ class FlightConf:
 class PlanningEnvironment(Environment):
     """Propagation environment with optional discrete elevation only for planning """
 
-    def __init__(self, area, wind_speed, wind_dir, planning_elevation_mode: 'str'='dem',
-                 discrete_elevation_interval:'int'=0, flat_altitude=700.):
+    def __init__(self, area, wind_speed, wind_dir, planning_elevation_mode: 'str' = 'dem',
+                 discrete_elevation_interval: 'int' = 0, flat_altitude=700.):
         super().__init__(area, wind_speed, wind_dir)
 
         self.planning_elevation_mode = planning_elevation_mode
@@ -117,7 +117,8 @@ class PlanningEnvironment(Environment):
         elif self.planning_elevation_mode == 'discrete':
             a = self.raster.data['elevation'] + self.discrete_elevation_interval
             b = np.fmod(self.raster.data['elevation'], self.discrete_elevation_interval)
-            self.raster.data['elevation'] = a - b
+            elev_planning = self.raster.clone(data_array=a - b,
+                                              dtype=[('elevation_planning', 'float64')])
         else:
             elev_planning = self.raster.clone(data_array=self.raster["elevation"],
                                               dtype=[('elevation_planning', 'float64')])
@@ -147,7 +148,7 @@ class Planner:
                           self._firemap.as_cpp_raster(),
                           self._env.raster.slice('elevation_planning').as_cpp_raster(),
                           json.dumps(self._planning_conf),
-                          [] if observed_previously is None else observed_previously )
+                          [] if observed_previously is None else observed_previously)
         self._searchresult = res
         return res
 
@@ -229,7 +230,7 @@ class Planner:
         return self._flights
 
     def expected_ignited_map(self, time_window=None, layer_name='observed') -> 'GeoData':
-        observed_firemap = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name,'float64')])
+        observed_firemap = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name, 'float64')])
         for (p, t) in self.expected_ignited_positions(time_window):
             array_pos = observed_firemap.array_index(p)
             observed_firemap[layer_name][array_pos] = t
@@ -238,7 +239,7 @@ class Planner:
     def expected_observed_map(self, time_window=None, layer_name='observed') -> GeoData:
         """Get a GeoData with the time of all percieved cells by the UAV camera."""
         cells = self.expected_observed_positions(time_window)
-        map = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name,'float64')])
+        map = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name, 'float64')])
         for (p, t) in self.expected_observed_positions(time_window):
             array_pos = map.array_index(p)
             map[layer_name][array_pos] = t
