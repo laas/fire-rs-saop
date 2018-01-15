@@ -54,7 +54,7 @@ namespace SAOP::Test {
         Plan p(confs, fd, TimeWindow{90, 110});
 
 
-        auto vns = vns::build_default();
+        auto vns = SAOP::build_default();
 
         auto res = vns->search(p, 0, 1);
         BOOST_CHECK(res.final_plan);
@@ -78,7 +78,7 @@ namespace SAOP::Test {
         vector<TrajectoryConfig> confs{TrajectoryConfig(uav, 10)};
         Plan p(confs, fd, TimeWindow{0, 110});
 
-        auto vns = vns::build_default();
+        auto vns = SAOP::build_default();
 
         auto res = vns->search(p, 0, 1);
         BOOST_CHECK(res.final_plan);
@@ -109,7 +109,7 @@ namespace SAOP::Test {
                 10)};
         Plan p(confs, fd, TimeWindow{0, 110});
 
-        auto vns = vns::build_default();
+        auto vns = SAOP::build_default();
 
         auto res = vns->search(p, 0, 1);
         BOOST_CHECK(res.final_plan);
