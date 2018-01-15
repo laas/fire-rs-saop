@@ -280,7 +280,7 @@ namespace SAOP {
         };
 
         Trajectory with_longer_segments(double inc_length) {
-            ASSERT(inc_length>=0);
+            ASSERT(inc_length >= 0);
             Trajectory ext_traj = Trajectory(*this);
             for (size_t i = 0; i != size(); ++i) {
                 if (ALMOST_EQUAL(ext_traj.traj[i].length, 0)) { continue; }
@@ -446,7 +446,10 @@ namespace SAOP {
         /* Inserts the given segment at the given index */
         void insert_segment(const Segment3d& seg, size_t at_index) {
             ASSERT(at_index >= 0 && at_index <= traj.size())
-            ASSERT(IndexRange(modifiable_range.start, modifiable_range.end + 1).contains(at_index))
+            ASSERT(IndexRange(modifiable_range.start,
+                              modifiable_range.end < IndexRange::unbounded().end ? modifiable_range.end + 1
+                                                                                 : modifiable_range.end).contains(
+                    at_index))
             const double start = at_index == 0 ? conf.start_time :
                                  end_time(at_index - 1) + conf.uav.travel_time(traj[at_index - 1].end, seg.start);
 
@@ -460,7 +463,7 @@ namespace SAOP {
             }
 
             check_validity();
-            modifiable_range = IndexRange(modifiable_range.start, modifiable_range.end - 1);
+            modifiable_range = IndexRange(modifiable_range.start, modifiable_range.end + 1);
         }
 
         /* Returns a new trajectory without the segment at the given index */
