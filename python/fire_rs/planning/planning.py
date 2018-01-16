@@ -147,8 +147,7 @@ class Planner:
         res = up.plan_vns(cpp_flights,
                           self._firemap.as_cpp_raster(),
                           self._env.raster.slice('elevation_planning').as_cpp_raster(),
-                          json.dumps(self._planning_conf),
-                          [] if observed_previously is None else observed_previously)
+                          json.dumps(self._planning_conf))
         self._searchresult = res
         return res
 

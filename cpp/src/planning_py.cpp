@@ -302,7 +302,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("metadata", [](SearchResult& self) { return self.metadata.dump(); });
 
 
-//    m.def("replan", [](Plan initial_plan, double start_time, const std::string& json_conf) -> SearchResult {
+//    m.def("replan", [](SearchResult last_result, double start_time, const std::string& json_conf) -> SearchResult {
 //              auto time = []() {
 //                  struct timeval tp;
 //                  gettimeofday(&tp, NULL);
@@ -358,20 +358,13 @@ PYBIND11_MODULE(uav_planning, m) {
               const size_t save_every = conf["save_every"];
               SAOP::check_field_is_present(conf, "save_improvements");
               const bool save_improvements = conf["save_improvements"];
-              SAOP::check_field_is_present(conf, "discrete_elevation_interval");
-              const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
               SAOP::check_field_is_present(conf, "vns");
               SAOP::check_field_is_present(conf["vns"], "max_time");
               const size_t max_planning_time = conf["vns"]["max_time"];
 
               std::cout << "Processing firedata data" << std::endl;
               double preprocessing_start = time();
-              shared_ptr<FireData> fire_data;
-              if (discrete_elevation_interval > 0) {
-                  fire_data = make_shared<FireData>(ignitions, DiscreteDRaster(elevation, discrete_elevation_interval));
-              } else {
-                  fire_data = make_shared<FireData>(ignitions, elevation);
-              }
+              shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
               double preprocessing_end = time();
 
               std::cout << "Building initial plan" << std::endl;

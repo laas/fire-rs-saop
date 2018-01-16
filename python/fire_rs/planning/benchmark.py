@@ -115,7 +115,6 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         'max_time': scenario.time_window_end,
         'save_every': 0,
         'save_improvements': snapshots,
-        'discrete_elevation_interval': DISCRETE_ELEVATION_INTERVAL,
         'vns': vns_configurations[vns_name]
     }
     conf['vns']['configuration_name'] = vns_name
