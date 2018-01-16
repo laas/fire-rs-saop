@@ -283,7 +283,7 @@ PYBIND11_MODULE(uav_planning, m) {
                         py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
-            .def("trajectories", [](Plan& self) { return self.core.trajectories; })
+            .def("trajectories", [](Plan& self) { return self.trajectories.trajectories; })
             .def("utility", &Plan::utility)
             .def("duration", &Plan::duration)
             .def_readonly("firedata", &Plan::firedata)

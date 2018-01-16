@@ -115,7 +115,7 @@ namespace SAOP::Test {
         BOOST_CHECK(res.final_plan);
         Plan solution = res.final();
 
-        auto& traj = solution.core[0];
+        auto& traj = solution.trajectories[0];
 //    ASSERT(traj[0] == start);
 //    ASSERT(traj[traj.size()-1] == end);
         BOOST_CHECK(traj.first_modifiable_id() == 1);

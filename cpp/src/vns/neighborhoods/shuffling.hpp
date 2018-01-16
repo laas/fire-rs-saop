@@ -38,7 +38,7 @@ namespace SAOP {
         const double max_removal_portion;
 
         void suffle(shared_ptr<Plan> plan) override {
-            for (auto& traj : plan->core.trajectories) {
+            for (auto& traj : plan->trajectories.trajectories) {
                 if (traj.first_modifiable_id() > traj.last_modifiable_id())
                     // trajectory has no modifiable parts, skip
                     continue;

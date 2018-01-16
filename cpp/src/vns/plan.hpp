@@ -43,7 +43,7 @@ namespace SAOP {
 
     struct Plan {
         TimeWindow time_window;
-        Trajectories core;
+        Trajectories trajectories;
         shared_ptr<FireData> firedata;
         vector<PointTimeWindow> possible_observations;
         vector<PositionTime> observed_previously;
@@ -52,7 +52,7 @@ namespace SAOP {
 
         Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
              vector<PositionTime> observed_previously = {})
-                : time_window(tw), core(traj_confs), firedata(std::move(fire_data)),
+                : time_window(tw), trajectories(traj_confs), firedata(std::move(fire_data)),
                   observed_previously(observed_previously) {
             for (auto conf : traj_confs) {
                 ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
@@ -88,7 +88,7 @@ namespace SAOP {
             j["utility"] = utility();
             j["num_segments"] = num_segments();
             j["trajectories"] = json::array();
-            for (auto& t : core.trajectories) {
+            for (auto& t : trajectories.trajectories) {
                 json jt;
                 jt["duration"] = t.duration();
                 jt["max_duration"] = t.conf().max_flight_time;
@@ -102,15 +102,13 @@ namespace SAOP {
 
         /** A plan is valid iff all trajectories are valid (match their configuration. */
         bool is_valid() const {
-            return core.is_valid();
+            return trajectories.is_valid();
         }
 
         /** Sum of all trajectory durations. */
         double duration() const {
-            return core.duration();
+            return trajectories.duration();
         }
-
-        const Trajectories& trajectories() const { return core; };
 
         /** Cost of the plan.
          * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
@@ -136,7 +134,7 @@ namespace SAOP {
         }
 
         size_t num_segments() const {
-            return core.num_segments();
+            return trajectories.num_segments();
         }
 
         /** All observations in the plan. Computed by taking the visibility center of all segments.
@@ -149,7 +147,7 @@ namespace SAOP {
          */
         vector<PositionTime> observations(const TimeWindow& tw) const {
             vector<PositionTime> obs = std::vector<PositionTime>(observed_previously);
-            for (auto& traj : core.trajectories) {
+            for (auto& traj : trajectories.trajectories) {
                 UAV drone = traj.conf().uav;
                 for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
                     const Segment3d& seg = traj[seg_id].maneuver;
@@ -178,7 +176,7 @@ namespace SAOP {
         /*All the positions observed by the UAV camera*/
         vector<PositionTime> view_trace(const TimeWindow& tw) const {
             vector<PositionTime> obs = {};
-            for (auto& traj : core.trajectories) {
+            for (auto& traj : trajectories.trajectories) {
                 UAV drone = traj.conf().uav;
                 for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
                     const Segment3d& seg = traj[seg_id].maneuver;
@@ -207,17 +205,17 @@ namespace SAOP {
         }
 
         void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true) {
-            ASSERT(traj_id < core.size());
-            ASSERT(insert_loc <= core[traj_id].size());
-            core[traj_id].insert_segment(seg, insert_loc);
+            ASSERT(traj_id < trajectories.size());
+            ASSERT(insert_loc <= trajectories[traj_id].size());
+            trajectories[traj_id].insert_segment(seg, insert_loc);
             if (do_post_processing)
                 post_process();
         }
 
         void erase_segment(size_t traj_id, size_t at_index, bool do_post_processing = true) {
-            ASSERT(traj_id < core.size());
-            ASSERT(at_index < core[traj_id].size());
-            core[traj_id].erase_segment(at_index);
+            ASSERT(traj_id < trajectories.size());
+            ASSERT(at_index < trajectories[traj_id].size());
+            trajectories[traj_id].erase_segment(at_index);
             if (do_post_processing)
                 post_process();
         }
@@ -229,8 +227,8 @@ namespace SAOP {
         void
         replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment3d>& segments) {
             ASSERT(n_replaced > 0);
-            ASSERT(traj_id < core.size());
-            ASSERT(at_index + n_replaced - 1 < core[traj_id].size());
+            ASSERT(traj_id < trajectories.size());
+            ASSERT(at_index + n_replaced - 1 < trajectories[traj_id].size());
 
             // do not post process as we will do that at the end
             for (size_t i = 0; i < n_replaced; ++i) {
@@ -254,7 +252,7 @@ namespace SAOP {
          * If this is not the case for a given segment, its is projected on the firefront.
          * */
         void project_on_fire_front() {
-            for (auto& traj : core.trajectories) {
+            for (auto& traj : trajectories.trajectories) {
                 size_t seg_id = traj.first_modifiable_id();
                 while (seg_id <= traj.last_modifiable_id()) {
                     const Segment3d& seg = traj[seg_id].maneuver;
@@ -277,7 +275,7 @@ namespace SAOP {
 
         /** Goes through all trajectories and erase segments causing very tight loops. */
         void smooth_trajectory() {
-            for (auto& traj : core.trajectories) {
+            for (auto& traj : trajectories.trajectories) {
                 size_t seg_id = traj.first_modifiable_id();
                 while (seg_id < traj.last_modifiable_id()) {
                     const Segment3d& current = traj[seg_id].maneuver;

@@ -135,13 +135,13 @@ namespace SAOP {
         void init() {
             if (!lazily_initialized) {
                 const double duration = base_plan->duration();
-                auto rev = update->apply(base_plan->core);
+                auto rev = update->apply(base_plan->trajectories);
                 _cost = base_plan->utility();
                 _duration = base_plan->duration();
                 _num_segments = base_plan->num_segments();
                 _valid = base_plan->is_valid();
                 lazily_initialized = true;
-                rev->apply(base_plan->core);
+                rev->apply(base_plan->trajectories);
                 ASSERT(duration == base_plan->duration())
             }
         }
@@ -161,8 +161,8 @@ namespace SAOP {
         Insert(PlanPtr base, size_t traj_id, Segment3d& seg, size_t insert_loc)
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), seg(seg), insert_loc(insert_loc) {
-            ASSERT(traj_id < base->core.size());
-            ASSERT(insert_loc <= base->core[traj_id].size());
+            ASSERT(traj_id < base->trajectories.size());
+            ASSERT(insert_loc <= base->trajectories[traj_id].size());
         }
 
         void apply_on(PlanPtr p) override {
@@ -172,11 +172,11 @@ namespace SAOP {
         /** Generates an insert move that include the segment at the best place in the given trajectory.
          * Currently, this does not checks the trajectory constraints. */
         static opt<Insert> best_insert(PlanPtr base, size_t traj_id, Segment3d& seg) {
-            ASSERT(traj_id < base->core.size());
+            ASSERT(traj_id < base->trajectories.size());
 
             long best_loc = -1;
             double best_dur = 999999;
-            Trajectory& traj = base->core[traj_id];
+            Trajectory& traj = base->trajectories[traj_id];
             for (size_t i = 0; i <= traj.size(); i++) {
                 const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
                 if (dur <= traj.conf().max_flight_time) {
@@ -214,8 +214,8 @@ namespace SAOP {
         Remove(PlanPtr base, size_t traj_id, size_t rm_id)
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), rm_id(rm_id) {
-            ASSERT(traj_id < base->core.size());
-            ASSERT(rm_id < base->core[traj_id].size());
+            ASSERT(traj_id < base->trajectories.size());
+            ASSERT(rm_id < base->trajectories[traj_id].size());
         }
 
         void apply_on(PlanPtr p) override {
@@ -234,8 +234,8 @@ namespace SAOP {
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements) {
             ASSERT(n_replaced > 0);
-            ASSERT(traj_id < base->core.size());
-            ASSERT(segment_index + n_replaced - 1 < base->core[traj_id].size());
+            ASSERT(traj_id < base->trajectories.size());
+            ASSERT(segment_index + n_replaced - 1 < base->trajectories[traj_id].size());
             ASSERT(replacements.size() > 0);
         }
 
@@ -253,7 +253,7 @@ namespace SAOP {
         SegmentRotation(PlanPtr base, size_t traj_id, size_t segment_index, double target_dir)
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), segment_index(segment_index),
-                  newSegment(base->core.uav(traj_id).rotate_on_visibility_center(base->core[traj_id][segment_index].maneuver,
+                  newSegment(base->trajectories.uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index].maneuver,
                                                                                  target_dir)) {
             ASSERT(duration() >= 0)
         }
@@ -263,7 +263,7 @@ namespace SAOP {
         }
 
         bool applicable() const {
-            Trajectory& t = base_plan->core[traj_id];
+            Trajectory& t = base_plan->trajectories[traj_id];
             return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf().max_flight_time;
         }
     };

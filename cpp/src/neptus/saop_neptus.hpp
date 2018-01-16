@@ -110,7 +110,7 @@ namespace SAOP {
         static void send_plan_to_dune(const std::string &ip, const std::string &port, Plan plan,
                                       const std::string &plan_id, double segment_ext = 50,
                                       double sampled = -1) {
-            auto ep = plan.core[0].with_longer_segments(segment_ext);
+            auto ep = plan.trajectories[0].with_longer_segments(segment_ext);
             std::vector<Waypoint3d> wp;
             if (sampled <= 0) {
                 wp = ep.as_waypoints();
