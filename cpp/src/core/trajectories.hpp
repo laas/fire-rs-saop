@@ -69,14 +69,20 @@ namespace SAOP {
         size_t num_segments() const {
             size_t total = 0;
             for (auto& traj : trajectories)
-                total += traj.traj.size();
+                total += traj.size();
             return total;
         }
 
         /** Returns the UAV performing the given trajectory */
         UAV uav(size_t traj_id) const {
             ASSERT(traj_id < trajectories.size())
-            return trajectories[traj_id].conf.uav;
+            return trajectories[traj_id].conf().uav;
+        }
+
+        /* For every trajectory, make the maneuvers before and including 'man_id' unmodifiable */
+        void freeze_before(size_t man_id) {
+            for (auto& traj : trajectories)
+                traj.freeze_before(man_id);
         }
 
         size_t size() const { return trajectories.size(); }

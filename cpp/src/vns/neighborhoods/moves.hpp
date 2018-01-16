@@ -162,7 +162,7 @@ namespace SAOP {
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), seg(seg), insert_loc(insert_loc) {
             ASSERT(traj_id < base->core.size());
-            ASSERT(insert_loc <= base->core[traj_id].traj.size());
+            ASSERT(insert_loc <= base->core[traj_id].size());
         }
 
         void apply_on(PlanPtr p) override {
@@ -177,9 +177,9 @@ namespace SAOP {
             long best_loc = -1;
             double best_dur = 999999;
             Trajectory& traj = base->core[traj_id];
-            for (size_t i = 0; i <= traj.traj.size(); i++) {
+            for (size_t i = 0; i <= traj.size(); i++) {
                 const double dur = traj.duration() + traj.insertion_duration_cost(i, seg);
-                if (dur <= traj.conf.max_flight_time) {
+                if (dur <= traj.conf().max_flight_time) {
                     if (best_dur > dur) {
                         best_dur = dur;
                         best_loc = i;
@@ -215,7 +215,7 @@ namespace SAOP {
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), rm_id(rm_id) {
             ASSERT(traj_id < base->core.size());
-            ASSERT(rm_id < base->core[traj_id].traj.size());
+            ASSERT(rm_id < base->core[traj_id].size());
         }
 
         void apply_on(PlanPtr p) override {
@@ -235,7 +235,7 @@ namespace SAOP {
                   traj_id(traj_id), segment_index(segment_index), n_replaced(n_replaced), replacements(replacements) {
             ASSERT(n_replaced > 0);
             ASSERT(traj_id < base->core.size());
-            ASSERT(segment_index + n_replaced - 1 < base->core[traj_id].traj.size());
+            ASSERT(segment_index + n_replaced - 1 < base->core[traj_id].size());
             ASSERT(replacements.size() > 0);
         }
 
@@ -253,7 +253,7 @@ namespace SAOP {
         SegmentRotation(PlanPtr base, size_t traj_id, size_t segment_index, double target_dir)
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), segment_index(segment_index),
-                  newSegment(base->core.uav(traj_id).rotate_on_visibility_center(base->core[traj_id][segment_index],
+                  newSegment(base->core.uav(traj_id).rotate_on_visibility_center(base->core[traj_id][segment_index].maneuver,
                                                                                  target_dir)) {
             ASSERT(duration() >= 0)
         }
@@ -264,7 +264,7 @@ namespace SAOP {
 
         bool applicable() const {
             Trajectory& t = base_plan->core[traj_id];
-            return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf.max_flight_time;
+            return t.duration() + t.replacement_duration_cost(segment_index, newSegment) <= t.conf().max_flight_time;
         }
     };
 }

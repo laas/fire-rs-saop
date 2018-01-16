@@ -133,7 +133,7 @@ namespace SAOP {
                 // get projected observation closer to the fire front at the beginning of the trajectory
                 // this is useful to avoid to projection to follow the same path multiple times to end up on a failure.
                 projected_random_observation = p->firedata->project_closest_to_fire_front(random_observation,
-                                                                                          traj.conf.uav,
+                                                                                          traj.conf().uav,
                                                                                           traj.start_time());
 
                 size_t first_insertion_loc, last_insertion_loc;
@@ -160,7 +160,7 @@ namespace SAOP {
                                                                                            *current_segment);
 
                         // discard candidate that would go over the max flight time.
-                        if (traj.duration() + additional_flight_time > traj.conf.max_flight_time)
+                        if (traj.duration() + additional_flight_time > traj.conf().max_flight_time)
                             continue;
 
                         if (!best || additional_flight_time < best->additional_flight_time) {
@@ -190,18 +190,18 @@ namespace SAOP {
                 return segment.start.dir;
             } else if (insertion_loc == 0) {
                 // align on next segment
-                auto dx = traj[insertion_loc].start.x - segment.end.x;
-                auto dy = traj[insertion_loc].start.y - segment.end.y;
+                auto dx = traj[insertion_loc].maneuver.start.x - segment.end.x;
+                auto dy = traj[insertion_loc].maneuver.start.y - segment.end.y;
                 return atan2(dy, dx);
             } else if (insertion_loc == traj.size()) {
                 // align on previous segment
-                auto dx = segment.start.x - traj[insertion_loc - 1].end.x;
-                auto dy = segment.start.y - traj[insertion_loc - 1].end.y;
+                auto dx = segment.start.x - traj[insertion_loc - 1].maneuver.end.x;
+                auto dy = segment.start.y - traj[insertion_loc - 1].maneuver.end.y;
                 return atan2(dy, dx);
             } else {
                 // take direction from prev to next segment
-                auto dx = traj[insertion_loc].start.x - traj[insertion_loc - 1].end.x;
-                auto dy = traj[insertion_loc].start.y - traj[insertion_loc - 1].end.y;
+                auto dx = traj[insertion_loc].maneuver.start.x - traj[insertion_loc - 1].maneuver.end.x;
+                auto dy = traj[insertion_loc].maneuver.start.y - traj[insertion_loc - 1].maneuver.end.y;
                 return atan2(dy, dx);
             }
         }
@@ -223,12 +223,12 @@ namespace SAOP {
                 const double time = insert_loc == 0 ?
                                     traj.start_time() :
                                     traj.end_time(insert_loc - 1) +
-                                    traj.conf.uav.travel_time(traj[insert_loc - 1].end, to_project.start);
+                                    traj.conf().uav.travel_time(traj[insert_loc - 1].maneuver.end, to_project.start);
                 // back up current segment
                 const Segment3d previous = *current_segment;
 
                 // project the segment on the firefront.
-                current_segment = p->firedata->project_on_firefront(previous, traj.conf.uav, time);
+                current_segment = p->firedata->project_on_firefront(previous, traj.conf().uav, time);
                 ASSERT(!current_segment ||
                        previous.start.dir == current_segment->start.dir) // projection should not change orientation
 
@@ -236,7 +236,7 @@ namespace SAOP {
                     // segment has changed due to projection,
                     // set the default orientation to the segment
                     const double direction = default_insertion_angle(traj, insert_loc, *current_segment);
-                    current_segment = traj.conf.uav.rotate_on_visibility_center(*current_segment, direction);
+                    current_segment = traj.conf().uav.rotate_on_visibility_center(*current_segment, direction);
 
                     // start over since the time at which we reach the segment might have changed as well
                     updated = true;

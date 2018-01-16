@@ -91,7 +91,7 @@ namespace SAOP {
             for (auto& t : core.trajectories) {
                 json jt;
                 jt["duration"] = t.duration();
-                jt["max_duration"] = t.conf.max_flight_time;
+                jt["max_duration"] = t.conf().max_flight_time;
                 jt["num_segments"] = t.size();
                 jt["start_time"] = t.start_time();
                 jt["end_time"] = t.end_time();
@@ -109,6 +109,8 @@ namespace SAOP {
         double duration() const {
             return core.duration();
         }
+
+        const Trajectories& trajectories() const { return core; };
 
         /** Cost of the plan.
          * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
@@ -148,9 +150,9 @@ namespace SAOP {
         vector<PositionTime> observations(const TimeWindow& tw) const {
             vector<PositionTime> obs = std::vector<PositionTime>(observed_previously);
             for (auto& traj : core.trajectories) {
-                UAV drone = traj.conf.uav;
+                UAV drone = traj.conf().uav;
                 for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
-                    const Segment3d& seg = traj[seg_id];
+                    const Segment3d& seg = traj[seg_id].maneuver;
 
                     double obs_time = traj.start_time(seg_id);
                     double obs_end_time = traj.end_time(seg_id);
@@ -177,9 +179,9 @@ namespace SAOP {
         vector<PositionTime> view_trace(const TimeWindow& tw) const {
             vector<PositionTime> obs = {};
             for (auto& traj : core.trajectories) {
-                UAV drone = traj.conf.uav;
+                UAV drone = traj.conf().uav;
                 for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
-                    const Segment3d& seg = traj[seg_id];
+                    const Segment3d& seg = traj[seg_id].maneuver;
 
                     double obs_time = traj.start_time(seg_id);
                     double obs_end_time = traj.end_time(seg_id);
@@ -206,7 +208,7 @@ namespace SAOP {
 
         void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true) {
             ASSERT(traj_id < core.size());
-            ASSERT(insert_loc <= core[traj_id].traj.size());
+            ASSERT(insert_loc <= core[traj_id].size());
             core[traj_id].insert_segment(seg, insert_loc);
             if (do_post_processing)
                 post_process();
@@ -214,7 +216,7 @@ namespace SAOP {
 
         void erase_segment(size_t traj_id, size_t at_index, bool do_post_processing = true) {
             ASSERT(traj_id < core.size());
-            ASSERT(at_index < core[traj_id].traj.size());
+            ASSERT(at_index < core[traj_id].size());
             core[traj_id].erase_segment(at_index);
             if (do_post_processing)
                 post_process();
@@ -228,7 +230,7 @@ namespace SAOP {
         replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment3d>& segments) {
             ASSERT(n_replaced > 0);
             ASSERT(traj_id < core.size());
-            ASSERT(at_index + n_replaced - 1 < core[traj_id].traj.size());
+            ASSERT(at_index + n_replaced - 1 < core[traj_id].size());
 
             // do not post process as we will do that at the end
             for (size_t i = 0; i < n_replaced; ++i) {
@@ -255,9 +257,9 @@ namespace SAOP {
             for (auto& traj : core.trajectories) {
                 size_t seg_id = traj.first_modifiable_id();
                 while (seg_id <= traj.last_modifiable_id()) {
-                    const Segment3d& seg = traj[seg_id];
+                    const Segment3d& seg = traj[seg_id].maneuver;
                     const double t = traj.start_time(seg_id);
-                    opt<Segment3d> projected = firedata->project_on_firefront(seg, traj.conf.uav, t);
+                    opt<Segment3d> projected = firedata->project_on_firefront(seg, traj.conf().uav, t);
                     if (projected) {
                         if (*projected != seg) {
                             // original is different than projection, replace it
@@ -278,11 +280,11 @@ namespace SAOP {
             for (auto& traj : core.trajectories) {
                 size_t seg_id = traj.first_modifiable_id();
                 while (seg_id < traj.last_modifiable_id()) {
-                    const Segment3d& current = traj[seg_id];
-                    const Segment3d& next = traj[seg_id + 1];
+                    const Segment3d& current = traj[seg_id].maneuver;
+                    const Segment3d& next = traj[seg_id + 1].maneuver;
 
                     const double euclidian_dist_to_next = current.end.as_point().dist(next.start.as_point());
-                    const double dubins_dist_to_next = traj.conf.uav.travel_distance(current.end, next.start);
+                    const double dubins_dist_to_next = traj.conf().uav.travel_distance(current.end, next.start);
 
                     if (dubins_dist_to_next / euclidian_dist_to_next > 2.)
                         // tight loop, erase next and stay on this segment to check for tight loops on the new next.

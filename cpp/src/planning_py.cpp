@@ -40,31 +40,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 namespace py = pybind11;
 
 /** Converts a numpy array to a vector */
-    template<class T>
-    std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
-        std::vector<T> data(array.size());
-        for (ssize_t x = 0; x < array.shape(0); x++) {
-            for (ssize_t y = 0; y < array.shape(1); y++) {
-                data[x + y * array.shape(0)] = *(array.data(x, y));
-            }
+template<class T>
+std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
+    std::vector<T> data(array.size());
+    for (ssize_t x = 0; x < array.shape(0); x++) {
+        for (ssize_t y = 0; y < array.shape(1); y++) {
+            data[x + y * array.shape(0)] = *(array.data(x, y));
         }
-        return data;
     }
+    return data;
+}
 
 /** Converts a vector to a 2D numpy array. */
-    template<class T>
-    py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
-        ASSERT(vec.size() == x_width * y_height)
-        py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> { x_width, y_height });
-        auto s_x_width = static_cast<ssize_t>(x_width);
-        auto s_y_height = static_cast<ssize_t>(y_height);
-        for (ssize_t x = 0; x < s_x_width; x++) {
-            for (ssize_t y = 0; y < s_y_height; y++) {
-                *(array.mutable_data(x, y)) = vec[x + y * x_width];
-            }
+template<class T>
+py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
+    ASSERT(vec.size() == x_width * y_height)
+    py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> { x_width, y_height });
+    auto s_x_width = static_cast<ssize_t>(x_width);
+    auto s_y_height = static_cast<ssize_t>(y_height);
+    for (ssize_t x = 0; x < s_x_width; x++) {
+        for (ssize_t y = 0; y < s_y_height; y++) {
+            *(array.mutable_data(x, y)) = vec[x + y * x_width];
         }
-        return array;
     }
+    return array;
+}
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
@@ -244,14 +244,14 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<Trajectory>(m, "Trajectory")
             .def(py::init<const TrajectoryConfig&>())
-            .def_readonly("conf", &Trajectory::conf)
+            .def_property_readonly("conf", &Trajectory::conf)
             .def("start_time", (double (Trajectory::*)() const) &Trajectory::start_time)
             .def("start_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
             .def("end_time", (double (Trajectory::*)() const) &Trajectory::end_time)
             .def("end_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
-            .def_readonly("segments", &Trajectory::traj)
-            .def("segment", &Trajectory::operator[], py::arg("index"))
-            .def_readonly("start_times", &Trajectory::start_times)
+            .def_property_readonly("segments", &Trajectory::maneuvers)
+            .def("segment", &Trajectory::maneuver, py::arg("index"))
+            .def_property_readonly("start_times", &Trajectory::start_times)
             .def("slice", (Trajectory (Trajectory::*)(TimeWindow) const) &Trajectory::slice, py::arg("time_window"))
             .def("slice", [](Trajectory& self, py::tuple range) -> Trajectory {
                 auto tw = TimeWindow(range[0].cast<double>(), range[1].cast<double>());
@@ -259,6 +259,7 @@ PYBIND11_MODULE(uav_planning, m) {
             }, py::arg("time_window"))
             .def("slice", &Trajectory::slice, py::arg("time_window"))
             .def("length", &Trajectory::length)
+            .def("__len__", &Trajectory::size)
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints)
             .def("sampled", &Trajectory::sampled, py::arg("step_size") = 1)
@@ -266,8 +267,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("__repr__", &Trajectory::to_string)
             .def("trace", [](Trajectory& self, const DRaster& r) {
                 vector<PositionTime> trace = vector<PositionTime>{};
-                for (auto& s: self.traj) {
-                    Plan::segment_trace(s, self.conf.uav.view_width, self.conf.uav.view_depth, r);
+                for (auto i = 0ul; i <= self.size(); ++i) {
+                    Plan::segment_trace(self[i].maneuver, self.conf().uav.view_width, self.conf().uav.view_depth, r);
                 }
                 return trace;
             }, py::arg("raster"));
@@ -300,8 +301,49 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
             .def("metadata", [](SearchResult& self) { return self.metadata.dump(); });
 
+
+//    m.def("replan", [](Plan initial_plan, double start_time, const std::string& json_conf) -> SearchResult {
+//              auto time = []() {
+//                  struct timeval tp;
+//                  gettimeofday(&tp, NULL);
+//                  return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
+//              };
+//              json conf = json::parse(json_conf);
+//              SAOP::check_field_is_present(conf, "min_time");
+//              const double min_time = conf["min_time"];
+//              SAOP::check_field_is_present(conf, "max_time");
+//              const double max_time = conf["max_time"];
+//              SAOP::check_field_is_present(conf, "save_every");
+//              const size_t save_every = conf["save_every"];
+//              SAOP::check_field_is_present(conf, "save_improvements");
+//              const bool save_improvements = conf["save_improvements"];
+//              SAOP::check_field_is_present(conf, "discrete_elevation_interval");
+//              const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
+//              SAOP::check_field_is_present(conf, "vns");
+//              SAOP::check_field_is_present(conf["vns"], "max_time");
+//              const size_t max_planning_time = conf["vns"]["max_time"];
+//
+//              std::cout << "Building initial plan" << std::endl;
+//              Plan p(configs, fire_data, TimeWindow{min_time, max_time});
+//
+//              std::cout << "Planning" << std::endl;
+//              auto vns = build_from_config(conf["vns"].dump());
+//              const double planning_start = time();
+//              auto res = vns->search(p, max_planning_time, save_every, save_improvements);
+//              const double planning_end = time();
+//
+//              std::cout << "Plan found" << std::endl;
+//              std::cout << "Best -> utility: " << res.final_plan->utility() << " -- duration:" << res.final_plan->duration();
+//              res.metadata["planning_time"] = planning_end - planning_start;
+//              res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
+//              res.metadata["configuration"] = conf;
+//              return res;
+//          }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
+//          py::call_guard<py::gil_scoped_release>());
+
+
     m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation,
-                         const std::string& json_conf, std::vector<PositionTime> observed = {}) -> SearchResult {
+                         const std::string& json_conf) -> SearchResult {
               auto time = []() {
                   struct timeval tp;
                   gettimeofday(&tp, NULL);
@@ -322,7 +364,7 @@ PYBIND11_MODULE(uav_planning, m) {
               SAOP::check_field_is_present(conf["vns"], "max_time");
               const size_t max_planning_time = conf["vns"]["max_time"];
 
-              printf("Processing firedata data\n");
+              std::cout << "Processing firedata data" << std::endl;
               double preprocessing_start = time();
               shared_ptr<FireData> fire_data;
               if (discrete_elevation_interval > 0) {
@@ -332,21 +374,23 @@ PYBIND11_MODULE(uav_planning, m) {
               }
               double preprocessing_end = time();
 
-              printf("Building initial plan\n");
-              Plan p(configs, fire_data, TimeWindow{min_time, max_time}, observed);
+              std::cout << "Building initial plan" << std::endl;
+              Plan p(configs, fire_data, TimeWindow{min_time, max_time});
 
-              printf("Planning\n");
+              std::cout << "Planning" << std::endl;
               auto vns = build_from_config(conf["vns"].dump());
               const double planning_start = time();
               auto res = vns->search(p, max_planning_time, save_every, save_improvements);
               const double planning_end = time();
-              printf("Plan found\n");
+
+              std::cout << "Plan found" << std::endl;
+              std::cout << "Best -> utility: " << res.final_plan->utility() << " -- duration:" << res.final_plan->duration();
               res.metadata["planning_time"] = planning_end - planning_start;
               res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
               res.metadata["configuration"] = conf;
               return res;
           }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
-          py::arg("observed"), py::call_guard<py::gil_scoped_release>());
+          py::call_guard<py::gil_scoped_release>());
 }
 
 #endif //PLANNING_CPP_PYTHON_VNS_H

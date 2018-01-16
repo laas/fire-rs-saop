@@ -49,8 +49,8 @@ namespace SAOP {
             if (seg_id == 0 || seg_id == traj.size() - 1)
                 return {};
 
-            const double dx = traj[seg_id + 1].start.x - traj[seg_id - 1].end.x;
-            const double dy = traj[seg_id + 1].start.y - traj[seg_id - 1].end.y;
+            const double dx = traj[seg_id + 1].maneuver.start.x - traj[seg_id - 1].maneuver.end.x;
+            const double dy = traj[seg_id + 1].maneuver.start.y - traj[seg_id - 1].maneuver.end.y;
             const double mean_angle = atan2(dy, dx);
             return mean_angle;
         }
@@ -60,7 +60,7 @@ namespace SAOP {
     struct RandomOrientationChangeGenerator final : public OrientationChangeGenerator {
 
         opt<double> get_orientation_change(const Trajectory& traj, size_t seg_id) const override {
-            return remainder(traj[seg_id].start.dir + drand(-M_PI_4, M_PI_4), 2 * M_PI);
+            return remainder(traj[seg_id].maneuver.start.dir + drand(-M_PI_4, M_PI_4), 2 * M_PI);
         }
     };
 
@@ -68,7 +68,7 @@ namespace SAOP {
     struct FlipOrientationChangeGenerator final : public OrientationChangeGenerator {
 
         opt<double> get_orientation_change(const Trajectory& traj, size_t seg_id) const override {
-            return remainder(traj[seg_id].start.dir + M_PI, 2 * M_PI);
+            return remainder(traj[seg_id].maneuver.start.dir + M_PI, 2 * M_PI);
         }
     };
 
@@ -120,7 +120,7 @@ namespace SAOP {
                     continue; // generator not adapted to current segment, go to next trial
 
                 // compute the utility of the change
-                const Segment3d replacement_segment = plan->core.uav(traj_id).rotate_on_visibility_center(traj[seg_id],
+                const Segment3d replacement_segment = plan->core.uav(traj_id).rotate_on_visibility_center(traj[seg_id].maneuver,
                                                                                                           *optAngle);
                 const double local_duration_cost = traj.replacement_duration_cost(seg_id, replacement_segment);
 

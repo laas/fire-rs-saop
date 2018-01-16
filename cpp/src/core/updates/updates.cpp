@@ -34,15 +34,15 @@ namespace SAOP {
 
     PReversibleTrajectoriesUpdate InsertSegment::apply(Trajectories& p) {
         ASSERT(traj_id < p.trajectories.size());
-        ASSERT(insert_loc <= p.trajectories[traj_id].traj.size());
+        ASSERT(insert_loc <= p.trajectories[traj_id].size());
         p.trajectories[traj_id].insert_segment(seg, insert_loc);
         return make_shared<DeleteSegment>(traj_id, insert_loc);
     }
 
     PReversibleTrajectoriesUpdate DeleteSegment::apply(Trajectories& p) {
         ASSERT(traj_id < p.trajectories.size());
-        ASSERT(at_index < p.trajectories[traj_id].traj.size());
-        Segment3d seg = p.trajectories[traj_id][at_index];
+        ASSERT(at_index < p.trajectories[traj_id].size());
+        Segment3d seg = p.trajectories[traj_id][at_index].maneuver;
         p.trajectories[traj_id].erase_segment(at_index);
         return make_shared<InsertSegment>(traj_id, seg, at_index);
     }

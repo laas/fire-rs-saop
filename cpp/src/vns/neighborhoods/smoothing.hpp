@@ -63,7 +63,7 @@ namespace SAOP {
                 }
 
                 const size_t seg_id = *opt_seg_id;
-                const Segment3d seg = traj[seg_id];
+                const Segment3d seg = traj[seg_id].maneuver;
 
                 const bool can_join_backwards = seg_id - 1 >= traj.first_modifiable_id();
                 const bool can_join_forward = seg_id + 1 <= traj.last_modifiable_id();
@@ -76,7 +76,7 @@ namespace SAOP {
                 PLocalMove move;
 
                 if (can_join_backwards) {
-                    prev = traj[seg_id - 1];
+                    prev = traj[seg_id - 1].maneuver;
                     Segment3d prev_replacement_seg = Segment3d(prev->start.as_point().as_2d(),
                                                                seg.end.as_point().as_2d(),
                                                                max(prev->start.z, seg.end.z));
@@ -94,7 +94,7 @@ namespace SAOP {
                 }
 
                 if (can_join_forward) {
-                    next = traj[seg_id + 1];
+                    next = traj[seg_id + 1].maneuver;
                     Segment3d next_replacement_seg = Segment3d(seg.start.as_point().as_2d(),
                                                                next->end.as_point().as_2d(),
                                                                max(seg.start.z, next->end.z));
