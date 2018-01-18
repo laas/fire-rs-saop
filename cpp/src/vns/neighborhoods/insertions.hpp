@@ -138,12 +138,12 @@ namespace SAOP {
 
                 size_t first_insertion_loc, last_insertion_loc;
                 if (select_arbitrary_position) {
-                    const size_t loc = rand(traj.first_modifiable_id(), traj.last_modifiable_id() + 2);
+                    const size_t loc = *traj.random_insertion_id();
                     first_insertion_loc = loc;
                     last_insertion_loc = loc;
                 } else {
-                    first_insertion_loc = traj.first_modifiable_id();
-                    last_insertion_loc = traj.last_modifiable_id() + 1;
+                    first_insertion_loc = traj.insertion_range_start();
+                    last_insertion_loc = traj.insertion_range_end();
                 }
 
                 for (size_t insert_loc = first_insertion_loc; insert_loc <= last_insertion_loc; insert_loc++) {

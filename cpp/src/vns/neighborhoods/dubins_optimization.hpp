@@ -105,7 +105,7 @@ namespace SAOP {
                 const Trajectory& traj = plan->trajectories[traj_id];
 
                 // pick a random segment in the trajectory
-                const opt<size_t> opt_seg_id = traj.get_random_modifiable_id();
+                const opt<size_t> opt_seg_id = traj.random_modifiable_id();
 
                 if (!opt_seg_id) {
                     continue;
@@ -114,7 +114,7 @@ namespace SAOP {
 
                 // pick an angle generator and generate a candidate angle
                 const shared_ptr<OrientationChangeGenerator> generator = generators[rand(0, generators.size())];
-                opt<double> optAngle = generator->get_orientation_change(traj, seg_id);
+                 opt<double> optAngle = generator->get_orientation_change(traj, seg_id);
 
                 if (!optAngle)
                     continue; // generator not adapted to current segment, go to next trial

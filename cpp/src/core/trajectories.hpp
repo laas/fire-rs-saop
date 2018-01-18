@@ -80,9 +80,15 @@ namespace SAOP {
         }
 
         /* For every trajectory, make the maneuvers before and including 'man_id' unmodifiable */
-        void freeze_before(size_t man_id) {
+        void freeze_before(double time) {
             for (auto& traj : trajectories)
-                traj.freeze_before(man_id);
+                traj.freeze_before(time);
+        }
+
+        /* For every trajectory, make the maneuvers before and including 'man_id' unmodifiable */
+        void erase_modifiable_maneuvers() {
+            for (auto& traj : trajectories)
+                traj.erase_all_modifiable_maneuvers();
         }
 
         size_t size() const { return trajectories.size(); }

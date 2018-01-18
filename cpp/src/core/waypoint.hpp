@@ -318,7 +318,7 @@ namespace SAOP {
         }
 
         bool contains(T value) const {
-            return start <= value && value <= end;
+            return start <= value && value < end;
         }
 
         bool contains(const Interval<T>& interval) const {

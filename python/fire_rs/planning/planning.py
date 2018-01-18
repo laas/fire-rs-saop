@@ -31,9 +31,9 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import fire_rs.uav_planning as up
+from fire_rs.deprecation import deprecated
 from fire_rs.firemodel.propagation import Environment, FirePropagation
 from fire_rs.geodata.geo_data import GeoData
-
 
 class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
     __slots__ = ()
@@ -139,8 +139,8 @@ class Planner:
 
         self._searchresult = None  # type: Optional(up.SearchResult)
 
-    def compute_plan(self, observed_previously=None) -> 'up.SearchResult':
-        # Retrieve trajectory configurations in as C++ objects
+    def compute_plan(self) -> 'up.SearchResult':
+        # Retrieve trajectory configurations as C++ objects
         cpp_flights = [f.as_cpp() for f in self._flights]
 
         # Call the C++ library that calculates the plan
@@ -151,6 +151,19 @@ class Planner:
         self._searchresult = res
         return res
 
+    def _replan(self, after_time) -> 'up.SearchResult':
+        # Call the C++ library that calculates the plan
+        res = up.replan_vns(self.search_result, after_time,
+                            self._firemap.as_cpp_raster(),
+                            self._env.raster.slice('elevation_planning').as_cpp_raster(),
+                            json.dumps(self._planning_conf))
+        self._searchresult = res
+        return res
+
+    def replan_after_time(self, after_time) -> 'up.SearchResult':
+        return self._replan(after_time)
+
+    @deprecated
     def replan(self, from_t, positions=None) -> 'up.SearchResult':
         # At this moment we can only restart at segment start times. from_t is just a indication of
         # wich segement we should pick to start from.
@@ -173,7 +186,7 @@ class Planner:
         observed_previously = self._searchresult.final_plan().observations(up.TimeWindow(
             self.planning_conf['min_time'], from_t))
         self.planning_conf['min_time'] = from_t
-        return self.compute_plan(observed_previously=observed_previously)
+        return self.compute_plan(self.search_result, )
 
     def expected_ignited_positions(self, time_window=None):
         """Get the percieved positions where the fire is suposed to be."""

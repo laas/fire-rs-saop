@@ -51,7 +51,7 @@ class GeoData:
 
     def __init__(self, array, x_offset, y_offset, cell_width, cell_height):
         assert cell_width > 0 and cell_height > 0, 'Origin must be on left-bottom'
-        self.data = array
+        self.data = array  # type: 'np.ndarray'
         self.x_offset = x_offset
         self.y_offset = y_offset
         self.cell_width = cell_width
@@ -90,12 +90,11 @@ class GeoData:
         return cls(np.full_like(other.data, fill_value), other.x_offset, other.y_offset,
                    other.cell_width, other.cell_height)
 
-
     def __contains__(self, coordinates):
         (x, y) = coordinates
-        x_lim_low = self.x_offset - self.cell_width/2
+        x_lim_low = self.x_offset - self.cell_width / 2
         x_lim_up = self.x_offset + (self.data.shape[0] + .5) * self.cell_width
-        y_lim_low = self.y_offset - self.cell_height/2
+        y_lim_low = self.y_offset - self.cell_height / 2
         y_lim_up = self.y_offset + (self.data.shape[1] + .5) * self.cell_height
 
         return x_lim_low <= x <= x_lim_up and y_lim_low <= y <= y_lim_up
@@ -132,7 +131,7 @@ class GeoData:
     def subset(self, area: Area) -> 'GeoData':
         (xi_min, yi_min) = self.array_index(Point(area.xmin, area.ymin))
         (xi_max, yi_max) = self.array_index(Point(area.xmax, area.ymax))
-        ary = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
+        ary = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1]
         return GeoData(ary, *self.coordinates(Cell(xi_min, yi_min)), self.cell_width, self.cell_height)
 
     def array_index(self, coordinates: Point) -> Union[Cell, Tuple[int, int]]:
@@ -290,7 +289,7 @@ class GeoData:
             # hence, we invert our matrix on the y axis to have a negative cell_height
             data = self.data.transpose()[..., ::-1]
             cell_height = - self.cell_height
-            origin_y = self.y_offset + self.data.shape[1] * self.cell_height - self.cell_height/2
+            origin_y = self.y_offset + self.data.shape[1] * self.cell_height - self.cell_height / 2
 
         cols = data.shape[1]
         rows = data.shape[0]
@@ -300,7 +299,7 @@ class GeoData:
         out_raster = driver.Create(filename, cols, rows, len(layers), gdal.GDT_Float64)
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
         for i, layer in enumerate(layers):
-            outband = out_raster.GetRasterBand(i+1)
+            outband = out_raster.GetRasterBand(i + 1)
             outband.WriteArray(data[layer])
             outband.SetDescription(layer)  # apparently not visible in QGIS, maybe there is a better alternative
             outband.FlushCache()
@@ -340,7 +339,7 @@ class GeoData:
 
             y_orig = geotransform[3] + handle.RasterYSize * y_delta - y_delta / 2
             y_delta = -y_delta
-            array = array[...,::-1].transpose()
+            array = array[..., ::-1].transpose()
 
         return cls(array, x_orig, y_orig, x_delta, y_delta)
 
@@ -365,6 +364,6 @@ def join_structured_arrays(arrays):
     for a, size, offset in zip(arrays, sizes, offsets):
         # reshape as a C-contiguous array of bytes
         tmp = np.ascontiguousarray(a).view(np.uint8).reshape(n, size)
-        joint[:, offset:offset+size] = tmp
+        joint[:, offset:offset + size] = tmp
     dtype = sum((a.dtype.descr for a in arrays), [])
     return joint.ravel().view(dtype).reshape(arrays[0].shape)

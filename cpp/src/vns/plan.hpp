@@ -42,7 +42,7 @@ namespace SAOP {
     typedef shared_ptr<Plan> PlanPtr;
 
     struct Plan {
-        TimeWindow time_window;
+        TimeWindow time_window; /* Cells outside the range are not considered in possible observations */
         Trajectories trajectories;
         shared_ptr<FireData> firedata;
         vector<PointTimeWindow> possible_observations;
@@ -253,16 +253,15 @@ namespace SAOP {
          * */
         void project_on_fire_front() {
             for (auto& traj : trajectories.trajectories) {
-                size_t seg_id = traj.first_modifiable_id();
-                while (seg_id <= traj.last_modifiable_id()) {
+                size_t seg_id = traj.first_modifiable_maneuver();
+                while (seg_id <= traj.last_modifiable_maneuver()) {
                     const Segment3d& seg = traj[seg_id].maneuver;
                     const double t = traj.start_time(seg_id);
                     opt<Segment3d> projected = firedata->project_on_firefront(seg, traj.conf().uav, t);
                     if (projected) {
                         if (*projected != seg) {
                             // original is different than projection, replace it
-                            traj.erase_segment(seg_id);
-                            traj.insert_segment(*projected, seg_id);
+                            traj.replace_segment(seg_id, *projected);
                         }
                         seg_id++;
                     } else {
@@ -276,8 +275,8 @@ namespace SAOP {
         /** Goes through all trajectories and erase segments causing very tight loops. */
         void smooth_trajectory() {
             for (auto& traj : trajectories.trajectories) {
-                size_t seg_id = traj.first_modifiable_id();
-                while (seg_id < traj.last_modifiable_id()) {
+                size_t seg_id = traj.first_modifiable_maneuver();
+                while (seg_id < traj.last_modifiable_maneuver()) {
                     const Segment3d& current = traj[seg_id].maneuver;
                     const Segment3d& next = traj[seg_id + 1].maneuver;
 

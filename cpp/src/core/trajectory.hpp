@@ -91,7 +91,7 @@ namespace SAOP {
         /*Trajectory copy with modifiable segment interval*/
         Trajectory(const Trajectory& trajectory, IndexRange mod_range)
                 : Trajectory(trajectory) {
-            modifiable_range = mod_range;
+            insertion_range = mod_range;
         };
 
         /* Empty trajectory constructor */
@@ -99,12 +99,12 @@ namespace SAOP {
                 : _conf(_config) {
             if (_conf.start_position) {
                 append_segment(Segment3d(*_conf.start_position));
-                modifiable_range = IndexRange::end_unbounded(1);
+                insertion_range = IndexRange::end_unbounded(1);
             }
 
             if (_conf.end_position) {
                 append_segment(Segment3d(*_conf.end_position));
-                modifiable_range = modifiable_range.intersection_with(IndexRange::start_unbounded(size() - 1));
+                insertion_range = insertion_range.intersection_with(IndexRange::start_unbounded(size() - 1));
             }
             is_set_up = true;
             check_validity();
@@ -171,21 +171,44 @@ namespace SAOP {
         }
 
         /* Index of the first modifiable segment. */
-        size_t first_modifiable_id() const {
-            return _conf.start_position ? 1UL : 0UL;
+        size_t modifiable_size() const {
+            return insertion_range.is_empty() ? 0 : insertion_range.end - insertion_range.start;
+        }
+
+        /* Index of the first modifiable segment. */
+        size_t insertion_range_start() const {
+            return insertion_range.start;
+        }
+
+        /* Index of the first modifiable segment. */
+        size_t first_modifiable_maneuver() const {
+            return insertion_range_start();
         }
 
         /* Index of the last modifiable segment */
-        size_t last_modifiable_id() const {
-            return _conf.end_position ? size() - 2 : size() - 1;
+        size_t insertion_range_end() const {
+            return insertion_range.end;
+        }
+
+        /* Index of the last modifiable segment */
+        size_t last_modifiable_maneuver() const {
+            return insertion_range_end() > 0 ? insertion_range_end() - 1 : 0;
         }
 
         /* Random segment index selected among modifiable segments */
-        inline opt<size_t> get_random_modifiable_id() const {
-            if (first_modifiable_id() > last_modifiable_id()) {
+        opt<size_t> random_modifiable_id() const {
+            if (insertion_range_start() >= insertion_range_end()) {
                 return {};
             }
-            return rand(first_modifiable_id(), last_modifiable_id() + 1);
+            return rand(insertion_range_start(), insertion_range_end());
+        }
+
+        /* Random segment index selected among modifiable segments */
+        opt<size_t> random_insertion_id() const {
+            if (insertion_range_start() > insertion_range_end()) {
+                return {};
+            }
+            return rand(insertion_range_start(), insertion_range_end()+1);
         }
 
 //        /* Accesses the index-th segment of the trajectory */
@@ -206,7 +229,7 @@ namespace SAOP {
 
         std::vector<double>::const_iterator start_times_begin() const { return _start_times.begin(); };
 
-        std::vector<double>::const_iterator start_times_end()  const { return _start_times.end(); };
+        std::vector<double>::const_iterator start_times_end() const { return _start_times.end(); };
 
 //    /* Returns the part of a Trajectory within the IndexRange as a new Trajectory.
 //     * For each cut argument, if it is true: fixed start/end on cut
@@ -258,20 +281,32 @@ namespace SAOP {
 //
 //    }
 
-        /* Make all the maneuvers before 'man_id' unmodifiable. 'man_id' is still modifiable'*/
+        /* Make all the maneuvers before 'time' unmodifiable. 'time' is still modifiable'*/
+        void freeze_before(double time) {
+            ASSERT(_start_times.size() > 0);
+
+            for (auto man_id = 0ul; man_id < size() - 1; ++man_id) {
+                if (start_time(man_id) > time) {
+                    freeze_before(man_id);
+                    break;
+                }
+            }
+        }
+
+        /* Make all the maneuvers before 'man_index' unmodifiable. 'man_index' is still modifiable'*/
         void freeze_before(size_t man_index) {
             ASSERT(man_index <= size());
-            modifiable_range.start = man_index;
+            insertion_range.start = man_index;
         }
 
         bool can_modify(size_t man_index) const {
-            ASSERT(man_index <= size());
-            return modifiable_range.contains(man_index) || false;
+            ASSERT(man_index < size());
+            return insertion_range.contains(man_index + 1);
         }
 
-        bool can_insert_before(size_t man_index) const {
+        bool can_insert_at(size_t man_index) const {
             ASSERT(man_index <= size());
-            return modifiable_range.contains(man_index - 1) || false;
+            return insertion_range.contains(man_index);
         }
 
         /* Returns the part of a Trajectory within the TimewWindow as a new Trajectory. */
@@ -310,7 +345,7 @@ namespace SAOP {
                     (new_traj_end_i == (size() - 1)) ? _conf.max_flight_time : end_time(new_traj_end_i));
 
             Trajectory new_trajectory = Trajectory(new_conf);
-            for (size_t i = *new_traj_start_i, j = new_trajectory.first_modifiable_id();
+            for (size_t i = *new_traj_start_i, j = new_trajectory.insertion_range_start();
                  i <= new_traj_end_i; ++i, ++j) {
                 new_trajectory.insert_segment(_maneuvers[i], j);
             }
@@ -477,7 +512,7 @@ namespace SAOP {
 
         /* Adds segment to the end of the trajectory */
         void append_segment(const Segment3d& seg) {
-            ASSERT(modifiable_range.end > size())
+            ASSERT(insertion_range.end > size())
             insert_segment(seg, size());
 
             check_validity();
@@ -485,11 +520,8 @@ namespace SAOP {
 
         /* Inserts the given segment at the given index */
         void insert_segment(const Segment3d& seg, size_t at_index) {
-            ASSERT(at_index >= 0 && at_index <= size())
-            ASSERT(IndexRange(modifiable_range.start,
-                              modifiable_range.end < IndexRange::unbounded().end ? modifiable_range.end + 1
-                                                                                 : modifiable_range.end).contains(
-                    at_index))
+            ASSERT(at_index <= size())
+            ASSERT(insertion_range_start() <= at_index && at_index <= insertion_range_end())
             const double start = at_index == 0 ? _conf.start_time :
                                  end_time(at_index - 1) +
                                  _conf.uav.travel_time(_maneuvers[at_index - 1].end, seg.start);
@@ -504,7 +536,7 @@ namespace SAOP {
             }
 
             check_validity();
-            modifiable_range++;
+            insertion_range++;
         }
 
         /* Returns a new trajectory without the segment at the given index */
@@ -515,9 +547,16 @@ namespace SAOP {
         }
 
         /* Removes the segment at the given index. */
+        void erase_all_modifiable_maneuvers() {
+            while (modifiable_size() > 0) {
+                erase_segment(first_modifiable_maneuver());
+            }
+        }
+
+        /* Removes the segment at the given index. */
         void erase_segment(size_t at_index) {
             ASSERT(at_index >= 0 && at_index <= size())
-            ASSERT(modifiable_range.contains(at_index))
+            ASSERT(insertion_range.contains(at_index))
             const double gained_delay = removal_duration_gain(at_index);
             _maneuvers.erase(_maneuvers.begin() + at_index);
             _start_times.erase(_start_times.begin() + at_index);
@@ -525,7 +564,7 @@ namespace SAOP {
                 _start_times[i] -= gained_delay;
             }
             check_validity();
-            modifiable_range--;
+            insertion_range--;
         }
 
         void replace_segment(size_t at_index, const Segment3d& by_segment) {
@@ -569,7 +608,7 @@ namespace SAOP {
         /* Range of vector<Segment3d> ids where segments can be modified, removed or inserted.
          * This is independent of the start and end points that can be fixed independently of this
          * setting */
-        IndexRange modifiable_range = IndexRange::unbounded(); // All by default
+        IndexRange insertion_range = IndexRange::unbounded(); // All by default
 
         /* Recomputes length from scratch and returns it. */
         double non_incremental_length() const {

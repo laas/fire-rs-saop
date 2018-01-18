@@ -118,8 +118,8 @@ namespace SAOP::Test {
         auto& traj = solution.trajectories[0];
 //    ASSERT(traj[0] == start);
 //    ASSERT(traj[traj.size()-1] == end);
-        BOOST_CHECK(traj.first_modifiable_id() == 1);
-        BOOST_CHECK(traj.last_modifiable_id() == traj.size() - 2);
+        BOOST_CHECK(traj.insertion_range_start() == 1);
+        BOOST_CHECK(traj.insertion_range_end() == traj.size() - 2);
 
         cout << "SUCCESS" << endl;
     }

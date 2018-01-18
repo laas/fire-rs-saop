@@ -66,6 +66,100 @@ py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
     return array;
 }
 
+namespace SAOP {
+    SearchResult
+    plan_vns(vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
+        auto time = []() {
+            struct timeval tp;
+            gettimeofday(&tp, NULL);
+            return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
+        };
+        json conf = json::parse(json_conf);
+        SAOP::check_field_is_present(conf, "min_time");
+        const double min_time = conf["min_time"];
+        SAOP::check_field_is_present(conf, "max_time");
+        const double max_time = conf["max_time"];
+        SAOP::check_field_is_present(conf, "save_every");
+        const size_t save_every = conf["save_every"];
+        SAOP::check_field_is_present(conf, "save_improvements");
+        const bool save_improvements = conf["save_improvements"];
+        SAOP::check_field_is_present(conf, "vns");
+        SAOP::check_field_is_present(conf["vns"], "max_time");
+        const size_t max_planning_time = conf["vns"]["max_time"];
+
+        std::cout << "Processing firedata data" << std::endl;
+        double preprocessing_start = time();
+        shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
+        double preprocessing_end = time();
+
+        std::cout << "Building initial plan" << std::endl;
+        Plan p(configs, fire_data, TimeWindow{min_time, max_time});
+
+        std::cout << "Planning" << std::endl;
+        auto vns = build_from_config(conf["vns"].dump());
+        const double planning_start = time();
+        auto res = vns->search(p, max_planning_time, save_every, save_improvements);
+        const double planning_end = time();
+
+        std::cout << "Plan found in " << planning_end - planning_start << " seconds" << std::endl;
+        std::cout << "Best plan: utility: " << res.final_plan->utility()
+                  << " -- duration:" << res.final_plan->duration() << std::endl;
+        res.metadata["planning_time"] = planning_end - planning_start;
+        res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
+        res.metadata["configuration"] = conf;
+        return res;
+    }
+
+    SearchResult
+    replan_vns(SearchResult last_search, double after_time, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
+        auto time = []() {
+            struct timeval tp;
+            gettimeofday(&tp, NULL);
+            return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
+        };
+        json conf = json::parse(json_conf);
+        SAOP::check_field_is_present(conf, "min_time");
+        const double min_time = conf["min_time"];
+        SAOP::check_field_is_present(conf, "max_time");
+        const double max_time = conf["max_time"];
+        SAOP::check_field_is_present(conf, "save_every");
+        const size_t save_every = conf["save_every"];
+        SAOP::check_field_is_present(conf, "save_improvements");
+        const bool save_improvements = conf["save_improvements"];
+        SAOP::check_field_is_present(conf, "vns");
+        SAOP::check_field_is_present(conf["vns"], "max_time");
+        const size_t max_planning_time = conf["vns"]["max_time"];
+
+        std::cout << "Processing updated fire data" << std::endl;
+        double preprocessing_start = time();
+        shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
+        double preprocessing_end = time();
+
+        std::cout << "Building initial plan from last final plan" << std::endl;
+        Plan p = last_search.final();
+        p.firedata = fire_data;
+        p.trajectories.freeze_before(after_time);
+        p.trajectories.erase_modifiable_maneuvers();
+
+        std::cout << "Planning" << std::endl;
+        auto vns = build_from_config(conf["vns"].dump());
+        const double planning_start = time();
+        auto res = vns->search(p, max_planning_time, save_every, save_improvements);
+        const double planning_end = time();
+
+        res.metadata["planning_time"] = planning_end - planning_start;
+        res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
+        res.metadata["configuration"] = conf;
+
+        std::cout << "Plan found in " << planning_end - planning_start << " seconds" << std::endl;
+        std::cout << "Best plan: utility: " << res.final_plan->utility()
+                  << " -- duration:" << res.final_plan->duration() << std::endl;
+
+        return res;
+    }
+}
+
+
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
 PYBIND11_MODULE(uav_planning, m) {
@@ -302,88 +396,12 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("metadata", [](SearchResult& self) { return self.metadata.dump(); });
 
 
-//    m.def("replan", [](SearchResult last_result, double start_time, const std::string& json_conf) -> SearchResult {
-//              auto time = []() {
-//                  struct timeval tp;
-//                  gettimeofday(&tp, NULL);
-//                  return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
-//              };
-//              json conf = json::parse(json_conf);
-//              SAOP::check_field_is_present(conf, "min_time");
-//              const double min_time = conf["min_time"];
-//              SAOP::check_field_is_present(conf, "max_time");
-//              const double max_time = conf["max_time"];
-//              SAOP::check_field_is_present(conf, "save_every");
-//              const size_t save_every = conf["save_every"];
-//              SAOP::check_field_is_present(conf, "save_improvements");
-//              const bool save_improvements = conf["save_improvements"];
-//              SAOP::check_field_is_present(conf, "discrete_elevation_interval");
-//              const size_t discrete_elevation_interval = conf["discrete_elevation_interval"];
-//              SAOP::check_field_is_present(conf, "vns");
-//              SAOP::check_field_is_present(conf["vns"], "max_time");
-//              const size_t max_planning_time = conf["vns"]["max_time"];
-//
-//              std::cout << "Building initial plan" << std::endl;
-//              Plan p(configs, fire_data, TimeWindow{min_time, max_time});
-//
-//              std::cout << "Planning" << std::endl;
-//              auto vns = build_from_config(conf["vns"].dump());
-//              const double planning_start = time();
-//              auto res = vns->search(p, max_planning_time, save_every, save_improvements);
-//              const double planning_end = time();
-//
-//              std::cout << "Plan found" << std::endl;
-//              std::cout << "Best -> utility: " << res.final_plan->utility() << " -- duration:" << res.final_plan->duration();
-//              res.metadata["planning_time"] = planning_end - planning_start;
-//              res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
-//              res.metadata["configuration"] = conf;
-//              return res;
-//          }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
-//          py::call_guard<py::gil_scoped_release>());
+    m.def("replan_vns", SAOP::replan_vns, py::arg("last_search"), py::arg("after_time"), py::arg("ignitions_update"),
+          py::arg("elevation_update"), py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
 
 
-    m.def("plan_vns", [](vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation,
-                         const std::string& json_conf) -> SearchResult {
-              auto time = []() {
-                  struct timeval tp;
-                  gettimeofday(&tp, NULL);
-                  return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
-              };
-              json conf = json::parse(json_conf);
-              SAOP::check_field_is_present(conf, "min_time");
-              const double min_time = conf["min_time"];
-              SAOP::check_field_is_present(conf, "max_time");
-              const double max_time = conf["max_time"];
-              SAOP::check_field_is_present(conf, "save_every");
-              const size_t save_every = conf["save_every"];
-              SAOP::check_field_is_present(conf, "save_improvements");
-              const bool save_improvements = conf["save_improvements"];
-              SAOP::check_field_is_present(conf, "vns");
-              SAOP::check_field_is_present(conf["vns"], "max_time");
-              const size_t max_planning_time = conf["vns"]["max_time"];
-
-              std::cout << "Processing firedata data" << std::endl;
-              double preprocessing_start = time();
-              shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
-              double preprocessing_end = time();
-
-              std::cout << "Building initial plan" << std::endl;
-              Plan p(configs, fire_data, TimeWindow{min_time, max_time});
-
-              std::cout << "Planning" << std::endl;
-              auto vns = build_from_config(conf["vns"].dump());
-              const double planning_start = time();
-              auto res = vns->search(p, max_planning_time, save_every, save_improvements);
-              const double planning_end = time();
-
-              std::cout << "Plan found" << std::endl;
-              std::cout << "Best -> utility: " << res.final_plan->utility() << " -- duration:" << res.final_plan->duration();
-              res.metadata["planning_time"] = planning_end - planning_start;
-              res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
-              res.metadata["configuration"] = conf;
-              return res;
-          }, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
-          py::call_guard<py::gil_scoped_release>());
+    m.def("plan_vns", SAOP::plan_vns, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"),
+          py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
 }
 
 #endif //PLANNING_CPP_PYTHON_VNS_H
