@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "core/trajectory.hpp"
 #include "core/raster.hpp"
 #include "vns/factory.hpp"
+#include "firemapping/ghostmapper.hpp"
 
 #include <cstdlib>
 #include <cstring>
@@ -346,6 +347,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_property_readonly("segments", &Trajectory::maneuvers)
             .def("segment", &Trajectory::maneuver, py::arg("index"))
             .def_property_readonly("start_times", &Trajectory::start_times)
+            .def_property_readonly("modifiable", &Trajectory::modifiable)
+            .def("can_modify", &Trajectory::can_modify, py::arg("maneuver_index"))
             .def("slice", (Trajectory (Trajectory::*)(TimeWindow) const) &Trajectory::slice, py::arg("time_window"))
             .def("slice", [](Trajectory& self, py::tuple range) -> Trajectory {
                 auto tw = TimeWindow(range[0].cast<double>(), range[1].cast<double>());

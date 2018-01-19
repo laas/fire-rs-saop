@@ -208,7 +208,7 @@ namespace SAOP {
             if (insertion_range_start() > insertion_range_end()) {
                 return {};
             }
-            return rand(insertion_range_start(), insertion_range_end()+1);
+            return rand(insertion_range_start(), insertion_range_end() + 1);
         }
 
 //        /* Accesses the index-th segment of the trajectory */
@@ -307,6 +307,17 @@ namespace SAOP {
         bool can_insert_at(size_t man_index) const {
             ASSERT(man_index <= size());
             return insertion_range.contains(man_index);
+        }
+
+        std::vector<bool> modifiable() const {
+            std::vector<bool> mod{};
+            mod.reserve(size());
+
+            for (size_t i = 0; i < size(); ++i) {
+                mod.emplace_back(can_modify(i));
+            }
+
+            return mod;
         }
 
         /* Returns the part of a Trajectory within the TimewWindow as a new Trajectory. */
