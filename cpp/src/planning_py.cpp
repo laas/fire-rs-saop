@@ -140,7 +140,7 @@ namespace SAOP {
         Plan p = last_search.final();
         p.firedata = fire_data;
         p.trajectories.freeze_before(after_time);
-        p.trajectories.erase_modifiable_maneuvers();
+        p.project_on_fire_front();
 
         std::cout << "Planning" << std::endl;
         auto vns = build_from_config(conf["vns"].dump());
