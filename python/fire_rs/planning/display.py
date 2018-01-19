@@ -78,7 +78,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         Optional argument colorbar_time_range may be a tuple of start and end times in seconds.
         If the Optional argument with_colorbar is set to True, a color bar will be displayed of the trajectory.
         '''
-        if len(self.plan_trajectory.segments) < 2:
+        if len(self.plan_trajectory) < 2:
             return
         sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         x = [wp.x for wp in sampled_waypoints]
@@ -101,7 +101,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         kwargs:
             color: desired color. Default: C0.
         '''
-        if len(self.plan_trajectory.segments) < 2:
+        if len(self.plan_trajectory) < 2:
             return
         sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         color = kwargs.get('color', 'C0')
@@ -113,22 +113,22 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
 
     def _draw_segments_extension(self, *args, **kwargs):
         '''Draw observation segments with start and end points in a GeoDataDisplay figure.'''
-        if len(self.plan_trajectory.segments) < 2:
+        if len(self.plan_trajectory) < 2:
             return
         color = kwargs.get('color', 'C0')
-        segments = self.plan_trajectory.segments[1:-1]
-        start_x = [s.start.x for s in segments]
-        start_y = [s.start.y for s in segments]
-        end_x = [s.end.x for s in segments]
-        end_y = [s.end.y for s in segments]
+        py_segments = self.plan_trajectory.segments
+        start_x = [s.start.x for s in py_segments]
+        start_y = [s.start.y for s in py_segments]
+        end_x = [s.end.x for s in py_segments]
+        end_y = [s.end.y for s in py_segments]
 
-        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='D',
+        self._drawings.append(self.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='h',
                                                 zorder=TrajectoryDisplayExtension.FOREGROUND_OVERLAY_LAYER))
         self._drawings.append(self.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>',
                                                 zorder=TrajectoryDisplayExtension.FOREGROUND_OVERLAY_LAYER))
 
-        start_base = self.plan_trajectory.segments[0]
-        finish_base = self.plan_trajectory.segments[-1]
+        start_base = py_segments[0]
+        finish_base = py_segments[-1]
 
         self._drawings.append(self.axis.scatter(start_base.start.x, start_base.start.y, s=10,
                                                 edgecolor='black', c=color, marker='o',
@@ -137,7 +137,8 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                                                 edgecolor='black', c=color, marker='o',
                                                 zorder=TrajectoryDisplayExtension.FOREGROUND_OVERLAY_LAYER))
 
-        for i in range(len(segments)):
+        # Draw lines between segment bounds
+        for i in range(len(py_segments)):
             self._drawings.append(
                 self.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c=color, linewidth=2,
                                zorder=TrajectoryDisplayExtension.FOREGROUND_LAYER))
