@@ -152,6 +152,9 @@ class Planner:
         return res
 
     def _replan(self, after_time) -> 'up.SearchResult':
+        if not self.search_result:
+            logging.warning("Computing an initial plan before replanning")
+            self.compute_plan()
         # Call the C++ library that calculates the plan
         res = up.replan_vns(self.search_result, after_time,
                             self._firemap.as_cpp_raster(),
@@ -162,31 +165,6 @@ class Planner:
 
     def replan_after_time(self, after_time) -> 'up.SearchResult':
         return self._replan(after_time)
-
-    @deprecated
-    def replan(self, from_t, positions=None) -> 'up.SearchResult':
-        # At this moment we can only restart at segment start times. from_t is just a indication of
-        # wich segement we should pick to start from.
-        if self.search_result is None:
-            self.compute_plan()
-
-        if positions:
-            raise NotImplementedError("Cannot replan yet from arbitrary positions")
-
-        trajectories = self.search_result.final_plan().trajectories()
-
-        for f, t in zip(self.flights, trajectories):
-            sub_traj = t.slice((from_t, np.inf))
-            if t.start_time(0) <= from_t:
-                f.base_waypoint = Waypoint.from_cpp(sub_traj.segment(0).end)
-            else:
-                f.base_waypoint = Waypoint.from_cpp(sub_traj.segment(0).start)
-            f.start_time = from_t
-
-        observed_previously = self._searchresult.final_plan().observations(up.TimeWindow(
-            self.planning_conf['min_time'], from_t))
-        self.planning_conf['min_time'] = from_t
-        return self.compute_plan(self.search_result, )
 
     def expected_ignited_positions(self, time_window=None):
         """Get the percieved positions where the fire is suposed to be."""
@@ -218,7 +196,7 @@ class Planner:
         if self._searchresult:
             return self._searchresult.final_plan().time_window.as_tuple()
         else:
-            return (self.planning_conf['min_time'], self.planning_conf['max_time'])
+            return self.planning_conf['min_time'], self.planning_conf['max_time']
 
     @time_window.setter
     def time_window(self, value):
