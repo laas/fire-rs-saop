@@ -11,6 +11,16 @@ add_subdirectory("cpp")
 add_subdirectory("python")
 
 add_custom_command(
+        OUTPUT export_firemapping_command
+        COMMAND cp "${CMAKE_CURRENT_BINARY_DIR}/cpp/firemapping.cpython*.so" ${CMAKE_CURRENT_SOURCE_DIR}/python/fire_rs/
+        DEPENDS firemapping
+)
+
+add_custom_target(
+        export_firemapping ALL DEPENDS export_firemapping_command
+)
+
+add_custom_command(
     OUTPUT export_uav_planning_command
     COMMAND cp "${CMAKE_CURRENT_BINARY_DIR}/cpp/uav_planning.cpython*.so" ${CMAKE_CURRENT_SOURCE_DIR}/python/fire_rs/
     DEPENDS uav_planning

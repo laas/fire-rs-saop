@@ -51,6 +51,7 @@ clean:
 	cd python && python3 setup.py clean --all || true
 	rm python/fire_rs/uav_planning.cpython-*.so || true
 	rm python/fire_rs/neptus_interface.cpython-*.so || true
+	rm python/fire_rs/firemapping.cpython-*.so || true
 
 # phantom task that always need to be run
 FORCE: ;
