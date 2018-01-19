@@ -91,10 +91,11 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
             return
         sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         color = kwargs.get('color', 'C0')
+        size = kwargs.get('size', 1)
         x = [wp.x for wp in sampled_waypoints]
         y = [wp.y for wp in sampled_waypoints]
-        self._base_display.drawings.append(self._base_display.axis.scatter(x, y, s=1, edgecolors='none', c=color,
-                                                                           zorder=self._base_display.FOREGROUND_LAYER))
+        self._base_display.drawings.append(
+            self._base_display.axis.plot(x, y, linewidth=size, c=color, zorder=self._base_display.FOREGROUND_LAYER))
         # TODO: implement legend
 
     def draw_segments(self, *args, **kwargs):
@@ -140,7 +141,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                                             edgecolors='none', marker='s')
 
     def draw_observation_map(self, obs_map: 'Optional[GeoData]' = None, layer='observed',
-                              color='green', **kwargs):
+                             color='green', **kwargs):
         o_map = np.array(obs_map[layer]) if obs_map is not None else np.array(self._base_display.geodata[layer])
         o_map[~np.isnan(o_map)] = 1
 
@@ -156,16 +157,19 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
 
 
 def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None,
-                           colors: Optional[List] = None, show=False):
+                           colors: 'Optional[List]' = None, sizes: 'Optional[List[int]]' = None, show=False):
     """Plot the trajectories of a plan."""
     if not colors:
         colors = ["red", "green", "blue", "black", "magenta"]
     colors = cycle(colors)
-    for traj, color in zip(plan.trajectories(), colors):
+    if not sizes:
+        sizes = [1, 1]
+    sizes = cycle(sizes)
+    for traj, color, size in zip(plan.trajectories(), colors, sizes):
         if time_range:
             traj = traj.slice(time_range)
         geodatadisplay.TrajectoryDisplayExtension.plan_trajectory = traj
-        geodatadisplay.TrajectoryDisplayExtension.draw_solid_path(color=color)
+        geodatadisplay.TrajectoryDisplayExtension.draw_solid_path(color=color, size=size)
         geodatadisplay.TrajectoryDisplayExtension.draw_segments(color=color)
     if show:
         geodatadisplay.figure.show()
