@@ -96,7 +96,7 @@ if __name__ == '__main__':
     gdd = fire_rs.geodata.display.GeoDataDisplay(
         *fire_rs.geodata.display.get_pyplot_figure_and_axis(),
         env.raster.combine(fire.ignitions()).combine(ei_1).combine(eo_1))
-    TrajectoryDisplayExtension(None).extend(gdd)
+    gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
     gdd.draw_ignition_contour()
     gdd.draw_observation_map(layer='expected_observed', color='darkgreen', alpha=0.5)
     gdd.draw_observation_map(layer='expected_ignited', color='darkred', alpha=0.5)

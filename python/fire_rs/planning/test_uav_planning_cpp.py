@@ -33,7 +33,7 @@ import fire_rs.uav_planning as up
 
 from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.geodata.geo_data import GeoData, TimedPoint
-from fire_rs.planning.benchmark import plot_plan, PlanDisplayExtension
+from fire_rs.planning.benchmark import plot_plan, TrajectoryDisplayExtension
 
 
 # X8 UAS from Porto University
@@ -101,7 +101,7 @@ class TestUAV(unittest.TestCase):
         res = up.plan_vns([flight,], ignitions.as_cpp_raster(), env.raster.slice('elevation').as_cpp_raster(), json.dumps(conf))
 
         geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
-        PlanDisplayExtension(None).extend(geodatadisplay)
+        geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
         plan = res.final_plan()
 
         plot_plan(plan, geodatadisplay, show=True)
@@ -141,13 +141,13 @@ class TestUAV(unittest.TestCase):
         plan = res.final_plan()
 
         geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
-        PlanDisplayExtension(None).extend(geodatadisplay)
+        geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
 
         plot_plan(plan, geodatadisplay, show=True)
 
         for intermediate_plan in res.intermediate_plans:
             geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
-            PlanDisplayExtension(None).extend(geodatadisplay)
+            geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
             plot_plan(intermediate_plan, geodatadisplay, show=True)
 
         print("durations: ")

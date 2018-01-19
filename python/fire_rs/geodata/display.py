@@ -24,13 +24,10 @@
 
 """Display GeoData information on matplotlib figures"""
 
-__all__ = ['GeoDataDisplay', 'IgnitionPointDisplayExtension', 'UAVDisplayExtension']
-
-import abc
-import types
+__all__ = ['GeoDataDisplay', 'GeoDataDisplayBase', 'DisplayExtension', 'UAVDisplayExtension']
 
 from collections import Sequence
-from typing import Union
+from typing import Type, Union
 
 import matplotlib
 import matplotlib.cm
@@ -59,11 +56,11 @@ def get_pyplot_figure_and_axis():
 
 def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwargs):
     plane_vertices = (np.array([[3.5, 6], [4, 5], [4, 4], [7, 4], [7, 3],
-                      [4,   3], [4, 1], [5, 1], [5, 0], [2, 0],
-                      [2, 1], [3, 1], [3, 3], [0, 3], [0, 4],
-                      [3, 4], [3, 5]]) - np.array([3.5, 3])) * size
-    r = np.array([[np.cos(-uav_state[2]+np.pi/2), -np.sin(-uav_state[2]+np.pi/2)],
-                  [np.sin(-uav_state[2]+np.pi/2), np.cos(-uav_state[2]+np.pi/2)]])
+                                [4, 3], [4, 1], [5, 1], [5, 0], [2, 0],
+                                [2, 1], [3, 1], [3, 3], [0, 3], [0, 4],
+                                [3, 4], [3, 5]]) - np.array([3.5, 3])) * size
+    r = np.array([[np.cos(-uav_state[2] + np.pi / 2), -np.sin(-uav_state[2] + np.pi / 2)],
+                  [np.sin(-uav_state[2] + np.pi / 2), np.cos(-uav_state[2] + np.pi / 2)]])
 
     plane_polygon = matplotlib.patches.Polygon(np.matmul(plane_vertices, r) + uav_state[0:2], closed=True, fill=True,
                                                facecolor=facecolor, edgecolor=edgecolor, **kwargs)
@@ -83,7 +80,7 @@ def plot_ignition_shade(ax, x, y, ignition_times, dx=25, dy=25, image_scale=None
 def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):
     if not nfronts:
         lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
-        nfronts = int(np.clip(int((lim[1]-lim[0])/60)*10, 3, 20))
+        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 20))
     if not 'cmap' in kwargs:
         kwargs['cmap'] = matplotlib.cm.gist_rainbow
     return ax.contour(x, y, ignition_times, nfronts, **kwargs)
@@ -106,26 +103,28 @@ def plot_elevation_shade(ax, x, y, z, dx=25, dy=25, image_scale=None, **kwargs):
                      extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
                      cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), interpolation='bilinear')
 
+
 def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
     return ax.streamplot(x, y, wx, wy, density=1, linewidth=1, color='dimgrey')
 
 
 def plot_wind_quiver(ax, x, y, wx, wy, **kwargs):
-    return ax.quiver(x, y, wx, wy, pivot=kwargs.get('pivot','middle'), color=kwargs.get('color','dimgrey'), **kwargs)
+    return ax.quiver(x, y, wx, wy, pivot=kwargs.get('pivot', 'middle'), color=kwargs.get('color', 'dimgrey'), **kwargs)
 
 
 def plot_ignition_point(ax, point, **kwargs):
-    return ax.scatter(point[0], point[1], color=kwargs.get('color','r'), edgecolor=kwargs.get('edgecolor','k'),
-                      marker=kwargs.get('marker','o'), linewidth=kwargs.get('linewidth', 2), **kwargs)
+    return ax.scatter(point[0], point[1], color=kwargs.get('color', 'r'), edgecolor=kwargs.get('edgecolor', 'k'),
+                      marker=kwargs.get('marker', 'o'), linewidth=kwargs.get('linewidth', 2), **kwargs)
 
 
-class GeoDataDisplay:
-    """Draw GeoData information on a matplotlib figure.
-    
-    'draw_' methods should be called in the order from backgrund to foreground.
-    """
+class GeoDataDisplayBase:
+    BACKGROUND_LAYER = 0
+    BACKGROUND_OVERLAY_LAYER = 100
+    FOREGROUND_LAYER = 200
+    FOREGROUND_OVERLAY_LAYER = 300
+
     def __init__(self, figure, axis, geodata):
-        self._figure, self.axis = figure, axis
+        self._figure, self._axis = figure, axis
         self._geodata = geodata
 
         x = np.arange(geodata.max_x)
@@ -140,10 +139,70 @@ class GeoDataDisplay:
         self._drawings = []
         self._colorbars = []
 
+        self._extensions = {}
+
+    @property
+    def drawings(self):
+        return self._drawings
+
+    @property
+    def colorbars(self):
+        return self._colorbars
+
+    @property
+    def figure(self):
+        return self._figure
+
+    @property
+    def axis(self):
+        return self._axis
+
+    @property
+    def x_ticks(self):
+        return self._x_ticks
+
+    @property
+    def y_ticks(self):
+        return self._y_ticks
+
+    @property
+    def x_mesh(self):
+        return self._x_mesh
+
+    @property
+    def y_mesh(self):
+        return self._y_mesh
+
+    @property
+    def image_scale(self):
+        return self._image_scale
+
+    @property
+    def geodata(self):
+        return self._geodata
+
     @classmethod
     def pyplot_figure(cls, geodata):
         figure, axis = get_pyplot_figure_and_axis()
         return cls(figure, axis, geodata)
+
+    def add_extension(self, extensionclass: 'Type[DisplayExtension]', extension_args: 'tuple',
+                      extension_kwargs: 'dict'):
+        ext = extensionclass(self, *extension_args, **extension_kwargs)
+        self._extensions[ext.name] = ext
+
+    def remove_extension(self, ext_name: 'str'):
+        self._extensions.pop(ext_name)  # Remove "extension_name" element from dict
+
+    def __getattr__(self, ext_name: 'str'):
+        return self._extensions[ext_name]
+
+
+class GeoDataDisplay(GeoDataDisplayBase):
+    """Draw GeoData information on a matplotlib figure.
+    
+    'draw_' methods should be called in the order from background to foreground.
+    """
 
     def draw_elevation_shade(self, with_colorbar=True, layer='elevation', **kwargs):
         shade = plot_elevation_shade(self.axis, self._x_mesh, self._y_mesh,
@@ -169,7 +228,7 @@ class GeoDataDisplay:
             plot_wind_quiver(self.axis, *np.meshgrid(self._x_ticks[::10], self._y_ticks[::10]),
                              WX[::10, ::10], WY[::10, ::10], **kwargs))
 
-    def draw_ignition_contour(self, with_labels=True, geodata: GeoData=None, layer='ignition',
+    def draw_ignition_contour(self, with_labels=True, geodata: GeoData = None, layer='ignition',
                               **kwargs):
         # mask all cells whose ignition has not been computed
         igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
@@ -186,14 +245,14 @@ class GeoDataDisplay:
         self.axis.clabel(self._drawings[-1], inline=True, fontsize='smaller', inline_spacing=1,
                          linewidth=2, fmt='%.0f')
 
-    def draw_ignition_shade(self, with_colorbar=True, geodata: GeoData=None, layer='ignition',
+    def draw_ignition_shade(self, with_colorbar=True, geodata: GeoData = None, layer='ignition',
                             **kwargs):
         # mask all cells whose ignition has not been computed
         igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
         igni[np.abs(igni) >= np.finfo(np.float64).max] = np.nan
 
         shade = plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh,
-                                    np.around(igni.T[::-1, ...]/60., 1),
+                                    np.around(igni.T[::-1, ...] / 60., 1),
                                     dx=self._geodata.cell_width, dy=self._geodata.cell_height,
                                     image_scale=self._image_scale, **kwargs)
         self._drawings.append(shade)
@@ -206,7 +265,7 @@ class GeoDataDisplay:
         self._colorbars.append(cb)
 
     def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]', **kwargs):
-        '''Draw one or multiple ignition points in a GeoDataDisplay figure.'''
+        """Draw one or multiple ignition points in a GeoDataDisplay figure."""
         if isinstance(ignition_points[0], Sequence):  # Sequence of tuples
             for p in ignition_points:
                 self._drawings.append(plot_ignition_point(self.axis, p, **kwargs))
@@ -214,33 +273,28 @@ class GeoDataDisplay:
             self._drawings.append(plot_ignition_point(self.axis, ignition_points, **kwargs))
 
 
-# "DisplayExtension" classes attach new member functions to a GeoDataDisplay to make it able to display other data
-class DisplayExtension(metaclass=abc.ABCMeta):
-    BACKGROUND_LAYER = 0
-    BACKGROUND_OVERLAY_LAYER = 100
-    FOREGROUND_LAYER = 200
-    FOREGROUND_OVERLAY_LAYER = 300
+class DisplayExtension:
 
-    @abc.abstractmethod
-    def extend(self, geodatadisplay):
-        pass
+    def __init__(self, base_display: 'GeoDataDisplayBase', name: 'str'):
+        self._name = name  # type: 'str'
+        self._base_display = base_display  # type: 'GeoDataDisplayBase'
+
+    @property
+    def name(self) -> 'str':
+        return self._name
 
 
 class UAVDisplayExtension(DisplayExtension):
     """Extension to GeoDataDisplay that draws small uavs"""
 
-    def __init__(self, uav_state):
-        self.uav_state = uav_state
+    def __init__(self, base_display: 'GeoDataDisplayBase', uav_state_list):
+        super().__init__(base_display, self.__class__.__name__)
+        self.uav_state_list = uav_state_list
 
-    def extend(self, geodatadisplay):
-        '''Bounds draw_ignition_points to a GeoDataDisplayInstance.'''
-        geodatadisplay.uav_state = self.uav_state
-        geodatadisplay.draw_uav = types.MethodType(UAVDisplayExtension._draw_uav_extension, geodatadisplay)
-
-    def _draw_uav_extension(self, *args, **kwargs):
-        '''Draw ignition point in a GeoDataDisplay figure.'''
-        for p in self.uav_state:
-            self.drawings = plot_uav(self.axis, self.uav_state, args, kwargs)
+    def draw_uav(self, *args, **kwargs):
+        """Draw ignition point in a GeoDataDisplay figure."""
+        for p in self.uav_state_list:
+            self._base_display.drawings.append(plot_uav(self._base_display.axis, p, *args, **kwargs))
 
 
 def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25, **kwargs):

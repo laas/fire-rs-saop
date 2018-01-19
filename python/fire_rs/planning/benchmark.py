@@ -133,7 +133,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     # Create the geodatadisplay object & extensions that are going to be used
     geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
-    TrajectoryDisplayExtension(None).extend(geodatadisplay)
+    geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
 
     plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
                               output_options_plot)
@@ -160,11 +160,10 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
 
-
     # If intermediate plans are available, save them
     for i in range(len(res.intermediate_plans)):
         geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
-        TrajectoryDisplayExtension(None).extend(geodatadisplay)
+        geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
         plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
                                   output_options_plot, plan=i)
 
