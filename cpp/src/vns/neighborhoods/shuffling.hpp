@@ -53,8 +53,8 @@ namespace SAOP {
                 size_t next_removal = rand(traj.insertion_range_start(), traj.insertion_range_end());
                 size_t removed = 0;
                 while (removed < to_remove) {
-                    if (next_removal > traj.insertion_range_end())
-                        next_removal = traj.insertion_range_start();
+                    if (next_removal > traj.last_modifiable_maneuver())
+                        next_removal = traj.last_modifiable_maneuver();
                     traj.erase_segment(next_removal);
                     removed++;
                 }
