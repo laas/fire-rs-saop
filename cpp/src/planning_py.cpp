@@ -295,8 +295,8 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y, self.pt.z), self.time);
             });
 
-    py::class_<FireData>(m, "FireData")
-            .def(py::init<DRaster&, DiscreteDRaster&>(), py::arg("ignitions"), py::arg("elevation"))
+    py::class_<FireData, std::shared_ptr<FireData>>(m, "FireData")
+            .def(py::init<const DRaster&, const DRaster&>(), py::arg("ignitions"), py::arg("elevation"))
             .def_readonly("ignitions", &FireData::ignitions)
             .def_readonly("traversal_end", &FireData::traversal_end)
             .def_readonly("propagation_directions", &FireData::propagation_directions)

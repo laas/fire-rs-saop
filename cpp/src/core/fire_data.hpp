@@ -60,12 +60,6 @@ namespace SAOP {
                   propagation_directions(compute_propagation_direction(ignitions)),
                   elevation(make_shared<DRaster>(elevation)) {}
 
-        FireData(const DRaster& ignitions, const DiscreteDRaster& elevation)
-                : ignitions(ignitions),
-                  traversal_end(compute_traversal_ends(ignitions)),
-                  propagation_directions(compute_propagation_direction(ignitions)),
-                  elevation(make_shared<DiscreteDRaster>(elevation)) {}
-
         FireData(const FireData& from) = default;
 
         /** Returns true if the cell is eventually ignited. */
