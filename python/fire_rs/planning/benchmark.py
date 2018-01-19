@@ -289,7 +289,7 @@ def generate_scenario_singlefire_singleuav():
     uav_speed = 18.  # m/s
     uav_max_pitch_angle = 6. / 180. * np.pi
     uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
-    uav_bases = [Waypoint(area.xmin + 100, area.ymin + 100, 0)]
+    uav_bases = [Waypoint(area.xmin + 100, area.ymin + 100, 0, 0)]
 
     wind_speed = 15.
     wind_dir = 0.
