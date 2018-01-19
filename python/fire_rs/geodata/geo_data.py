@@ -62,11 +62,14 @@ class GeoData:
         self.max_x = array.shape[0]
         self.max_y = array.shape[1]
 
-    def as_cpp_raster(self):
-        assert len(self.layers) == 1
-        assert self.cell_width == self.cell_height
+    def as_cpp_raster(self, layer_name=None):
         import fire_rs.uav_planning as up
-        return up.DRaster(self.data, self.x_offset, self.y_offset, self.cell_height)
+        assert self.cell_width == self.cell_height
+        if layer_name is None:
+            assert len(self.layers) == 1
+            return up.DRaster(self.data, self.x_offset, self.y_offset, self.cell_height)
+        assert layer_name in self.data.dtype.names
+        return up.DRaster(self.data[layer_name], self.x_offset, self.y_offset, self.cell_height)
 
     @staticmethod
     def from_cpp_raster(raster, layer_name):
