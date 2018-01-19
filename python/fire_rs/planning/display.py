@@ -103,29 +103,51 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         if len(self.plan_trajectory) < 2:
             return
         color = kwargs.get('color', 'C0')
-        py_segments = self.plan_trajectory.segments
-        start_x = [s.start.x for s in py_segments]
-        start_y = [s.start.y for s in py_segments]
-        end_x = [s.end.x for s in py_segments]
-        end_y = [s.end.y for s in py_segments]
+        py_segments = self.plan_trajectory.segments[:]
+        py_modifi_segments = [s for i, s in enumerate(py_segments) if self.plan_trajectory.can_modify(i)]
+        py_frozen_segments = [s for i, s in enumerate(py_segments) if not self.plan_trajectory.can_modify(i)]
+
+        # Plot modifiable segments
+        start_x_m = [s.start.x for s in py_modifi_segments]
+        start_y_m = [s.start.y for s in py_modifi_segments]
+        end_x_m = [s.end.x for s in py_modifi_segments]
+        end_y_m = [s.end.y for s in py_modifi_segments]
 
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(start_x, start_y, s=10, edgecolor='black', c=color, marker='h',
+            self._base_display.axis.scatter(start_x_m, start_y_m, s=10, edgecolor='black', c=color, marker='o',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(end_x, end_y, s=10, edgecolor='black', c=color, marker='>',
+            self._base_display.axis.scatter(end_x_m, end_y_m, s=10, edgecolor='black', c=color, marker='>',
+                                            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+
+        # Plot frozen segments (all but the bases)
+        start_x_f = [s.start.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        start_y_f = [s.start.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        end_x_f = [s.end.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        end_y_f = [s.end.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+
+        self._base_display.drawings.append(
+            self._base_display.axis.scatter(start_x_f, start_y_f, s=10, edgecolor='black', c='black', marker='o',
+                                            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+        self._base_display.drawings.append(
+            self._base_display.axis.scatter(end_x_f, end_y_f, s=10, edgecolor='black', c='black', marker='>',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
         start_base = py_segments[0]
         finish_base = py_segments[-1]
 
         self._base_display.drawings.append(self._base_display.axis.scatter(
-            start_base.start.x, start_base.start.y, s=10, edgecolor='black', c=color, marker='o',
+            start_base.start.x, start_base.start.y, s=10, edgecolor=color, c=color, marker='D',
             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
         self._base_display.drawings.append(
             self._base_display.axis.scatter(finish_base.start.x, finish_base.start.y, s=10,
-                                            edgecolor='black', c=color, marker='o',
+                                            edgecolor=color, c=color, marker='D',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+
+        start_x = [s.start.x for s in py_segments]
+        start_y = [s.start.y for s in py_segments]
+        end_x = [s.end.x for s in py_segments]
+        end_y = [s.end.y for s in py_segments]
 
         # Draw lines between segment bounds
         for i in range(len(py_segments)):
