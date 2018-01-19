@@ -301,7 +301,7 @@ namespace SAOP {
 
         bool can_modify(size_t man_index) const {
             ASSERT(man_index < size());
-            return insertion_range.contains(man_index + 1);
+            return insertion_range.contains(man_index);
         }
 
         bool can_insert_at(size_t man_index) const {
