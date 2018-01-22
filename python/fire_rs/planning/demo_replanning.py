@@ -30,7 +30,8 @@ if __name__ == '__main__':
     import fire_rs.geodata.display
     from fire_rs.firemodel import propagation
     from fire_rs.geodata.geo_data import TimedPoint
-    from fire_rs.planning.planning import Planner, PlanningEnvironment, Waypoint, FlightConf, UAVConf
+    from fire_rs.planning.planning import Planner, PlanningEnvironment, Waypoint, FlightConf, \
+        UAVConf
     from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
 
     # Geographic environment (elevation, landcover, wind...)
@@ -41,18 +42,20 @@ if __name__ == '__main__':
 
     # Fire applied to the previous environment
     ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
-    fire = propagation.propagate_from_points(env, ignition_point, 180 * 60)
+    fire = propagation.propagate_from_points(env, ignition_point, 240 * 60)
 
     # Configure some flight
     base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., 100., 0.)
-    start_t = 120 * 60  # 30 minutes after the ignition
-    fgconf = FlightConf(UAVConf.X8(), start_t, base_wp)
+    start_t = 180 * 60  # 30 minutes after the ignition
+    uavconf = UAVConf.X8()
+    uavconf.max_flight_time = 1000
+    fgconf = FlightConf(uavconf, start_t, base_wp)
 
     # Write down the desired VNS configuration
     conf_vns = {
         "full": {
             "max_restarts": 5,
-            "max_time": 10.0,
+            "max_time": 5.0,
             "neighborhoods": [
                 {"name": "dubins-opt",
                  "max_trials": 100,
@@ -87,7 +90,8 @@ if __name__ == '__main__':
     conf['vns']['configuration_name'] = 'demo'
 
     # First plan
-    pl = Planner(env, fire.ignitions(), [fgconf], conf)
+    fire1 = fire.ignitions()
+    pl = Planner(env, fire1, [fgconf], conf)
     pl.compute_plan()
     sr_1 = pl.search_result
     # gdd = fire_rs.geodata.display.GeoDataDisplay(
@@ -100,7 +104,8 @@ if __name__ == '__main__':
     # 2nd PLAN
     from_t_2 = fgconf.start_time + 300
 
-    fire2 = fire.ignitions().clone(data_array=fire.ignitions()["ignition"] - 200, dtype=[('ignition', 'float64')])
+    fire2 = fire.ignitions().clone(data_array=fire.ignitions()["ignition"] + 600,
+                                   dtype=[('ignition', 'float64')])
     pl.update_firemap(fire2)
 
     sr_2 = pl.replan_after_time(from_t_2)
@@ -114,16 +119,24 @@ if __name__ == '__main__':
     # 3rd PLAN
     from_t_3 = fgconf.start_time + 600
 
-    fire3 = fire.ignitions().clone(data_array=fire.ignitions()["ignition"] + 500, dtype=[('ignition', 'float64')])
+    fire3 = fire.ignitions().clone(data_array=fire.ignitions()["ignition"] - 600,
+                                   dtype=[('ignition', 'float64')])
     pl.update_firemap(fire3)
 
     sr_3 = pl.replan_after_time(from_t_3)
 
     gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
-    gdd.draw_ignition_contour()
-    plot_plan_trajectories(sr_1.final_plan(), gdd, colors=[(1., 0., 0., 0.33)], sizes=[1], show=True)
-    plot_plan_trajectories(sr_2.final_plan(), gdd, colors=[(1., 0., 0., 0.66)], sizes=[2], show=True)
-    plot_plan_trajectories(sr_3.final_plan(), gdd, colors=[(1., 0., 0., 1.)], sizes=[3], show=True)
+    # gdd.draw_ignition_contour(geodata=fire1, cmap=matplotlib.cm.Blues)
+    # gdd.draw_ignition_contour(geodata=fire2, cmap=matplotlib.cm.Greens)
+    # gdd.draw_ignition_contour(geodata=fire3, cmap=matplotlib.cm.Reds)
+    plot_plan_trajectories(sr_3.final_plan(), gdd, colors=['red'], labels=["Final executed"],
+                           show=True)
+    plot_plan_trajectories(sr_2.final_plan(), gdd, colors=['green'], labels=["2nd plan"],
+                           linestyles=['--'], show=True)
+    plot_plan_trajectories(sr_1.final_plan(), gdd, colors=['blue'], labels=["1st plan"],
+                           linestyles=[':'], show=True)
+
+    gdd.legend()
 
     print(pl.search_result)
