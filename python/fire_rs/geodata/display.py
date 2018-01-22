@@ -197,6 +197,10 @@ class GeoDataDisplayBase:
     def __getattr__(self, ext_name: 'str'):
         return self._extensions[ext_name]
 
+    def legend(self):
+        """Draw legend of labeled plots"""
+        self._axis.legend()
+
 
 class GeoDataDisplay(GeoDataDisplayBase):
     """Draw GeoData information on a matplotlib figure.
