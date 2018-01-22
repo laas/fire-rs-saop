@@ -155,6 +155,62 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                 self._base_display.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]], c=color, linewidth=2,
                                              zorder=self._base_display.FOREGROUND_LAYER))
 
+    def draw_arrows(self, *args, **kwargs):
+        """Draw observation segments with start and end points in a GeoDataDisplay figure."""
+        if len(self.plan_trajectory) < 2:
+            return
+        color = kwargs.get('color', 'C0')
+        size = kwargs.get('size', 2)
+
+        py_segments = self.plan_trajectory.segments[:]
+        py_modifi_segments = [s for i, s in enumerate(py_segments) if
+                              self.plan_trajectory.can_modify(i)]
+        py_frozen_segments = [s for i, s in enumerate(py_segments) if
+                              not self.plan_trajectory.can_modify(i)]
+
+        # Plot modifiable segments
+        start_x_m = [s.start.x for s in py_modifi_segments]
+        start_y_m = [s.start.y for s in py_modifi_segments]
+        end_x_m = [s.end.x for s in py_modifi_segments]
+        end_y_m = [s.end.y for s in py_modifi_segments]
+
+        for i in range(len(start_x_m)):
+            self._base_display.drawings.append(
+                self._base_display.axis.arrow(start_x_m[i], start_y_m[i],
+                                              end_x_m[i] - start_x_m[i],
+                                              end_y_m[i] - start_y_m[i],
+                                              facecolor=color, edgecolor='black',
+                                              length_includes_head=True,
+                                              width=size,
+                                              zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+
+        # Plot frozen segments (all but the bases)
+        start_x_f = [s.start.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        start_y_f = [s.start.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        end_x_f = [s.end.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        end_y_f = [s.end.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+
+        for i in range(len(start_x_f)):
+            self._base_display.drawings.append(
+                self._base_display.axis.arrow(start_x_f[i], start_y_f[i],
+                                              end_x_f[i] - start_x_f[i],
+                                              end_y_f[i] - start_y_f[i],
+                                              facecolor=color, edgecolor='black',
+                                              length_includes_head=True,
+                                              width=size,
+                                              zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+
+        start_base = py_segments[0]
+        finish_base = py_segments[-1]
+
+        self._base_display.drawings.append(self._base_display.axis.scatter(
+            start_base.start.x, start_base.start.y, s=10, edgecolor=color, c=color, marker='D',
+            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+        self._base_display.drawings.append(
+            self._base_display.axis.scatter(finish_base.start.x, finish_base.start.y, s=10,
+                                            edgecolor=color, c=color, marker='D',
+                                            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+
     def draw_observedcells(self, observations, **kwargs):
         """Plot observed cells as points"""
         for ptt in observations:
