@@ -73,6 +73,13 @@ namespace SAOP {
             return travel_distance(origin, target) / max_air_speed;
         }
 
+        /* Determine whether the UAV is turning*/
+        bool is_turning(const Waypoint3d& prev, const Waypoint3d& current) const {
+            // r = dist(prev, current) / (current.dir - prev.dir)
+            // roll = atan(v^2/(r*g))
+            return !ALMOST_EQUAL(prev.dir, current.dir);
+        }
+
         /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
         std::vector<Waypoint>
         path_sampling(const Waypoint& origin, const Waypoint& target, const double step_size) const {
