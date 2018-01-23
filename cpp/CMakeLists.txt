@@ -57,7 +57,7 @@ set(MAPPING_SOURCE_FILES
         )
 
 pybind11_add_module(uav_planning ${CORE_SOURCE_FILES} ${PLANNING_SOURCE_FILES} src/planning_py.cpp)
-pybind11_add_module(firemapping ${CORE_SOURCE_FILES} ${MAPPING_SOURCE_FILES} src/firemapping_py.cpp)
+pybind11_add_module(firemapping ${CORE_SOURCE_FILES} ${PLANNING_SOURCE_FILES} ${MAPPING_SOURCE_FILES} src/firemapping_py.cpp)
 
 IF (WITH_IMC_INTERFACE)
     add_subdirectory("IMC")
