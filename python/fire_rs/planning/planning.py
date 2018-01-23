@@ -31,9 +31,11 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import fire_rs.uav_planning as up
-from fire_rs.deprecation import deprecated
+import fire_rs.firemapping as fmapping
+
 from fire_rs.firemodel.propagation import Environment, FirePropagation
 from fire_rs.geodata.geo_data import GeoData
+
 
 class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
     __slots__ = ()
@@ -132,12 +134,13 @@ class Planner:
     def __init__(self, env: 'PlanningEnvironment', firemap: 'GeoData', flights: '[FlightConf]',
                  planning_conf: 'dict'):
         assert "ignition" in firemap.layers
-        self._env = env  # type: PlanningEnvironment
-        self._firemap = firemap  # type: GeoData
-        self._flights = flights[:]  # type: List[FlightConf]
-        self._planning_conf = planning_conf  # type: dict
+        self._env = env  # type: 'PlanningEnvironment'
+        self._firemap = firemap  # type: 'GeoData'
+        self._flights = flights[:]  # type: 'List[FlightConf]'
+        self._planning_conf = planning_conf  # type: 'dict'
 
-        self._searchresult = None  # type: Optional(up.SearchResult)
+        self._searchresult = None  # type: 'Optional(up.SearchResult)'
+
 
     def compute_plan(self) -> 'up.SearchResult':
         # Retrieve trajectory configurations as C++ objects
@@ -226,7 +229,7 @@ class Planner:
             observed_firemap[layer_name][array_pos] = t
         return observed_firemap
 
-    def expected_observed_map(self, time_window=None, layer_name='observed') -> GeoData:
+    def expected_observed_map(self, time_window=None, layer_name='observed') -> 'GeoData':
         """Get a GeoData with the time of all percieved cells by the UAV camera."""
         cells = self.expected_observed_positions(time_window)
         map = self._firemap.clone(fill_value=np.nan, dtype=[(layer_name, 'float64')])
@@ -242,3 +245,22 @@ class Planner:
     @property
     def planning_conf(self) -> 'dict':
         return self._planning_conf
+
+
+class FireMapper:
+    """Easy interface to the C++ firemapper module"""
+
+    def __init__(self, env: 'Environment', true_fire: 'GeoData', true_fire_layer='ignition'):
+        elevation_draster = env.raster.as_cpp_raster('elevation')
+        ignition_draster = true_fire.as_cpp_raster(true_fire_layer)
+
+        self._gfmapper = fmapping.GhostFireMapper(up.FireData(ignition_draster, elevation_draster))
+
+    def observed_fire(self, executed_path: 'Tuple[List[up.Waypoint], List[float]]', uav: 'UAVConf',
+                      output_layer_name='ignition') -> 'GeoData':
+
+        obs_fire_raster = self._gfmapper.observed_firemap(executed_path[0], executed_path[1],
+                                                          uav.as_cpp())
+        obs_fire_geodata = GeoData.from_cpp_raster(obs_fire_raster, output_layer_name)
+
+        return obs_fire_geodata
