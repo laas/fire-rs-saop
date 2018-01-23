@@ -62,7 +62,8 @@ def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwarg
     r = np.array([[np.cos(-uav_state[2] + np.pi / 2), -np.sin(-uav_state[2] + np.pi / 2)],
                   [np.sin(-uav_state[2] + np.pi / 2), np.cos(-uav_state[2] + np.pi / 2)]])
 
-    plane_polygon = matplotlib.patches.Polygon(np.matmul(plane_vertices, r) + uav_state[0:2], closed=True, fill=True,
+    plane_polygon = matplotlib.patches.Polygon(np.matmul(plane_vertices, r) + uav_state[0:2],
+                                               closed=True, fill=True,
                                                facecolor=facecolor, edgecolor=edgecolor, **kwargs)
     return ax.add_patch(plane_polygon)
 
@@ -98,10 +99,12 @@ def plot_elevation_shade(ax, x, y, z, dx=25, dy=25, image_scale=None, **kwargs):
         image_scale = (x[0][0], x[0][x.shape[0] - 1], y[0][0], y[y.shape[0] - 1][0])
     ls = LightSource(azdeg=315, altdeg=35)
     ax.imshow(ls.hillshade(z, vert_exag=1, dx=dx, dy=dy), extent=image_scale, cmap='gray')
-    return ax.imshow(ls.shade(z, cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), blend_mode='overlay', vert_exag=1,
-                              dx=dx, dy=dy, vmin=cbar_lim[0], vmax=cbar_lim[1]),
-                     extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
-                     cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), interpolation='bilinear')
+    return ax.imshow(
+        ls.shade(z, cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), blend_mode='overlay',
+                 vert_exag=1,
+                 dx=dx, dy=dy, vmin=cbar_lim[0], vmax=cbar_lim[1]),
+        extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
+        cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), interpolation='bilinear')
 
 
 def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
@@ -109,12 +112,15 @@ def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
 
 
 def plot_wind_quiver(ax, x, y, wx, wy, **kwargs):
-    return ax.quiver(x, y, wx, wy, pivot=kwargs.get('pivot', 'middle'), color=kwargs.get('color', 'dimgrey'), **kwargs)
+    return ax.quiver(x, y, wx, wy, pivot=kwargs.get('pivot', 'middle'),
+                     color=kwargs.get('color', 'dimgrey'), **kwargs)
 
 
 def plot_ignition_point(ax, point, **kwargs):
-    return ax.scatter(point[0], point[1], color=kwargs.get('color', 'r'), edgecolor=kwargs.get('edgecolor', 'k'),
-                      marker=kwargs.get('marker', 'o'), linewidth=kwargs.get('linewidth', 2), **kwargs)
+    return ax.scatter(point[0], point[1], color=kwargs.get('color', 'r'),
+                      edgecolor=kwargs.get('edgecolor', 'k'),
+                      marker=kwargs.get('marker', 'o'), linewidth=kwargs.get('linewidth', 2),
+                      **kwargs)
 
 
 class GeoDataDisplayBase:
@@ -132,7 +138,8 @@ class GeoDataDisplayBase:
         y = np.arange(geodata.max_y)
         self._y_ticks = (y * geodata.cell_height) + geodata.y_offset
 
-        self._image_scale = (self._x_ticks[0], self._x_ticks[-1], self._y_ticks[0], self._y_ticks[-1])
+        self._image_scale = (
+            self._x_ticks[0], self._x_ticks[-1], self._y_ticks[0], self._y_ticks[-1])
 
         self._x_mesh, self._y_mesh = np.meshgrid(x, y)
 
@@ -186,8 +193,8 @@ class GeoDataDisplayBase:
         figure, axis = get_pyplot_figure_and_axis()
         return cls(figure, axis, geodata)
 
-    def add_extension(self, extensionclass: 'Type[DisplayExtension]', extension_args: 'tuple',
-                      extension_kwargs: 'dict'):
+    def add_extension(self, extensionclass: 'Type[DisplayExtension]', extension_args: 'tuple' = (),
+                      extension_kwargs: 'dict' = {}):
         ext = extensionclass(self, *extension_args, **extension_kwargs)
         self._extensions[ext.name] = ext
 
@@ -233,10 +240,14 @@ class GeoDataDisplay(GeoDataDisplayBase):
                              WX[::10, ::10], WY[::10, ::10], **kwargs))
 
     def draw_ignition_contour(self, with_labels=True, geodata: GeoData = None, layer='ignition',
-                              **kwargs):
+                              time_range=None, **kwargs):
         # mask all cells whose ignition has not been computed
         igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
         igni[igni >= np.finfo(np.float64).max] = np.nan
+
+        if time_range:
+            igni[igni > time_range[1]] = np.nan
+            igni[igni < time_range[0]] = np.nan
 
         # plot fire front with contour lines in minutes
         self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks,
@@ -268,7 +279,8 @@ class GeoDataDisplay(GeoDataDisplayBase):
         cb.set_label("Ignition time [min]")
         self._colorbars.append(cb)
 
-    def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]', **kwargs):
+    def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]',
+                             **kwargs):
         """Draw one or multiple ignition points in a GeoDataDisplay figure."""
         if isinstance(ignition_points[0], Sequence):  # Sequence of tuples
             for p in ignition_points:
@@ -298,13 +310,15 @@ class UAVDisplayExtension(DisplayExtension):
     def draw_uav(self, *args, **kwargs):
         """Draw ignition point in a GeoDataDisplay figure."""
         for p in self.uav_state_list:
-            self._base_display.drawings.append(plot_uav(self._base_display.axis, p, *args, **kwargs))
+            self._base_display.drawings.append(
+                plot_uav(self._base_display.axis, p, *args, **kwargs))
 
 
 def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25, **kwargs):
     ls = LightSource(azdeg=120, altdeg=45)
     rgb = ls.shade(z, cmap=matplotlib.cm.terrain, vert_exag=0.1, blend_mode='overlay')
-    return ax.plot_surface(x, y, z, facecolors=rgb, rstride=5, cstride=5, linewidth=0, antialiased=True, shade=True)
+    return ax.plot_surface(x, y, z, facecolors=rgb, rstride=5, cstride=5, linewidth=0,
+                           antialiased=True, shade=True)
 
 
 def plot3d_wind_arrows(ax, x, y, z, wx, wy, wz, **kwargs):
