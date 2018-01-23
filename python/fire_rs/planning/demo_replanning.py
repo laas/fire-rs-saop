@@ -27,11 +27,16 @@ if __name__ == '__main__':
     import numpy as np
     import matplotlib
     import matplotlib.cm
+
+    import fire_rs.uav_planning as op
+    import fire_rs.neptus_interface as neptus
+    import fire_rs.firemapping as fmapping
+
     import fire_rs.geodata.display
     from fire_rs.firemodel import propagation
-    from fire_rs.geodata.geo_data import TimedPoint
-    from fire_rs.planning.planning import Planner, PlanningEnvironment, Waypoint, FlightConf, \
-        UAVConf
+    from fire_rs.geodata.geo_data import TimedPoint, GeoData
+    from fire_rs.planning.planning import FireMapper, FlightConf, Planner, PlanningEnvironment, \
+        UAVConf, Waypoint
     from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
 
     # Geographic environment (elevation, landcover, wind...)
@@ -55,7 +60,7 @@ if __name__ == '__main__':
     conf_vns = {
         "full": {
             "max_restarts": 5,
-            "max_time": 5.0,
+            "max_time": 15.0,
             "neighborhoods": [
                 {"name": "dubins-opt",
                  "max_trials": 100,
@@ -127,16 +132,38 @@ if __name__ == '__main__':
 
     gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
-    # gdd.draw_ignition_contour(geodata=fire1, cmap=matplotlib.cm.Blues)
-    # gdd.draw_ignition_contour(geodata=fire2, cmap=matplotlib.cm.Greens)
-    # gdd.draw_ignition_contour(geodata=fire3, cmap=matplotlib.cm.Reds)
-    plot_plan_trajectories(sr_3.final_plan(), gdd, colors=['red'], labels=["Final executed"],
-                           show=True)
+
+    executed_path = sr_2.final_plan().trajectories()[0].sampled_with_time(step_size=10)
+    fmapper = FireMapper(env, fire3)
+    obs_1_over_fire_3 = fmapper.observed_fire(executed_path[0], executed_path[1],
+                                              pl.flights[0])
+    gdd.draw_ignition_shade(geodata=obs_1_over_fire_3, cmap=matplotlib.cm.Blues)
+
+    executed_path = sr_2.final_plan().trajectories()[0].sampled_with_time(step_size=10)
+    fmapper = FireMapper(env, fire3)
+    obs_2_over_fire_3 = fmapper.observed_fire(executed_path[0], executed_path[1],
+                                              pl.flights[0])
+    gdd.draw_ignition_shade(geodata=obs_2_over_fire_3, cmap=matplotlib.cm.Greens)
+
+    executed_path = sr_2.final_plan().trajectories()[0].sampled_with_time(step_size=10)
+    fmapper = FireMapper(env, fire3)
+    obs_2_over_fire_3 = fmapper.observed_fire(executed_path[0], executed_path[1],
+                                              pl.flights[0])
+    gdd.draw_ignition_shade(geodata=obs_2_over_fire_3, cmap=matplotlib.cm.Reds)
+
+    t_range = (sr_3.final_plan().trajectories()[0].start_time(0),
+               sr_3.final_plan().trajectories()[0].end_time(len(
+                   sr_3.final_plan().trajectories()[0]) - 1))
+    gdd.draw_ignition_contour(geodata=fire1, time_range=t_range, cmap=matplotlib.cm.Blues)
+    gdd.draw_ignition_contour(geodata=fire2, time_range=t_range, cmap=matplotlib.cm.Greens)
+    gdd.draw_ignition_contour(geodata=fire3, time_range=t_range, cmap=matplotlib.cm.Reds)
+    plot_plan_trajectories(sr_3.final_plan(), gdd, colors=['red'], labels=["Final executed"])
     plot_plan_trajectories(sr_2.final_plan(), gdd, colors=['green'], labels=["2nd plan"],
-                           linestyles=['--'], show=True)
+                           linestyles=['--'])
     plot_plan_trajectories(sr_1.final_plan(), gdd, colors=['blue'], labels=["1st plan"],
-                           linestyles=[':'], show=True)
+                           linestyles=[':'])
 
     gdd.legend()
+    gdd.figure.show()
 
     print(pl.search_result)
