@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <pybind11/numpy.h> // support for numpy arrays
 
 #include "firemapping/ghostmapper.hpp"
+#include "core/raster.hpp"
 #include "cpp_py_utils.hpp"
 
 namespace py = pybind11;
@@ -40,11 +41,18 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 PYBIND11_MODULE(firemapping, m) {
     m.doc() = "Fire mapping algorithms";
 
-    py::class_<GhostFireMapper>(m, "GhostFireMapper")
+    py::class_<GhostFireMapper<double>>(m, "GhostFireMapper")
             .def(py::init<std::shared_ptr<FireData>>(), py::arg("environment_gt"))
-            .def("observed_firemap", [](GhostFireMapper& self, const Trajectory& traj) {
-                return self.observed_fire<double>(traj);
-            }, py::arg("trajectory"));
+            .def("observed_firemap", (GenRaster<double> (GhostFireMapper<double>::*)(
+                    const Trajectory&) const) &GhostFireMapper<double>::observed_fire, py::arg("trajectory"))
+            .def("observed_firemap", (GenRaster<double> (GhostFireMapper<double>::*)(const Trajectories&) const)
+                    &GhostFireMapper<double>::observed_fire, py::arg("trajectories"))
+            .def("observed_firemap",
+                 (GenRaster<double> (GhostFireMapper<double>::*)(const std::vector<Waypoint3d>&,
+                                                                 const std::vector<double>&,
+                                                                 const UAV&) const)
+                         &GhostFireMapper<double>::observed_fire, py::arg("waypoint3d_list"), py::arg("time_list"),
+                 py::arg("uav"));
 
 }
 

@@ -24,6 +24,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #ifndef PLANNING_CPP_GHOSTMAPPER_HPP
 
+#include <vector>
+#include <memory>
+
 #include "../core/fire_data.hpp"
 #include "../core/raster.hpp"
 #include "../core/trajectories.hpp"
@@ -33,20 +36,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
+    /* Create the map of the fire seen from a trajectory */
+    template<typename T>
     class GhostFireMapper {
-        /* Create the map of the fire seen from a trajectory */
-
-
     public:
-        explicit GhostFireMapper(shared_ptr<FireData> environment_gt) : _environment(environment_gt) {}
+        explicit GhostFireMapper(shared_ptr<FireData> environment_gt) : _environment(std::move(environment_gt)) {}
 
 //        shared_ptr<FireData> environment_gt() const {
 //            return _environment;
 //        }
 
-        /* Obtain a raster with only the observed fire cells set. The rest of the cells are Nan*/
-        template<typename T>
-        GenRaster<T> observed_fire(const Trajectory& traj) {
+        /* Obtain a raster filled with the observed cells from traj. Unseen cells are set to NaN*/
+        GenRaster<T> observed_fire(const Trajectory& traj) const {
             GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
 
             for (auto i = 0ul; i < traj.size(); ++i) {
@@ -65,9 +66,8 @@ namespace SAOP {
             return fire;
         }
 
-        /* Obtain a raster with only the observed fire cells set. The rest of the cells are Nan*/
-        template<typename T>
-        GenRaster<T> observed_fire(const Trajectories& trajs) {
+        /* Obtain a raster filled with the observed cells from trajs. Unseen cells are set to NaN*/
+        GenRaster<T> observed_fire(const Trajectories& trajs) const {
             GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
 
             for (const auto& traj: trajs.trajectories) {
@@ -86,6 +86,67 @@ namespace SAOP {
                 }
             }
             return fire;
+        }
+
+        /* Obtain a raster filled with the observed cells from shot_tag_list positions with uav's camera.
+         * Unseen cells are set to NaN*/
+        GenRaster<T> observed_fire(const vector<Waypoint3d>& shot_wp_list,
+                                   const vector<double>& shot_time_list, const UAV& uav) const {
+            ASSERT(shot_wp_list.size() > 1);
+            ASSERT(shot_wp_list.size() == shot_time_list.size());
+            GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
+
+            auto it_wp = shot_wp_list.begin();
+            auto it_t = shot_time_list.begin();
+            for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
+                if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
+                    opt<std::vector<Cell>> ignited_cells =
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width,
+                                                         uav.view_depth, fire);
+                    if (ignited_cells) {
+                        for (const auto& c: *ignited_cells) {
+                            TimeWindow fire_time_window = TimeWindow{_environment->ignitions(c),
+                                                                     _environment->traversal_end(c)};
+                            if (fire_time_window.contains(*it_t)) {
+                                fire.set(c, _environment->ignitions(c));
+                            }
+                        }
+
+                    }
+                }
+            }
+            return fire;
+        }
+
+
+        /* Obtain a raster filled with the observed cells from shot_tag_list positions with uav's camera.
+         * Unseen cells are set to NaN*/
+        std::vector<PositionTime> observed_fire_locations(const vector<Waypoint3d>& shot_wp_list,
+                                                          const vector<double>& shot_time_list, const UAV& uav) const {
+            ASSERT(shot_wp_list.size() == shot_time_list.size());
+            std::vector<PositionTime> fire_cells = {};
+
+            auto it_wp = shot_wp_list.begin();
+            auto it_t = shot_time_list.begin();
+            for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
+                if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
+                    opt<std::vector<Cell>> ignited_cells =
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width,
+                                                         uav.view_depth, _environment->ignitions);
+                    if (ignited_cells) {
+                        for (const auto& c: *ignited_cells) {
+                            TimeWindow fire_time_window = TimeWindow{_environment->ignitions(c),
+                                                                     _environment->traversal_end(c)};
+                            if (fire_time_window.contains(*it_t)) {
+                                fire_cells.emplace_back(PositionTime(_environment->ignitions.as_position(c),
+                                                                     _environment->ignitions(c)));
+                            }
+                        }
+
+                    }
+                }
+            }
+            return fire_cells;
         }
 
     private:
