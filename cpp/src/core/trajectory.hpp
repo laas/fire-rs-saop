@@ -400,6 +400,23 @@ namespace SAOP {
         /* Returns the trajectory as a set of waypoints.
          * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
          * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
+        std::pair<std::vector<Waypoint3d>, std::vector<double>> as_waypoints_with_time() const {
+            std::vector<Waypoint3d> waypoints;
+            std::vector<double> time;
+            for (auto i = 0ul; i < _maneuvers.size(); ++i) {
+                waypoints.push_back(_maneuvers[i].start);
+                time.push_back(_start_times[i]);
+                if (_maneuvers[i].length > 0) {
+                    waypoints.push_back(_maneuvers[i].end);
+                    time.push_back(end_time(i));
+                }
+            }
+            return {waypoints, time};
+        }
+
+        /* Returns the trajectory as a set of waypoints.
+         * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
+         * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
         std::vector<Waypoint3d> sampled(const double step_size = 1) const {
             ASSERT(step_size > 0);
             std::vector<Waypoint3d> waypoints = as_waypoints();
@@ -411,6 +428,36 @@ namespace SAOP {
                 sampled.insert(sampled.end(), local_sampled.begin(), local_sampled.end());
             }
             return sampled;
+        }
+
+        /* Returns the trajectory as a set of waypoints.
+         * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
+         * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
+        std::pair<std::vector<Waypoint3d>, std::vector<double>> sampled_with_time(const double step_size = 1) const {
+            ASSERT(step_size > 0);
+
+            auto waypoints_time = as_waypoints_with_time();
+
+            std::vector<Waypoint3d> sampled;
+            std::vector<double> time;
+
+            if (std::get<0>(waypoints_time).size() == 1) {
+                sampled.push_back(std::get<0>(waypoints_time)[0]);
+                time.push_back(std::get<1>(waypoints_time)[0]);
+            }
+            // Time of the first waypoint -> start time
+            double cumulated_travel_time = std::get<1>(waypoints_time)[0];
+
+            for (int i = 0; i < (int) std::get<0>(waypoints_time).size() - 1; i++) {
+                // Sample trajectory between waypoints
+                auto local_sampled = _conf.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
+                                                                       std::get<0>(waypoints_time)[i + 1], step_size,
+                                                                       cumulated_travel_time);
+                sampled.insert(sampled.end(), std::get<0>(local_sampled).begin(), std::get<0>(local_sampled).end());
+                time.insert(time.end(), std::get<1>(local_sampled).begin(), std::get<1>(local_sampled).end());
+                cumulated_travel_time = time.back();
+            }
+            return {sampled, time};
         }
 
         /* Increase of length as result of inserting the given segment at the given position */

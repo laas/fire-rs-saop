@@ -360,6 +360,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints)
             .def("sampled", &Trajectory::sampled, py::arg("step_size") = 1)
+            .def("sampled_with_time", &Trajectory::sampled_with_time, py::arg("step_size") = 1)
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
             .def("__repr__", &Trajectory::to_string)
             .def("trace", [](Trajectory& self, const DRaster& r) {

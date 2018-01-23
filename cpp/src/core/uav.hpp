@@ -103,6 +103,25 @@ namespace SAOP {
             return waypoints;
         }
 
+        /* Returns a sequence of waypoints with its corresponding time following the dubins trajectory,
+         * one every step_size distance units. */
+        std::pair<std::vector<Waypoint3d>, std::vector<double>>
+        path_sampling_with_time(const Waypoint3d& origin, const Waypoint3d& target, const double step_size,
+                                double t_start) const {
+            ASSERT(step_size > 0);
+            Dubins3dPath path = Dubins3dPath(origin, target, min_turn_radius, max_pitch_angle);
+            std::vector<Waypoint3d> waypoints;
+            std::vector<double> times;
+
+            for (double it = 0; it < path.L_2d; it += step_size) {
+                waypoints.push_back(path.sample(it));
+                times.push_back(t_start + it / max_air_speed);
+            }
+            waypoints.push_back(target);
+            times.push_back(t_start + path.L_2d / max_air_speed);
+            return {waypoints, times};
+        }
+
         /** Rotates the given segment on the center of the visibility area. */
         Segment rotate_on_visibility_center(const Segment& segment, double target_dir) const {
             const double visibility_depth = segment.length + view_depth;
