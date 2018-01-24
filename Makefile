@@ -1,21 +1,24 @@
+BUILD_FOLDER=build
+BUILD_DEBUG_FOLDER=build-debug
+BUILD_TESTING_FOLDER=build-testing
 
 build: build-release
 
 # Builds all python extensions 
 build-release: FORCE
-	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IMC_INTERFACE=ON ..
-	cd build && make
+	mkdir -p $(BUILD_FOLDER)
+	cd $(BUILD_FOLDER) && cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IMC_INTERFACE=ON ..
+	cd $(BUILD_FOLDER) && make
 
 build-debug: FORCE
-	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DWITH_IMC_INTERFACE=ON ..
-	cd build && make
+	mkdir -p $(BUILD_DEBUG_FOLDER)
+	cd $(BUILD_DEBUG_FOLDER) && cmake -DCMAKE_BUILD_TYPE=Debug -DWITH_IMC_INTERFACE=ON ..
+	cd $(BUILD_DEBUG_FOLDER) && make
 	
 build-testing: FORCE
-	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
-	cd build && make
+	mkdir -p $(BUILD_TESTING_FOLDER)
+	cd $(BUILD_TESTING_FOLDER) && cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
+	cd $(BUILD_TESTING_FOLDER) && make
 
 # rebuilds project each time a C++ source is modified
 # this requires the "when-changed" program" that is installed in the docker container
@@ -40,14 +43,15 @@ test-python-cpp: build-testing FORCE
 	cd python && python3 -m unittest python.fire_rs.planning.test_uav_planning_cpp
 
 test-cpp: build-testing
-	./build/cpp/tests
+	./$(BUILD_TESTING_FOLDER)/cpp/tests
 
 benchmark: build-release FORCE
 	cd python && PYTHONPATH="${PYTHONPATH}:./python/" python3 fire_rs/planning/benchmark.py
-
 # Remove the build folder and clean python source dir
 clean:
-	rm -r build || true
+	rm -r $(BUILD_FOLDER) || true
+	rm -r $(BUILD_DEBUG_FOLDER) || true
+	rm -r $(BUILD_TESTING_FOLDER) || true
 	cd python && python3 setup.py clean --all || true
 	rm python/fire_rs/uav_planning.cpython-*.so || true
 	rm python/fire_rs/neptus_interface.cpython-*.so || true

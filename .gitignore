@@ -82,3 +82,7 @@ missing
 
 # Jupyter notebooks
 .ipynb_checkpoints
+
+# Our build
+build-debug/
+build-testing/
