@@ -85,6 +85,11 @@ namespace SAOP {
                 data[i] = 0;
         }
 
+        bool is_like(const GenRaster<T>& other) const {
+            return x_width == other.x_width && y_height == other.y_height && x_offset == other.x_offset &&
+                   y_offset == other.y_offset && cell_width == other.cell_width;
+        }
+
         inline virtual T operator()(Cell cell) const {
             return (*this)(cell.x, cell.y);
         }

@@ -433,7 +433,7 @@ namespace SAOP {
         /* Returns the trajectory as a set of waypoints.
          * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
          * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
-        std::pair<std::vector<Waypoint3d>, std::vector<double>> sampled_with_time(const double step_size = 1) const {
+        std::pair<std::vector<Waypoint3d>, std::vector<double>> sampled_with_time(double step_size = 1) const {
             ASSERT(step_size > 0);
 
             auto waypoints_time = as_waypoints_with_time();

@@ -26,7 +26,7 @@ import json
 import logging
 import types
 from collections import namedtuple
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -141,6 +141,7 @@ class Planner:
 
         self._searchresult = None  # type: 'Optional(up.SearchResult)'
 
+        self._obs_fire_raster = None  # type: 'GeoData'
 
     def compute_plan(self) -> 'up.SearchResult':
         # Retrieve trajectory configurations as C++ objects
@@ -250,17 +251,24 @@ class Planner:
 class FireMapper:
     """Easy interface to the C++ firemapper module"""
 
-    def __init__(self, env: 'Environment', true_fire: 'GeoData', true_fire_layer='ignition'):
+    def __init__(self, env: 'Environment', true_fire: 'GeoData', true_fire_layer='ignition',
+                 output_fire_layer='ignition', output_observed_layer='observed'):
         elevation_draster = env.raster.as_cpp_raster('elevation')
         ignition_draster = true_fire.as_cpp_raster(true_fire_layer)
 
+        self.output_fire_layer = output_fire_layer
+        self.output_observed_layer = output_observed_layer
+
         self._gfmapper = fmapping.GhostFireMapper(up.FireData(ignition_draster, elevation_draster))
 
-    def observed_fire(self, executed_path: 'Tuple[List[up.Waypoint], List[float]]', uav: 'UAVConf',
-                      output_layer_name='ignition') -> 'GeoData':
+    @property
+    def firemap(self) -> 'GeoData':
+        return GeoData.from_cpp_raster(self._gfmapper.firemap, self.output_fire_layer)
 
-        obs_fire_raster = self._gfmapper.observed_firemap(executed_path[0], executed_path[1],
-                                                          uav.as_cpp())
-        obs_fire_geodata = GeoData.from_cpp_raster(obs_fire_raster, output_layer_name)
+    @property
+    def observed(self) -> 'GeoData':
+        return GeoData.from_cpp_raster(self._gfmapper.observed, self.output_fire_layer)
 
-        return obs_fire_geodata
+    def observe(self, executed_path: 'Sequence[List[up.Waypoint], List[float]]',
+                uav: 'UAVConf'):
+        self._gfmapper.observe(executed_path[0], executed_path[1], uav.as_cpp())

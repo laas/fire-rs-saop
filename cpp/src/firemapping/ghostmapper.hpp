@@ -40,61 +40,59 @@ namespace SAOP {
     template<typename T>
     class GhostFireMapper {
     public:
-        explicit GhostFireMapper(shared_ptr<FireData> environment_gt) : _environment(std::move(environment_gt)) {}
+        explicit GhostFireMapper(shared_ptr<FireData> environment_gt)
+                : _environment(environment_gt),
+                  _fire_map(GenRaster<T>(environment_gt->ignitions, std::numeric_limits<T>::quiet_NaN())),
+                  _observed(GenRaster<T>(environment_gt->ignitions, std::numeric_limits<T>::quiet_NaN())) {}
 
-//        shared_ptr<FireData> environment_gt() const {
-//            return _environment;
-//        }
+        GhostFireMapper(shared_ptr<FireData> environment_gt, GenRaster<T> firemap, GenRaster<T> observed)
+                : _environment(std::move(environment_gt)),
+                  _fire_map(std::move(firemap)),
+                  _observed(std::move(observed)) {}
 
-        /* Obtain a raster filled with the observed cells from traj. Unseen cells are set to NaN*/
-        GenRaster<T> observed_fire(const Trajectory& traj) const {
-            GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
+//        shared_ptr<FireData> environment_gt() const;
 
-            for (auto i = 0ul; i < traj.size(); ++i) {
-                opt<std::vector<Cell>> ignited_cells =
-                        *RasterMapper::segment_trace(traj.maneuver(i), traj.conf().uav.view_width,
-                                                     traj.conf().uav.view_depth, fire);
-                if (ignited_cells) {
-                    for (const auto& c: *ignited_cells) {
-                        if (traj.start_time(i) <= _environment->ignitions(c) &&
-                            _environment->ignitions(c) <= traj.end_time(i)) {
-                            fire.set(c, _environment->ignitions(c));
-                        }
-                    }
-                }
-            }
-            return fire;
+        /* Get the current fire map*/
+        const GenRaster<T>& firemap() const {
+            return _fire_map;
         }
 
-        /* Obtain a raster filled with the observed cells from trajs. Unseen cells are set to NaN*/
-        GenRaster<T> observed_fire(const Trajectories& trajs) const {
-            GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
-
-            for (const auto& traj: trajs.trajectories) {
-                for (auto i = 0ul; i < traj.size(); ++i) {
-                    opt<std::vector<Cell>> ignited_cells =
-                            *RasterMapper::segment_trace(traj.maneuver(i), traj.conf().uav.view_width,
-                                                         traj.conf().uav.view_depth, fire);
-                    if (ignited_cells) {
-                        for (const auto& c: *ignited_cells) {
-                            if (traj.start_time(i) <= _environment->ignitions(c) &&
-                                _environment->ignitions(c) <= traj.end_time(i)) {
-                                fire.set(c, _environment->ignitions(c));
-                            }
-                        }
-                    }
-                }
-            }
-            return fire;
+        /* Get the current fire map*/
+        const GenRaster<T>& observed() const {
+            return _observed;
         }
 
-        /* Obtain a raster filled with the observed cells from shot_tag_list positions with uav's camera.
-         * Unseen cells are set to NaN*/
+
+        void observe(const Trajectory& traj) {
+            auto wp_t = traj.as_waypoints_with_time();
+            observed_fire(std::move(std::get<0>(wp_t)), std::move(std::get<1>(wp_t)), traj.conf().uav,
+                          _fire_map, _observed);
+        }
+
+        void observe(const Trajectories& trajs) {
+            for (const auto& t: trajs.trajectories) {
+                observe(t);
+            }
+        }
+
+        void observe(const vector<Waypoint3d>& wp_list, const vector<double>& time_list, const UAV& uav) {
+            observed_fire(wp_list, time_list, uav, _fire_map, _observed);
+        }
+
         GenRaster<T> observed_fire(const vector<Waypoint3d>& shot_wp_list,
-                                   const vector<double>& shot_time_list, const UAV& uav) const {
+                                                       const vector<double>& shot_time_list, const UAV& uav) const {
+            GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
+            return observed_fire(shot_wp_list, shot_time_list, uav, _environment->ignitions);
+        }
+
+        GenRaster<T> observed_fire(const vector<Waypoint3d>& shot_wp_list,
+                                                       const vector<double>& shot_time_list, const UAV& uav,
+                                                       const GenRaster<T>& like) const {
             ASSERT(shot_wp_list.size() > 1);
             ASSERT(shot_wp_list.size() == shot_time_list.size());
-            GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
+            ASSERT(like.is_like(_environment->ignitions))
+            GenRaster<T> fire = GenRaster<T>(like.data, like.x_width, like.y_height,
+                                             like.x_offset, like.y_offset, like.cell_width);
 
             auto it_wp = shot_wp_list.begin();
             auto it_t = shot_time_list.begin();
@@ -118,11 +116,40 @@ namespace SAOP {
             return fire;
         }
 
+        void observed_fire(const vector<Waypoint3d>& shot_wp_list,
+                                               const vector<double>& shot_time_list, const UAV& uav,
+                                               GenRaster<T>& fire_raster, GenRaster<T>& obs_raster) const {
+            ASSERT(shot_wp_list.size() > 1);
+            ASSERT(shot_wp_list.size() == shot_time_list.size());
+            ASSERT(fire_raster.is_like(_environment->ignitions))
+            ASSERT(obs_raster.is_like(_environment->ignitions))
 
-        /* Obtain a raster filled with the observed cells from shot_tag_list positions with uav's camera.
-         * Unseen cells are set to NaN*/
+            auto it_wp = shot_wp_list.begin();
+            auto it_t = shot_time_list.begin();
+            for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
+                if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
+                    opt<std::vector<Cell>> ignited_cells =
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width,
+                                                         uav.view_depth, obs_raster);
+                    if (ignited_cells) {
+                        for (const auto& c: *ignited_cells) {
+                            TimeWindow fire_time_window = TimeWindow{_environment->ignitions(c),
+                                                                     _environment->traversal_end(c)};
+                            obs_raster.set(c, *it_t); // Set the time the cell was observed
+                            if (fire_time_window.contains(*it_t)) {
+                                // Set the time the cell was observed ON FIRE
+                                fire_raster.set(c, *it_t);
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
         std::vector<PositionTime> observed_fire_locations(const vector<Waypoint3d>& shot_wp_list,
-                                                          const vector<double>& shot_time_list, const UAV& uav) const {
+                                                                              const vector<double>& shot_time_list,
+                                                                              const UAV& uav) const {
             ASSERT(shot_wp_list.size() == shot_time_list.size());
             std::vector<PositionTime> fire_cells = {};
 
@@ -148,9 +175,10 @@ namespace SAOP {
             }
             return fire_cells;
         }
-
     private:
         shared_ptr<FireData> _environment;
+        GenRaster<T> _fire_map;
+        GenRaster<T> _observed;
     };
 
 }

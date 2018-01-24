@@ -43,11 +43,19 @@ PYBIND11_MODULE(firemapping, m) {
 
     py::class_<GhostFireMapper<double>>(m, "GhostFireMapper")
             .def(py::init<std::shared_ptr<FireData>>(), py::arg("environment_gt"))
-            .def("observed_firemap", (GenRaster<double> (GhostFireMapper<double>::*)(
-                    const Trajectory&) const) &GhostFireMapper<double>::observed_fire, py::arg("trajectory"))
-            .def("observed_firemap", (GenRaster<double> (GhostFireMapper<double>::*)(const Trajectories&) const)
-                    &GhostFireMapper<double>::observed_fire, py::arg("trajectories"))
-            .def("observed_firemap",
+
+            .def_readonly("firemap", &GhostFireMapper<double>::firemap)
+            .def_readonly("observed", &GhostFireMapper<double>::observed)
+
+            .def("observe", (void (GhostFireMapper<double>::*)(const Trajectory&)) &GhostFireMapper<double>::observe,
+                 py::arg("trajectory"))
+            .def("observe", (void (GhostFireMapper<double>::*)(const Trajectories&)) &GhostFireMapper<double>::observe,
+                 py::arg("trajectories"))
+            .def("observe", (void (GhostFireMapper<double>::*)(const vector<Waypoint3d>&, const vector<double>&,
+                                                               const UAV&)) &GhostFireMapper<double>::observe,
+                 py::arg("waypoint3d_list"), py::arg("time_list"), py::arg("uav"))
+
+            .def("observed_fire",
                  (GenRaster<double> (GhostFireMapper<double>::*)(const std::vector<Waypoint3d>&,
                                                                  const std::vector<double>&,
                                                                  const UAV&) const)
