@@ -43,14 +43,14 @@ if __name__ == '__main__':
     wind = (10., 0.)
     area = ((480060.0, 485060.0), (6210074.0, 6215074.0))
     env = PlanningEnvironment(area, wind_speed=wind[0], wind_dir=wind[1],
-                              planning_elevation_mode='flat', flat_altitude=100)
+                              planning_elevation_mode='flat', flat_altitude=0)
 
     # Fire applied to the previous environment
     ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
     fire = propagation.propagate_from_points(env, ignition_point, 240 * 60)
 
     # Configure some flight
-    base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., 100., 0.)
+    base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.)
     start_t = 180 * 60  # 30 minutes after the ignition
     uavconf = UAVConf.X8()
     uavconf.max_flight_time = 1000
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     conf_vns = {
         "full": {
             "max_restarts": 5,
-            "max_time": 15.0,
+            "max_time": 30.0,
             "neighborhoods": [
                 {"name": "dubins-opt",
                  "max_trials": 100,
@@ -92,77 +92,129 @@ if __name__ == '__main__':
         'discrete_elevation_interval': 0,
         'vns': conf_vns['full']
     }
-    conf['vns']['configuration_name'] = 'demo'
+    conf['vns']['configuration_name'] = 'full'
 
-    # First plan
+    ####################################
+    # 1st PLAN
     fire1 = fire.ignitions()
     pl = Planner(env, fire1, [fgconf], conf)
     pl.compute_plan()
     sr_1 = pl.search_result
-    # gdd = fire_rs.geodata.display.GeoDataDisplay(
-    #     *fire_rs.geodata.display.get_pyplot_figure_and_axis(),
-    #     env.raster.combine(fire.ignitions()))
-    # gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
-    # gdd.draw_ignition_contour()
-    # plot_plan_trajectories(sr_1.final_plan(), gdd, colors=["orangered"], show=True)
 
     # 2nd PLAN
     from_t_2 = fgconf.start_time + 300
-
     fire2 = fire.ignitions().clone(data_array=fire.ignitions()["ignition"] + 600,
                                    dtype=[('ignition', 'float64')])
     pl.update_firemap(fire2)
-
     sr_2 = pl.replan_after_time(from_t_2)
-
-    # gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire2))
-    # gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
-    # gdd.draw_ignition_contour()
-    # plot_plan_trajectories(sr_1.final_plan(), gdd, colors=["darkgray"], show=True)
-    # plot_plan_trajectories(sr_2.final_plan(), gdd, colors=["orangered"], show=True)
 
     # 3rd PLAN
     from_t_3 = fgconf.start_time + 600
-
     fire3 = fire.ignitions().clone(data_array=fire.ignitions()["ignition"] - 600,
                                    dtype=[('ignition', 'float64')])
     pl.update_firemap(fire3)
-
     sr_3 = pl.replan_after_time(from_t_3)
 
+    fmapper = FireMapper(env, fire3)  # fire3 is the ground thruth
+
+    ####################################
+    # 1st figure: show only the first plan
     gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
 
-    executed_path = sr_2.final_plan().trajectories()[0].sampled_with_time(step_size=10)
-    fmapper = FireMapper(env, fire3)
-    obs_1_over_fire_3 = fmapper.observed_fire(executed_path[0], executed_path[1],
-                                              pl.flights[0])
-    gdd.draw_ignition_shade(geodata=obs_1_over_fire_3, cmap=matplotlib.cm.Blues)
-
-    executed_path = sr_2.final_plan().trajectories()[0].sampled_with_time(step_size=10)
-    fmapper = FireMapper(env, fire3)
-    obs_2_over_fire_3 = fmapper.observed_fire(executed_path[0], executed_path[1],
-                                              pl.flights[0])
-    gdd.draw_ignition_shade(geodata=obs_2_over_fire_3, cmap=matplotlib.cm.Greens)
-
-    executed_path = sr_2.final_plan().trajectories()[0].sampled_with_time(step_size=10)
-    fmapper = FireMapper(env, fire3)
-    obs_2_over_fire_3 = fmapper.observed_fire(executed_path[0], executed_path[1],
-                                              pl.flights[0])
-    gdd.draw_ignition_shade(geodata=obs_2_over_fire_3, cmap=matplotlib.cm.Reds)
-
-    t_range = (sr_3.final_plan().trajectories()[0].start_time(0),
+    # Draw expected fire contour
+    t_range = (sr_3.final_plan().trajectories()[0].start_time(0) - 120,
                sr_3.final_plan().trajectories()[0].end_time(len(
-                   sr_3.final_plan().trajectories()[0]) - 1))
+                   sr_3.final_plan().trajectories()[0]) - 1) + 120)
     gdd.draw_ignition_contour(geodata=fire1, time_range=t_range, cmap=matplotlib.cm.Blues)
-    gdd.draw_ignition_contour(geodata=fire2, time_range=t_range, cmap=matplotlib.cm.Greens)
-    gdd.draw_ignition_contour(geodata=fire3, time_range=t_range, cmap=matplotlib.cm.Reds)
-    plot_plan_trajectories(sr_3.final_plan(), gdd, colors=['red'], labels=["Final executed"])
-    plot_plan_trajectories(sr_2.final_plan(), gdd, colors=['green'], labels=["2nd plan"],
-                           linestyles=['--'])
-    plot_plan_trajectories(sr_1.final_plan(), gdd, colors=['blue'], labels=["1st plan"],
-                           linestyles=[':'])
 
+    # Draw observed fire
+    executed_path_1 = sr_1.final_plan().trajectories()[0].sampled_with_time((0, from_t_2),
+                                                                            step_size=10)
+    fmapper.observe(executed_path_1, pl.flights[0].uav)
+    gdd.draw_ignition_shade(geodata=fmapper.firemap, cmap=matplotlib.cm.viridis,
+                            vmin=t_range[0], vmax=t_range[1])
+
+    # Draw trajectory
+    plot_plan_trajectories(sr_1.final_plan(), gdd, trajectories=0, draw_segments=False,
+                           colors=['blue'], labels=["1st plan"], linestyles=[':'])
+    plot_plan_trajectories(sr_1.final_plan(), gdd, time_range=(0, from_t_2 - 60), trajectories=0,
+                           colors=['blue'], labels=["executed"], linestyles=['-'])
+    gdd.legend()
+    gdd.figure.show()
+
+    ####################################
+    # 2nd figure: First and second plan
+    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
+    gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
+
+    # Draw expected fire contour
+    t_range = (sr_3.final_plan().trajectories()[0].start_time(0) - 120,
+               sr_3.final_plan().trajectories()[0].end_time(len(
+                   sr_3.final_plan().trajectories()[0]) - 1) + 120)
+    gdd.draw_ignition_contour(geodata=fire2, time_range=t_range, cmap=matplotlib.cm.Greens)
+
+    # Draw observed fire
+    executed_path_2 = sr_2.final_plan().trajectories()[0].sampled_with_time((from_t_2, from_t_3),
+                                                                            step_size=10)
+    fmapper.observe(executed_path_2, pl.flights[0].uav)
+    gdd.draw_ignition_shade(geodata=fmapper.firemap, cmap=matplotlib.cm.viridis,
+                            vmin=t_range[0], vmax=t_range[1])
+    # Draw trajectory planned
+    plot_plan_trajectories(sr_1.final_plan(), gdd, trajectories=0, draw_segments=False,
+                           colors=[(0., 0., 1., .33)], labels=["1st plan"], linestyles=[':'])
+    plot_plan_trajectories(sr_2.final_plan(), gdd, trajectories=0, draw_segments=False,
+                           colors=['green'], labels=["2nd plan"], linestyles=['--'])
+
+    # Draw trajectory executed
+    replan_id = sr_2.final_plan().trajectories()[0].first_modifiable_id() - 1
+    replan_time = sr_2.final_plan().trajectories()[0].start_time(replan_id)
+    plot_plan_trajectories(sr_1.final_plan(), gdd, time_range=(0, replan_time), trajectories=0,
+                           colors=['blue'], labels=["1st executed"], linestyles=['-'])
+    plot_plan_trajectories(sr_2.final_plan(), gdd, time_range=(replan_time, from_t_3),
+                           trajectories=0, colors=['green'], labels=["2nd executed"],
+                           linestyles=['-'])
+    gdd.legend()
+    gdd.figure.show()
+
+    ####################################
+    # 3rd figure: First, second plan and third plan
+    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
+    gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
+
+    # Draw expected fire contour
+    t_range = (sr_3.final_plan().trajectories()[0].start_time(0) - 120,
+               sr_3.final_plan().trajectories()[0].end_time(len(
+                   sr_3.final_plan().trajectories()[0]) - 1) + 120)
+    gdd.draw_ignition_contour(geodata=fire3, time_range=t_range, cmap=matplotlib.cm.Reds)
+
+    # Draw observed fire
+    replan_id_3 = sr_3.final_plan().trajectories()[0].first_modifiable_id() - 1
+    replan_time_3 = sr_3.final_plan().trajectories()[0].start_time(replan_id)
+    executed_path_3 = sr_3.final_plan().trajectories()[0].sampled_with_time((replan_time_3, np.inf),
+                                                                            step_size=10)
+    fmapper.observe(executed_path_3, pl.flights[0].uav)
+    gdd.draw_ignition_shade(geodata=fmapper.firemap, cmap=matplotlib.cm.viridis,
+                            vmin=t_range[0], vmax=t_range[1])
+
+    # Draw trajectory planned
+    plot_plan_trajectories(sr_1.final_plan(), gdd, trajectories=0, draw_segments=False,
+                           colors=[(0., 0., 1., .33)], labels=["1st plan"], linestyles=[':'])
+    plot_plan_trajectories(sr_2.final_plan(), gdd, trajectories=0, draw_segments=False,
+                           colors=[(0., 1., 0., .33)], labels=["2nd plan"], linestyles=[':'])
+    plot_plan_trajectories(sr_3.final_plan(), gdd, trajectories=0, draw_segments=False,
+                           colors=['red'], labels=["3rd plan"], linestyles=['--'])
+
+    # Draw trajectory executed
+
+    plot_plan_trajectories(sr_3.final_plan(), gdd, time_range=(0, np.inf),
+                           trajectories=0, colors=['red'], labels=["3rd executed"],
+                           linestyles=['-'])
+    plot_plan_trajectories(sr_2.final_plan(), gdd, time_range=(0, replan_time_3),
+                           trajectories=0, colors=['green'], labels=["2nd executed"],
+                           linestyles=['-'])
+    plot_plan_trajectories(sr_1.final_plan(), gdd, time_range=(0, replan_time), trajectories=0,
+                           colors=['blue'], labels=["1st executed"], linestyles=['-'])
     gdd.legend()
     gdd.figure.show()
 
