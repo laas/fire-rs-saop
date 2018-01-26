@@ -460,6 +460,59 @@ namespace SAOP {
             return {sampled, time};
         }
 
+        /* Returns the trajectory as a set of waypoints.
+         * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
+         * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
+        std::pair<std::vector<Waypoint3d>, std::vector<double>>
+        sampled_with_time(TimeWindow time_range, double step_size = 1) const {
+            ASSERT(step_size > 0);
+
+            auto waypoints_time = as_waypoints_with_time();
+
+            std::vector<Waypoint3d> sampled;
+            std::vector<double> time;
+
+            if (std::get<0>(waypoints_time).size() == 1 && time_range.contains(std::get<1>(waypoints_time)[0])) {
+                sampled.push_back(std::get<0>(waypoints_time)[0]);
+                time.push_back(std::get<1>(waypoints_time)[0]);
+            }
+            // Time of the first waypoint -> start time
+            double cumulated_travel_time = std::get<1>(waypoints_time)[0];
+
+            for (size_t i = 0; i < std::get<0>(waypoints_time).size() - 1; i++) {
+
+                // Sample trajectory between waypoints that are at least partially on the time range
+                if (time_range.contains(std::get<1>(waypoints_time)[i]) ||
+                    time_range.contains(std::get<1>(waypoints_time)[i + 1])) {
+                    auto local_sampled = _conf.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
+                                                                           std::get<0>(waypoints_time)[i + 1],
+                                                                           step_size,
+                                                                           cumulated_travel_time);
+                    auto l_sam_wp = std::get<0>(local_sampled).begin();
+                    auto l_sam_t = std::get<1>(local_sampled).begin();
+
+                    while (l_sam_wp != std::get<0>(local_sampled).end() ||
+                           l_sam_t != std::get<1>(local_sampled).end()) {
+                        // Only add to the final vector those samples that are strictly in the time range
+                        if (time_range.contains(*l_sam_t)) {
+                            sampled.emplace_back(*l_sam_wp);
+                            time.emplace_back(*l_sam_t);
+                        }
+                        ++l_sam_wp;
+                        ++l_sam_t;
+                    }
+                    if (time.size() > 0) {
+                        cumulated_travel_time = time.back();
+                    } else {
+                        cumulated_travel_time = std::get<1>(waypoints_time)[i + 1];
+                    }
+                } else {
+                    cumulated_travel_time = std::get<1>(waypoints_time)[i + 1];
+                }
+            }
+            return {sampled, time};
+        }
+
         /* Increase of length as result of inserting the given segment at the given position */
         double insertion_length_cost(size_t insert_loc, const Segment3d segment) const {
             if (size() == 0)

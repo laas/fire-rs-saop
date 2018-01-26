@@ -112,7 +112,8 @@ namespace SAOP {
     }
 
     SearchResult
-    replan_vns(SearchResult last_search, double after_time, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
+    replan_vns(SearchResult last_search, double after_time, DRaster ignitions, DRaster elevation,
+               const std::string& json_conf) {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -349,6 +350,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_property_readonly("start_times", &Trajectory::start_times)
             .def_property_readonly("modifiable", &Trajectory::modifiable)
             .def("can_modify", &Trajectory::can_modify, py::arg("maneuver_index"))
+            .def("first_modifiable_id", &Trajectory::first_modifiable_maneuver)
             .def("slice", (Trajectory (Trajectory::*)(TimeWindow) const) &Trajectory::slice, py::arg("time_window"))
             .def("slice", [](Trajectory& self, py::tuple range) -> Trajectory {
                 auto tw = TimeWindow(range[0].cast<double>(), range[1].cast<double>());
@@ -360,7 +362,17 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("duration", &Trajectory::duration)
             .def("as_waypoints", &Trajectory::as_waypoints)
             .def("sampled", &Trajectory::sampled, py::arg("step_size") = 1)
-            .def("sampled_with_time", &Trajectory::sampled_with_time, py::arg("step_size") = 1)
+            .def("sampled_with_time", (std::pair<std::vector<Waypoint3d>, std::vector<double>> (Trajectory::*)(
+                    double) const) &Trajectory::sampled_with_time, py::arg("step_size") = 1)
+            .def("sampled_with_time", (std::pair<std::vector<Waypoint3d>, std::vector<double>> (Trajectory::*)
+                         (TimeWindow, double) const) &Trajectory::sampled_with_time,
+                 py::arg("time_range"), py::arg("step_size") = 1)
+            .def("sampled_with_time", [](Trajectory& self, py::tuple time_range,
+                                         double step) -> std::pair<std::vector<Waypoint3d>, std::vector<double>> {
+                     return self.sampled_with_time(TimeWindow(
+                             time_range[0].cast<double>(), time_range[1].cast<double>()), step);
+                 },
+                 py::arg("time_range"), py::arg("step_size") = 1)
             .def("with_waypoint_at_end", &Trajectory::with_waypoint_at_end)
             .def("__repr__", &Trajectory::to_string)
             .def("trace", [](Trajectory& self, const DRaster& r) {
