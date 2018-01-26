@@ -69,13 +69,15 @@ def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwarg
 
 
 def plot_ignition_shade(ax, x, y, ignition_times, dx=25, dy=25, image_scale=None, **kwargs):
-    cbar_lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
+    if not 'vmin' in kwargs:
+        kwargs['vmin'] = np.nanmin(ignition_times)
+    if not 'vmax' in kwargs:
+        kwargs['vmin'] = np.nanmax(ignition_times)
     if not image_scale:
         image_scale = (x[0][0], x[0][x.shape[0] - 1], y[0][0], y[y.shape[0] - 1][0])
     if not 'cmap' in kwargs:
         kwargs['cmap'] = matplotlib.cm.gist_heat
-    return ax.imshow(ignition_times, extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
-                     **kwargs)
+    return ax.imshow(ignition_times, extent=image_scale, **kwargs)
 
 
 def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):
@@ -265,6 +267,12 @@ class GeoDataDisplay(GeoDataDisplayBase):
         # mask all cells whose ignition has not been computed
         igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
         igni[np.abs(igni) >= np.finfo(np.float64).max] = np.nan
+
+        if 'vmin' in kwargs:
+            kwargs['vmin'] /= 60.
+
+        if 'vmax' in kwargs:
+            kwargs['vmax'] /= 60.
 
         shade = plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh,
                                     np.around(igni.T[::-1, ...] / 60., 1),
