@@ -44,8 +44,8 @@ PYBIND11_MODULE(firemapping, m) {
     py::class_<GhostFireMapper<double>>(m, "GhostFireMapper")
             .def(py::init<std::shared_ptr<FireData>>(), py::arg("environment_gt"))
 
-            .def_readonly("firemap", &GhostFireMapper<double>::firemap)
-            .def_readonly("observed", &GhostFireMapper<double>::observed)
+            .def_property_readonly("firemap", &GhostFireMapper<double>::firemap)
+            .def_property_readonly("observed", &GhostFireMapper<double>::observed)
 
             .def("observe", (void (GhostFireMapper<double>::*)(const Trajectory&)) &GhostFireMapper<double>::observe,
                  py::arg("trajectory"))
