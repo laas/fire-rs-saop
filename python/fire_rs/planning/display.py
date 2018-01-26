@@ -26,7 +26,7 @@ import logging
 import types
 
 from itertools import cycle
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import matplotlib.cm
 import matplotlib.colors
@@ -96,13 +96,19 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         """
         if len(self.plan_trajectory) < 2:
             return
-        sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         color = kwargs.get('color', 'C0')
         size = kwargs.get('size', 1)
         label = kwargs.get('label', None)
         linestyle = kwargs.get('linestyle', '-')
-        x = [wp.x for wp in sampled_waypoints]
-        y = [wp.y for wp in sampled_waypoints]
+        time_range = kwargs.get('time_range', (-np.inf, np.inf))
+
+        sampled_waypoints = self.plan_trajectory.sampled_with_time(time_range, step_size=5)
+
+        x = [wp.x for i, wp in enumerate(sampled_waypoints[0]) if
+             time_range[0] < sampled_waypoints[1][i] < time_range[1]]
+        y = [wp.y for i, wp in enumerate(sampled_waypoints[0]) if
+             time_range[0] < sampled_waypoints[1][i] < time_range[1]]
+
         self._base_display.drawings.append(
             self._base_display.axis.plot(x, y, linewidth=size, linestyle=linestyle, c=color,
                                          label=label, zorder=self._base_display.FOREGROUND_LAYER))
@@ -113,11 +119,16 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         if len(self.plan_trajectory) < 2:
             return
         color = kwargs.get('color', 'C0')
-        py_segments = self.plan_trajectory.segments[:]
+        time_range = kwargs.get('time_range', (-np.inf, np.inf))
+
+        py_segments = [s for s in self.plan_trajectory.segments]
+
         py_modifi_segments = [s for i, s in enumerate(py_segments) if
-                              self.plan_trajectory.can_modify(i)]
+                              self.plan_trajectory.can_modify(i) and
+                              time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
         py_frozen_segments = [s for i, s in enumerate(py_segments) if
-                              not self.plan_trajectory.can_modify(i)]
+                              not self.plan_trajectory.can_modify(i) and
+                              time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
 
         # Plot modifiable segments
         start_x_m = [s.start.x for s in py_modifi_segments]
@@ -135,10 +146,14 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
         # Plot frozen segments (all but the bases)
-        start_x_f = [s.start.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
-        start_y_f = [s.start.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
-        end_x_f = [s.end.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
-        end_y_f = [s.end.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        start_x_f = [s.start.x for s in py_frozen_segments if
+                     not (s == py_segments[0] or s == py_segments[-1])]
+        start_y_f = [s.start.y for s in py_frozen_segments if
+                     not (s == py_segments[0] or s == py_segments[-1])]
+        end_x_f = [s.end.x for s in py_frozen_segments if
+                   not (s == py_segments[0] or s == py_segments[-1])]
+        end_y_f = [s.end.y for s in py_frozen_segments if
+                   not (s == py_segments[0] or s == py_segments[-1])]
 
         self._base_display.drawings.append(
             self._base_display.axis.scatter(start_x_f, start_y_f, s=10, edgecolor='black',
@@ -149,24 +164,27 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                                             marker='>',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
-        start_base = py_segments[0]
-        finish_base = py_segments[-1]
+        if time_range[0] <= self.plan_trajectory.start_time(0) <= time_range[1]:
+            start_base = py_segments[0]
+            self._base_display.drawings.append(self._base_display.axis.scatter(
+                start_base.start.x, start_base.start.y, s=10, edgecolor=color, c=color, marker='D',
+                zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
-        self._base_display.drawings.append(self._base_display.axis.scatter(
-            start_base.start.x, start_base.start.y, s=10, edgecolor=color, c=color, marker='D',
-            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
-        self._base_display.drawings.append(
-            self._base_display.axis.scatter(finish_base.start.x, finish_base.start.y, s=10,
-                                            edgecolor=color, c=color, marker='D',
-                                            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+        if time_range[0] <= self.plan_trajectory.start_time(len(self.plan_trajectory) - 1) <= \
+                time_range[1]:
+            finish_base = py_segments[-1]
+            self._base_display.drawings.append(
+                self._base_display.axis.scatter(finish_base.start.x, finish_base.start.y, s=10,
+                                                edgecolor=color, c=color, marker='D',
+                                                zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
-        start_x = [s.start.x for s in py_segments]
-        start_y = [s.start.y for s in py_segments]
-        end_x = [s.end.x for s in py_segments]
-        end_y = [s.end.y for s in py_segments]
+        start_x = [s.start.x for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
+        start_y = [s.start.y for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
+        end_x = [s.end.x for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
+        end_y = [s.end.y for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
 
         # Draw lines between segment bounds
-        for i in range(len(py_segments)):
+        for i in range(len(start_x)):
             self._base_display.drawings.append(
                 self._base_display.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]],
                                              c=color, linewidth=2,
@@ -254,10 +272,13 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         self._base_display.drawings.append(shade)
 
 
-def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[float, float]]' = None,
+def plot_plan_trajectories(plan, geodatadisplay,
+                           trajectories: 'Union[slice, int]' = slice(None),
+                           time_range: 'Tuple[float, float]' = (-np.inf, np.inf),
                            colors: 'Optional[List]' = None, sizes: 'Optional[List[int]]' = None,
                            labels: 'Optional[List[str]]' = None,
-                           linestyles: 'Optional[List[str]]' = None, show=False):
+                           linestyles: 'Optional[List[str]]' = None,
+                           draw_segments: bool=True, draw_path: bool=True, show=False):
     """Plot the trajectories of a plan."""
     if not colors:
         colors = ["darkred", "darkgreen", "darkblue", "darkorange", "darkmagenta"]
@@ -271,13 +292,23 @@ def plot_plan_trajectories(plan, geodatadisplay, time_range: 'Optional[Tuple[flo
     if not linestyles:
         linestyles = ['-', ]
     linestyles = cycle(linestyles)
-    for traj, color, size, label, linestyle in zip(plan.trajectories(), colors, sizes, labels, linestyles):
-        if time_range:
-            traj = traj.slice(time_range)
+
+    trajs = plan.trajectories()[trajectories]
+
+    if isinstance(trajectories, int):
+        trajs = [trajs]
+
+    for traj, color, size, label, linestyle in zip(trajs, colors, sizes, labels, linestyles):
         geodatadisplay.TrajectoryDisplayExtension.plan_trajectory = traj
-        geodatadisplay.TrajectoryDisplayExtension.draw_solid_path(color=color, size=size,
-                                                                  label=label, linestyle=linestyle)
-        geodatadisplay.TrajectoryDisplayExtension.draw_segments(color=color, size=size * 5)
+        if draw_path:
+            geodatadisplay.TrajectoryDisplayExtension.draw_solid_path(time_range=time_range,
+                                                                      color=color, size=size,
+                                                                      label=label,
+                                                                      linestyle=linestyle)
+        if draw_segments:
+            geodatadisplay.TrajectoryDisplayExtension.draw_segments(time_range=time_range,
+                                                                    color=color,
+                                                                    size=size * 5)
     if show:
         geodatadisplay.figure.show()
 
