@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../ext/json.hpp"
 #include "../core/trajectories.hpp"
 
+#include "../firemapping/ghostmapper.hpp"
+
 using json = nlohmann::json;
 
 using namespace std;
@@ -141,6 +143,18 @@ namespace SAOP {
          * Each observation is tagged with a time, corresponding to the start time of the segment.*/
         vector<PositionTime> observations() const {
             return observations(time_window);
+        }
+
+        /** All observations in the plan. Computed assuming we observe at any time, not only when doing a segment*/
+        vector<PositionTime> observations_full() const {
+            std::vector<PositionTime> result = {};
+            for (auto& tr: trajectories.trajectories) {
+                GhostFireMapper<double> gfm = GhostFireMapper<double>(firedata);
+                auto wp_and_t = tr.sampled_with_time(50);
+                auto obs = gfm.observed_fire_locations(std::get<0>(wp_and_t), std::get<1>(wp_and_t), tr.conf().uav);
+                result.insert(result.end(), obs.begin(), obs.end());
+            }
+            return result;
         }
 
         /* Observations done within an arbitrary time window
