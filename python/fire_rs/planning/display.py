@@ -68,6 +68,9 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         """
         if len(self.plan_trajectory) < 2:
             return
+
+        label = kwargs.get('label', None)
+
         sampled_waypoints = self.plan_trajectory.sampled(step_size=5)
         x = [wp.x for wp in sampled_waypoints]
         y = [wp.y for wp in sampled_waypoints]
@@ -77,10 +80,11 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         if colorbar_time_range is not None:
             color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0] / 60,
                                                      vmax=colorbar_time_range[1] / 60)
-            self._base_display.drawings.append(
-                self._base_display.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
-                                                norm=color_norm, cmap=matplotlib.cm.gist_rainbow,
-                                                zorder=self._base_display.FOREGROUND_LAYER))
+        self._base_display.drawings.append(
+            self._base_display.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
+                                            label=label, norm=color_norm,
+                                            cmap=matplotlib.cm.plasma,
+                                            zorder=self._base_display.FOREGROUND_LAYER))
         if kwargs.get('with_colorbar', False):
             cb = self._base_display.figure.colorbar(self._base_display.drawings[-1],
                                                     ax=self._base_display.axis,
@@ -178,10 +182,14 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                                                 edgecolor=color, c=color, marker='D',
                                                 zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
-        start_x = [s.start.x for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
-        start_y = [s.start.y for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
-        end_x = [s.end.x for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
-        end_y = [s.end.y for i, s in enumerate(py_segments) if time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
+        start_x = [s.start.x for i, s in enumerate(py_segments) if
+                   time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
+        start_y = [s.start.y for i, s in enumerate(py_segments) if
+                   time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
+        end_x = [s.end.x for i, s in enumerate(py_segments) if
+                 time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
+        end_y = [s.end.y for i, s in enumerate(py_segments) if
+                 time_range[0] <= self.plan_trajectory.start_time(i) <= time_range[1]]
 
         # Draw lines between segment bounds
         for i in range(len(start_x)):
@@ -278,7 +286,8 @@ def plot_plan_trajectories(plan, geodatadisplay,
                            colors: 'Optional[List]' = None, sizes: 'Optional[List[int]]' = None,
                            labels: 'Optional[List[str]]' = None,
                            linestyles: 'Optional[List[str]]' = None,
-                           draw_segments: bool=True, draw_path: bool=True, show=False):
+                           draw_segments: bool = True, draw_path: bool = True,
+                           draw_flighttime_path: bool = False, show=False):
     """Plot the trajectories of a plan."""
     if not colors:
         colors = ["darkred", "darkgreen", "darkblue", "darkorange", "darkmagenta"]
@@ -305,6 +314,10 @@ def plot_plan_trajectories(plan, geodatadisplay,
                                                                       color=color, size=size,
                                                                       label=label,
                                                                       linestyle=linestyle)
+        if draw_flighttime_path:
+            logging.warning("time_Range not implemented for this method")
+            geodatadisplay.TrajectoryDisplayExtension.draw_flighttime_path(with_colorbar=True)
+
         if draw_segments:
             geodatadisplay.TrajectoryDisplayExtension.draw_segments(time_range=time_range,
                                                                     color=color,
