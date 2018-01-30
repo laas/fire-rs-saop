@@ -62,6 +62,11 @@ class UAVConf:
         return cls(max_air_speed=17., max_angular_velocity=32. / 180. * np.pi * .5,
                    max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000.)
 
+    @classmethod
+    def slow_X8(cls):
+        return cls(max_air_speed=17./10., max_angular_velocity=32. / 180. * np.pi * .5,
+                   max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000.*10.)
+
     def as_cpp(self):
         return up.UAV(self.max_air_speed, self.max_angular_velocity, self.max_pitch_angle)
 
