@@ -278,8 +278,8 @@ class GeoDataDisplay(GeoDataDisplayBase):
         igni[igni >= np.finfo(np.float64).max] = np.nan
 
         if time_range:
-            igni[igni > time_range[1]] = np.nan
-            igni[igni < time_range[0]] = np.nan
+            igni[igni > time_range[1]] = time_range[1]
+            igni[igni < time_range[0]] = time_range[0]
 
         # plot fire front with contour lines in minutes
         self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks,
