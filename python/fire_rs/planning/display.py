@@ -88,8 +88,8 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         if kwargs.get('with_colorbar', False):
             cb = self._base_display.figure.colorbar(self._base_display.drawings[-1],
                                                     ax=self._base_display.axis,
-                                                    shrink=0.65, aspect=20)
-            cb.set_label("Flight time [min]")
+                                                    shrink=0.65, aspect=20, format="%d min")
+            cb.set_label("Flight time")
             self._base_display.colorbars.append(cb)
 
     def draw_solid_path(self, *args, **kwargs):

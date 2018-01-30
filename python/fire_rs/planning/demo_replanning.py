@@ -119,7 +119,8 @@ if __name__ == '__main__':
 
     ####################################
     # 1st figure: show only the first plan
-    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
+    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3),
+                                                               frame=(0, 0))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
 
     # Draw expected fire contour
@@ -145,7 +146,8 @@ if __name__ == '__main__':
 
     ####################################
     # 2nd figure: First and second plan
-    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
+    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3),
+                                                               frame=(0, 0))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
 
     # Draw expected fire contour
@@ -179,7 +181,8 @@ if __name__ == '__main__':
 
     ####################################
     # 3rd figure: First, second plan and third plan
-    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3))
+    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire3),
+                                                               frame=(0, 0))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
 
     # Draw expected fire contour

@@ -27,11 +27,13 @@
 __all__ = ['GeoDataDisplay', 'GeoDataDisplayBase', 'DisplayExtension', 'UAVDisplayExtension']
 
 from collections import Sequence
-from typing import Type, Union
+from typing import Optional, Tuple, Type, Union
 
 import matplotlib
+import matplotlib.axis
 import matplotlib.cm
 import matplotlib.figure
+import matplotlib.ticker
 import matplotlib.patches
 import matplotlib.pyplot as plt
 import matplotlib.transforms
@@ -44,9 +46,20 @@ from mpl_toolkits.mplot3d import Axes3D
 from fire_rs.geodata.geo_data import GeoData
 
 
+class EngOffsetFormatter(matplotlib.ticker.EngFormatter):
+
+    def __init__(self, unit="", places=None, offset=0):
+        super().__init__(unit, places)
+        self._offset = offset
+
+    def __call__(self, x, pos=None):
+        s = "%s%s" % (self.format_eng(x + self._offset), self.unit)
+        return self.fix_minus(s)
+
+
 def get_pyplot_figure_and_axis():
     fire_fig = plt.figure()
-    fire_ax = fire_fig.gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
+    fire_ax = fire_fig.gca(aspect='equal', xlabel="X position", ylabel="Y position")
 
     ax_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
     fire_ax.yaxis.set_major_formatter(ax_formatter)
@@ -131,14 +144,31 @@ class GeoDataDisplayBase:
     FOREGROUND_LAYER = 200
     FOREGROUND_OVERLAY_LAYER = 300
 
-    def __init__(self, figure, axis, geodata):
+    def __init__(self, figure: 'matplotlib.figure.Figure', axis: 'matplotlib.axis.Axis',
+                 geodata: 'GeoData', frame: 'Optional[Tuple[float, float]]' = None):
+        """
+        Initialize GeoDataDisplayBase
+        :param figure: a matplotlib figure
+        :param axis: a matplotlib axis
+        :param geodata: a geodata
+        :param frame: an optional reference frame for the figure data.
+        ie. (0., 0.) for X and Y with local reference instead of Lambert93 by default.
+        """
         self._figure, self._axis = figure, axis
         self._geodata = geodata
+
+        if not frame:
+            frame = (geodata.x_offset, geodata.y_offset)
 
         x = np.arange(geodata.max_x)
         self._x_ticks = (x * geodata.cell_width) + geodata.x_offset
         y = np.arange(geodata.max_y)
         self._y_ticks = (y * geodata.cell_height) + geodata.y_offset
+
+        x_fmtr = EngOffsetFormatter(unit='m', offset=-geodata.x_offset + frame[0])
+        y_fmtr = EngOffsetFormatter(unit='m', offset=-geodata.y_offset + frame[1])
+        self._axis.xaxis.set_major_formatter(x_fmtr)
+        self._axis.yaxis.set_major_formatter(y_fmtr)
 
         self._image_scale = (
             self._x_ticks[0], self._x_ticks[-1], self._y_ticks[0], self._y_ticks[-1])
@@ -191,9 +221,9 @@ class GeoDataDisplayBase:
         return self._geodata
 
     @classmethod
-    def pyplot_figure(cls, geodata):
+    def pyplot_figure(cls, geodata, frame=None):
         figure, axis = get_pyplot_figure_and_axis()
-        return cls(figure, axis, geodata)
+        return cls(figure, axis, geodata, frame=frame)
 
     def add_extension(self, extensionclass: 'Type[DisplayExtension]', extension_args: 'tuple' = (),
                       extension_kwargs: 'dict' = {}):
@@ -283,8 +313,8 @@ class GeoDataDisplay(GeoDataDisplayBase):
             self._add_ignition_shade_colorbar(shade)
 
     def _add_ignition_shade_colorbar(self, shade, **kwargs):
-        cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20)
-        cb.set_label("Ignition time [min]")
+        cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20, format="%d min")
+        cb.set_label("Ignition time")
         self._colorbars.append(cb)
 
     def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]',
