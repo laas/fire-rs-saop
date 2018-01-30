@@ -24,6 +24,9 @@
 
 
 if __name__ == '__main__':
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+
     import numpy as np
     import matplotlib
     import matplotlib.cm
@@ -41,13 +44,15 @@ if __name__ == '__main__':
 
     # Geographic environment (elevation, landcover, wind...)
     wind = (10., 0.)
-    area = ((480060.0, 485060.0), (6210074.0, 6215074.0))
+    area = ((480000.0, 485000.0), (6210000.0, 6215000.0))
     env = PlanningEnvironment(area, wind_speed=wind[0], wind_dir=wind[1],
                               planning_elevation_mode='flat', flat_altitude=0)
 
     # Fire applied to the previous environment
     ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
+    logging.info("Start of propagation")
     fire = propagation.propagate_from_points(env, ignition_point, 240 * 60)
+    logging.info("End of propagation")
 
     # Configure some flight
     base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.)
