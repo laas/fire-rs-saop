@@ -88,7 +88,7 @@ namespace SAOP {
         GenRaster<T> observed_fire(const vector<Waypoint3d>& shot_wp_list,
                                                        const vector<double>& shot_time_list, const UAV& uav,
                                                        const GenRaster<T>& like) const {
-            ASSERT(shot_wp_list.size() > 1);
+//            ASSERT(shot_wp_list.size() > 1);
             ASSERT(shot_wp_list.size() == shot_time_list.size());
             ASSERT(like.is_like(_environment->ignitions))
             GenRaster<T> fire = GenRaster<T>(like.data, like.x_width, like.y_height,
