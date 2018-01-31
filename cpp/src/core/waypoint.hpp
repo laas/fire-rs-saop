@@ -44,6 +44,11 @@ namespace SAOP {
             return sqrt(pow(x - pt.x, 2) + pow(y - pt.y, 2));
         }
 
+        /*Square of the distance between this position and another one.*/
+        double dist_squared(const Position& pt) const {
+            return pow(x - pt.x, 2) + pow(y - pt.y, 2);
+        }
+
         double angle_to(const Position& pt) const {
             return atan2(y - pt.y, x - pt.x);
         }
