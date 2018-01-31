@@ -47,6 +47,10 @@ test-cpp: build-testing
 
 benchmark: build-release FORCE
 	cd python && PYTHONPATH="${PYTHONPATH}:./python/" python3 fire_rs/planning/benchmark.py
+
+doc: build FORCE
+	cd doc && make html
+
 # Remove the build folder and clean python source dir
 clean:
 	rm -r $(BUILD_FOLDER) || true
