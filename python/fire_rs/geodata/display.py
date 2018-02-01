@@ -96,6 +96,9 @@ def plot_ignition_shade(ax, x, y, ignition_times, dx=25, dy=25, image_scale=None
 def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):
     if not nfronts:
         lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
+        ignition_times[np.isnan(ignition_times)] = np.finfo(np.float64).max
+        ignition_times[ignition_times > lim[1]] = lim[1]
+        ignition_times[ignition_times < lim[0]] = lim[0]
         nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 20))
     if not 'cmap' in kwargs:
         kwargs['cmap'] = matplotlib.cm.gist_rainbow
