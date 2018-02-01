@@ -89,7 +89,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     env = PlanningEnvironment(scenario.area, wind_speed=scenario.wind_speed,
                               wind_dir=scenario.wind_direction,
                               planning_elevation_mode=output_options_planning['elevation_mode'],
-                              discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL)
+                              discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL,
+                              flat_altitude=0.)
 
     # Propagate fires in the environment
     prop = propagation.propagate_from_points(env, scenario.ignitions,
@@ -104,7 +105,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     # Transform altitude of UAV bases from agl (above ground level) to absolute
     for f in scenario.flights:
-        base_h = 100  # If flat, start at the default segment insertion h
+        base_h = 0  # If flat, start at the default segment insertion h
         if output_options_planning['elevation_mode'] != 'flat':
             base_h = env.raster["elevation"][env.raster.array_index((f.base_waypoint[0],
                                                                      f.base_waypoint[1]))]
@@ -308,7 +309,7 @@ def generate_scenario_singlefire_singleuav():
     num_flights = 1
     flights = []
     for i in range(num_flights):
-        uav_start = random.uniform(start, start + 4000.)
+        uav_start = random.uniform(start, start + 6000.)
         max_flight_time = random.uniform(1000, 1500)
         uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
