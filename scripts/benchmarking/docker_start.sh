@@ -50,10 +50,10 @@ cd ${DIR}
         fi
     fi
 
-    git clone ${CODE_REPO} fire-rs-saop || true
-    cd fire-rs-saop
+    rm -rf code || true
+    git clone ${CODE_REPO} code || true
+    cd code
         git submodule update --init --recursive
-        git pull
         git checkout ${GIT_HASH}
     cd ..
 
@@ -62,7 +62,7 @@ cd ${DIR}
     USER_ID="saop"
     GROUP_ID="saop"
     docker run -d -it --user=${USER_ID}:${GROUP_ID} --name=saop \
-           -v `pwd`/fire-rs-saop:/home/saop/code:z \
+           -v `pwd`/code:/home/saop/code:z \
            -v `pwd`/data:/home/saop/data:z \
            -v `pwd`/data/dem:/home/saop/data/dem:z \
            -v `pwd`/data/wind:/home/saop/data/wind:z \
