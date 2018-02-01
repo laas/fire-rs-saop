@@ -40,7 +40,7 @@ namespace SAOP {
             return "one-insert";
         }
 
-        const double default_segment_length = 50;
+        const double default_segment_length = 1;
 
         const double default_height = 100;
 
