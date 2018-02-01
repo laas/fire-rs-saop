@@ -1,10 +1,10 @@
 {
     "base": {
         "max_restarts": 5,
-        "max_time": 10.0,
+        "max_time": 60.0,
         "neighborhoods": [
             {"name": "dubins-opt", 
-                "max_trials": 10,
+                "max_trials": 100,
                 "generators": [
                     {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
@@ -17,12 +17,12 @@
     },
     "with_smoothing": {
         "max_restarts": 5,
-        "max_time": 10.0,
+        "max_time": 60.0,
         "neighborhoods": [
             {"name": "trajectory-smoothing", 
                 "max_trials": 10},
             {"name": "dubins-opt", 
-                "max_trials": 10,
+                "max_trials": 100,
                 "generators": [
                     {"name": "MeanOrientationChangeGenerator"},
                     {"name": "RandomOrientationChangeGenerator"},
@@ -34,7 +34,7 @@
     },
     "full": {
         "max_restarts": 5,
-        "max_time": 10.0,
+        "max_time": 60.0,
         "neighborhoods": [
             {"name": "dubins-opt", 
                 "max_trials": 100,
