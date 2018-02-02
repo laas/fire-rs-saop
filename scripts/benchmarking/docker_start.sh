@@ -50,23 +50,28 @@ cd ${DIR}
         fi
     fi
 
-    rm -rf code || true
-    git clone ${CODE_REPO} code || true
+    if ! test -d code; then
+        git clone ${CODE_REPO} code
+    fi
     cd code
         git submodule update --init --recursive
         git checkout ${GIT_HASH}
+        test -z "$(git status --porcelain)" || echo "WARNING: the target code is dirty. Please checkout a clean version to get reproducible results"
     cd ..
+
+    chmod -R go+rwX code
+    chmod -R go+rwX data
 
     # start container in the background
     echo "Starting docker container 'saop'"
     USER_ID="saop"
     GROUP_ID="saop"
     docker run -d -it --user=${USER_ID}:${GROUP_ID} --name=saop \
-           -v `pwd`/code:/home/saop/code:z \
-           -v `pwd`/data:/home/saop/data:z \
-           -v `pwd`/data/dem:/home/saop/data/dem:z \
-           -v `pwd`/data/wind:/home/saop/data/wind:z \
-           -v `pwd`/data/landcover:/home/saop/data/landcover:z \
+           -v `pwd`/code:/home/saop/code:rw,z \
+           -v `pwd`/data:/home/saop/data:rw,z \
+           -v `pwd`/data/dem:/home/saop/data/dem:ro,z \
+           -v `pwd`/data/wind:/home/saop/data/wind:rw,z \
+           -v `pwd`/data/landcover:/home/saop/data/landcover:ro,z \
            saop
 
     # display running containers
