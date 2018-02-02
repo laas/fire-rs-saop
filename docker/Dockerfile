@@ -16,8 +16,15 @@ RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /tmp/*
 
-# create a local user
-RUN useradd -ms /bin/bash saop
+
+ARG USER_UID
+ARG USER_GROUP
+
+ENV HOME /home/saop
+RUN groupadd ${USER_GROUP:+-g} ${USER_GROUP} saop \
+    && useradd ${USER_UID:+-u} ${USER_UID} -g saop -ms /bin/bash saop \
+    && mkdir -p $HOME \
+    && chown -R saop:saop $HOME
 USER saop
 
 ENV WINDNINJA_CLI_PATH /usr/local/bin
