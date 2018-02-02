@@ -12,13 +12,16 @@ XSOCK=/tmp/.X11-unix
 
 CONTAINER_NAME='saop'
 
-CONTAINER_START_CMD="docker run -it --cap-add=SYS_PTRACE -v ${ROOT_DIR}:/home/saop/code:z -v ${FIRERS_DATA}:/home/saop/data:z -e DISPLAY=${DISPLAY} -v ${XSOCK} ${CONTAINER_NAME}"
+CONTAINER_START_CMD="docker run -it --user=saop:saop --cap-add=SYS_PTRACE -v ${ROOT_DIR}:/home/saop/code:z -v ${FIRERS_DATA}:/home/saop/data:z -e DISPLAY=${DISPLAY} -v ${XSOCK} ${CONTAINER_NAME}"
+
+USER_UID="$(id -u)"
+GROUP_UID="$(id -g)"
 
 case $1 in
     'build')
         echo "Building container $CONTAINER_NAME from directory $DOCKER_DIR"
         echo ""
-        docker build -t ${CONTAINER_NAME} ${DOCKER_DIR}
+        docker build --build-arg USER_UID=${USER_UID} --build-arg GROUP_UID=${GROUP_UID} -t ${CONTAINER_NAME} ${DOCKER_DIR}
         ;;
     'rebuild')
         echo "Building container $CONTAINER_NAME from directory $DOCKER_DIR"
