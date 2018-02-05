@@ -17,16 +17,18 @@ CONTAINER_START_CMD="docker run -it --user=saop:saop --cap-add=SYS_PTRACE -v ${R
 USER_UID="$(id -u)"
 GROUP_UID="$(id -g)"
 
+BUILD_OPTIONS="--build-arg USER_UID=${USER_UID} --build-arg GROUP_UID=${GROUP_UID} -t"
+
 case $1 in
     'build')
         echo "Building container $CONTAINER_NAME from directory $DOCKER_DIR"
         echo ""
-        docker build --build-arg USER_UID=${USER_UID} --build-arg GROUP_UID=${GROUP_UID} -t ${CONTAINER_NAME} ${DOCKER_DIR}
+        docker build ${BUILD_OPTIONS} ${CONTAINER_NAME} ${DOCKER_DIR}
         ;;
     'rebuild')
         echo "Building container $CONTAINER_NAME from directory $DOCKER_DIR"
         echo ""
-        docker build --no-cache=true -t ${CONTAINER_NAME} ${DOCKER_DIR}
+        docker build --no-cache=true ${BUILD_OPTIONS} ${CONTAINER_NAME} ${DOCKER_DIR}
         ;;
     'start'|'')
         echo "Running container ${CONTAINER_NAME} using:"
