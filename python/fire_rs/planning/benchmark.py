@@ -457,6 +457,10 @@ def main():
                         default=1)
     parser.add_argument("--wait", action="store_true",
                         help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
+    parser.add_argument("--n_scenarios",
+                        help="Number of scenarios to generate. (Only used if generation is needed)",
+                        type=int,
+                        default=40)
     args = parser.parse_args()
 
     # Use TeX fonts when the output format is eps or pdf
@@ -495,7 +499,7 @@ def main():
         scenario_generator = scenario_factory_funcs['default']
         if benchmark_name in scenario_factory_funcs:
             scenario_generator = scenario_factory_funcs[benchmark_name]
-        scenarios = [scenario_generator() for i in range(40)]
+        scenarios = [scenario_generator() for i in range(args.n_scenarios)]
         pickle.dump(scenarios, open(scenarios_file, "wb"))
     else:
         scenarios = pickle.load(open(scenarios_file, "rb"))
