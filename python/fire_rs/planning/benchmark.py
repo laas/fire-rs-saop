@@ -134,7 +134,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     last_ignition = np.nanmax(ignitions_nan)
 
     # Create the geodatadisplay object & extensions that are going to be used
-    geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
+    geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions), frame=(0, 0))
     geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
 
     plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
