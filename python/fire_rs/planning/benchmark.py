@@ -34,6 +34,7 @@ from collections import namedtuple, Sequence
 from typing import Optional, Tuple, Union
 
 import matplotlib
+
 matplotlib.use('Agg')  # do not require X display to plot figures that are not shown
 import matplotlib.cm
 import matplotlib.colors
@@ -47,7 +48,6 @@ from fire_rs.geodata.geo_data import TimedPoint, Area
 from fire_rs.geodata.geo_data import Point as GeoData_Point
 from fire_rs.planning.display import plot_plan_with_background, TrajectoryDisplayExtension
 from fire_rs.planning.planning import FlightConf, Planner, PlanningEnvironment, UAVConf, Waypoint
-
 
 _DBL_MAX = np.finfo(np.float64).max
 DISCRETE_ELEVATION_INTERVAL = 100
@@ -72,17 +72,19 @@ class Scenario:
         self.time_window_end = -np.inf
         for flight in flights:
             self.time_window_start = min(self.time_window_start, flight.start_time - 180)
-            self.time_window_end = max(self.time_window_end, flight.start_time+flight.max_flight_time + 180)
+            self.time_window_end = max(self.time_window_end,
+                                       flight.start_time + flight.max_flight_time + 180)
 
     def __repr__(self):
         return "".join(["Scenario(area=", repr(self.area), ", wind_speed=", repr(self.wind_speed),
-                        ", wind_direction=", repr(self.wind_direction), ", ignitions=", repr(self.ignitions),
+                        ", wind_direction=", repr(self.wind_direction), ", ignitions=",
+                        repr(self.ignitions),
                         ", flights=", repr(self.flights), ")"])
 
 
-def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict, output_options_planning: dict,
+def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict,
+                  output_options_planning: dict,
                   snapshots, vns_name, plot=False):
-
     # Fetch scenario environment data with additional elevation mode for planning
     env = PlanningEnvironment(scenario.area, wind_speed=scenario.wind_speed,
                               wind_dir=scenario.wind_direction,
@@ -104,8 +106,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     for f in scenario.flights:
         base_h = 100  # If flat, start at the default segment insertion h
         if output_options_planning['elevation_mode'] != 'flat':
-            base_h = env.raster["elevation"]\
-                [env.raster.array_index((f.base_waypoint[0], f.base_waypoint[1]))]
+            base_h = env.raster["elevation"][env.raster.array_index((f.base_waypoint[0],
+                                                                     f.base_waypoint[1]))]
         # The new WP is (old_x, old_y, old_z + elevation[old_x, old_y], old_dir)
         f.base_waypoint = Waypoint(f.base_waypoint[0], f.base_waypoint[1],
                                    f.base_waypoint[2] + base_h, f.base_waypoint[3])
@@ -151,7 +153,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         logging.info("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
 
     # save metadata to file
-    with open(os.path.join(save_directory, instance_name+".json"), "w") as metadata_file:
+    with open(os.path.join(save_directory, instance_name + ".json"), "w") as metadata_file:
         import json
         parsed = json.loads(res.metadata())
         parsed["benchmark_id"] = instance_name
@@ -191,13 +193,14 @@ def generate_scenario_newsletter():
     uav_bases = [Waypoint(area.xmin + 100, area.ymax - 100, 100., 0.)]
 
     num_ignitions = 1
-    wind_speed = random.choice([10.,])  # 18 km/h, 36 km/h, 54 km/h, 72 km/h
-    wind_dir = random.choice([np.pi/4,])
+    wind_speed = random.choice([10., ])  # 18 km/h, 36 km/h, 54 km/h, 72 km/h
+    wind_dir = random.choice([np.pi / 4, ])
     area_range = (area.xmax - area.xmin, area.ymax - area.ymin)
-    ignitions = [TimedPoint(random.uniform(area.xmin+area_range[0]*.2, area.xmax-area_range[0]*.4),
-                            random.uniform(area.ymin+area_range[1]*.4, area.ymax-area_range[1]*.6),
-                            random.uniform(0, 3000))
-                 for i in range(num_ignitions)]
+    ignitions = [
+        TimedPoint(random.uniform(area.xmin + area_range[0] * .2, area.xmax - area_range[0] * .4),
+                   random.uniform(area.ymin + area_range[1] * .4, area.ymax - area_range[1] * .6),
+                   random.uniform(0, 3000))
+        for i in range(num_ignitions)]
 
     # start once all fires are ignited
     start = max([igni.time for igni in ignitions])
@@ -225,12 +228,13 @@ def generate_scenario_singlefire_singleuav_3d():
 
     num_ignitions = 1
     wind_speed = random.choice([5., 10., 15., 20.])  # 18 km/h, 36 km/h, 54 km/h, 72 km/h
-    wind_dir = random.choice([0., np.pi/2, np.pi, 3*np.pi/4])
+    wind_dir = random.choice([0., np.pi / 2, np.pi, 3 * np.pi / 4])
     area_range = (area.xmax - area.xmin, area.ymax - area.ymin)
-    ignitions = [TimedPoint(random.uniform(area.xmin+area_range[0]*.1, area.xmax-area_range[0]*.1),
-                            random.uniform(area.ymin+area_range[1]*.1, area.ymax-area_range[1]*.1),
-                            random.uniform(0, 3000))
-                 for i in range(num_ignitions)]
+    ignitions = [
+        TimedPoint(random.uniform(area.xmin + area_range[0] * .1, area.xmax - area_range[0] * .1),
+                   random.uniform(area.ymin + area_range[1] * .1, area.ymax - area_range[1] * .1),
+                   random.uniform(0, 3000))
+        for i in range(num_ignitions)]
 
     # start once all fires are ignited
     start = max([igni.time for igni in ignitions])
@@ -254,15 +258,15 @@ def generate_scenario_singlefire_singleuav_shortrange():
     uav_speed = 18.  # m/s
     uav_max_pitch_angle = 6. / 180. * np.pi
     uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
-    uav_bases = [Waypoint(area.xmin+100, area.ymin+100, 0)]
+    uav_bases = [Waypoint(area.xmin + 100, area.ymin + 100, 0)]
 
     wind_speed = 15.
     wind_dir = 0.
     num_ignitions = 1
     x_area_range = area.xmax - area.xmin
     y_area_range = area.ymax - area.ymin
-    ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax-0.5*x_area_range),
-                            random.uniform(area.ymin, area.ymax-0.5*y_area_range),
+    ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax - 0.5 * x_area_range),
+                            random.uniform(area.ymin, area.ymax - 0.5 * y_area_range),
                             random.uniform(0, 3000))
                  for i in range(num_ignitions)]
 
@@ -321,14 +325,14 @@ def generate_scenario():
     uav_max_pitch_angle = 6. / 180. * np.pi
     uav_max_turn_rate = 32. * np.pi / 180
     uav_bases = [  # four corners of the map
-        Waypoint(area.xmin+100, area.ymin+100, 100, 0),
-        Waypoint(area.xmin+100, area.ymax-100, 100, 0),
-        Waypoint(area.xmax-100, area.ymin+100, 100, 0),
-        Waypoint(area.xmax-100, area.ymax-100, 100, 0)
+        Waypoint(area.xmin + 100, area.ymin + 100, 100, 0),
+        Waypoint(area.xmin + 100, area.ymax - 100, 100, 0),
+        Waypoint(area.xmax - 100, area.ymin + 100, 100, 0),
+        Waypoint(area.xmax - 100, area.ymax - 100, 100, 0)
     ]
 
-    wind_speed = 15.  #random.uniform(10., 20.)  # wind speed in [10,20] km/h
-    wind_dir = 0.  #random.random() * 2 * np.pi
+    wind_speed = 15.  # random.uniform(10., 20.)  # wind speed in [10,20] km/h
+    wind_dir = 0.  # random.random() * 2 * np.pi
     num_ignitions = random.randint(1, 3)
     ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax),
                             random.uniform(area.ymin, area.ymax),
@@ -355,7 +359,7 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav': generate_scenario_singlefire_singleuav,
                           'singlefire_singleuav_shortrange': generate_scenario_singlefire_singleuav_shortrange,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
-                          'newsletter': generate_scenario_newsletter,}
+                          'newsletter': generate_scenario_newsletter, }
 
 max_planning_time = 5.
 
@@ -365,15 +369,15 @@ vns_configurations = {
         "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
-                "max_trials": 10,
-                "generators": [
-                    {"name": "MeanOrientationChangeGenerator"},
-                    {"name": "RandomOrientationChangeGenerator"},
-                    {"name": "FlipOrientationChangeGenerator"}]},
+             "max_trials": 10,
+             "generators": [
+                 {"name": "MeanOrientationChangeGenerator"},
+                 {"name": "RandomOrientationChangeGenerator"},
+                 {"name": "FlipOrientationChangeGenerator"}]},
             {"name": "one-insert",
-                "max_trials": 50,
-                "select_arbitrary_trajectory": False,
-                "select_arbitrary_position": False}
+             "max_trials": 50,
+             "select_arbitrary_trajectory": False,
+             "select_arbitrary_position": False}
         ]
     }
 }
@@ -388,16 +392,14 @@ def main():
 
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
 
-
     class JsonReadAction(argparse.Action):
 
         def __call__(self, parser, namespace, values, option_string=None):
             try:
-               vnsconf = json.load(values)
-               setattr(namespace, self.dest, vnsconf)
+                vnsconf = json.load(values)
+                setattr(namespace, self.dest, vnsconf)
             except json.JSONDecodeError as err:
                 raise argparse.ArgumentError(self, err)
-
 
     # CLI argument parsing
     FROMFILE_PREFIX_CHARS = '@'
@@ -413,7 +415,8 @@ def main():
                         default=DEFAULT_FIRERS_DATA_FOLDER)
     parser.add_argument("--background", nargs='+',
                         help="List of background layers for the output figures, from bottom to top.",
-                        choices=['elevation_shade', 'elevation_planning_shade', 'ignition_shade', 'observedcells', 'ignition_contour', 'wind_quiver'],
+                        choices=['elevation_shade', 'elevation_planning_shade', 'ignition_shade',
+                                 'observedcells', 'ignition_contour', 'wind_quiver'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument('--colorbar', dest='colorbar', action='store_true',
                         help="Display colorbars")
@@ -440,7 +443,7 @@ def main():
     parser.add_argument("--size", nargs=2,
                         help="Size (in inches) of the output figures",
                         type=int,
-                        default=(15,10))
+                        default=(15, 10))
     parser.add_argument("--instance",
                         help="Runs a particular benchmark instance",
                         type=int,
@@ -467,7 +470,7 @@ def main():
         vns_configurations = args.vns_conf
 
     # Set-up output options
-    output_options = {'plot':{}, 'planning':{}, }
+    output_options = {'plot': {}, 'planning': {}, }
     output_options['plot']['background'] = args.background
     output_options['plot']['format'] = args.format
     output_options['plot']['colorbar'] = args.colorbar
@@ -513,16 +516,18 @@ def main():
     if args.wait:
         input("Press enter to continue...")
 
-    if args.instance != None:
+    if args.instance is not None:
         to_run = [(args.instance, scenarios[args.instance])]
     else:
         to_run = enumerate(scenarios)
 
-    joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5)\
-        (joblib.delayed(run_benchmark)(s, run_dir, str(i), output_options_plot=output_options['plot'],
-                                       snapshots=args.snapshots, output_options_planning=output_options['planning'],
+    joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5) \
+        (joblib.delayed(run_benchmark)(s, run_dir, str(i),
+                                       output_options_plot=output_options['plot'],
+                                       snapshots=args.snapshots,
+                                       output_options_planning=output_options['planning'],
                                        vns_name=args.vns) for i, s in to_run)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
