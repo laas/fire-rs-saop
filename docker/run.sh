@@ -15,9 +15,9 @@ CONTAINER_NAME='saop'
 CONTAINER_START_CMD="docker run -it --user=saop:saop --cap-add=SYS_PTRACE -v ${ROOT_DIR}:/home/saop/code:z -v ${FIRERS_DATA}:/home/saop/data:z -e DISPLAY=${DISPLAY} -v ${XSOCK} ${CONTAINER_NAME}"
 
 USER_UID="$(id -u)"
-GROUP_UID="$(id -g)"
+USER_GROUP="$(id -g)"
 
-BUILD_OPTIONS="--build-arg USER_UID=${USER_UID} --build-arg GROUP_UID=${GROUP_UID} -t"
+BUILD_OPTIONS="--build-arg USER_UID=${USER_UID} --build-arg USER_GROUP=${USER_GROUP} -t"
 
 case $1 in
     'build')

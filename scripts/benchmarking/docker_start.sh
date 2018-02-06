@@ -66,7 +66,7 @@ cd ${DIR}
     echo "Starting docker container 'saop'"
     USER_ID="saop"
     GROUP_ID="saop"
-    docker run -d -it --user=${USER_ID}:${GROUP_ID} --name=saop \
+    docker run -d -it --user=${USER_ID}:${GROUP_ID} --name=saop_${GIT_HASH} \
            -v `pwd`/code:/home/saop/code:rw,z \
            -v `pwd`/data:/home/saop/data:rw,z \
            -v `pwd`/data/dem:/home/saop/data/dem:ro,z \
