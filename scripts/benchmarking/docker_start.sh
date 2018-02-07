@@ -12,6 +12,7 @@ CODE_REPO="`pwd`/../.."
 # create a directory in which to run the benchmark
 DIR="saop_${GIT_HASH}"
 mkdir -p ${DIR}
+chmod a+rwX ${DIR}
 
 echo "Workdir: ${DIR}"
 cd ${DIR}
@@ -21,6 +22,7 @@ cd ${DIR}
     if test -d ${DATA_REPO}; then
         echo "Creating "$(pwd)"/data"
         mkdir -p data
+        chmod -R a+rwX data
         cd data
             echo "Making a symbolics link to ${DATA_REPO}"
             if ! test -d dem; then
@@ -58,9 +60,7 @@ cd ${DIR}
         git checkout ${GIT_HASH}
         test -z "$(git status --porcelain)" || echo "WARNING: the target code is dirty. Please checkout a clean version to get reproducible results"
     cd ..
-
-    chmod -R go+rwX code
-    chmod -R go+rwX data
+    chmod -R a+rwX code
 
     # start container in the background
     echo "Starting docker container 'saop'"
