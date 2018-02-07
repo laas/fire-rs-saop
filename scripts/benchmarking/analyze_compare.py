@@ -27,6 +27,7 @@
 """Compare several benchmarks"""
 
 import datetime
+import functools
 import json
 import os
 import os.path
@@ -47,12 +48,15 @@ class BenchmarkRun:
         self._date_str = b_date
         self._base_folder = base_folder
         self._full_path = os.path.join(self._base_folder, self._date_str)
-        self._metadata = {md[0]: md[1] for md in
-                          self._read_metadata(self._full_path, os.listdir(self._full_path))}
+        self._metadata_keys, self._metadata_values = zip(
+            *self._read_metadata(self._full_path, sorted(os.listdir(self._full_path),
+                                                         key=lambda x: int(
+                                                             os.path.splitext(x)[0]))))
+        self._metadata_keys = {v: i for i, v in enumerate(self._metadata_keys)}
 
         metadata = []
-        self._utility_history = {}
-        for k, v in self._metadata.items():
+        self._utility_history = []
+        for v in self._metadata_values:
             fields = {
                 "configuration_name": v["configuration"]["vns"]["configuration_name"],
                 "benchmark_id": v["benchmark_id"],
@@ -61,13 +65,19 @@ class BenchmarkRun:
             }
             metadata.append(fields)
 
-            self._utility_history[fields["benchmark_id"]] = pd.DataFrame.from_records(
-                np.array(v["utility_history"]), columns=["time", "utility"])
+            self._utility_history.append(pd.DataFrame.from_records(np.array(v["utility_history"]),
+                                                                   columns=["time", "utility"]))
         self._metadata_df = pd.DataFrame.from_records(metadata)
 
     @property
-    def raw_metadata(self) -> 't.Dict[str, t.Dict]':
-        return self._metadata
+    def raw_metadata(self, item=None) -> 't.List[t.Dict]':
+        if item is None:
+            return self._metadata_values
+        else:
+            if isinstance(item, int):
+                return self._metadata_values[item]
+            elif isinstance(item, str):
+                return self._metadata_values[self._metadata_keys[item]]
 
     @property
     def date(self) -> 'datetime.datetime':
@@ -86,7 +96,7 @@ class BenchmarkRun:
         return self._metadata_df
 
     @property
-    def utility_history(self) -> 't.Dict[str, pd.DataFrame]':
+    def utility_history(self) -> 't.List[pd.DataFrame]':
         return self._utility_history
 
     @staticmethod
@@ -111,7 +121,8 @@ class BenchmarkScenario:
         # assert isinstance(self._scenario, fire_rs.planning.benchmark.Scenario)
 
         self._runs_values = tuple(BenchmarkRun(fd, os.path.join(path)) for fd in
-                                  os.listdir(path) if fd != BenchmarkScenario.SCENARIO_FILENAME)
+                                  sorted(os.listdir(path)) if
+                                  fd != BenchmarkScenario.SCENARIO_FILENAME)
         self._run_str_keys = {v.date_str: i for i, v in enumerate(self._runs_values)}
         self._run_date_keys = {v.date: i for i, v in enumerate(self._runs_values)}
 
@@ -186,20 +197,35 @@ class BenchmarkRunStats:
     def __init__(self, some_run: 'BenchmarkRun'):
         self._b_run = some_run  # type: 'BenchmarkRun'
 
-    def plot_utility_vs_time(self, ax: 'matplotlib.axes.Axes', normalize=False):
-        for k, v in self._b_run.utility_history.items():
+    def plot_utility_vs_time(self, ax: 'matplotlib.axes.Axes', normalize=False, max=None):
+        for i, v in enumerate(self._b_run.utility_history):
             data = v.values.copy()
             if normalize:
-                data[:, 0] = np.arange(0, len(data[:, 0]))
+                if max is not None:
+                    data[:, 1] /= data[:, 1].max()
+                else:
+                    data[:, 1] /= max[i]
+            data[:, 0] = np.arange(0, len(data[:, 0]))
             BenchmarkRunStats._plot_utility_time(data, ax)
 
-    def plot_utility_vs_iterations(self, ax: 'matplotlib.axes.Axes', normalize=False):
-        for k, v in self._b_run.utility_history.items():
+    def plot_utility_vs_iterations(self, ax: 'matplotlib.axes.Axes', normalize=False, max=None):
+        for i, v in enumerate(self._b_run.utility_history):
             data = v.values.copy()
             if normalize:
-                data[:, 1] /= data[:, 1].max()
+                if max is not None:
+                    data[:, 1] /= data[:, 1].max()
+                else:
+                    data[:, 1] /= max[i]
             data[:, 0] = np.arange(0, len(data[:, 0]))
             BenchmarkRunStats._plot_utility_iterations(data, ax)
+
+    def utility_histogram(self, ax: 'matplotlib.axes.Axes', max=None, **kwargs):
+        ut = self._b_run.summary["utility"].copy()
+        if max is None:
+            ut /= ut.max()
+        else:
+            ut /= max
+        ax.hist(ut, range=(0., 1.), **kwargs)
 
     @staticmethod
     def _plot_utility_time(time_utilites: 'np.ndarray', ax: 'matplotlib.axes.Axes'):
@@ -223,31 +249,39 @@ class BenchmarkRunComparator:
         self.b_run_stats = tuple(BenchmarkRunStats(b) for b in benchmarks)
         self._labels = labels
 
+        self._final_utilities = np.array(
+            [brs.benchmark_run.summary["utility"].values for brs in self.b_run_stats])
+        self._worst_utilities = self._final_utilities.max(axis=0)
+
     def plot_utility_vs_iterations(self, ax_seq: 't.Sequence[matplotlib.axes.Axes]'):
         for (b, ax) in zip(self.b_run_stats, ax_seq):
-            b.plot_utility_vs_iterations(ax, normalize=True)
+            b.plot_utility_vs_iterations(ax, normalize=True, max=self._worst_utilities)
 
     def plot_utility_vs_time(self, ax_seq: 't.Sequence[matplotlib.axes.Axes]'):
         for (b, ax) in zip(self.b_run_stats, ax_seq):
-            b.plot_utility_vs_time(ax, normalize=True)
+            b.plot_utility_vs_time(ax, normalize=True, max=self._worst_utilities)
 
     def utility_boxplot(self, ax: 'matplotlib.axes.Axes'):
         utilities = [
-            brs.benchmark_run.summary["utility"] / brs.benchmark_run.summary["utility"].max() for
-            brs in self.b_run_stats]
+            brs.benchmark_run.summary["utility"] / np.max(self._worst_utilities)
+            for brs in self.b_run_stats]
         ax.boxplot(utilities, labels=self._labels)
+
+    def utility_histogram_stacked(self, ax):
+        for b in self.b_run_stats:
+            b.utility_histogram(ax, max=np.max(self._worst_utilities), alpha=0.66)
 
 
 if __name__ == '__main__':
     workdir = dir_path = os.path.dirname(os.path.realpath(__file__))
-    ben_new = Benchmark(workdir, 'd20378f292df93751cf6873880af221d5725d774', name="new")
-    ben_old_with_obsfull = Benchmark(workdir, '221dbe33a3b6545c4ace786e3c74e77485dde5da',
-                                     name="old_with_obsfull")
-    ben_old = Benchmark(workdir, '5e6be1c64fc7a5e0ce9a9c0a1f73cd39e177fb87', name="old")
+    ben_new = Benchmark(workdir, '7a7598fc4cae1ab28235b035503aab6dfa097ad5', name="new")
+    ben_old_with_obsfull = Benchmark(workdir, '5bff6e68c98061ec63077d0b6288fd0b3aad268e',
+                                     name="old_obsfull")
+    ben_old = Benchmark(workdir, '86fbaa6243a6e9f94ffcf2a4e0064ef9ced30956', name="old")
 
-    brc = BenchmarkRunComparator((ben_old.scenarios[0].runs[0],
-                                  ben_old_with_obsfull.scenarios[0].runs[0],
-                                  ben_new.scenarios[0].runs[0]),
+    brc = BenchmarkRunComparator((ben_old.scenarios[0].runs[1],
+                                  ben_old_with_obsfull.scenarios[0].runs[1],
+                                  ben_new.scenarios[0].runs[1]),
                                  (ben_old.name,
                                   ben_old_with_obsfull.name,
                                   ben_new.name))
@@ -255,22 +289,32 @@ if __name__ == '__main__':
     xscale = 'log'
     yscale = 'log'
 
+    y_lim = (0.001, 100)
+    x_lim = (1, 100)
+
     figure = matplotlib.pyplot.figure()
     ax_old = figure.add_subplot(131, xscale=xscale, yscale=yscale)
-    ax_old.set_ylim(0.01, 1)
-    ax_old.set_xlim(1, 100)
+    ax_old.set_ylim(*y_lim)
+    ax_old.set_xlim(*x_lim)
     ax_old_with_obsfull = figure.add_subplot(132, xscale=xscale, yscale=yscale)
-    ax_old_with_obsfull.set_ylim(0.01, 1)
-    ax_old_with_obsfull.set_xlim(1, 100)
+    ax_old_with_obsfull.set_ylim(*y_lim)
+    ax_old_with_obsfull.set_xlim(*x_lim)
     ax_new = figure.add_subplot(133, xscale=xscale, yscale=yscale)
-    ax_new.set_ylim(0.01, 1)
-    ax_new.set_xlim(1, 100)
+    ax_new.set_ylim(*y_lim)
+    ax_new.set_xlim(*x_lim)
     brc.plot_utility_vs_iterations((ax_old, ax_old_with_obsfull, ax_new))
     figure.show()
 
     figure_boxplot = matplotlib.pyplot.figure()
     ax_boxplot = figure_boxplot.gca()
+    ax_boxplot.set_title("Normalized utility distribution")
     brc.utility_boxplot(ax_boxplot)
     figure_boxplot.show()
+
+    figure_hist = matplotlib.pyplot.figure()
+    ax_hist = figure_hist.gca()
+    ax_hist.set_title("Utility distribution")
+    brc.utility_histogram_stacked(ax_hist)
+    figure_hist.show()
 
     print("eee")
