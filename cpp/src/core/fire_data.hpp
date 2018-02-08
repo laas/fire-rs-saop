@@ -89,7 +89,7 @@ namespace SAOP {
 
                 /** Make it discrete, a value of 0<= N <8 means the angle was rounded to N*PI/4 */
                 long discrete_dir = lround(dir / (M_PI / 4));
-                ASSERT(discrete_dir >= 0 && discrete_dir <= 8)
+                ASSERT(discrete_dir >= 0 && discrete_dir <= 8);
                 discrete_dir = discrete_dir % 8;  // 2PI == 0
 
                 // compute relative coordinates of the cell in the main fire direction.
@@ -121,7 +121,7 @@ namespace SAOP {
                         return cell;
                 } else {
                     // move backwards the propagation direction
-                    ASSERT(time < ignitions(cell))
+                    ASSERT(time < ignitions(cell));
                     next_cell = {cell.x - dx, cell.y - dy};
                     if (!ignitions.is_in(next_cell) || ignitions(cell) < ignitions(next_cell))
                         // ignitions are not decreasing, we are in strange geometrical pattern inducing a local minimum, abandon

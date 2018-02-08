@@ -90,7 +90,7 @@ namespace SAOP {
                                                        const GenRaster<T>& like) const {
 //            ASSERT(shot_wp_list.size() > 1);
             ASSERT(shot_wp_list.size() == shot_time_list.size());
-            ASSERT(like.is_like(_environment->ignitions))
+            ASSERT(like.is_like(_environment->ignitions));
             GenRaster<T> fire = GenRaster<T>(like.data, like.x_width, like.y_height,
                                              like.x_offset, like.y_offset, like.cell_width);
 
@@ -121,8 +121,8 @@ namespace SAOP {
                                                GenRaster<T>& fire_raster, GenRaster<T>& obs_raster) const {
             ASSERT(shot_wp_list.size() > 1);
             ASSERT(shot_wp_list.size() == shot_time_list.size());
-            ASSERT(fire_raster.is_like(_environment->ignitions))
-            ASSERT(obs_raster.is_like(_environment->ignitions))
+            ASSERT(fire_raster.is_like(_environment->ignitions));
+            ASSERT(obs_raster.is_like(_environment->ignitions));
 
             auto it_wp = shot_wp_list.begin();
             auto it_t = shot_time_list.begin();

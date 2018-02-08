@@ -46,6 +46,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
      double positive_modulo(double left, double right);
 
+}
+
 /** Macro that test equality of to floating point number, disregarding rounding errors. */
 #define ALMOST_EQUAL(x, y) (fabs((double) (x) - (double) (y)) < 0.000001)
 
@@ -55,15 +57,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 /** Macro that test whether x >= y with tolerance to rounding errors. */
 #define ALMOST_LESSER_EQUAL(x, y) ((double) (x) <= ((double) (y) + 0.000001))
 
+
+// http://cnicholson.net/2009/02/stupid-c-tricks-adventures-in-assert/
 #ifdef DEBUG
 #define ASSERT(test)                  \
-if(!(test)) {                         \
+do { if(!(test)) {                         \
   fprintf(stderr, "Failed assert\n"); \
   print_trace();                      \
 }                                     \
-assert(test);
+assert(test); } while(0)
 #else
-#define ASSERT(test)
+#define ASSERT(test) \
+        do { (void)sizeof(test); } while(0)
 #endif
-}
+
 #endif //PLANNING_CPP_DEBUG_H

@@ -68,7 +68,7 @@ namespace SAOP {
                      double cell_width) :
                 data(data), x_width(x_width), y_height(y_height),
                 x_offset(x_offset), y_offset(y_offset), cell_width(cell_width) {
-            ASSERT(data.size() == x_width * y_height)
+            ASSERT(data.size() == x_width * y_height);
         }
 
         GenRaster<T>(size_t x_width, size_t y_height, double x_offset, double y_offset, double cell_width)
@@ -192,16 +192,16 @@ namespace SAOP {
         LocalRaster<T>(std::shared_ptr<GenRaster<T>> parent, std::vector<T> data, size_t x_width, size_t y_height,
                        Cell offset) : _parent(std::move(parent)), data(data), width(x_width), height(y_height),
                                       _offset(offset) {
-            ASSERT(offset.x + x_width <= parent->x_width)
-            ASSERT(offset.y + y_height <= parent->y_height)
-            ASSERT(data.size() == x_width * y_height)
+            ASSERT(offset.x + x_width <= parent->x_width);
+            ASSERT(offset.y + y_height <= parent->y_height);
+            ASSERT(data.size() == x_width * y_height);
         }
 
         LocalRaster<T>(std::shared_ptr<GenRaster<T>> parent, size_t x_width, size_t y_height, Cell offset) :
                 _parent(std::move(parent)), data(std::vector<T>(x_width * y_height, 0)), width(x_width),
                 height(y_height), _offset(offset) {
-            ASSERT(offset.x + x_width <= parent->x_width)
-            ASSERT(offset.y + y_height <= parent->y_height)
+            ASSERT(offset.x + x_width <= parent->x_width);
+            ASSERT(offset.y + y_height <= parent->y_height);
         }
 
         /* Convert a Raster in a RasterUpdate*/
@@ -209,8 +209,8 @@ namespace SAOP {
                        Cell offset) :
                 _parent(std::move(parent)), data(std::move(raster.data)), width(x_width),
                 height(y_height), _offset(offset) {
-            ASSERT(offset.x + x_width <= parent->x_width)
-            ASSERT(offset.y + y_height <= parent->y_height)
+            ASSERT(offset.x + x_width <= parent->x_width);
+            ASSERT(offset.y + y_height <= parent->y_height);
         }
 
         std::shared_ptr<GenRaster<T>> parent() const {

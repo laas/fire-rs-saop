@@ -142,7 +142,7 @@ namespace SAOP {
                 _valid = base_plan->is_valid();
                 lazily_initialized = true;
                 rev->apply(base_plan->trajectories);
-                ASSERT(duration == base_plan->duration())
+                ASSERT(duration == base_plan->duration());
             }
         }
     };
@@ -255,7 +255,7 @@ namespace SAOP {
                   traj_id(traj_id), segment_index(segment_index),
                   newSegment(base->trajectories.uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index].maneuver,
                                                                                  target_dir)) {
-            ASSERT(duration() >= 0)
+            ASSERT(duration() >= 0);
         }
 
         void apply_on(PlanPtr p) override {

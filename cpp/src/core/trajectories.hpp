@@ -75,7 +75,7 @@ namespace SAOP {
 
         /** Returns the UAV performing the given trajectory */
         UAV uav(size_t traj_id) const {
-            ASSERT(traj_id < trajectories.size())
+            ASSERT(traj_id < trajectories.size());
             return trajectories[traj_id].conf().uav;
         }
 

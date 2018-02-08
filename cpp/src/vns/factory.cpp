@@ -32,7 +32,7 @@ namespace SAOP {
         if ((json_obj).find(field) == (json_obj).end()) {
             std::cerr << "Missing field " << field << " in json object:\n" << (json_obj).dump() << std::endl;
         }
-        ASSERT((json_obj).find(field) != (json_obj).end())
+        ASSERT((json_obj).find(field) != (json_obj).end());
     }
 
     shared_ptr<OrientationChangeGenerator> build_dubins_optimization_generator(const json& conf) {

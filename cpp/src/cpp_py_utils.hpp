@@ -47,7 +47,7 @@ std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecas
 /** Converts a vector to a 2D numpy array. */
 template<class T>
 py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
-    ASSERT(vec.size() == x_width * y_height)
+    ASSERT(vec.size() == x_width * y_height);
     py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> { x_width, y_height });
     auto s_x_width = static_cast<ssize_t>(x_width);
     auto s_y_height = static_cast<ssize_t>(y_height);

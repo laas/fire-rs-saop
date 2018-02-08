@@ -91,7 +91,7 @@ namespace SAOP {
 
         /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
         opt<PLocalMove> get_move_for_random_possible_observation(PlanPtr p) {
-            ASSERT(!p->trajectories.empty())
+            ASSERT(!p->trajectories.empty());
             if (p->possible_observations.empty())
                 return {};
 
@@ -230,7 +230,7 @@ namespace SAOP {
                 // project the segment on the firefront.
                 current_segment = p->firedata->project_on_firefront(previous, traj.conf().uav, time);
                 ASSERT(!current_segment ||
-                       previous.start.dir == current_segment->start.dir) // projection should not change orientation
+                       previous.start.dir == current_segment->start.dir); // projection should not change orientation
 
                 if (current_segment && previous != *current_segment) {
                     // segment has changed due to projection,

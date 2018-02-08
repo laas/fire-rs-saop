@@ -127,13 +127,13 @@ namespace SAOP {
 
         /* Time (s) at which the UAV reaches the start waypoint of a given segment. */
         double start_time(size_t man_index) const {
-            ASSERT(man_index >= 0 && man_index < size())
+            ASSERT(man_index < size());
             return _start_times[man_index];
         }
 
         /* Time (s) at which the UAV reaches the end waypoint of a given segment. */
         double end_time(size_t segment_index) const {
-            ASSERT(segment_index >= 0 && segment_index < size())
+            ASSERT(segment_index < size());
             return start_time(segment_index) +
                    _maneuvers[segment_index].length / _conf.uav.max_air_speed();
         }
@@ -531,13 +531,13 @@ namespace SAOP {
 
         double insertion_duration_cost(size_t insert_loc, const Segment3d segment) const {
             auto increase_in_length = insertion_length_cost(insert_loc, segment);
-            ASSERT(ALMOST_GREATER_EQUAL(increase_in_length, 0))
+            ASSERT(ALMOST_GREATER_EQUAL(increase_in_length, 0));
             return increase_in_length / _conf.uav.max_air_speed();
         }
 
         /* Decrease of length as result of removing the segment at the given position. */
         double removal_length_gain(size_t index) const {
-            ASSERT(index >= 0 && index < size())
+            ASSERT(index < size());
             const Segment3d segment = _maneuvers[index];
             if (index == 0)
                 return segment.length + _conf.uav.travel_distance(segment.end, _maneuvers[index + 1].start);
@@ -564,7 +564,7 @@ namespace SAOP {
         double replacement_length_cost(size_t index, size_t n_replaced, const std::vector<Segment3d>& segments) const {
             ASSERT(n_replaced > 0);
             const unsigned long end_index = index + n_replaced - 1;
-            ASSERT(index >= 0 && end_index < size())
+            ASSERT(end_index < size());
             double cost =
                     segments_length(segments, 0, segments.size())
                     - segments_length(_maneuvers, index, n_replaced);
@@ -623,7 +623,7 @@ namespace SAOP {
 
         /* Adds segment to the end of the trajectory */
         void append_segment(const Segment3d& seg) {
-            ASSERT(insertion_range.end > size())
+            ASSERT(insertion_range.end > size());
             insert_segment(seg, size());
 
             check_validity();
@@ -631,14 +631,14 @@ namespace SAOP {
 
         /* Inserts the given segment at the given index */
         void insert_segment(const Segment3d& seg, size_t at_index) {
-            ASSERT(at_index <= size())
-            ASSERT(insertion_range_start() <= at_index && at_index <= insertion_range_end())
+            ASSERT(at_index <= size());
+            ASSERT(insertion_range_start() <= at_index && at_index <= insertion_range_end());
             const double start = at_index == 0 ? _conf.start_time :
                                  end_time(at_index - 1) +
                                  _conf.uav.travel_time(_maneuvers[at_index - 1].end, seg.start);
 
             const double added_delay = insertion_duration_cost(at_index, seg);
-            ASSERT(ALMOST_GREATER_EQUAL(added_delay, 0))
+            ASSERT(ALMOST_GREATER_EQUAL(added_delay, 0));
             _maneuvers.insert(_maneuvers.begin() + at_index, seg);
             _start_times.insert(_start_times.begin() + at_index, start);
 
@@ -666,8 +666,8 @@ namespace SAOP {
 
         /* Removes the segment at the given index. */
         void erase_segment(size_t at_index) {
-            ASSERT(at_index >= 0 && at_index <= size())
-            ASSERT(insertion_range.contains(at_index))
+            ASSERT(at_index <= size());
+            ASSERT(insertion_range.contains(at_index));
             const double gained_delay = removal_duration_gain(at_index);
             _maneuvers.erase(_maneuvers.begin() + at_index);
             _start_times.erase(_start_times.begin() + at_index);
@@ -679,14 +679,14 @@ namespace SAOP {
         }
 
         void replace_segment(size_t at_index, const Segment3d& by_segment) {
-            ASSERT(at_index >= 0 && at_index < size())
+            ASSERT(at_index < size());
             erase_segment(at_index);
             insert_segment(by_segment, at_index);
             check_validity();
         }
 
         void replace_section(size_t index, const std::vector<Segment3d>& segments) {
-            ASSERT(index >= 0 && index + segments.size() - 1 < size())
+            ASSERT(index + segments.size() - 1 < size());
             for (size_t i = 0; i < segments.size(); i++) {
                 erase_segment(index);
             }
@@ -733,9 +733,9 @@ namespace SAOP {
 //                ASSERT(traj.size() == start_times.size())
 //        ASSERT(fabs(non_incremental_length() / conf.uav.max_air_speed() - (end_time() - start_time())) < 0.001)
                 for (size_t i = 0; i < size(); i++) {
-                    ASSERT(ALMOST_GREATER_EQUAL(_start_times[i], _conf.start_time))
+                    ASSERT(ALMOST_GREATER_EQUAL(_start_times[i], _conf.start_time));
                 }
-                ASSERT(start_and_end_positions_respected())
+                ASSERT(start_and_end_positions_respected());
             }
         }
 

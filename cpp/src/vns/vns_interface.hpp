@@ -111,7 +111,7 @@ namespace SAOP {
                   final_plan(shared_ptr<Plan>()) {}
 
         void set_final_plan(Plan& p) {
-            ASSERT(!final_plan)
+            ASSERT(!final_plan);
             final_plan.reset(new Plan(p));
             metadata["plan"] = p.metadata();
         }

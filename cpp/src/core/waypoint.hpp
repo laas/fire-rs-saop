@@ -252,13 +252,13 @@ namespace SAOP {
         Segment3d(const Position3d& pt1, const Position3d& pt2)
                 : Segment3d(Waypoint3d {pt1.x, pt1.y, pt1.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
                             Waypoint3d {pt2.x, pt2.y, pt2.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
-            ASSERT(ALMOST_EQUAL(start.z, end.z))
+            ASSERT(ALMOST_EQUAL(start.z, end.z));
         }
 
         Segment3d(const Position& pt1, const Position& pt2, double z)
                 : Segment3d(Waypoint3d {pt1.x, pt1.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
                             Waypoint3d {pt2.x, pt2.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
-            ASSERT(ALMOST_EQUAL(start.z, end.z))
+            ASSERT(ALMOST_EQUAL(start.z, end.z));
         }
 
         std::string to_string() const {
