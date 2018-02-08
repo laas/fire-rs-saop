@@ -121,9 +121,9 @@ namespace SAOP {
         };
         json conf = json::parse(json_conf);
         SAOP::check_field_is_present(conf, "min_time");
-        const double min_time = conf["min_time"];
+//        const double min_time = conf["min_time"];
         SAOP::check_field_is_present(conf, "max_time");
-        const double max_time = conf["max_time"];
+//        const double max_time = conf["max_time"];
         SAOP::check_field_is_present(conf, "save_every");
         const size_t save_every = conf["save_every"];
         SAOP::check_field_is_present(conf, "save_improvements");
@@ -162,7 +162,7 @@ namespace SAOP {
 }
 
 
-PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
+PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
 
 PYBIND11_MODULE(uav_planning, m) {
     m.doc() = "Python module for UAV trajectory planning";

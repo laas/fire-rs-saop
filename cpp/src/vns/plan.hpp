@@ -56,7 +56,7 @@ namespace SAOP {
              vector<PositionTime> observed_previously = {})
                 : time_window(tw), trajectories(traj_confs), firedata(std::move(fire_data)),
                   observed_previously(observed_previously) {
-            for (auto conf : traj_confs) {
+            for (auto& conf : traj_confs) {
                 ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
             }
 

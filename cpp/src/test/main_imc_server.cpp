@@ -143,7 +143,7 @@ void session(socket_ptr sock)
             bb.setSize(max_length);
 
             boost::system::error_code error;
-            size_t length = sock->read_some(boost::asio::buffer(bb.getBuffer(), bb.getSize()), error);
+            sock->read_some(boost::asio::buffer(bb.getBuffer(), bb.getSize()), error);
             if (error == boost::asio::error::eof)
                 break; // Connection closed cleanly by peer.
             else if (error)
