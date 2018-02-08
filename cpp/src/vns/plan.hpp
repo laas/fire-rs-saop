@@ -170,7 +170,7 @@ namespace SAOP {
                     double obs_end_time = traj.end_time(seg_id);
                     TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
                     if (tw.contains(seg_tw)) {
-                        opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
+                        opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth(), drone.view_width(),
                                                                          firedata->ignitions);
                         if (opt_cells) {
                             for (const auto& c : *opt_cells) {
@@ -199,7 +199,7 @@ namespace SAOP {
                     double obs_end_time = traj.end_time(seg_id);
                     TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
                     if (tw.contains(seg_tw)) {
-                        opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth, drone.view_width,
+                        opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth(), drone.view_width(),
                                                                          firedata->ignitions);
                         if (opt_cells) {
                             for (const auto& c : *opt_cells) {

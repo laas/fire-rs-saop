@@ -135,7 +135,7 @@ namespace SAOP {
         double end_time(size_t segment_index) const {
             ASSERT(segment_index >= 0 && segment_index < size())
             return start_time(segment_index) +
-                   _maneuvers[segment_index].length / _conf.uav.max_air_speed;
+                   _maneuvers[segment_index].length / _conf.uav.max_air_speed();
         }
 
         /* Duration (s) of the path. */
@@ -145,7 +145,7 @@ namespace SAOP {
 
         /* Length (m) of the path. */
         double length() const {
-            return _conf.uav.max_air_speed * duration();
+            return _conf.uav.max_air_speed() * duration();
         }
 
         /* Returns true if the first/last segments matches the ones given in the configuration
@@ -532,7 +532,7 @@ namespace SAOP {
         double insertion_duration_cost(size_t insert_loc, const Segment3d segment) const {
             auto increase_in_length = insertion_length_cost(insert_loc, segment);
             ASSERT(ALMOST_GREATER_EQUAL(increase_in_length, 0))
-            return increase_in_length / _conf.uav.max_air_speed;
+            return increase_in_length / _conf.uav.max_air_speed();
         }
 
         /* Decrease of length as result of removing the segment at the given position. */
@@ -552,7 +552,7 @@ namespace SAOP {
         }
 
         double removal_duration_gain(size_t index) const {
-            return removal_length_gain(index) / _conf.uav.max_air_speed;
+            return removal_length_gain(index) / _conf.uav.max_air_speed();
         }
 
         /* Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
@@ -587,13 +587,13 @@ namespace SAOP {
 
         /* Increase in time (s) as a result of replacing the N segments at the given index by the N segemnts provided.*/
         double replacement_duration_cost(size_t index, const std::vector<Segment3d>& segments) const {
-            return replacement_length_cost(index, segments) / _conf.uav.max_air_speed;
+            return replacement_length_cost(index, segments) / _conf.uav.max_air_speed();
         }
 
         /* Increase in time (s) as a result of replacing n segments at the given index by the N segments provided.*/
         double
         replacement_duration_cost(size_t index, size_t n_replaced, const std::vector<Segment3d>& segments) const {
-            return replacement_length_cost(index, n_replaced, segments) / _conf.uav.max_air_speed;
+            return replacement_length_cost(index, n_replaced, segments) / _conf.uav.max_air_speed();
         }
 
         /* Returns a new trajectory with the given waypoint appended (as a segment of length 0) */
@@ -731,7 +731,7 @@ namespace SAOP {
         void check_validity() const {
             if (is_set_up) {
 //                ASSERT(traj.size() == start_times.size())
-//        ASSERT(fabs(non_incremental_length() / conf.uav.max_air_speed - (end_time() - start_time())) < 0.001)
+//        ASSERT(fabs(non_incremental_length() / conf.uav.max_air_speed() - (end_time() - start_time())) < 0.001)
                 for (size_t i = 0; i < size(); i++) {
                     ASSERT(ALMOST_GREATER_EQUAL(_start_times[i], _conf.start_time))
                 }

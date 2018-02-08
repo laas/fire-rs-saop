@@ -323,9 +323,9 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<UAV>(m, "UAV")
             .def(py::init<const double, const double, const double>())
-            .def_readonly("min_turn_radius", &UAV::min_turn_radius)
-            .def_readonly("max_air_speed", &UAV::max_air_speed)
-            .def_readonly("max_pitch_angle", &UAV::max_pitch_angle)
+            .def_property_readonly("min_turn_radius", &UAV::min_turn_radius)
+            .def_property_readonly("max_air_speed", &UAV::max_air_speed)
+            .def_property_readonly("max_pitch_angle", &UAV::max_pitch_angle)
             .def("travel_distance", (double (UAV::*)(const Waypoint3d&, const Waypoint3d&) const)
                     &UAV::travel_distance, py::arg("origin"), py::arg("destination"))
             .def("travel_distance", (double (UAV::*)(const Waypoint&, const Waypoint&) const)
@@ -378,7 +378,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("trace", [](Trajectory& self, const DRaster& r) {
                 vector<PositionTime> trace = vector<PositionTime>{};
                 for (auto i = 0ul; i <= self.size(); ++i) {
-                    Plan::segment_trace(self[i].maneuver, self.conf().uav.view_width, self.conf().uav.view_depth, r);
+                    Plan::segment_trace(self[i].maneuver, self.conf().uav.view_width(), self.conf().uav.view_depth(), r);
                 }
                 return trace;
             }, py::arg("raster"));

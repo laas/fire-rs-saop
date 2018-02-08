@@ -99,8 +99,8 @@ namespace SAOP {
             for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
                 if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
                     opt<std::vector<Cell>> ignited_cells =
-                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width,
-                                                         uav.view_depth, fire);
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width(),
+                                                         uav.view_depth(), fire);
                     if (ignited_cells) {
                         for (const auto& c: *ignited_cells) {
                             TimeWindow fire_time_window = TimeWindow{_environment->ignitions(c),
@@ -129,8 +129,8 @@ namespace SAOP {
             for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
                 if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
                     opt<std::vector<Cell>> ignited_cells =
-                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width,
-                                                         uav.view_depth, obs_raster);
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width(),
+                                                         uav.view_depth(), obs_raster);
                     if (ignited_cells) {
                         for (const auto& c: *ignited_cells) {
                             TimeWindow fire_time_window = TimeWindow{_environment->ignitions(c),
@@ -158,8 +158,8 @@ namespace SAOP {
             for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
                 if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
                     opt<std::vector<Cell>> ignited_cells =
-                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width,
-                                                         uav.view_depth, _environment->ignitions);
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width(),
+                                                         uav.view_depth(), _environment->ignitions);
                     if (ignited_cells) {
                         for (const auto& c: *ignited_cells) {
                             TimeWindow fire_time_window = TimeWindow{_environment->ignitions(c),
