@@ -92,6 +92,9 @@ namespace SAOP {
         double find_d(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
                       double turn_radius, DubinsPath* dubins_conf);
 
+        opt<double> G(double d, const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
+                      double turn_radius, DubinsPath* dubins_air_conf);
+
     };
 }
 

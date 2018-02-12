@@ -82,24 +82,36 @@ namespace SAOP {
 
         while (n < max_iterations) {
             auto dc = (da + db) / 2; // Set new midpoint
-            auto to_air = to.move(dc, -wind.dir());
-            auto t_vt = dc / wind.speed();
-            double orig_air[3] = {from.x, from.y, from.dir};
-            double dest_air[3] = {to_air.x, to_air.y, to_air.dir};
-            auto ret = dubins_init_with_type(orig_air, dest_air, turn_radius, dubins_air_conf, dubins_air_conf->type);
-            if (ret != EDUBOK) {
+            auto opt_g = G(dc, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
+
+            if (!opt_g) {
                 // TODO: Path does not exist! What to do? idk :-(
                 return std::numeric_limits<double>::infinity(); // Solution not found
             } else {
-                auto g = dubins_path_length(dubins_air_conf) / uav_speed - t_vt;
+                auto g = *opt_g;
                 if (fabs(g) < epsilon || ((db - da) / 2) < epsilon) {
                     return dc;
                 }
-                if (g > 0) { da = dc; } else { db = dc; } // G(da) must be positive, G(db) must be negative
+                auto opt_g_da = G(dc, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
+                if (std::signbit(g) == std::signbit(*opt_g_da)) { da = dc; } else { db = dc; } // G(da) must be positive, G(db) must be negative
             }
             ++n;
         }
 
         return std::numeric_limits<double>::infinity(); // Solution not found
     }
+
+    opt<double> DubinsWind::G(double d, const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
+             double turn_radius, DubinsPath* dubins_air_conf) {
+        auto to_air = to.move(d, -wind.dir());
+        auto t_vt = d / wind.speed();
+        double orig_air[3] = {from.x, from.y, from.dir};
+        double dest_air[3] = {to_air.x, to_air.y, to_air.dir};
+        auto ret = dubins_init_with_type(orig_air, dest_air, turn_radius, dubins_air_conf, dubins_air_conf->type);
+        if (ret == EDUBOK) {
+            return dubins_path_length(dubins_air_conf) / uav_speed - t_vt;
+        }
+        return {};
+    }
+
 }
