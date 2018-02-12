@@ -37,7 +37,7 @@ namespace SAOP {
         air_speed = uav_air_speed;
 
         if (from.as_point().dist(to.as_point()) <= 2 * r_min) {
-            throw DubinsWindPathNotFoundException(from, to, wind_vector, turn_radius, "wp are closer than 4*r_min");
+            throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed, "wp are closer than 4*r_min");
         }
 
         // We only accept CSC traj types for now
@@ -62,7 +62,7 @@ namespace SAOP {
         }
 
         if (path_air.type == -1) {
-           throw DubinsWindPathNotFoundException(from, to, wind_vector, turn_radius, "d* couldn't be found");
+           throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed, "d* not found");
         }
     }
 

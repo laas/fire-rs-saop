@@ -36,16 +36,17 @@ namespace SAOP {
 
     class DubinsWindPathNotFoundException : public std::invalid_argument {
     public:
-        DubinsWindPathNotFoundException(const Waypoint& from, const Waypoint& to, WindVector wind, double turn_radius,
+        DubinsWindPathNotFoundException(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_airspeed,
                                         std::string message)
-                : std::invalid_argument("DubinsWindPathNotFoundException: from " + from.to_string() +
-                                        " to " + to.to_string() + ". " + message + ".") {}
+                : std::invalid_argument(
+                "DubinsWindPathNotFoundException [from " + from.to_string() + " to " + to.to_string() + " airspeed " +
+                std::to_string(uav_airspeed) + " wind " + wind.to_string() + "] " + message + ".") {}
     };
 
     class DubinsWind {
     public:
 
-        DubinsWind(const Waypoint& from, const Waypoint& to, const WindVector &constant_wind, double uav_air_speed,
+        DubinsWind(const Waypoint& from, const Waypoint& to, const WindVector& constant_wind, double uav_air_speed,
                    double turn_radius);
 //
 //        std::vector<Waypoint> sampled(double t_step) const;
