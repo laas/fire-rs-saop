@@ -83,7 +83,7 @@ namespace SAOP {
         while (n < max_iterations) {
             auto dc = (da + db) / 2; // Set new midpoint
             auto to_air = to.move(dc, -wind.dir());
-            auto t_vt = dc * wind.speed();
+            auto t_vt = dc / wind.speed();
             double orig_air[3] = {from.x, from.y, from.dir};
             double dest_air[3] = {to_air.x, to_air.y, to_air.dir};
             auto ret = dubins_init_with_type(orig_air, dest_air, turn_radius, dubins_air_conf, dubins_air_conf->type);
