@@ -65,7 +65,7 @@ namespace SAOP {
         }
 
         double T() const {
-            return d_star * wind_vector.speed();
+            return dubins_path_length(&path_air) / air_speed;
         }
 
         double uav_airspeed() const {
