@@ -68,11 +68,35 @@ namespace SAOP {
 
     double DubinsWind::find_d(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
                               double turn_radius, DubinsPath* dubins_air_conf) {
-        double da = 0.; // G(o) > 0 (Remark 2)
-        double db = 10000; // lim d→∞ (G(d)) < 0 (Remark 2)
-        // G(da) must be positive
-        // G(db) must be negative
+        double da = 0; // G(0) > 0 (Remark 2)
+        double db = 2; // lim d→∞ (G(d)) < 0 (Remark 2)
 
+        // G(da) is positive by definition
+        // Increase db until G(db) < 0
+        {
+            int n_iter=0;
+            double g_db = 1;
+            while (g_db > 0 && db < std::numeric_limits<double>::infinity()) {
+                auto opt_g_db = G(db, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
+                if (opt_g_db) {
+                    g_db = *opt_g_db;
+                    if (std::isnan(g_db)) {
+                        db = std::numeric_limits<double>::infinity();
+                    }
+                    if(g_db > 0) {
+                        db = std::pow(db, 2);
+                    }
+                } else {
+                    db = std::numeric_limits<double>::infinity();
+                }
+                ++n_iter;
+            }
+
+            if (db >= std::numeric_limits<double>::infinity()) {
+                return std::numeric_limits<double>::infinity();
+            }
+
+        }
         ASSERT((dubins_air_conf->type >= 0) && (dubins_air_conf->type <= 5));
 
         double max_iterations = 100;
