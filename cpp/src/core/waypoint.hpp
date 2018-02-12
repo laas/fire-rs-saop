@@ -32,6 +32,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
+    struct WindVector final {
+        WindVector() = default;
+
+        WindVector(double x, double y) : x_speed(x), y_speed(y) {};
+
+        double x() const {
+            return x_speed;
+        }
+
+        double y() const {
+            return y_speed;
+        }
+
+        double dir() const {
+            return remainder(atan2(y_speed, x_speed), 2 * M_PI);
+        };
+
+        double speed() const {
+            return sqrt(pow(x_speed, 2) + pow(y_speed, 2));
+        }
+
+    private:
+        double x_speed;
+        double y_speed;
+
+    };
+
     struct Position final {
         double x;
         double y;
@@ -116,6 +143,12 @@ namespace SAOP {
         Waypoint forward(double dist) const {
             const double new_x = x + cos(dir) * dist;
             const double new_y = y + sin(dir) * dist;
+            return Waypoint(new_x, new_y, dir);
+        }
+
+        Waypoint move(double distance, double direction) const {
+            const double new_x = x + cos(direction) * distance;
+            const double new_y = y + sin(direction) * distance;
             return Waypoint(new_x, new_y, dir);
         }
 

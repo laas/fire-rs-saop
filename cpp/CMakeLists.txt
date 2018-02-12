@@ -21,6 +21,8 @@ set(CORE_SOURCE_FILES
         src/ext/dubins.cpp
         src/ext/dubins.h
         src/core/dubins3d.hpp
+        src/core/dubinswind.cpp
+        src/core/dubinswind.hpp
         src/core/fire_data.hpp
         src/core/raster.hpp
         src/core/trajectories.hpp
@@ -102,6 +104,7 @@ IF (BUILD_TESTING)
             ${PLANNING_SOURCE_FILES}
             src/test/core/test_reversible_updates.hpp
             src/test/test_dubins.hpp
+            src/test/test_dubinswind.hpp
             src/test/test_position_manipulation.hpp
             src/test/main_tests.cpp)
     target_link_libraries(tests
