@@ -256,7 +256,7 @@ int dubins_LRL( double alpha, double beta, double d, double* outputs )
     return EDUBOK;
 }
 
-double dubins_path_length( DubinsPath* path )
+double dubins_path_length( const DubinsPath* path )
 {
     double length = 0.;
     length += path->param[0];
@@ -266,7 +266,7 @@ double dubins_path_length( DubinsPath* path )
     return length;
 }
 
-int dubins_path_type( DubinsPath* path ) {
+int dubins_path_type( const DubinsPath* path ) {
     return path->type;
 }
 
@@ -291,7 +291,7 @@ void dubins_segment( double t, double qi[3], double qt[3], int type)
     }
 }
 
-int dubins_path_sample( DubinsPath* path, double t, double q[3] )
+int dubins_path_sample( const DubinsPath* path, double t, double q[3] )
 {
     if( t < 0 || t >= dubins_path_length(path) ) {
         // error, parameter out of bounds
@@ -340,7 +340,7 @@ int dubins_path_sample( DubinsPath* path, double t, double q[3] )
     return 0;
 }
 
-int dubins_path_sample_many( DubinsPath* path, DubinsPathSamplingCallback cb, double stepSize, void* user_data )
+int dubins_path_sample_many( const DubinsPath* path, DubinsPathSamplingCallback cb, double stepSize, void* user_data )
 {
     double x = 0.0;
     double length = dubins_path_length(path);
@@ -356,13 +356,13 @@ int dubins_path_sample_many( DubinsPath* path, DubinsPathSamplingCallback cb, do
     return 0;
 }
 
-int dubins_path_endpoint( DubinsPath* path, double q[3] )
+int dubins_path_endpoint( const DubinsPath* path, double q[3] )
 {
     // TODO - introduce a new constant rather than just using EPSILON
     return dubins_path_sample( path, dubins_path_length(path) - EPSILON, q );
 }
 
-int dubins_extract_subpath( DubinsPath* path, double t, DubinsPath* newpath )
+int dubins_extract_subpath( const DubinsPath* path, double t, DubinsPath* newpath )
 {
     // calculate the true parameter
     double tprime = t / path->rho;

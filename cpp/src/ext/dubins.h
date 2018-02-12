@@ -91,7 +91,7 @@ int dubins_init_with_type( double q0[3], double q1[3], double rho, DubinsPath* p
  *
  * @param path - the path to find the length of
  */
-double dubins_path_length( DubinsPath* path );
+double dubins_path_length( const DubinsPath* path );
 
 /**
  * Extract an integer that represents which path type was used
@@ -99,7 +99,7 @@ double dubins_path_length( DubinsPath* path );
  * @param path    - an initialised path
  * @return        - one of LSL, LSR, RSL, RSR, RLR or LRL (ie/ 0-5 inclusive)
  */
-int dubins_path_type( DubinsPath * path );
+int dubins_path_type( const DubinsPath * path );
 
 /**
  * Calculate the configuration along the path, using the parameter t
@@ -109,7 +109,7 @@ int dubins_path_type( DubinsPath * path );
  * @param q    - the configuration result
  * @returns    - non-zero if 't' is not in the correct range
  */
-int dubins_path_sample( DubinsPath* path, double t, double q[3]);
+int dubins_path_sample( const DubinsPath* path, double t, double q[3]);
 
 /**
  * Walk along the path at a fixed sampling interval, calling the
@@ -120,7 +120,7 @@ int dubins_path_sample( DubinsPath* path, double t, double q[3]);
  * @param user_data - optional information to pass on to the callback
  * @param stepSize  - the distance along the path for subsequent samples
  */
-int dubins_path_sample_many( DubinsPath* path, DubinsPathSamplingCallback cb, double stepSize, void* user_data );
+int dubins_path_sample_many( const DubinsPath* path, DubinsPathSamplingCallback cb, double stepSize, void* user_data );
 
 /**
  * Convenience function to identify the endpoint of a path
@@ -128,7 +128,7 @@ int dubins_path_sample_many( DubinsPath* path, DubinsPathSamplingCallback cb, do
  * @param path - an initialised path
  * @param q    - the configuration result
  */
-int dubins_path_endpoint( DubinsPath* path, double q[3] );
+int dubins_path_endpoint( const DubinsPath* path, double q[3] );
 
 /**
  * Convenience function to extract a subset of a path
@@ -137,7 +137,7 @@ int dubins_path_endpoint( DubinsPath* path, double q[3] );
  * @param t       - a length measure, where 0 < t < dubins_path_length(path)
  * @param newpath - the resultant path
  */
-int dubins_extract_subpath( DubinsPath* path, double t, DubinsPath* newpath );
+int dubins_extract_subpath( const DubinsPath* path, double t, DubinsPath* newpath );
 
 // Only exposed for testing purposes
 int dubins_LSL( double alpha, double beta, double d, double* outputs );
