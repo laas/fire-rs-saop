@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
+#include "core/dubinswind.hpp"
 #include "core/trajectory.hpp"
 #include "core/raster.hpp"
 #include "vns/factory.hpp"
@@ -313,6 +314,21 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("dir", &Waypoint3d::dir)
             .def("__repr__", &Waypoint3d::to_string);
 
+    py::class_<Waypoint>(m, "Waypoint2d")
+            .def(py::init<const double, const double, const double>(),
+                 py::arg("x"), py::arg("y"), py::arg("direction"))
+            .def_readonly("x", &Waypoint::x)
+            .def_readonly("y", &Waypoint::y)
+            .def_readonly("dir", &Waypoint::dir)
+            .def("__repr__", &Waypoint::to_string);
+
+    py::class_<WindVector>(m, "WindVector")
+            .def(py::init<const double, const double>(),
+                 py::arg("x"), py::arg("y"))
+            .def_property_readonly("x", &WindVector::x)
+            .def_property_readonly("y", &WindVector::y)
+            .def("__repr__", &WindVector::to_string);
+
     py::class_<Segment3d>(m, "Segment")
             .def(py::init<const Waypoint3d, const double>())
             .def(py::init<const Waypoint3d, const Waypoint3d>())
@@ -334,9 +350,19 @@ PYBIND11_MODULE(uav_planning, m) {
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"))
             .def("travel_time", (double (UAV::*)(const Waypoint&, const Waypoint&) const)
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"))
+            .def("travel_time", (double (UAV::*)(const Waypoint&, const Waypoint&, const WindVector&) const)
+                    &UAV::travel_time, py::arg("origin"), py::arg("destination"), py::arg("wind"))
             .def("path_sampling",
-                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const double) const)
-                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"));
+                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, double) const)
+                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"))
+            .def("path_sampling",
+                 (std::vector<Waypoint> (UAV::*)(const Waypoint&, const Waypoint&, const WindVector&, double) const)
+                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("wind"),
+                 py::arg("step_size"))
+            .def("path_sampling_airframe",
+                 (std::vector<Waypoint> (UAV::*)(const Waypoint&, const Waypoint&, const WindVector&, double) const)
+                         &UAV::path_sampling_airframe, py::arg("origin"), py::arg("destination"), py::arg("wind"),
+                 py::arg("step_size"));
 
     py::class_<Trajectory>(m, "Trajectory")
             .def(py::init<const TrajectoryConfig&>())
@@ -378,7 +404,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("trace", [](Trajectory& self, const DRaster& r) {
                 vector<PositionTime> trace = vector<PositionTime>{};
                 for (auto i = 0ul; i <= self.size(); ++i) {
-                    Plan::segment_trace(self[i].maneuver, self.conf().uav.view_width(), self.conf().uav.view_depth(), r);
+                    Plan::segment_trace(self[i].maneuver, self.conf().uav.view_width(), self.conf().uav.view_depth(),
+                                        r);
                 }
                 return trace;
             }, py::arg("raster"));
@@ -411,6 +438,12 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
             .def("metadata", [](SearchResult& self) { return self.metadata.dump(); });
 
+
+    py::class_<DubinsWind>(m, "DubinsWind")
+            .def(py::init<const Waypoint&, const Waypoint&, const WindVector&, double, double>(),
+                 py::arg("from"), py::arg("to"), py::arg("wind"), py::arg("uav_airspeed"), py::arg("turn_radius"))
+            .def("sampled", &DubinsWind::sampled, py::arg("l_step"))
+            .def("sampled_airframe", &DubinsWind::sampled_airframe, py::arg("l_step"));
 
     m.def("replan_vns", SAOP::replan_vns, py::arg("last_search"), py::arg("after_time"), py::arg("ignitions_update"),
           py::arg("elevation_update"), py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
