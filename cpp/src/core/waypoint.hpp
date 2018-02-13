@@ -35,7 +35,7 @@ namespace SAOP {
     struct WindVector final {
         WindVector() = default;
 
-        WindVector(double x, double y) : x_speed(x), y_speed(y) {};
+        constexpr WindVector(double x, double y) : x_speed(x), y_speed(y) {};
 
         double x() const {
             return x_speed;
@@ -46,7 +46,7 @@ namespace SAOP {
         }
 
         double dir() const {
-            return remainder(atan2(y_speed, x_speed), 2 * M_PI);
+            return atan2(y_speed, x_speed);
         };
 
         double speed() const {
