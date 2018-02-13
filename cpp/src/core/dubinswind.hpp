@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_DUBINSWIND_HPP
 #define PLANNING_CPP_DUBINSWIND_HPP
 
+#include <cmath>
 #include <stdexcept>
 #include <vector>
 
@@ -66,7 +67,7 @@ namespace SAOP {
         }
 
         double T() const {
-            return dubins_path_length(&path_air) / air_speed;
+            return dubins_path_length(&air_path) / air_speed;
         }
 
         double uav_airspeed() const {
@@ -88,7 +89,7 @@ namespace SAOP {
         double r_min; // Minimal possible radius
         double d_star; // Best d
 
-        DubinsPath path_air = {};
+        DubinsPath air_path = {};
 
         double find_d(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
                       double turn_radius, DubinsPath* dubins_conf);

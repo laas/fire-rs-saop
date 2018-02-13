@@ -27,8 +27,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
-    DubinsWind::DubinsWind(const Waypoint& from, const Waypoint& to, const WindVector &constant_wind, double uav_air_speed,
-                           double turn_radius) {
+    DubinsWind::DubinsWind(const Waypoint& from, const Waypoint& to, const WindVector& constant_wind,
+                           double uav_air_speed, double turn_radius) {
 
         wp_s = from;
         wp_e = to;
@@ -56,13 +56,13 @@ namespace SAOP {
             a_path.type = dubins_types[i];
             dd[i] = find_d(wp_s, wp_e, wind_vector, air_speed, turn_radius, &a_path);
             if (dd[i] < d_star) {
-                path_air = a_path;
+                air_path = a_path;
                 d_star = dd[i];
             }
         }
 
-        if (path_air.type == -1) {
-           throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed, "d* not found");
+        if (air_path.type == -1) {
+            throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed, "d* not found");
         }
     }
 
@@ -74,7 +74,7 @@ namespace SAOP {
         // G(da) is positive by definition
         // Increase db until G(db) < 0
         {
-            int n_iter=0;
+            int n_iter = 0;
             double g_db = 1;
             while (g_db > 0 && db < std::numeric_limits<double>::infinity()) {
                 auto opt_g_db = G(db, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
@@ -83,7 +83,7 @@ namespace SAOP {
                     if (std::isnan(g_db)) {
                         db = std::numeric_limits<double>::infinity();
                     }
-                    if(g_db > 0) {
+                    if (g_db > 0) {
                         db = std::pow(db, 2);
                     }
                 } else {
@@ -116,8 +116,9 @@ namespace SAOP {
                 if (fabs(g) < epsilon || ((db - da) / 2) < epsilon) {
                     return dc;
                 }
-                auto opt_g_da = G(dc, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
-                if (std::signbit(g) == std::signbit(*opt_g_da)) { da = dc; } else { db = dc; } // G(da) must be positive, G(db) must be negative
+                auto opt_g_da = G(da, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
+                if (std::signbit(g) == std::signbit(*opt_g_da)) { da = dc; }
+                else { db = dc; } // G(da) must be positive, G(db) must be negative
             }
             ++n;
         }
@@ -126,8 +127,8 @@ namespace SAOP {
     }
 
     opt<double> DubinsWind::G(double d, const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
-             double turn_radius, DubinsPath* dubins_air_conf) {
-        auto to_air = to.move(d, -wind.dir());
+                              double turn_radius, DubinsPath* dubins_air_conf) {
+        auto to_air = to.move(-d, wind.dir());
         auto t_vt = d / wind.speed();
         double orig_air[3] = {from.x, from.y, from.dir};
         double dest_air[3] = {to_air.x, to_air.y, to_air.dir};
