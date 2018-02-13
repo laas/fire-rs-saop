@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "waypoint.hpp"
 #include "../utils.hpp"
 #include "dubins3d.hpp"
+#include "dubinswind.hpp"
 
 namespace SAOP {
 
@@ -90,6 +91,12 @@ namespace SAOP {
             return travel_distance(origin, target) / _max_air_speed;
         }
 
+        /** Returns the travel time between the two waypoints. */
+        double travel_time(const Waypoint& origin, const Waypoint& target, const WindVector& wind) const {
+            DubinsWind path(origin, target, wind, _min_turn_radius, _max_pitch_angle);
+            return path.T();
+        }
+
         /* Determine whether the UAV is turning*/
         bool is_turning(const Waypoint3d& prev, const Waypoint3d& current) const {
             // r = dist(prev, current) / (current.dir - prev.dir)
@@ -99,7 +106,7 @@ namespace SAOP {
 
         /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
         std::vector<Waypoint>
-        path_sampling(const Waypoint& origin, const Waypoint& target, const double step_size) const {
+        path_sampling(const Waypoint& origin, const Waypoint& target, double step_size) const {
             ASSERT(step_size > 0);
             const double length = travel_distance(origin, target);
             DubinsPath path = dubins_path(origin, target);
@@ -116,7 +123,7 @@ namespace SAOP {
 
         /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
         std::vector<Waypoint3d>
-        path_sampling(const Waypoint3d& origin, const Waypoint3d& target, const double step_size) const {
+        path_sampling(const Waypoint3d& origin, const Waypoint3d& target, double step_size) const {
             ASSERT(step_size > 0);
             Dubins3dPath path = Dubins3dPath(origin, target, _min_turn_radius, _max_pitch_angle);
             std::vector<Waypoint3d> waypoints;
@@ -127,10 +134,28 @@ namespace SAOP {
             return waypoints;
         }
 
+        /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
+        std::vector<Waypoint>
+        path_sampling(const Waypoint& origin, const Waypoint& target, const WindVector& wind,
+                      double step_size) const {
+            ASSERT(step_size > 0);
+            DubinsWind path = DubinsWind(origin, target, wind, _max_air_speed, _min_turn_radius);
+            return path.sampled(step_size);
+        }
+
+        /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
+        std::vector<Waypoint>
+        path_sampling_airframe(const Waypoint& origin, const Waypoint& target, const WindVector& wind,
+                      double step_size) const {
+            ASSERT(step_size > 0);
+            DubinsWind path = DubinsWind(origin, target, wind, _max_air_speed, _min_turn_radius);
+            return path.sampled_airframe(step_size);
+        }
+
         /* Returns a sequence of waypoints with its corresponding time following the dubins trajectory,
          * one every step_size distance units. */
         std::pair<std::vector<Waypoint3d>, std::vector<double>>
-        path_sampling_with_time(const Waypoint3d& origin, const Waypoint3d& target, const double step_size,
+        path_sampling_with_time(const Waypoint3d& origin, const Waypoint3d& target, double step_size,
                                 double t_start) const {
             ASSERT(step_size > 0);
             Dubins3dPath path = Dubins3dPath(origin, target, _min_turn_radius, _max_pitch_angle);
