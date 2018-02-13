@@ -36,33 +36,46 @@ namespace SAOP {
         wind_vector = constant_wind;
         air_speed = uav_air_speed;
 
-        if (from.as_point().dist(to.as_point()) <= 2 * r_min) {
-            throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed, "wp are closer than 4*r_min");
-        }
+        if (ALMOST_EQUAL(wind_vector.x(), 0) && ALMOST_EQUAL(wind_vector.y(), 0)) {
+            // Do the regular Dubins2D procedure instead of the DubinsWind one
+            d_star = 0.;
+            double orig_air[3] = {from.x, from.y, from.dir};
+            double dest_air[3] = {to.x, to.y, to.dir};
+            auto ret = dubins_init(orig_air, dest_air, turn_radius, &air_path);
+            ASSERT(ret == 0);
 
-        // We only accept CSC traj types for now
-        auto dubins_types = std::vector<Dubins2dPathType> {Dubins2dPathType::LSL,
-                                                           Dubins2dPathType::LSR,
-                                                           Dubins2dPathType::RSL,
-                                                           Dubins2dPathType::RSR};
-        // d* is chosen among these d values that are going to be computed
-        auto dd = std::vector<double>(dubins_types.size(), std::numeric_limits<double>::infinity());
-        d_star = std::numeric_limits<double>::infinity();
-
-        // Finding d for each dubins type == finding d for each piece of G(d)
-        for (size_t i = 0ul; i < dubins_types.size(); ++i) {
-            // Find rdv between UAV dubins path in air frame and the target point
-            DubinsPath a_path;
-            a_path.type = dubins_types[i];
-            dd[i] = find_d(wp_s, wp_e, wind_vector, air_speed, turn_radius, &a_path);
-            if (dd[i] < d_star) {
-                air_path = a_path;
-                d_star = dd[i];
+        } else {
+            if (from.as_point().dist(to.as_point()) <= 2 * r_min) {
+                throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed,
+                                                      "wp are closer than 4*r_min");
             }
-        }
 
-        if (air_path.type == -1) {
-            throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed, "d* not found");
+            // We only accept CSC traj types for now
+            auto dubins_types = std::vector<Dubins2dPathType> {
+                    Dubins2dPathType::RSR,
+                    Dubins2dPathType::RSL,
+                    Dubins2dPathType::LSR,
+                    Dubins2dPathType::LSL,
+            };
+            // d* is chosen among these d values that are going to be computed
+            auto dd = std::vector<double>(dubins_types.size(), std::numeric_limits<double>::infinity());
+            d_star = std::numeric_limits<double>::infinity();
+
+            // Finding d for each dubins type == finding d for each piece of G(d)
+            for (size_t i = 0ul; i < dubins_types.size(); ++i) {
+                // Find rdv between UAV dubins path in air frame and the target point
+                DubinsPath a_path;
+                a_path.type = dubins_types[i];
+                dd[i] = find_d(wp_s, wp_e, wind_vector, air_speed, turn_radius, &a_path);
+                if (dd[i] < d_star) {
+                    air_path = a_path;
+                    d_star = dd[i];
+                }
+            }
+
+            if (air_path.type == -1) {
+                throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed, "d* not found");
+            }
         }
     }
 
