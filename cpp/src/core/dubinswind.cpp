@@ -79,6 +79,58 @@ namespace SAOP {
         }
     }
 
+    std::vector<Waypoint> DubinsWind::sampled_airframe(double l_step) const {
+        ASSERT(l_step > 0);
+
+        std::vector<Waypoint> wps = {};
+
+        double current_l = 0.0;
+        double length = dubins_path_length(&air_path);
+        while (current_l < length) {
+            double q[3];
+            dubins_path_sample(&air_path, current_l, q);
+            wps.emplace_back(Waypoint{q[0], q[1], q[3]});
+            current_l += l_step;
+        }
+
+        return wps;
+    }
+
+    std::vector<Waypoint> DubinsWind::sampled(double l_step) const {
+        ASSERT(l_step > 0);
+
+        std::vector<Waypoint> wp_air = sampled_airframe(l_step);
+        std::vector<Waypoint> wp_ground = {};
+
+        double t_step = l_step / air_speed;
+
+        double current_l = 0.0;
+        double length = dubins_path_length(&air_path);
+
+        Waypoint q_prev = wp_s;
+        Waypoint p_prev = wp_s;
+        while (current_l < length) {
+            double q[3];
+            dubins_path_sample(&air_path, current_l, q);
+            // p⃗_g = p⃗_a + w⃗ ⨯ Δt
+            Waypoint q_now{q[0], q[1], q[2]};
+
+            auto p_x = p_prev.x + (q_now.x - q_prev.x) + t_step * wind_vector.x();
+            auto p_y = p_prev.y + (q_now.y - q_prev.y) + t_step * wind_vector.y();
+            auto p_theta = WindVector(wind_vector.x() + air_speed * std::cos(q[2]),
+                                      wind_vector.y() + air_speed * std::sin(q[2])).dir();
+            Waypoint p_now{p_x, p_y, p_theta};
+            wp_ground.emplace_back(p_now);
+
+            p_prev = p_now;
+            q_prev = q_now;
+
+            current_l += l_step;
+        }
+
+        return wp_ground;
+    }
+
     double DubinsWind::find_d(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
                               double turn_radius, DubinsPath* dubins_air_conf) {
         double da = 0; // G(0) > 0 (Remark 2)
@@ -104,6 +156,7 @@ namespace SAOP {
                 }
                 ++n_iter;
             }
+            std::cout << "# db iters: " << n_iter << std::endl;
 
             if (db >= std::numeric_limits<double>::infinity()) {
                 return std::numeric_limits<double>::infinity();
@@ -127,6 +180,7 @@ namespace SAOP {
             } else {
                 auto g = *opt_g;
                 if (fabs(g) < epsilon || ((db - da) / 2) < epsilon) {
+                    std::cout << "# iterations: " << n << std::endl;
                     return dc;
                 }
                 auto opt_g_da = G(da, from, to, wind, uav_speed, turn_radius, dubins_air_conf);

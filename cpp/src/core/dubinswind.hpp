@@ -49,10 +49,10 @@ namespace SAOP {
 
         DubinsWind(const Waypoint& from, const Waypoint& to, const WindVector& constant_wind, double uav_air_speed,
                    double turn_radius);
-//
-//        std::vector<Waypoint> sampled(double t_step) const;
-//
-//        std::vector<Waypoint3d> sampled(double t_step) const;
+
+        std::vector<Waypoint> sampled(double l_step) const;
+
+        std::vector<Waypoint> sampled_airframe(double l_step) const;
 
         Waypoint start() const {
             return wp_s;
