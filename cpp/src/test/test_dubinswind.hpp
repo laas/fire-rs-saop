@@ -36,18 +36,24 @@ namespace SAOP {
     namespace Test {
 
         using namespace boost::unit_test;
-        using namespace std;
 
-        static double uav_speed = 15; // m/s
+        static double uav_speed = 11; // m/s
 
         void test_dubins_wind() {
+            WindVector wind = WindVector(15, 0);
 
-            WindVector wind = WindVector(-5, -5);
-
-            Waypoint orig{100, 100, M_PI_2};
+            Waypoint orig{1000, 1000, M_PI_2};
             Waypoint dest{0, 0, 3 * M_PI_2};
 
+            DubinsPath path2d;
+            double orig_array[3]{orig.x, orig.y, orig.dir};
+            double dest_array[3]{dest.x, dest.y, dest.dir};
+            dubins_init(orig_array, dest_array, SAOP::Test::r_min, &path2d);
+
             DubinsWind dubinswind_path = DubinsWind(orig, dest, wind,uav_speed, SAOP::Test::r_min);
+            std::cout << "d*:\t" << dubinswind_path.d() << std::endl;
+            std::cout << "T:\t" << dubinswind_path.T() << std::endl;
+            std::cout << "Tnowind:\t"<< dubins_path_length(&path2d)/uav_speed << std::endl;
         }
 
         test_suite* dubinswind_test_suite() {
