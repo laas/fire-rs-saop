@@ -327,6 +327,8 @@ PYBIND11_MODULE(uav_planning, m) {
                  py::arg("x"), py::arg("y"))
             .def_property_readonly("x", &WindVector::x)
             .def_property_readonly("y", &WindVector::y)
+            .def("dir", &WindVector::dir)
+            .def("speed", &WindVector::speed)
             .def("__repr__", &WindVector::to_string);
 
     py::class_<Segment3d>(m, "Segment")
