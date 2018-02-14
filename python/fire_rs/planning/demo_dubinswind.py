@@ -62,15 +62,15 @@ if __name__ == '__main__':
     uav_speed = 18.  # m/s
     uav_max_turn_rate = 32. * np.pi / 180
     uav_max_pitch_angle = 6. / 180. * np.pi
-    wind = up.WindVector(-5, 10)
+    wind = up.WindVector(-2, -2)
     no_wind = up.WindVector(0, 0)
     a_uav = up.UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
 
     fig = plt.figure()
     # Low altitude
     ax = fig.add_subplot(111)
-    ax.set_xlim((-200, 200))
-    ax.set_ylim((-200, 200))
+    ax.set_xlim((-200, 100))
+    ax.set_ylim((-100, 200))
     wp_ma = [(-100, 0, np.pi), (0, 100, np.pi)]  # , (0, 100, 20, 0)]
     for i in range(len(wp_ma) - 1):
         ax.plot(*traj_wind_groundframe(a_uav, wp_ma[i], wp_ma[i + 1], no_wind), alpha=.66,
@@ -91,15 +91,18 @@ if __name__ == '__main__':
                     xytext=(wp_ma[i + 1][0], wp_ma[i + 1][1] + 10))
 
         wind_location = (-150, 150)
-        ax.annotate('wind', xy=(wind_location[0], wind_location[1]),
-                    xytext=(wind_location[0] + 20, wind_location[1] - 20))
-        ax.arrow(wind_location[0], wind_location[1], -15 * np.cos(wind.x), -15 * np.sin(wind.y),
+        ax.annotate('wind ' + format(wind.speed(), '.2f') + 'm/s', xy=(wind_location[0], wind_location[1]),
+                    xytext=(wind_location[0] - 30 * np.cos(wind.dir()),
+                            wind_location[1] - 30 * np.cos(wind.dir())))
+        ax.arrow(wind_location[0], wind_location[1],
+                 wind.speed() * np.cos(wind.dir()),
+                 wind.speed() * np.sin(wind.dir()),
                  fc="k", ec="k", head_width=5, head_length=5, zorder=100)
 
     plt.xlabel("x")
     plt.ylabel("y")
-    plt.legend()
-    plt.title("UAV trajectory under the presence of constant wind")
+    plt.legend(loc='upper right')
+    plt.title("Optimal trajectory of a UAV under the presence of constant wind")
 
     plt.show(block=True)
     print("end")
