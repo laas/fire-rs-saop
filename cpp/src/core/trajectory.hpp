@@ -95,15 +95,15 @@ namespace SAOP {
         };
 
         /* Empty trajectory constructor */
-        explicit Trajectory(const TrajectoryConfig& _config)
-                : _conf(_config) {
-            if (_conf.start_position) {
-                append_segment(Segment3d(*_conf.start_position));
+        explicit Trajectory(const TrajectoryConfig& config)
+                : config(config) {
+            if (config.start_position) {
+                append_segment(Segment3d(*config.start_position));
                 insertion_range = IndexRange::end_unbounded(1);
             }
 
-            if (_conf.end_position) {
-                append_segment(Segment3d(*_conf.end_position));
+            if (config.end_position) {
+                append_segment(Segment3d(*config.end_position));
                 insertion_range = insertion_range.intersection_with(IndexRange::start_unbounded(size() - 1));
             }
             is_set_up = true;
@@ -111,14 +111,14 @@ namespace SAOP {
         }
 
         const TrajectoryConfig& conf() const {
-            return _conf;
+            return config;
         }
 
         /* Number of segments in the trajectory. */
         size_t size() const { return _maneuvers.size(); }
 
         /* Time (s) at which the trajectory starts. */
-        double start_time() const { return _conf.start_time; }
+        double start_time() const { return config.start_time; }
 
         /* Time (s) at which the trajectory ends. */
         double end_time() const {
@@ -135,7 +135,7 @@ namespace SAOP {
         double end_time(size_t segment_index) const {
             ASSERT(segment_index < size());
             return start_time(segment_index) +
-                   _maneuvers[segment_index].length / _conf.uav.max_air_speed();
+                   _maneuvers[segment_index].length / config.uav.max_air_speed();
         }
 
         /* Duration (s) of the path. */
@@ -145,29 +145,29 @@ namespace SAOP {
 
         /* Length (m) of the path. */
         double length() const {
-            return _conf.uav.max_air_speed() * duration();
+            return config.uav.max_air_speed() * duration();
         }
 
         /* Returns true if the first/last segments matches the ones given in the configuration
          * of the trajectory. */
         bool start_and_end_positions_respected() const {
-            const bool start_valid = !_conf.start_position ||
+            const bool start_valid = !config.start_position ||
                                      (size() >= 1 &&
-                                      _maneuvers[0].start == *_conf.start_position &&
-                                      _maneuvers[0].end == *_conf.start_position &&
+                                      _maneuvers[0].start == *config.start_position &&
+                                      _maneuvers[0].end == *config.start_position &&
                                       _maneuvers[0].length == 0);
             const size_t last_index = size() - 1;
-            const bool end_valid = !_conf.end_position ||
+            const bool end_valid = !config.end_position ||
                                    (size() >= 1 &&
-                                    _maneuvers[last_index].start == *_conf.end_position &&
-                                    _maneuvers[last_index].end == *_conf.end_position &&
+                                    _maneuvers[last_index].start == *config.end_position &&
+                                    _maneuvers[last_index].end == *config.end_position &&
                                     _maneuvers[last_index].length == 0);
             return start_valid && end_valid;
         }
 
         /* Returns true if this trajectory does not go over the maximum flight time given in configuration. */
         bool has_valid_flight_time() const {
-            return ALMOST_LESSER_EQUAL(duration(), _conf.max_flight_time);
+            return ALMOST_LESSER_EQUAL(duration(), config.max_flight_time);
         }
 
         /* Index of the first modifiable segment. */
@@ -344,16 +344,16 @@ namespace SAOP {
 
             // When the new trajectory does not contain any vector
             if (!new_traj_start_i) {
-                TrajectoryConfig new_conf = TrajectoryConfig(_conf.uav, tw.start, tw.end);
+                TrajectoryConfig new_conf = TrajectoryConfig(config.uav, tw.start, tw.end);
                 return Trajectory(new_conf);
             }
 
             /* TODO: Start and end waypoints should be set to the position at tw.start and tw.end and not at the closest
              * segment. However, this requires to implement a function to get the position at any time in the trajectory.*/
             TrajectoryConfig new_conf = TrajectoryConfig(
-                    _conf.uav, _maneuvers.at(*new_traj_start_i).start, _maneuvers.at(new_traj_end_i).end,
-                    ((*new_traj_start_i) == 0) ? _conf.start_time : start_time(*new_traj_start_i),
-                    (new_traj_end_i == (size() - 1)) ? _conf.max_flight_time : end_time(new_traj_end_i));
+                    config.uav, _maneuvers.at(*new_traj_start_i).start, _maneuvers.at(new_traj_end_i).end,
+                    ((*new_traj_start_i) == 0) ? config.start_time : start_time(*new_traj_start_i),
+                    (new_traj_end_i == (size() - 1)) ? config.max_flight_time : end_time(new_traj_end_i));
 
             Trajectory new_trajectory = Trajectory(new_conf);
             for (size_t i = *new_traj_start_i, j = new_trajectory.insertion_range_start();
@@ -424,7 +424,7 @@ namespace SAOP {
             if (waypoints.size() == 1)
                 sampled.push_back(waypoints[0]);
             for (int i = 0; i < (int) waypoints.size() - 1; i++) {
-                auto local_sampled = _conf.uav.path_sampling(waypoints[i], waypoints[i + 1], step_size);
+                auto local_sampled = config.uav.path_sampling(waypoints[i], waypoints[i + 1], step_size);
                 sampled.insert(sampled.end(), local_sampled.begin(), local_sampled.end());
             }
             return sampled;
@@ -450,7 +450,7 @@ namespace SAOP {
 
             for (int i = 0; i < (int) std::get<0>(waypoints_time).size() - 1; i++) {
                 // Sample trajectory between waypoints
-                auto local_sampled = _conf.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
+                auto local_sampled = config.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
                                                                        std::get<0>(waypoints_time)[i + 1], step_size,
                                                                        cumulated_travel_time);
                 sampled.insert(sampled.end(), std::get<0>(local_sampled).begin(), std::get<0>(local_sampled).end());
@@ -484,7 +484,7 @@ namespace SAOP {
                 // Sample trajectory between waypoints that are at least partially on the time range
                 if (time_range.contains(std::get<1>(waypoints_time)[i]) ||
                     time_range.contains(std::get<1>(waypoints_time)[i + 1])) {
-                    auto local_sampled = _conf.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
+                    auto local_sampled = config.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
                                                                            std::get<0>(waypoints_time)[i + 1],
                                                                            step_size,
                                                                            cumulated_travel_time);
@@ -518,21 +518,21 @@ namespace SAOP {
             if (size() == 0)
                 return segment.length;
             else if (insert_loc == 0)
-                return segment.length + _conf.uav.travel_distance(segment.end, _maneuvers[insert_loc].start);
+                return segment.length + config.uav.travel_distance(segment.end, _maneuvers[insert_loc].start);
             else if (insert_loc == size())
-                return _conf.uav.travel_distance(_maneuvers[insert_loc - 1].end, segment.start) + segment.length;
+                return config.uav.travel_distance(_maneuvers[insert_loc - 1].end, segment.start) + segment.length;
             else {
-                return _conf.uav.travel_distance(_maneuvers[insert_loc - 1].end, segment.start)
+                return config.uav.travel_distance(_maneuvers[insert_loc - 1].end, segment.start)
                        + segment.length
-                       + _conf.uav.travel_distance(segment.end, _maneuvers[insert_loc].start)
-                       - _conf.uav.travel_distance(_maneuvers[insert_loc - 1].end, _maneuvers[insert_loc].start);
+                       + config.uav.travel_distance(segment.end, _maneuvers[insert_loc].start)
+                       - config.uav.travel_distance(_maneuvers[insert_loc - 1].end, _maneuvers[insert_loc].start);
             }
         }
 
         double insertion_duration_cost(size_t insert_loc, const Segment3d segment) const {
             auto increase_in_length = insertion_length_cost(insert_loc, segment);
             ASSERT(ALMOST_GREATER_EQUAL(increase_in_length, 0));
-            return increase_in_length / _conf.uav.max_air_speed();
+            return increase_in_length / config.uav.max_air_speed();
         }
 
         /* Decrease of length as result of removing the segment at the given position. */
@@ -540,19 +540,19 @@ namespace SAOP {
             ASSERT(index < size());
             const Segment3d segment = _maneuvers[index];
             if (index == 0)
-                return segment.length + _conf.uav.travel_distance(segment.end, _maneuvers[index + 1].start);
+                return segment.length + config.uav.travel_distance(segment.end, _maneuvers[index + 1].start);
             else if (index == size() - 1)
-                return _conf.uav.travel_distance(_maneuvers[index - 1].end, segment.start) + segment.length;
+                return config.uav.travel_distance(_maneuvers[index - 1].end, segment.start) + segment.length;
             else {
-                return _conf.uav.travel_distance(_maneuvers[index - 1].end, segment.start)
+                return config.uav.travel_distance(_maneuvers[index - 1].end, segment.start)
                        + segment.length
-                       + _conf.uav.travel_distance(segment.end, _maneuvers[index + 1].start)
-                       - _conf.uav.travel_distance(_maneuvers[index - 1].end, _maneuvers[index + 1].start);
+                       + config.uav.travel_distance(segment.end, _maneuvers[index + 1].start)
+                       - config.uav.travel_distance(_maneuvers[index - 1].end, _maneuvers[index + 1].start);
             }
         }
 
         double removal_duration_gain(size_t index) const {
-            return removal_length_gain(index) / _conf.uav.max_air_speed();
+            return removal_length_gain(index) / config.uav.max_air_speed();
         }
 
         /* Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
@@ -570,12 +570,12 @@ namespace SAOP {
                     - segments_length(_maneuvers, index, n_replaced);
             if (index > 0)
                 cost = cost
-                       + _conf.uav.travel_distance(_maneuvers[index - 1].end, segments[0].start)
-                       - _conf.uav.travel_distance(_maneuvers[index - 1].end, _maneuvers[index].start);
+                       + config.uav.travel_distance(_maneuvers[index - 1].end, segments[0].start)
+                       - config.uav.travel_distance(_maneuvers[index - 1].end, _maneuvers[index].start);
             if (end_index + 1 < size())
                 cost = cost
-                       + _conf.uav.travel_distance(segments[segments.size() - 1].end, _maneuvers[end_index + 1].start)
-                       - _conf.uav.travel_distance(_maneuvers[end_index].end, _maneuvers[end_index + 1].start);
+                       + config.uav.travel_distance(segments[segments.size() - 1].end, _maneuvers[end_index + 1].start)
+                       - config.uav.travel_distance(_maneuvers[end_index].end, _maneuvers[end_index + 1].start);
 
             return cost;
         }
@@ -587,13 +587,13 @@ namespace SAOP {
 
         /* Increase in time (s) as a result of replacing the N segments at the given index by the N segemnts provided.*/
         double replacement_duration_cost(size_t index, const std::vector<Segment3d>& segments) const {
-            return replacement_length_cost(index, segments) / _conf.uav.max_air_speed();
+            return replacement_length_cost(index, segments) / config.uav.max_air_speed();
         }
 
         /* Increase in time (s) as a result of replacing n segments at the given index by the N segments provided.*/
         double
         replacement_duration_cost(size_t index, size_t n_replaced, const std::vector<Segment3d>& segments) const {
-            return replacement_length_cost(index, n_replaced, segments) / _conf.uav.max_air_speed();
+            return replacement_length_cost(index, n_replaced, segments) / config.uav.max_air_speed();
         }
 
         /* Returns a new trajectory with the given waypoint appended (as a segment of length 0) */
@@ -633,9 +633,9 @@ namespace SAOP {
         void insert_segment(const Segment3d& seg, size_t at_index) {
             ASSERT(at_index <= size());
             ASSERT(insertion_range_start() <= at_index && at_index <= insertion_range_end());
-            const double start = at_index == 0 ? _conf.start_time :
+            const double start = at_index == 0 ? config.start_time :
                                  end_time(at_index - 1) +
-                                 _conf.uav.travel_time(_maneuvers[at_index - 1].end, seg.start);
+                                 config.uav.travel_time(_maneuvers[at_index - 1].end, seg.start);
 
             const double added_delay = insertion_duration_cost(at_index, seg);
             ASSERT(ALMOST_GREATER_EQUAL(added_delay, 0));
@@ -707,7 +707,7 @@ namespace SAOP {
         }
 
     private:
-        TrajectoryConfig _conf;
+        TrajectoryConfig config;
 
         std::vector<Segment3d> _maneuvers;
         std::vector<double> _start_times;
@@ -733,7 +733,7 @@ namespace SAOP {
 //                ASSERT(traj.size() == start_times.size())
 //        ASSERT(fabs(non_incremental_length() / conf.uav.max_air_speed() - (end_time() - start_time())) < 0.001)
                 for (size_t i = 0; i < size(); i++) {
-                    ASSERT(ALMOST_GREATER_EQUAL(_start_times[i], _conf.start_time));
+                    ASSERT(ALMOST_GREATER_EQUAL(_start_times[i], config.start_time));
                 }
                 ASSERT(start_and_end_positions_respected());
             }
@@ -755,7 +755,7 @@ namespace SAOP {
             for (auto it = segments.begin() + start; it != end_it; it++) {
                 cost += it->length;
                 if ((it + 1) != end_it)
-                    cost += _conf.uav.travel_distance(it->end, (it + 1)->start);
+                    cost += config.uav.travel_distance(it->end, (it + 1)->start);
             }
             return cost;
         }
@@ -768,7 +768,7 @@ namespace SAOP {
             for (auto it = maneuvers.begin() + start; it != end_it; it++) {
                 cost += it->maneuver.length;
                 if ((it + 1) != end_it)
-                    cost += _conf.uav.travel_distance(it->maneuver.end, (it + 1)->maneuver.start);
+                    cost += config.uav.travel_distance(it->maneuver.end, (it + 1)->maneuver.start);
             }
             return cost;
         }
