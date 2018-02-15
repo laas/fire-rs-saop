@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
-    DubinsWind::DubinsWind(const Waypoint& from, const Waypoint& to, const WindVector& constant_wind,
+    DubinsWind::DubinsWind(const Waypoint3d& from, const Waypoint3d& to, const WindVector& constant_wind,
                            double uav_air_speed, double turn_radius) {
 
         wp_s = from;
@@ -35,7 +35,11 @@ namespace SAOP {
         wind_vector = constant_wind;
         air_speed = uav_air_speed;
 
-        if (ALMOST_EQUAL(wind_vector.x(), 0) && ALMOST_EQUAL(wind_vector.y(), 0)) {
+        if (!ALMOST_EQUAL(from.z, to.z)) {
+            throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed,
+                                                  "the trajectory is not flat");
+
+        } else if (ALMOST_EQUAL(wind_vector.x(), 0) && ALMOST_EQUAL(wind_vector.y(), 0)) {
             // Do the regular Dubins2D procedure instead of the DubinsWind one
             d_star = 0.;
             double orig_air[3] = {from.x, from.y, from.dir};
@@ -44,7 +48,7 @@ namespace SAOP {
             ASSERT(ret == 0);
 
         } else {
-            if (from.as_point().dist(to.as_point()) <= 2 * r_min) {
+            if (from.as_point().hor_dist(to.as_point()) <= 2 * r_min) {
                 throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed,
                                                       "wp are closer than 4*r_min");
             }
@@ -78,47 +82,47 @@ namespace SAOP {
         }
     }
 
-    std::vector<Waypoint> DubinsWind::sampled_airframe(double l_step) const {
+    std::vector<Waypoint3d> DubinsWind::sampled_airframe(double l_step) const {
         ASSERT(l_step > 0);
 
-        std::vector<Waypoint> wps = {};
+        std::vector<Waypoint3d> wps = {};
 
         double current_l = 0.0;
         double length = dubins_path_length(&air_path);
         while (current_l < length) {
             double q[3];
             dubins_path_sample(&air_path, current_l, q);
-            wps.emplace_back(Waypoint{q[0], q[1], q[3]});
+            wps.emplace_back(Waypoint3d{q[0], q[1], wp_s.z, q[3]});
             current_l += l_step;
         }
 
         return wps;
     }
 
-    std::vector<Waypoint> DubinsWind::sampled(double l_step) const {
+    std::vector<Waypoint3d> DubinsWind::sampled(double l_step) const {
         ASSERT(l_step > 0);
 
-        std::vector<Waypoint> wp_air = sampled_airframe(l_step);
-        std::vector<Waypoint> wp_ground = {};
+        std::vector<Waypoint3d> wp_air = sampled_airframe(l_step);
+        std::vector<Waypoint3d> wp_ground = {};
 
         double t_step = l_step / air_speed;
 
         double current_l = 0.0;
         double length = dubins_path_length(&air_path);
 
-        Waypoint q_prev = wp_s;
-        Waypoint p_prev = wp_s;
+        Waypoint3d q_prev = wp_s;
+        Waypoint3d p_prev = wp_s;
         while (current_l < length) {
             double q[3];
             dubins_path_sample(&air_path, current_l, q);
             // p⃗_g = p⃗_a + w⃗ ⨯ Δt
-            Waypoint q_now{q[0], q[1], q[2]};
+            Waypoint3d q_now{q[0], q[1], wp_s.z, q[2]};
 
             auto p_x = p_prev.x + (q_now.x - q_prev.x) + t_step * wind_vector.x();
             auto p_y = p_prev.y + (q_now.y - q_prev.y) + t_step * wind_vector.y();
             auto p_theta = WindVector(wind_vector.x() + air_speed * std::cos(q[2]),
                                       wind_vector.y() + air_speed * std::sin(q[2])).dir();
-            Waypoint p_now{p_x, p_y, p_theta};
+            Waypoint3d p_now{p_x, p_y, wp_s.z, p_theta};
             wp_ground.emplace_back(p_now);
 
             p_prev = p_now;
@@ -130,7 +134,7 @@ namespace SAOP {
         return wp_ground;
     }
 
-    double DubinsWind::find_d(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
+    double DubinsWind::find_d(const Waypoint3d& from, const Waypoint3d& to, WindVector wind, double uav_speed,
                               double turn_radius, DubinsPath* dubins_air_conf) {
         double da = 0; // G(0) > 0 (Remark 2)
         double db = 2; // lim d→∞ (G(d)) < 0 (Remark 2)
@@ -192,7 +196,7 @@ namespace SAOP {
         return std::numeric_limits<double>::infinity(); // Solution not found
     }
 
-    opt<double> DubinsWind::G(double d, const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
+    opt<double> DubinsWind::G(double d, const Waypoint3d& from, const Waypoint3d& to, WindVector wind, double uav_speed,
                               double turn_radius, DubinsPath* dubins_air_conf) {
         auto to_air = to.move(-d, wind.dir());
         auto t_vt = d / wind.speed();
