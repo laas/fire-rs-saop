@@ -212,6 +212,12 @@ namespace SAOP {
             return Waypoint3d{new_x, new_y, z, dir};
         }
 
+        Waypoint3d move(double distance, double direction) const {
+            const double new_x = x + cos(direction) * distance;
+            const double new_y = y + sin(direction) * distance;
+            return Waypoint3d(new_x, new_y, z, dir);
+        }
+
         Waypoint3d up(double dist) const {
             const double new_z = z + dist;
             return Waypoint3d{x, y, new_z, dir};

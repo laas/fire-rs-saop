@@ -92,9 +92,13 @@ namespace SAOP {
         }
 
         /** Returns the travel time between the two waypoints. */
-        double travel_time(const Waypoint& origin, const Waypoint& target, const WindVector& wind) const {
-            DubinsWind path(origin, target, wind, _min_turn_radius, _max_pitch_angle);
-            return path.T();
+        double travel_time(const Waypoint3d& origin, const Waypoint3d& target, const WindVector& wind) const {
+            try {
+                DubinsWind path(origin, target, wind, _min_turn_radius, _max_pitch_angle);
+                return path.T();
+            } catch (const DubinsWindPathNotFoundException&) {
+                return std::numeric_limits<double>::infinity();
+            }
         }
 
         /* Determine whether the UAV is turning*/
@@ -135,8 +139,8 @@ namespace SAOP {
         }
 
         /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
-        std::vector<Waypoint>
-        path_sampling(const Waypoint& origin, const Waypoint& target, const WindVector& wind,
+        std::vector<Waypoint3d>
+        path_sampling(const Waypoint3d& origin, const Waypoint3d& target, const WindVector& wind,
                       double step_size) const {
             ASSERT(step_size > 0);
             DubinsWind path = DubinsWind(origin, target, wind, _max_air_speed, _min_turn_radius);
@@ -144,9 +148,9 @@ namespace SAOP {
         }
 
         /** Returns a sequence of waypoints following the dubins trajectory, one every step_size distance units. */
-        std::vector<Waypoint>
-        path_sampling_airframe(const Waypoint& origin, const Waypoint& target, const WindVector& wind,
-                      double step_size) const {
+        std::vector<Waypoint3d>
+        path_sampling_airframe(const Waypoint3d& origin, const Waypoint3d& target, const WindVector& wind,
+                               double step_size) const {
             ASSERT(step_size > 0);
             DubinsWind path = DubinsWind(origin, target, wind, _max_air_speed, _min_turn_radius);
             return path.sampled_airframe(step_size);

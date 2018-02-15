@@ -37,8 +37,8 @@ namespace SAOP {
 
     class DubinsWindPathNotFoundException : public std::invalid_argument {
     public:
-        DubinsWindPathNotFoundException(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_airspeed,
-                                        std::string message)
+        DubinsWindPathNotFoundException(const Waypoint3d& from, const Waypoint3d& to, WindVector wind,
+                                        double uav_airspeed, std::string message)
                 : std::invalid_argument(
                 "DubinsWindPathNotFoundException [from " + from.to_string() + " to " + to.to_string() + " airspeed " +
                 std::to_string(uav_airspeed) + " wind " + wind.to_string() + "] " + message + ".") {}
@@ -47,18 +47,18 @@ namespace SAOP {
     class DubinsWind {
     public:
 
-        DubinsWind(const Waypoint& from, const Waypoint& to, const WindVector& constant_wind, double uav_air_speed,
+        DubinsWind(const Waypoint3d& from, const Waypoint3d& to, const WindVector& constant_wind, double uav_air_speed,
                    double turn_radius);
 
-        std::vector<Waypoint> sampled(double l_step) const;
+        std::vector<Waypoint3d> sampled(double l_step) const;
 
-        std::vector<Waypoint> sampled_airframe(double l_step) const;
+        std::vector<Waypoint3d> sampled_airframe(double l_step) const;
 
-        Waypoint start() const {
+        Waypoint3d start() const {
             return wp_s;
         }
 
-        Waypoint end() const {
+        Waypoint3d end() const {
             return wp_e;
         }
 
@@ -80,8 +80,8 @@ namespace SAOP {
 
     private:
         // start and end waypoints
-        Waypoint wp_s{0, 0, 0}; // start waypoint
-        Waypoint wp_e{0, 0, 0}; // end waypoint
+        Waypoint3d wp_s{0, 0, 0, 0}; // start waypoint
+        Waypoint3d wp_e{0, 0, 0, 0}; // end waypoint
 
         // Path parameters
         WindVector wind_vector;
@@ -91,10 +91,10 @@ namespace SAOP {
 
         DubinsPath air_path = {};
 
-        double find_d(const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
+        double find_d(const Waypoint3d& from, const Waypoint3d& to, WindVector wind, double uav_speed,
                       double turn_radius, DubinsPath* dubins_conf);
 
-        opt<double> G(double d, const Waypoint& from, const Waypoint& to, WindVector wind, double uav_speed,
+        opt<double> G(double d, const Waypoint3d& from, const Waypoint3d& to, WindVector wind, double uav_speed,
                       double turn_radius, DubinsPath* dubins_air_conf);
 
     };
