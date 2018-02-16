@@ -352,17 +352,16 @@ PYBIND11_MODULE(uav_planning, m) {
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"))
             .def("travel_time", (double (UAV::*)(const Waypoint&, const Waypoint&) const)
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"))
-            .def("travel_time", (double (UAV::*)(const Waypoint&, const Waypoint&, const WindVector&) const)
+            .def("travel_time", (double (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&) const)
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"), py::arg("wind"))
             .def("path_sampling",
                  (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, double) const)
                          &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"))
             .def("path_sampling",
-                 (std::vector<Waypoint> (UAV::*)(const Waypoint&, const Waypoint&, const WindVector&, double) const)
-                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("wind"),
-                 py::arg("step_size"))
+                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&, double) const)
+                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("wind"), py::arg("step_size"))
             .def("path_sampling_airframe",
-                 (std::vector<Waypoint> (UAV::*)(const Waypoint&, const Waypoint&, const WindVector&, double) const)
+                 (std::vector<Waypoint> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&, double) const)
                          &UAV::path_sampling_airframe, py::arg("origin"), py::arg("destination"), py::arg("wind"),
                  py::arg("step_size"));
 
@@ -442,7 +441,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
 
     py::class_<DubinsWind>(m, "DubinsWind")
-            .def(py::init<const Waypoint&, const Waypoint&, const WindVector&, double, double>(),
+            .def(py::init<const Waypoint3d&, const Waypoint3d&, const WindVector&, double, double>(),
                  py::arg("from"), py::arg("to"), py::arg("wind"), py::arg("uav_airspeed"), py::arg("turn_radius"))
             .def("sampled", &DubinsWind::sampled, py::arg("l_step"))
             .def("sampled_airframe", &DubinsWind::sampled_airframe, py::arg("l_step"));

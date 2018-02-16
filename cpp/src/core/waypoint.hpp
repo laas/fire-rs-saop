@@ -63,6 +63,10 @@ namespace SAOP {
             return stream << "(" << w.x_speed << ", " << w.y_speed << ")";
         }
 
+        explicit constexpr operator bool() const noexcept {
+            return !ALMOST_EQUAL(x_speed, 0.) && !ALMOST_EQUAL(y_speed, 0.);
+        }
+
     private:
         double x_speed;
         double y_speed;

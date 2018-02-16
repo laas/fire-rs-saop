@@ -152,6 +152,9 @@ namespace SAOP {
 
         /* Length (m) of the path. */
         double length() const {
+            if (config.wind) {
+                std::cerr << "Unprecise length";
+            }
             return config.uav.max_air_speed() * duration();
         }
 
@@ -458,8 +461,8 @@ namespace SAOP {
             for (int i = 0; i < (int) std::get<0>(waypoints_time).size() - 1; i++) {
                 // Sample trajectory between waypoints
                 auto local_sampled = config.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
-                                                                       std::get<0>(waypoints_time)[i + 1], step_size,
-                                                                       cumulated_travel_time);
+                                                                        std::get<0>(waypoints_time)[i + 1], step_size,
+                                                                        cumulated_travel_time);
                 sampled.insert(sampled.end(), std::get<0>(local_sampled).begin(), std::get<0>(local_sampled).end());
                 time.insert(time.end(), std::get<1>(local_sampled).begin(), std::get<1>(local_sampled).end());
                 cumulated_travel_time = time.back();
@@ -492,9 +495,9 @@ namespace SAOP {
                 if (time_range.contains(std::get<1>(waypoints_time)[i]) ||
                     time_range.contains(std::get<1>(waypoints_time)[i + 1])) {
                     auto local_sampled = config.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
-                                                                           std::get<0>(waypoints_time)[i + 1],
-                                                                           step_size,
-                                                                           cumulated_travel_time);
+                                                                            std::get<0>(waypoints_time)[i + 1],
+                                                                            step_size,
+                                                                            cumulated_travel_time);
                     auto l_sam_wp = std::get<0>(local_sampled).begin();
                     auto l_sam_t = std::get<1>(local_sampled).begin();
 
@@ -520,71 +523,40 @@ namespace SAOP {
             return {sampled, time};
         }
 
-        /* Increase of length as result of inserting the given segment at the given position */
-        double insertion_length_cost(size_t insert_loc, const Segment3d segment) const {
-            if (size() == 0)
-                return segment.length;
-            else if (insert_loc == 0)
-                return segment.length + config.uav.travel_distance(segment.end, _maneuvers[insert_loc].start);
-            else if (insert_loc == size())
-                return config.uav.travel_distance(_maneuvers[insert_loc - 1].end, segment.start) + segment.length;
-            else {
-                return config.uav.travel_distance(_maneuvers[insert_loc - 1].end, segment.start)
-                       + segment.length
-                       + config.uav.travel_distance(segment.end, _maneuvers[insert_loc].start)
-                       - config.uav.travel_distance(_maneuvers[insert_loc - 1].end, _maneuvers[insert_loc].start);
-            }
-        }
-
         double insertion_duration_cost(size_t insert_loc, const Segment3d segment) const {
-            auto increase_in_length = insertion_length_cost(insert_loc, segment);
-            ASSERT(ALMOST_GREATER_EQUAL(increase_in_length, 0));
-            return increase_in_length / config.uav.max_air_speed();
-        }
-
-        /* Decrease of length as result of removing the segment at the given position. */
-        double removal_length_gain(size_t index) const {
-            ASSERT(index < size());
-            const Segment3d segment = _maneuvers[index];
-            if (index == 0)
-                return segment.length + config.uav.travel_distance(segment.end, _maneuvers[index + 1].start);
-            else if (index == size() - 1)
-                return config.uav.travel_distance(_maneuvers[index - 1].end, segment.start) + segment.length;
+            if (size() == 0)
+                return config.uav.travel_time(segment.start, segment.end, config.wind);
+            else if (insert_loc == 0)
+                return config.uav.travel_time(segment.start, segment.end, config.wind)
+                       + config.uav.travel_time(segment.end, _maneuvers[insert_loc].start, config.wind);
+            else if (insert_loc == size())
+                return config.uav.travel_time(_maneuvers[insert_loc - 1].end, segment.start, config.wind)
+                       + config.uav.travel_time(segment.start, segment.end, config.wind);
             else {
-                return config.uav.travel_distance(_maneuvers[index - 1].end, segment.start)
-                       + segment.length
-                       + config.uav.travel_distance(segment.end, _maneuvers[index + 1].start)
-                       - config.uav.travel_distance(_maneuvers[index - 1].end, _maneuvers[index + 1].start);
+                return config.uav.travel_time(_maneuvers[insert_loc - 1].end, segment.start, config.wind)
+                       + config.uav.travel_time(segment.start, segment.end, config.wind)
+                       + config.uav.travel_time(segment.end, _maneuvers[insert_loc].start, config.wind)
+                       - config.uav.travel_time(_maneuvers[insert_loc - 1].end, _maneuvers[insert_loc].start,
+                                                config.wind);
             }
+
         }
 
         double removal_duration_gain(size_t index) const {
-            return removal_length_gain(index) / config.uav.max_air_speed();
-        }
-
-        /* Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
-        double replacement_length_cost(size_t index, const std::vector<Segment3d>& segments) const {
-            return replacement_length_cost(index, segments.size(), segments);
-        }
-
-        /* Computes the cost of replacing the N segments at [index, index+n] with the N segments given in parameter. */
-        double replacement_length_cost(size_t index, size_t n_replaced, const std::vector<Segment3d>& segments) const {
-            ASSERT(n_replaced > 0);
-            const unsigned long end_index = index + n_replaced - 1;
-            ASSERT(end_index < size());
-            double cost =
-                    segments_length(segments, 0, segments.size())
-                    - segments_length(_maneuvers, index, n_replaced);
-            if (index > 0)
-                cost = cost
-                       + config.uav.travel_distance(_maneuvers[index - 1].end, segments[0].start)
-                       - config.uav.travel_distance(_maneuvers[index - 1].end, _maneuvers[index].start);
-            if (end_index + 1 < size())
-                cost = cost
-                       + config.uav.travel_distance(segments[segments.size() - 1].end, _maneuvers[end_index + 1].start)
-                       - config.uav.travel_distance(_maneuvers[end_index].end, _maneuvers[end_index + 1].start);
-
-            return cost;
+            ASSERT(index < size());
+            const Segment3d segment = _maneuvers[index];
+            if (index == 0)
+                return config.uav.travel_time(segment.start, segment.end, config.wind)
+                       + config.uav.travel_time(segment.end, _maneuvers[index + 1].start, config.wind);
+            else if (index == size() - 1)
+                return config.uav.travel_time(_maneuvers[index - 1].end, segment.start, config.wind)
+                       + config.uav.travel_time(segment.start, segment.end, config.wind);
+            else {
+                return config.uav.travel_time(_maneuvers[index - 1].end, segment.start, config.wind)
+                       + config.uav.travel_time(segment.start, segment.end, config.wind)
+                       + config.uav.travel_time(segment.end, _maneuvers[index + 1].start, config.wind)
+                       - config.uav.travel_time(_maneuvers[index - 1].end, _maneuvers[index + 1].start, config.wind);
+            }
         }
 
         /* Increase in time (s) as a result of replacing the segment at the given index by the one provided.*/
@@ -594,13 +566,30 @@ namespace SAOP {
 
         /* Increase in time (s) as a result of replacing the N segments at the given index by the N segemnts provided.*/
         double replacement_duration_cost(size_t index, const std::vector<Segment3d>& segments) const {
-            return replacement_length_cost(index, segments) / config.uav.max_air_speed();
+            return replacement_duration_cost(index, segments.size(), segments);
         }
 
         /* Increase in time (s) as a result of replacing n segments at the given index by the N segments provided.*/
         double
         replacement_duration_cost(size_t index, size_t n_replaced, const std::vector<Segment3d>& segments) const {
-            return replacement_length_cost(index, n_replaced, segments) / config.uav.max_air_speed();
+            ASSERT(n_replaced > 0);
+            const unsigned long end_index = index + n_replaced - 1;
+            ASSERT(end_index < size());
+            double duration =
+                    segments_duration(segments, 0, segments.size())
+                    - segments_duration(_maneuvers, index, n_replaced);
+            if (index > 0)
+                duration = duration
+                       + config.uav.travel_time(_maneuvers[index - 1].end, segments[0].start, config.wind)
+                       - config.uav.travel_time(_maneuvers[index - 1].end, _maneuvers[index].start, config.wind);
+            if (end_index + 1 < size())
+                duration = duration
+                       + config.uav.travel_time(segments[segments.size() - 1].end, _maneuvers[end_index + 1].start,
+                                                config.wind)
+                       - config.uav.travel_time(_maneuvers[end_index].end, _maneuvers[end_index + 1].start,
+                                                config.wind);
+
+            return duration;
         }
 
         /* Returns a new trajectory with the given waypoint appended (as a segment of length 0) */
@@ -642,10 +631,11 @@ namespace SAOP {
             ASSERT(insertion_range_start() <= at_index && at_index <= insertion_range_end());
             const double start = at_index == 0 ? config.start_time :
                                  end_time(at_index - 1) +
-                                 config.uav.travel_time(_maneuvers[at_index - 1].end, seg.start);
+                                 config.uav.travel_time(_maneuvers[at_index - 1].end, seg.start, config.wind);
 
             const double added_delay = insertion_duration_cost(at_index, seg);
             ASSERT(ALMOST_GREATER_EQUAL(added_delay, 0));
+            ASSERT(added_delay < std::numeric_limits<double>::infinity());
             _maneuvers.insert(_maneuvers.begin() + at_index, seg);
             _start_times.insert(_start_times.begin() + at_index, start);
 
@@ -728,10 +718,10 @@ namespace SAOP {
          * setting */
         IndexRange insertion_range = IndexRange::unbounded(); // All by default
 
-        /* Recomputes length from scratch and returns it. */
-        double non_incremental_length() const {
-            return segments_length(_maneuvers, 0, _maneuvers.size());
-        }
+//        /* Recomputes length from scratch and returns it. */
+//        double non_incremental_length() const {
+//            return segments_length(_maneuvers, 0, _maneuvers.size());
+//        }
 
         /* Functions that asserts invariants of a trajectory.
          * This is for debugging purpose only and the function content should be commented out. */
@@ -754,31 +744,44 @@ namespace SAOP {
             return segments;
         }
 
-        /* Computes the cost of a sub-trajectory composed of the given segments. */
-        double segments_length(const std::vector<Segment3d>& segments, size_t start, size_t length) const {
-            ASSERT(start + length <= segments.size());
-            double cost = 0.;
-            auto end_it = segments.begin() + start + length;
-            for (auto it = segments.begin() + start; it != end_it; it++) {
-                cost += it->length;
-                if ((it + 1) != end_it)
-                    cost += config.uav.travel_distance(it->end, (it + 1)->start);
-            }
-            return cost;
-        }
+//        /* Computes the cost of a sub-trajectory composed of the given segments. */
+//        double segments_length(const std::vector<Segment3d>& segments, size_t start, size_t length) const {
+//            ASSERT(start + length <= segments.size());
+//            double cost = 0.;
+//            auto end_it = segments.begin() + start + length;
+//            for (auto it = segments.begin() + start; it != end_it; it++) {
+//                cost += it->length;
+//                if ((it + 1) != end_it)
+//                    cost += config.uav.travel_distance(it->end, (it + 1)->start);
+//            }
+//            return cost;
+//        }
 
         /* Computes the cost of a sub-trajectory composed of the given segments. */
-        double segments_length(const std::vector<TimedManeuver>& maneuvers, size_t start, size_t length) const {
-            ASSERT(start + length <= maneuvers.size());
-            double cost = 0.;
-            auto end_it = maneuvers.begin() + start + length;
-            for (auto it = maneuvers.begin() + start; it != end_it; it++) {
-                cost += it->maneuver.length;
+        double segments_duration(const std::vector<Segment3d>& segments, size_t start, size_t length) const {
+            ASSERT(start + length <= segments.size());
+            double duration = 0.;
+            auto end_it = segments.begin() + start + length;
+            for (auto it = segments.begin() + start; it != end_it; it++) {
+                duration += config.uav.travel_time(it->start, it->end);
                 if ((it + 1) != end_it)
-                    cost += config.uav.travel_distance(it->maneuver.end, (it + 1)->maneuver.start);
+                    duration += config.uav.travel_time(it->end, (it + 1)->start, config.wind);
             }
-            return cost;
+            return duration;
         }
+
+//        /* Computes the cost of a sub-trajectory composed of the given segments. */
+//        double segments_length(const std::vector<TimedManeuver>& maneuvers, size_t start, size_t n_segments) const {
+//            ASSERT(start + n_segments <= maneuvers.size());
+//            double cost = 0.;
+//            auto end_it = maneuvers.begin() + start + n_segments;
+//            for (auto it = maneuvers.begin() + start; it != end_it; it++) {
+//                cost += it->maneuver.length;
+//                if ((it + 1) != end_it)
+//                    cost += config.uav.travel_distance(it->maneuver.end, (it + 1)->maneuver.start);
+//            }
+//            return cost;
+//        }
     };
 }
 #endif //PLANNING_CPP_TRAJECTORY_H
