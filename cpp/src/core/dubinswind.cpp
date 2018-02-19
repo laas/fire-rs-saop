@@ -134,6 +134,45 @@ namespace SAOP {
         return wp_ground;
     }
 
+    std::pair<std::vector<Waypoint3d>, std::vector<double>> DubinsWind::sampled_with_time(double l_step) const {
+        ASSERT(l_step > 0);
+
+        std::vector<Waypoint3d> wp_air = sampled_airframe(l_step);
+        std::vector<Waypoint3d> wp_ground = {};
+        std::vector<double> time = {};
+
+        double t_step = l_step / air_speed;
+
+        double current_l = 0.0;
+        double current_t = 0.0;
+        double length = dubins_path_length(&air_path);
+
+        Waypoint3d q_prev = wp_s;
+        Waypoint3d p_prev = wp_s;
+        while (current_l < length) {
+            double q[3];
+            dubins_path_sample(&air_path, current_l, q);
+            // p⃗_g = p⃗_a + w⃗ ⨯ Δt
+            Waypoint3d q_now{q[0], q[1], wp_s.z, q[2]};
+
+            auto p_x = p_prev.x + (q_now.x - q_prev.x) + t_step * wind_vector.x();
+            auto p_y = p_prev.y + (q_now.y - q_prev.y) + t_step * wind_vector.y();
+            auto p_theta = WindVector(wind_vector.x() + air_speed * std::cos(q[2]),
+                                      wind_vector.y() + air_speed * std::sin(q[2])).dir();
+            Waypoint3d p_now{p_x, p_y, wp_s.z, p_theta};
+            wp_ground.emplace_back(p_now);
+            time.emplace_back(current_t);
+
+            p_prev = p_now;
+            q_prev = q_now;
+
+            current_l += l_step;
+            current_t += t_step;
+        }
+
+        return {wp_ground, time};
+    }
+
     double DubinsWind::find_d(const Waypoint3d& from, const Waypoint3d& to, WindVector wind, double uav_speed,
                               double turn_radius, DubinsPath* dubins_air_conf) {
         double da = 0; // G(0) > 0 (Remark 2)
