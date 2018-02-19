@@ -48,10 +48,10 @@ namespace SAOP {
             ASSERT(ret == 0);
 
         } else {
-            if (from.as_point().hor_dist(to.as_point()) <= 2 * r_min) {
-                throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed,
-                                                      "wp are closer than 4*r_min");
-            }
+//            if (from.as_point().hor_dist(to.as_point()) <= 2 * r_min) {
+//                throw DubinsWindPathNotFoundException(from, to, wind_vector, uav_air_speed,
+//                                                      "wp are closer than 4*r_min");
+//            }
 
             // We only accept CSC traj types for now
             auto dubins_types = std::vector<Dubins2dPathType> {
