@@ -28,8 +28,8 @@ import fire_rs.uav_planning as up
 
 
 def traj_2d(uav, orig, dest):
-    origin = up.Waypoint(orig[0], orig[1], 0, orig[2])
-    target = up.Waypoint(dest[0], dest[1], 0, dest[2])
+    origin = up.Waypoint(orig[0], orig[1], orig[2], orig[3])
+    target = up.Waypoint(dest[0], dest[1], orig[2], dest[3])
 
     samples = uav.path_sampling(origin, target, 1)
     x = [wp.x for wp in samples]
@@ -38,8 +38,8 @@ def traj_2d(uav, orig, dest):
 
 
 def traj_wind_groundframe(uav, orig, dest, wind):
-    origin = up.Waypoint2d(orig[0], orig[1], orig[2])
-    target = up.Waypoint2d(dest[0], dest[1], dest[2])
+    origin = up.Waypoint(orig[0], orig[1], orig[2], orig[3])
+    target = up.Waypoint(dest[0], dest[1], orig[2], dest[3])
 
     samples = uav.path_sampling(origin, target, wind, 1)
     x = [wp.x for wp in samples]
@@ -48,8 +48,8 @@ def traj_wind_groundframe(uav, orig, dest, wind):
 
 
 def traj_wind_airframe(uav, orig, dest, wind):
-    origin = up.Waypoint2d(orig[0], orig[1], orig[2])
-    target = up.Waypoint2d(dest[0], dest[1], dest[2])
+    origin = up.Waypoint(orig[0], orig[1], orig[2], orig[3])
+    target = up.Waypoint(dest[0], dest[1], orig[2], dest[3])
 
     samples = uav.path_sampling_airframe(origin, target, wind, 1)
     x = [wp.x for wp in samples]
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_xlim((-200, 100))
     ax.set_ylim((-100, 200))
-    wp_ma = [(-100, 0, np.pi), (0, 100, np.pi)]  # , (0, 100, 20, 0)]
+    wp_ma = [(0, 0, 0, 0), (50, 0, 0, 0)]  # , (0, 100, 20, 0)]
     for i in range(len(wp_ma) - 1):
         ax.plot(*traj_wind_groundframe(a_uav, wp_ma[i], wp_ma[i + 1], no_wind), alpha=.66,
                 label="W/o wind")
@@ -91,7 +91,8 @@ if __name__ == '__main__':
                     xytext=(wp_ma[i + 1][0], wp_ma[i + 1][1] + 10))
 
         wind_location = (-150, 150)
-        ax.annotate('wind ' + format(wind.speed(), '.2f') + 'm/s', xy=(wind_location[0], wind_location[1]),
+        ax.annotate('wind ' + format(wind.speed(), '.2f') + 'm/s',
+                    xy=(wind_location[0], wind_location[1]),
                     xytext=(wind_location[0] - 30 * np.cos(wind.dir()),
                             wind_location[1] - 30 * np.cos(wind.dir())))
         ax.arrow(wind_location[0], wind_location[1],
