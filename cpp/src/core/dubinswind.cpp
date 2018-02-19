@@ -208,7 +208,7 @@ namespace SAOP {
         ASSERT((dubins_air_conf->type >= 0) && (dubins_air_conf->type <= 5));
 
         double max_iterations = 100;
-        double epsilon = 0.1;
+        double epsilon = 0.001;
 
         double n = 0;
 
