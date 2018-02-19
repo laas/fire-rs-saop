@@ -96,7 +96,10 @@ namespace SAOP {
             try {
                 DubinsWind path(origin, target, wind, _min_turn_radius, _max_pitch_angle);
                 return path.T();
-            } catch (const DubinsWindPathNotFoundException&) {
+            } catch (const DubinsWindPathNotFoundException& e) {
+#ifdef DEBUG
+                std::cerr << e.what() << std::endl;
+#endif
                 return std::numeric_limits<double>::infinity();
             }
         }
