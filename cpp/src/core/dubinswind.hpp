@@ -52,6 +52,8 @@ namespace SAOP {
 
         std::vector<Waypoint3d> sampled(double l_step) const;
 
+        std::pair<std::vector<Waypoint3d>, std::vector<double>> sampled_with_time(double l_step) const;
+
         std::vector<Waypoint3d> sampled_airframe(double l_step) const;
 
         Waypoint3d start() const {
