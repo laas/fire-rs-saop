@@ -104,7 +104,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     # Transform altitude of UAV bases from agl (above ground level) to absolute
     for f in scenario.flights:
-        base_h = 100  # If flat, start at the default segment insertion h
+        base_h = 0.  # If flat, start at the default segment insertion h
         if output_options_planning['elevation_mode'] != 'flat':
             base_h = env.raster["elevation"][env.raster.array_index((f.base_waypoint[0],
                                                                      f.base_waypoint[1]))]
@@ -318,6 +318,44 @@ def generate_scenario_singlefire_singleuav():
     return scenario
 
 
+def generate_windy_scenario():
+    # 9 by 7 km area
+    area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
+    uav_speed = 18.  # m/s
+    uav_max_pitch_angle = 6. / 180. * np.pi
+    uav_max_turn_rate = 32. * np.pi / 180
+    uav_bases = [  # four corners of the map
+        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmin + 100, area.ymax - 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymax - 100, 0, 0)
+    ]
+
+    wind_speed = 5. # in m/s
+    wind_dir = 0.  # random.random() * 2 * np.pi
+    num_ignitions = random.randint(1, 3)
+    ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax),
+                            random.uniform(area.ymin, area.ymax),
+                            random.uniform(0, 3000))
+                 for i in range(num_ignitions)]
+
+    # start once all fires are ignited
+    start = max([igni.time for igni in ignitions])
+
+    num_flights = random.randint(1, 3)
+    flights = []
+    for i in range(num_flights):
+        uav_start = random.uniform(start, start + 4000.)
+        max_flight_time = random.uniform(5000, 6000)
+        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
+                                  (wind_speed * np.cos(wind_dir), wind_speed * np.sin(wind_dir))))
+
+    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
+                        wind_speed, wind_dir, ignitions, flights)
+    return scenario
+
+
 def generate_scenario():
     # 9 by 7 km area
     area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
@@ -359,9 +397,11 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav': generate_scenario_singlefire_singleuav,
                           'singlefire_singleuav_shortrange': generate_scenario_singlefire_singleuav_shortrange,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
-                          'newsletter': generate_scenario_newsletter, }
+                          'newsletter': generate_scenario_newsletter,
+                          'windy_scenario': generate_windy_scenario,
+                          }
 
-max_planning_time = 5.
+max_planning_time = 15.
 
 vns_configurations = {
     "demo": {
@@ -369,7 +409,7 @@ vns_configurations = {
         "max_time": max_planning_time,
         "neighborhoods": [
             {"name": "dubins-opt",
-             "max_trials": 10,
+             "max_trials": 500,
              "generators": [
                  {"name": "MeanOrientationChangeGenerator"},
                  {"name": "RandomOrientationChangeGenerator"},

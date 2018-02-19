@@ -42,7 +42,7 @@ namespace SAOP {
 
         const double default_segment_length = 50;
 
-        const double default_height = 100;
+        const double default_height = 0.;
 
         const double max_trials;
         const bool select_arbitrary_trajectory;

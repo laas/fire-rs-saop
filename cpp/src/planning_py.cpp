@@ -413,6 +413,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<TrajectoryConfig>(m, "TrajectoryConfig")
             .def(py::init<UAV, Waypoint3d, Waypoint3d, double, double>())
+            .def(py::init<UAV, Waypoint3d, Waypoint3d, double, double, WindVector>())
             .def_readonly("uav", &TrajectoryConfig::uav)
             .def_readonly("max_flight_time", &TrajectoryConfig::max_flight_time)
             .def_static("build", [](UAV uav, double start_time, double max_flight_time) -> TrajectoryConfig {
