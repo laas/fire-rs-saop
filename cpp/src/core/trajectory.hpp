@@ -434,7 +434,7 @@ namespace SAOP {
             if (waypoints.size() == 1)
                 sampled.push_back(waypoints[0]);
             for (int i = 0; i < (int) waypoints.size() - 1; i++) {
-                auto local_sampled = config.uav.path_sampling(waypoints[i], waypoints[i + 1], step_size);
+                auto local_sampled = config.uav.path_sampling(waypoints[i], waypoints[i + 1], config.wind, step_size);
                 sampled.insert(sampled.end(), local_sampled.begin(), local_sampled.end());
             }
             return sampled;
@@ -461,8 +461,8 @@ namespace SAOP {
             for (int i = 0; i < (int) std::get<0>(waypoints_time).size() - 1; i++) {
                 // Sample trajectory between waypoints
                 auto local_sampled = config.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
-                                                                        std::get<0>(waypoints_time)[i + 1], step_size,
-                                                                        cumulated_travel_time);
+                                                                        std::get<0>(waypoints_time)[i + 1], config.wind,
+                                                                        step_size, cumulated_travel_time);
                 sampled.insert(sampled.end(), std::get<0>(local_sampled).begin(), std::get<0>(local_sampled).end());
                 time.insert(time.end(), std::get<1>(local_sampled).begin(), std::get<1>(local_sampled).end());
                 cumulated_travel_time = time.back();
@@ -496,7 +496,7 @@ namespace SAOP {
                     time_range.contains(std::get<1>(waypoints_time)[i + 1])) {
                     auto local_sampled = config.uav.path_sampling_with_time(std::get<0>(waypoints_time)[i],
                                                                             std::get<0>(waypoints_time)[i + 1],
-                                                                            step_size,
+                                                                            config.wind, step_size,
                                                                             cumulated_travel_time);
                     auto l_sam_wp = std::get<0>(local_sampled).begin();
                     auto l_sam_t = std::get<1>(local_sampled).begin();
@@ -580,14 +580,14 @@ namespace SAOP {
                     - segments_duration(_maneuvers, index, n_replaced);
             if (index > 0)
                 duration = duration
-                       + config.uav.travel_time(_maneuvers[index - 1].end, segments[0].start, config.wind)
-                       - config.uav.travel_time(_maneuvers[index - 1].end, _maneuvers[index].start, config.wind);
+                           + config.uav.travel_time(_maneuvers[index - 1].end, segments[0].start, config.wind)
+                           - config.uav.travel_time(_maneuvers[index - 1].end, _maneuvers[index].start, config.wind);
             if (end_index + 1 < size())
                 duration = duration
-                       + config.uav.travel_time(segments[segments.size() - 1].end, _maneuvers[end_index + 1].start,
-                                                config.wind)
-                       - config.uav.travel_time(_maneuvers[end_index].end, _maneuvers[end_index + 1].start,
-                                                config.wind);
+                           + config.uav.travel_time(segments[segments.size() - 1].end, _maneuvers[end_index + 1].start,
+                                                    config.wind)
+                           - config.uav.travel_time(_maneuvers[end_index].end, _maneuvers[end_index + 1].start,
+                                                    config.wind);
 
             return duration;
         }
