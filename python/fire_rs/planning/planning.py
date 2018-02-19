@@ -64,8 +64,8 @@ class UAVConf:
 
     @classmethod
     def slow_X8(cls):
-        return cls(max_air_speed=17./10., max_angular_velocity=32. / 180. * np.pi * .5,
-                   max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000.*10.)
+        return cls(max_air_speed=17. / 10., max_angular_velocity=32. / 180. * np.pi * .5,
+                   max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000. * 10.)
 
     def as_cpp(self):
         return up.UAV(self.max_air_speed, self.max_angular_velocity, self.max_pitch_angle)
@@ -80,13 +80,15 @@ class UAVConf:
 class FlightConf:
 
     def __init__(self, uav: UAVConf, start_time: float, base_waypoint: 'Waypoint',
-                 finalbase_waypoint: 'Optional[Waypoint]' = None):
+                 finalbase_waypoint: 'Optional[Waypoint]' = None,
+                 wind: 'Tuple[float, float]' = (0., 0.)):
         assert start_time > 0
         self.uav = uav  # type: UAVConf
         self.base_waypoint = base_waypoint  # type: Waypoint
         # type: Optional[Waypoint]
         self.finalbase_waypoint = finalbase_waypoint if finalbase_waypoint else base_waypoint
         self.start_time = start_time  # type: float
+        self.wind = wind
 
     @property
     def max_flight_time(self):
@@ -95,19 +97,21 @@ class FlightConf:
     def as_cpp(self):
         return up.TrajectoryConfig(self.uav.as_cpp(), self.base_waypoint.as_cpp(),
                                    self.finalbase_waypoint.as_cpp(), self.start_time,
-                                   self.uav.max_flight_time)
+                                   self.uav.max_flight_time,
+                                   up.WindVector(self.wind[0], self.wind[1]))
 
     def __repr__(self):
         return "".join(("FlightConf(uav=", repr(self.uav),
                         ", base_waypoint=", repr(self.base_waypoint),
-                        ", start_time=", repr(self.start_time), ")"))
+                        ", start_time=", repr(self.start_time),
+                        ", wind=", repr(self.wind), ")"))
 
 
 class PlanningEnvironment(Environment):
     """Propagation environment with optional discrete elevation only for planning """
 
     def __init__(self, area, wind_speed, wind_dir, planning_elevation_mode: 'str' = 'dem',
-                 discrete_elevation_interval: 'int' = 0, flat_altitude=700.):
+                 discrete_elevation_interval: 'int' = 0, flat_altitude=0.):
         super().__init__(area, wind_speed, wind_dir)
 
         self.planning_elevation_mode = planning_elevation_mode
