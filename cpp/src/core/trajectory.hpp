@@ -634,7 +634,11 @@ namespace SAOP {
                                  config.uav.travel_time(_maneuvers[at_index - 1].end, seg.start, config.wind);
 
             const double added_delay = insertion_duration_cost(at_index, seg);
-            ASSERT(ALMOST_GREATER_EQUAL(added_delay, 0));
+            if (!ALMOST_GREATER_EQUAL(added_delay, 0)) {
+                std::cerr << "Trajectory::insert_segment(" << seg << ", " << at_index
+                          << ") . Added delay is negative " << added_delay << std::endl;
+//                insertion_duration_cost(at_index, seg);
+            }
             ASSERT(added_delay < std::numeric_limits<double>::infinity());
             _maneuvers.insert(_maneuvers.begin() + at_index, seg);
             _start_times.insert(_start_times.begin() + at_index, start);
