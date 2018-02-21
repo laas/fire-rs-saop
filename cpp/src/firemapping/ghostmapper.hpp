@@ -153,6 +153,10 @@ namespace SAOP {
             ASSERT(shot_wp_list.size() == shot_time_list.size());
             std::vector<PositionTime> fire_cells = {};
 
+            if (shot_wp_list.empty() || shot_time_list.empty()) {
+                return fire_cells;
+            }
+
             auto it_wp = shot_wp_list.begin();
             auto it_t = shot_time_list.begin();
             for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
