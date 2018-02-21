@@ -465,7 +465,9 @@ namespace SAOP {
                                                                         step_size, cumulated_travel_time);
                 sampled.insert(sampled.end(), std::get<0>(local_sampled).begin(), std::get<0>(local_sampled).end());
                 time.insert(time.end(), std::get<1>(local_sampled).begin(), std::get<1>(local_sampled).end());
-                cumulated_travel_time = time.back();
+                if (!time.empty()) {
+                    cumulated_travel_time = time.back();
+                }
             }
             return {sampled, time};
         }
