@@ -226,6 +226,10 @@ namespace SAOP {
                     return dc;
                 }
                 auto opt_g_da = G(da, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
+                if (!opt_g_da) {
+                    return std::numeric_limits<double>::infinity();
+                }
+
                 if (std::signbit(g) == std::signbit(*opt_g_da)) { da = dc; }
                 else { db = dc; } // G(da) must be positive, G(db) must be negative
             }
