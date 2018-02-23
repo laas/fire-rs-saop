@@ -80,14 +80,14 @@ namespace SAOP {
         }
 
         GenRaster<T> observed_fire(const vector<Waypoint3d>& shot_wp_list,
-                                                       const vector<double>& shot_time_list, const UAV& uav) const {
+                                   const vector<double>& shot_time_list, const UAV& uav) const {
             GenRaster<T> fire = GenRaster<T>(_environment->ignitions, std::numeric_limits<T>::quiet_NaN());
             return observed_fire(shot_wp_list, shot_time_list, uav, _environment->ignitions);
         }
 
         GenRaster<T> observed_fire(const vector<Waypoint3d>& shot_wp_list,
-                                                       const vector<double>& shot_time_list, const UAV& uav,
-                                                       const GenRaster<T>& like) const {
+                                   const vector<double>& shot_time_list, const UAV& uav,
+                                   const GenRaster<T>& like) const {
 //            ASSERT(shot_wp_list.size() > 1);
             ASSERT(shot_wp_list.size() == shot_time_list.size());
             ASSERT(like.is_like(_environment->ignitions));
@@ -117,10 +117,14 @@ namespace SAOP {
         }
 
         void observed_fire(const vector<Waypoint3d>& shot_wp_list,
-                                               const vector<double>& shot_time_list, const UAV& uav,
-                                               GenRaster<T>& fire_raster, GenRaster<T>& obs_raster) const {
-            ASSERT(shot_wp_list.size() > 1);
+                           const vector<double>& shot_time_list, const UAV& uav,
+                           GenRaster<T>& fire_raster, GenRaster<T>& obs_raster) const {
             ASSERT(shot_wp_list.size() == shot_time_list.size());
+
+            if (shot_wp_list.empty()) {
+                return; // Nothing to do
+            }
+
             ASSERT(fire_raster.is_like(_environment->ignitions));
             ASSERT(obs_raster.is_like(_environment->ignitions));
 
@@ -148,8 +152,8 @@ namespace SAOP {
         }
 
         std::vector<PositionTime> observed_fire_locations(const vector<Waypoint3d>& shot_wp_list,
-                                                                              const vector<double>& shot_time_list,
-                                                                              const UAV& uav) const {
+                                                          const vector<double>& shot_time_list,
+                                                          const UAV& uav) const {
             ASSERT(shot_wp_list.size() == shot_time_list.size());
             std::vector<PositionTime> fire_cells = {};
 
