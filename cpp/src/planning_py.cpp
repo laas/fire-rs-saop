@@ -363,7 +363,7 @@ PYBIND11_MODULE(uav_planning, m) {
                  (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&, double) const)
                          &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("wind"), py::arg("step_size"))
             .def("path_sampling_airframe",
-                 (std::vector<Waypoint> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&, double) const)
+                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&, double) const)
                          &UAV::path_sampling_airframe, py::arg("origin"), py::arg("destination"), py::arg("wind"),
                  py::arg("step_size"));
 
