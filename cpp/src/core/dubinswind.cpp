@@ -198,7 +198,7 @@ namespace SAOP {
                 }
                 ++n_iter;
             }
-            std::cout << "# db iters: " << n_iter << std::endl;
+//            std::cout << "# db iters: " << n_iter << std::endl;
 
             if (db >= std::numeric_limits<double>::infinity()) {
                 return std::numeric_limits<double>::infinity();
@@ -222,9 +222,10 @@ namespace SAOP {
             } else {
                 auto g = *opt_g;
                 if (fabs(g) < epsilon || ((db - da) / 2) < epsilon) {
-                    std::cout << "# iterations: " << n << std::endl;
+//                    std::cout << "# iterations: " << n << std::endl;
                     return dc;
                 }
+
                 auto opt_g_da = G(da, from, to, wind, uav_speed, turn_radius, dubins_air_conf);
                 if (!opt_g_da) {
                     return std::numeric_limits<double>::infinity();
