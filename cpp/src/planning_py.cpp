@@ -354,6 +354,8 @@ PYBIND11_MODULE(uav_planning, m) {
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"))
             .def("travel_time", (double (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&) const)
                     &UAV::travel_time, py::arg("origin"), py::arg("destination"), py::arg("wind"))
+            .def("travel_time", (double (UAV::*)(const Segment3d&, const WindVector&) const)
+                    &UAV::travel_time, py::arg("segment"), py::arg("wind"))
             .def("path_sampling",
                  (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, double) const)
                          &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"))
