@@ -526,21 +526,29 @@ namespace SAOP {
         }
 
         double insertion_duration_cost(size_t insert_loc, const Segment3d segment) const {
+            double delta_time;
             if (size() == 0)
-                return config.uav.travel_time(segment.start, segment.end, config.wind);
+                delta_time = config.uav.travel_time(segment, config.wind);
             else if (insert_loc == 0)
-                return config.uav.travel_time(segment.start, segment.end, config.wind)
-                       + config.uav.travel_time(segment.end, _maneuvers[insert_loc].start, config.wind);
+                delta_time = config.uav.travel_time(segment, config.wind)
+                             + config.uav.travel_time(segment.end, _maneuvers[insert_loc].start, config.wind);
             else if (insert_loc == size())
-                return config.uav.travel_time(_maneuvers[insert_loc - 1].end, segment.start, config.wind)
-                       + config.uav.travel_time(segment.start, segment.end, config.wind);
+                delta_time = config.uav.travel_time(_maneuvers[insert_loc - 1].end, segment.start, config.wind)
+                             + config.uav.travel_time(segment, config.wind);
             else {
-                return config.uav.travel_time(_maneuvers[insert_loc - 1].end, segment.start, config.wind)
-                       + config.uav.travel_time(segment.start, segment.end, config.wind)
-                       + config.uav.travel_time(segment.end, _maneuvers[insert_loc].start, config.wind)
-                       - config.uav.travel_time(_maneuvers[insert_loc - 1].end, _maneuvers[insert_loc].start,
-                                                config.wind);
+                delta_time = config.uav.travel_time(_maneuvers[insert_loc - 1].end, segment.start, config.wind)
+                             + config.uav.travel_time(segment, config.wind)
+                             + config.uav.travel_time(segment.end, _maneuvers[insert_loc].start, config.wind)
+                             - config.uav.travel_time(_maneuvers[insert_loc - 1].end, _maneuvers[insert_loc].start,
+                                                      config.wind);
             }
+
+            if (delta_time < 0) {
+                std::cerr << "Trajectory::insert_segment(" << segment << ", " << insert_loc
+                          << ") . Added delay is negative " << delta_time << std::endl;
+            }
+
+            return delta_time;
 
         }
 
@@ -548,14 +556,14 @@ namespace SAOP {
             ASSERT(index < size());
             const Segment3d segment = _maneuvers[index];
             if (index == 0)
-                return config.uav.travel_time(segment.start, segment.end, config.wind)
+                return config.uav.travel_time(segment, config.wind)
                        + config.uav.travel_time(segment.end, _maneuvers[index + 1].start, config.wind);
             else if (index == size() - 1)
                 return config.uav.travel_time(_maneuvers[index - 1].end, segment.start, config.wind)
-                       + config.uav.travel_time(segment.start, segment.end, config.wind);
+                       + config.uav.travel_time(segment, config.wind);
             else {
                 return config.uav.travel_time(_maneuvers[index - 1].end, segment.start, config.wind)
-                       + config.uav.travel_time(segment.start, segment.end, config.wind)
+                       + config.uav.travel_time(segment, config.wind)
                        + config.uav.travel_time(segment.end, _maneuvers[index + 1].start, config.wind)
                        - config.uav.travel_time(_maneuvers[index - 1].end, _maneuvers[index + 1].start, config.wind);
             }
@@ -769,7 +777,7 @@ namespace SAOP {
             double duration = 0.;
             auto end_it = segments.begin() + start + length;
             for (auto it = segments.begin() + start; it != end_it; it++) {
-                duration += config.uav.travel_time(it->start, it->end);
+                duration += config.uav.travel_time(*it, config.wind);
                 if ((it + 1) != end_it)
                     duration += config.uav.travel_time(it->end, (it + 1)->start, config.wind);
             }
