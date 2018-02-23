@@ -59,7 +59,7 @@ class EngOffsetFormatter(matplotlib.ticker.EngFormatter):
 
 def get_pyplot_figure_and_axis():
     fire_fig = plt.figure()
-    fire_ax = fire_fig.gca(aspect='equal', xlabel="X position", ylabel="Y position")
+    fire_ax = fire_fig.gca(aspect='equal', xlabel="East", ylabel="North")
 
     ax_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
     fire_ax.yaxis.set_major_formatter(ax_formatter)
