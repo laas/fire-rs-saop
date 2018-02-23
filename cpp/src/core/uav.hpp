@@ -104,6 +104,16 @@ namespace SAOP {
             }
         }
 
+        /** Returns the travel time between the two waypoints. */
+        double travel_time(const Segment3d& segment, const WindVector& wind) const {
+            auto v = WindVector(_max_air_speed * cos(segment.start.dir),
+                                _max_air_speed * sin(segment.start.dir));
+            auto vw = (v + wind);
+            auto v_eff = vw.modulo() * cos(-vw.dir() + v.dir());
+            ASSERT(v_eff > 0);
+            return segment.length / v_eff;
+        }
+
         /* Determine whether the UAV is turning*/
         bool is_turning(const Waypoint3d& prev, const Waypoint3d& current) const {
             // r = dist(prev, current) / (current.dir - prev.dir)
@@ -157,6 +167,44 @@ namespace SAOP {
             ASSERT(step_size > 0);
             DubinsWind path = DubinsWind(origin, target, wind, _max_air_speed, _min_turn_radius);
             return path.sampled_airframe(step_size);
+        }
+
+        std::vector<Waypoint3d> segment_sampling(const Segment3d& segment, const WindVector& wind, double step_size) {
+            ASSERT(step_size > 0);
+            auto v = WindVector(_max_air_speed * cos(segment.start.dir),
+                                _max_air_speed * sin(segment.start.dir));
+            auto vw = (v + wind);
+            auto v_eff = vw.modulo() * cos(-vw.dir() + v.dir());
+
+            std::vector<Waypoint3d> waypoints;
+
+            for (double i = 0; i < segment.length; i += step_size) {
+                waypoints.push_back(segment.start.forward(i));
+            }
+            waypoints.push_back(segment.end);
+
+            return waypoints;
+        }
+
+        std::pair<std::vector<Waypoint3d>, std::vector<double>>
+        segment_sampling_with_time(const Segment3d& segment, const WindVector& wind, double step_size, double t_start) {
+            ASSERT(step_size > 0);
+            auto v = WindVector(_max_air_speed * cos(segment.start.dir),
+                                _max_air_speed * sin(segment.start.dir));
+            auto vw = (v + wind);
+            auto v_eff = vw.modulo() * cos(-vw.dir() + v.dir());
+
+            std::vector<Waypoint3d> waypoints;
+            std::vector<double> times;
+
+            for (double i = 0; i < segment.length; i += step_size) {
+                waypoints.push_back(segment.start.forward(i));
+                times.push_back(t_start + i / v_eff);
+            }
+            waypoints.push_back(segment.end);
+            times.push_back(t_start + segment.length / v_eff);
+
+            return {waypoints, times};
         }
 
         /* Returns a sequence of waypoints with its corresponding time following the dubins trajectory,
