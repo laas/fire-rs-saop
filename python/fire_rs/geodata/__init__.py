@@ -1,1 +1,1 @@
-__all__ = ['basemap', 'elevation', 'environment', 'geodata', 'wind']
+__all__ = ['basemap', 'display', 'elevation', 'environment', 'geo_data', 'wind']
