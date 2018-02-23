@@ -53,6 +53,21 @@ namespace SAOP {
             return sqrt(pow(x_speed, 2) + pow(y_speed, 2));
         }
 
+        double dot(const WindVector& other) const {
+            return x_speed * other.x_speed + y_speed * y_speed;
+        }
+
+        WindVector& operator+=(const WindVector& rhs) {
+            x_speed += rhs.x_speed;
+            y_speed += rhs.y_speed;
+            return *this;
+        }
+
+        friend WindVector operator+(WindVector lhs, const WindVector& rhs) {
+            lhs += rhs;
+            return lhs;
+        }
+
         std::string to_string() const {
             std::stringstream repr;
             repr << *this;
