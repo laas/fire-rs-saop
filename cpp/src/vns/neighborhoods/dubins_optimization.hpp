@@ -140,7 +140,7 @@ namespace SAOP {
         static vector<shared_ptr<OrientationChangeGenerator>> default_generators() {
             return vector<shared_ptr<OrientationChangeGenerator>> {
                     (shared_ptr<OrientationChangeGenerator>) make_shared<RandomOrientationChangeGenerator>(),
-                    //(shared_ptr<OrientationChangeGenerator>) make_shared<MeanOrientationChangeGenerator>(),
+                    (shared_ptr<OrientationChangeGenerator>) make_shared<MeanOrientationChangeGenerator>(),
                     (shared_ptr<OrientationChangeGenerator>) make_shared<FlipOrientationChangeGenerator>()
             };
         }
