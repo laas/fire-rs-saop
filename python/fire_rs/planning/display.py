@@ -203,7 +203,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         if len(self.plan_trajectory) < 2:
             return
         color = kwargs.get('color', 'C0')
-        size = kwargs.get('size', 2)
+        size = kwargs.get('size', 10)
 
         py_segments = self.plan_trajectory.segments[:]
         py_modifi_segments = [s for i, s in enumerate(py_segments) if
@@ -214,34 +214,38 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         # Plot modifiable segments
         start_x_m = [s.start.x for s in py_modifi_segments]
         start_y_m = [s.start.y for s in py_modifi_segments]
+        start_dir_m = [s.start.dir for s in py_modifi_segments]
         end_x_m = [s.end.x for s in py_modifi_segments]
         end_y_m = [s.end.y for s in py_modifi_segments]
+        end_dir_m = [s.end.dir for s in py_modifi_segments]
 
         for i in range(len(start_x_m)):
             self._base_display.drawings.append(
-                self._base_display.axis.arrow(start_x_m[i], start_y_m[i],
-                                              end_x_m[i] - start_x_m[i],
-                                              end_y_m[i] - start_y_m[i],
-                                              facecolor=color, edgecolor='black',
-                                              length_includes_head=True,
-                                              width=size,
-                                              zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+                self._base_display.axis.quiver(start_x_m[i], start_y_m[i],
+                                               100*np.cos(start_dir_m[i]),
+                                               100*np.sin(start_dir_m[i]), units='xy', angles='xy',
+                                               scale_units='xy', scale=1,
+                                               facecolor=color, edgecolor='black',
+                                               headaxislength=4, headlength=5, headwidth=5,
+                                               width=15, pivot='middle',
+                                               zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
         # Plot frozen segments (all but the bases)
-        start_x_f = [s.start.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
-        start_y_f = [s.start.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
-        end_x_f = [s.end.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
-        end_y_f = [s.end.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
-
-        for i in range(len(start_x_f)):
-            self._base_display.drawings.append(
-                self._base_display.axis.arrow(start_x_f[i], start_y_f[i],
-                                              end_x_f[i] - start_x_f[i],
-                                              end_y_f[i] - start_y_f[i],
-                                              facecolor=color, edgecolor='black',
-                                              length_includes_head=True,
-                                              width=size,
-                                              zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+        # start_x_f = [s.start.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        # start_y_f = [s.start.y for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        # start_dir_f = [s.start.dir for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
+        #
+        # for i in range(len(start_x_f)):
+        #     self._base_display.drawings.append(
+        #         self._base_display.axis.quiver(start_x_f[i], start_y_f[i],
+        #                                        100 * np.cos(start_dir_f[i]),
+        #                                        100 * np.sin(start_dir_f[i]), units='xy',
+        #                                        angles='xy',
+        #                                        scale_units='xy', scale=1,
+        #                                        facecolor=color, edgecolor='gray',
+        #                                        headaxislength=4, headlength=5, headwidth=5,
+        #                                        width=15, pivot='middle',
+        #                                        zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
         start_base = py_segments[0]
         finish_base = py_segments[-1]
@@ -319,9 +323,12 @@ def plot_plan_trajectories(plan, geodatadisplay,
             geodatadisplay.TrajectoryDisplayExtension.draw_flighttime_path(with_colorbar=True)
 
         if draw_segments:
-            geodatadisplay.TrajectoryDisplayExtension.draw_segments(time_range=time_range,
-                                                                    color=color,
-                                                                    size=size * 5)
+            geodatadisplay.TrajectoryDisplayExtension.draw_arrows(time_range=time_range,
+                                                                  color=color,
+                                                                  size=size * 5)
+            # geodatadisplay.TrajectoryDisplayExtension.draw_segments(time_range=time_range,
+            #                                                         color=color,
+            #                                                         size=size * 5)
     if show:
         geodatadisplay.figure.show()
 
