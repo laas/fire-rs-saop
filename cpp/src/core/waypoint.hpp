@@ -49,7 +49,7 @@ namespace SAOP {
             return atan2(y_speed, x_speed);
         };
 
-        double speed() const {
+        double modulo() const {
             return sqrt(pow(x_speed, 2) + pow(y_speed, 2));
         }
 
