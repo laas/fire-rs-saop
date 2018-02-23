@@ -94,7 +94,7 @@ namespace SAOP {
         /** Returns the travel time between the two waypoints. */
         double travel_time(const Waypoint3d& origin, const Waypoint3d& target, const WindVector& wind) const {
             try {
-                DubinsWind path(origin, target, wind, _min_turn_radius, _max_pitch_angle);
+                DubinsWind path(origin, target, wind, _max_air_speed, _min_turn_radius);
                 return path.T();
             } catch (const DubinsWindPathNotFoundException& e) {
 #ifdef DEBUG
