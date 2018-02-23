@@ -116,7 +116,7 @@ namespace SAOP {
          * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
          **/
         double utility() const {
-            vector<PositionTime> done_obs = observations();
+            vector<PositionTime> done_obs = observations_full();
             double global_cost = 0;
             for (const PointTimeWindow& possible_obs : possible_observations) {
                 double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
@@ -142,7 +142,8 @@ namespace SAOP {
         /** All observations in the plan. Computed by taking the visibility center of all segments.
          * Each observation is tagged with a time, corresponding to the start time of the segment.*/
         vector<PositionTime> observations() const {
-            return observations(time_window);
+//            return observations(time_window);
+            return observations_full();
         }
 
         /** All observations in the plan. Computed assuming we observe at any time, not only when doing a segment*/
