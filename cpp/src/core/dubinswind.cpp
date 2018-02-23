@@ -242,7 +242,7 @@ namespace SAOP {
     opt<double> DubinsWind::G(double d, const Waypoint3d& from, const Waypoint3d& to, WindVector wind, double uav_speed,
                               double turn_radius, DubinsPath* dubins_air_conf) {
         auto to_air = to.move(-d, wind.dir());
-        auto t_vt = d / wind.speed();
+        auto t_vt = d / wind.modulo();
         double orig_air[3] = {from.x, from.y, from.dir};
         double dest_air[3] = {to_air.x, to_air.y, to_air.dir};
         auto ret = dubins_init_with_type(orig_air, dest_air, turn_radius, dubins_air_conf, dubins_air_conf->type);
