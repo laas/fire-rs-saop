@@ -84,6 +84,11 @@ missing
 # Jupyter notebooks
 .ipynb_checkpoints
 
+# images
+*.pdf
+*.svg
+*.eps
+
 # Our build
 build-debug/
 build-testing/
