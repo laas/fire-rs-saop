@@ -78,6 +78,50 @@ def SAOP_conf(min_time: float, max_time: float) -> 'dict':
     return conf
 
 
+def wp_insertion() -> "fire_rs.geodata.display.GeoDataDisplay":
+    """Plot a case with an small fire. Overlay arrows indicating fire propagation direction"""
+
+    # Geographic environment (elevation, landcover, wind...)
+    wind = (2., 0.)
+    area = ((480000.0, 480200.0), (6210000.0, 6210200.0))
+    env = PlanningEnvironment(area, wind_speed=wind[0], wind_dir=wind[1],
+                              planning_elevation_mode='flat', flat_altitude=0)
+
+    ignition_points = [
+        TimedPoint(area[0][0], area[1][0], 0),
+    ]
+    logging.info("Start of propagation")
+    fire = propagation.propagate_from_points(env, ignition_points, 180 * 60)
+    logging.info("End of propagation")
+
+    fire1 = fire.ignitions()
+
+    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire1),
+                                                               )
+    gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
+
+    # print(env.raster.x_offset)
+    # gdd.axis.set_xticks(np.arange(area[0][0]-25, area[0][1], 22.22))
+    # gdd.axis.set_yticks(np.arange(area[1][0]-25, area[1][1], 22.22))
+    # gdd.axis.grid(True)
+    gdd.axis.tick_params(
+        axis='both',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom='off',  # ticks along the bottom edge are off
+        left='off',  # ticks along the bottom edge are off
+        top='off',  # ticks along the top edge are off
+        labelleft='off',  # ticks along the bottom edge are off
+        labelbottom='off')  # labels along the bottom edge are off
+    gdd.axis.set_xlabel("")
+    gdd.axis.set_ylabel("")
+    t_range_fire = (0, np.inf)
+    gdd.draw_ignition_contour(geodata=fire1, time_range=t_range_fire, cmap=matplotlib.cm.plasma)
+    gdd.draw_ignition_shade(with_colorbar=False, geodata=fire1, vmin=0, vmax=120*60, cmap=matplotlib.cm.Reds)
+
+    gdd.legend()
+    return gdd
+
+
 def detail_case_figure(wind_speed=5., wind_dir=0.) -> "fire_rs.geodata.display.GeoDataDisplay":
     """Plot a case with an small fire
      we can make a zoom and observe a dubinswind path and observed cells."""
@@ -118,6 +162,8 @@ def detail_case_figure(wind_speed=5., wind_dir=0.) -> "fire_rs.geodata.display.G
     gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire1),
                                                                frame=(0, 0))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
+
+    gdd.axis.grid(True)
 
     # Draw expected fire contour
     t_range = (sr_1.final_plan().trajectories()[0].start_time(0) - 120,
@@ -303,11 +349,15 @@ if __name__ == '__main__':
     # f2 = generic_case_figure()
     # archive(f2, 2)
     #
-    f3 = singleuav_case_figure(wind_speed=2., wind_dir=np.pi/2)
-    archive(f3, 3)
+    # f3 = singleuav_case_figure(wind_speed=2., wind_dir=np.pi/2)
+    # archive(f3, 3)
+    #
+    # f4 = detail_case_figure()
+    # show(f4, 4)
+    # archive(f4, 4)
 
-    f4 = detail_case_figure()
-    show(f4, 4)
-    archive(f4, 4)
+    f5 = wp_insertion()
+    show(f5, "wp_insertion")
+    archive(f5, "wp_insertion")
 
     print("eee")
