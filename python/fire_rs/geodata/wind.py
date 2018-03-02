@@ -263,6 +263,7 @@ class WindNinjaCLI():
         # Working directory must be the one in which WindNinja_cli is located
         # because it searchs locally the date_time_zonespec.csv.
         # In my opinion this is a bug in WindNinja_cli.
+        print(" ".join((cli, *arguments)))
         completed = subprocess.run((cli, *arguments), cwd=self.windninja_path)
         return completed
 
