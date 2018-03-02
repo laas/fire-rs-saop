@@ -122,7 +122,7 @@ def plot_elevation_shade(ax, x, y, z, dx=25, dy=25, image_scale=None, **kwargs):
                  vert_exag=1,
                  dx=dx, dy=dy, vmin=cbar_lim[0], vmax=cbar_lim[1]),
         extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
-        cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), interpolation='bilinear')
+        cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), interpolation='none')
 
 
 def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
