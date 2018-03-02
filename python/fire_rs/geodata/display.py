@@ -296,7 +296,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
                          linewidth=2, fmt='%.0f')
 
     def draw_ignition_shade(self, with_colorbar=True, geodata: GeoData = None, layer='ignition',
-                            **kwargs):
+                            label: 'str'="Ignition time", **kwargs):
         # mask all cells whose ignition has not been computed
         igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
         igni[np.abs(igni) >= np.finfo(np.float64).max] = np.nan
@@ -313,11 +313,11 @@ class GeoDataDisplay(GeoDataDisplayBase):
                                     image_scale=self._image_scale, **kwargs)
         self._drawings.append(shade)
         if with_colorbar:
-            self._add_ignition_shade_colorbar(shade)
+            self._add_ignition_shade_colorbar(shade, label)
 
-    def _add_ignition_shade_colorbar(self, shade, **kwargs):
+    def _add_ignition_shade_colorbar(self, shade, label: 'str'="Ignition time", **kwargs):
         cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20, format="%d min")
-        cb.set_label("Ignition time")
+        cb.set_label(label)
         self._colorbars.append(cb)
 
     def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]',
