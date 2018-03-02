@@ -27,18 +27,31 @@ import matplotlib.cm
 import matplotlib.pyplot as plt
 
 from fire_rs.firemodel import propagation
-from fire_rs.geodata.display import GeoDataDisplay, plot_ignition_point
+from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.geodata.geo_data import TimedPoint
 
+
 if __name__ == "__main__":
-    area = ((480060.0, 485060.0), (6210074.0, 6215074.0))
+    output_format = "svg"
+
+    # Uncomment below to use latex for typesetting
+    # matplotlib.rcParams['font.family'] = 'sans-serif'
+    # matplotlib.rcParams['text.usetex'] = True
+    # output_format="pdf"
+
+    area = ((480000.0, 485000.0), (6210000.0, 6215000.0))
     env = propagation.Environment(area, wind_speed=5., wind_dir=0.)
     ignition_point = TimedPoint(area[0][0] + 1000.0, area[1][0] + 2000.0, 0)
-    fire = propagation.propagate_from_points(env, ignition_point, 9000)
+    fire = propagation.propagate_from_points(env, ignition_point, 90000)
 
-    gdd = GeoDataDisplay.pyplot_figure(env.raster.combine(fire.ignitions().slice(["ignition"])))
+    # Figure terrain + ignition contour + ignition point
+    gdd = GeoDataDisplay.pyplot_figure(env.raster.combine(fire.ignitions().slice(["ignition"])),
+                                       frame=(0., 0.))
     gdd.draw_elevation_shade(with_colorbar=False, cmap=matplotlib.cm.terrain)
     gdd.draw_wind_quiver()
     gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.plasma)
     gdd.draw_ignition_points(ignition_point)
-    plt.plot(block=True)
+
+    gdd.figure.show()
+
+    gdd.figure.savefig(".".join(("demo_propagation", output_format)), dpi=150, bbox_inches='tight')
