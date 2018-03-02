@@ -49,7 +49,7 @@ def SAOP_conf(min_time: float, max_time: float) -> 'dict':
     conf_vns = {
         "full": {
             "max_restarts": 5,
-            "max_time": 30.0,
+            "max_time": 60.0,
             "neighborhoods": [
                 {"name": "dubins-opt",
                  "max_trials": 100,
@@ -59,7 +59,7 @@ def SAOP_conf(min_time: float, max_time: float) -> 'dict':
                      {"name": "FlipOrientationChangeGenerator"}]},
                 {"name": "one-insert",
                  "max_trials": 50,
-                 "select_arbitrary_trajectory": False,
+                 "select_arbitrary_trajectory": True,
                  "select_arbitrary_position": False},
             ]
         }
@@ -274,12 +274,13 @@ def generic_case_figure(wind_speed=5.,
         TimedPoint(area[0][0] + 4000.0, area[1][0] + 3000.0, 0.)
     ]
     logging.info("Start of propagation")
-    fire = propagation.propagate_from_points(env, ignition_points, 180 * 60)
+    fire = propagation.propagate_from_points(env, ignition_points, 120 * 60)
     logging.info("End of propagation")
 
     # Configure some flight
     start_t = 90 * 60
     uav = UAVConf.X8()
+    uav.max_flight_time/=5
     f_confs = [
         FlightConf(uav, start_t, Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.), None,
                    wind),
@@ -325,6 +326,75 @@ def generic_case_figure(wind_speed=5.,
     return gdd
 
 
+def threefire_twouav_figure(wind_speed=5.,
+                        wind_dir=np.pi / 2) -> "fire_rs.geodata.display.GeoDataDisplay":
+    """Plot a generic case with wind, multiple UAV from multiple bases, and multiple fire."""
+
+    # Geographic environment (elevation, landcover, wind...)
+    wind = (wind_speed, wind_dir)
+    area = ((480000.0, 485000.0), (6210000.0, 6215000.0))
+    env = PlanningEnvironment(area, wind_speed=wind[0], wind_dir=wind[1],
+                              planning_elevation_mode='flat', flat_altitude=0)
+
+    # Fire applied to the previous environment
+    ignition_points = [
+        TimedPoint(area[0][0] + 1000.0, area[1][0] + 1000.0, 0.),
+        TimedPoint(area[0][0] + 4000.0, area[1][0] + 2000.0, 0.),
+        TimedPoint(area[0][0] + 2000.0, area[1][0] + 3500.0, 0.)
+    ]
+    logging.info("Start of propagation")
+    fire = propagation.propagate_from_points(env, ignition_points, 120 * 60)
+    logging.info("End of propagation")
+
+    # Configure some flight
+    start_t = 90 * 60
+    uav = UAVConf.X8()
+    uav.max_flight_time /= 3
+    f_confs = [
+        FlightConf(uav, start_t, Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.), None,
+                   wind),
+        FlightConf(uav, start_t, Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.), None,
+                   wind),
+    ]
+
+    conf = SAOP_conf(start_t, start_t + uav.max_flight_time)
+
+    fire1 = fire.ignitions()
+    pl = Planner(env, fire1, f_confs, conf)
+    pl.compute_plan()
+    sr_1 = pl.search_result
+    fmapper = FireMapper(env, fire1)
+
+    gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(env.raster.combine(fire1),
+                                                               frame=(0, 0))
+    gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
+
+    # Draw expected fire contour
+    t_range = (sr_1.final_plan().trajectories()[0].start_time(0),
+               sr_1.final_plan().trajectories()[0].end_time(len(
+                   sr_1.final_plan().trajectories()[0]) - 1))
+    t_range_fire = (0, np.inf)
+    gdd.draw_ignition_contour(geodata=fire1, time_range=t_range_fire, cmap=matplotlib.cm.Reds,
+                              alpha=1)
+
+    # Draw observed fire
+    for i in range(len(f_confs)):
+        executed_path = sr_1.final_plan().trajectories()[i].sampled_with_time(step_size=10)
+        fmapper.observe(executed_path, pl.flights[i].uav)
+    gdd.draw_ignition_shade(geodata=fmapper.firemap, cmap=matplotlib.cm.summer,
+                            vmin=t_range[0], vmax=t_range[1], with_colorbar=False)
+
+    # Draw trajectory
+    colors = ['blue', 'darkgreen', 'magenta']
+    labels = ["UAV " + str(i) for i in range(len(f_confs))]
+
+    for i in range(len(f_confs)):
+        plot_plan_trajectories(sr_1.final_plan(), gdd, trajectories=i, draw_path=True,
+                               draw_flighttime_path=False, colors=[colors[i]], labels=[labels[i]],
+                               linestyles=['-'])
+    gdd.legend()
+    return gdd
+
 def show(gdd, i):
     gdd.figure.set_size_inches(6, 4.5)
     gdd.figure.show()
@@ -344,9 +414,11 @@ if __name__ == '__main__':
     matplotlib.rcParams['text.usetex'] = True
     #
     # f1 = singleuav_case_figure()
+    # show(f1, 1)
     # archive(f1, 1)
     #
-    # f2 = generic_case_figure()
+    f2 = generic_case_figure()
+    show(f2, 2 )
     # archive(f2, 2)
     #
     # f3 = singleuav_case_figure(wind_speed=2., wind_dir=np.pi/2)
@@ -355,9 +427,17 @@ if __name__ == '__main__':
     # f4 = detail_case_figure()
     # show(f4, 4)
     # archive(f4, 4)
+    #
+    # f5 = wp_insertion()
+    # show(f5, "wp_insertion")
+    # archive(f5, "wp_insertion")
 
-    f5 = wp_insertion()
-    show(f5, "wp_insertion")
-    archive(f5, "wp_insertion")
+    # f6 = twofire_threeuav_figure(wind_speed=2., wind_dir=np.pi/2)
+    # show(f6, "twofire_threeuav")
+    # archive(f6, "twofire_threeuav")
+
+    f7 = threefire_twouav_figure()
+    show(f7, "threefire_twouav")
+    archive(f7, "threefire_twouav")
 
     print("eee")
