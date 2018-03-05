@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <signal.h>
 #include <execinfo.h>
 #include <wait.h>
-#include <zconf.h>
+#include <unistd.h>
 #include <cstdlib>
 #include <cassert>
 
