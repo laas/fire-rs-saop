@@ -82,8 +82,9 @@ namespace SAOP {
 
     private:
         // start and end waypoints
-        Waypoint3d wp_s{0, 0, 0, 0}; // start waypoint
-        Waypoint3d wp_e{0, 0, 0, 0}; // end waypoint
+        // See McGee2005 section I.B. for Orientation angle vs. Velociy direction
+        Waypoint3d wp_s{0, 0, 0, 0}; // start waypoint (dir is velocity direction)
+        Waypoint3d wp_e{0, 0, 0, 0}; // end waypoint (dir is velocity direction)
 
         // Path parameters
         WindVector wind_vector;

@@ -29,8 +29,11 @@ namespace SAOP {
     DubinsWind::DubinsWind(const Waypoint3d& from, const Waypoint3d& to, const WindVector& constant_wind,
                            double uav_air_speed, double turn_radius) {
 
-        wp_s = from;
-        wp_e = to;
+        double beta = constant_wind.modulo() / uav_air_speed; // ratio Wind speed -- UAV speed |<1|
+        wp_s = Waypoint3d{from.x, from.y, from.z,
+                          std::acos(-beta * std::sin(from.dir - constant_wind.dir())) - M_PI_2 + from.dir};
+        wp_e = Waypoint3d{to.x, to.y, to.z,
+                          std::acos(-beta * std::sin(to.dir - constant_wind.dir())) - M_PI_2 + to.dir};
         r_min = turn_radius;
         wind_vector = constant_wind;
         air_speed = uav_air_speed;
