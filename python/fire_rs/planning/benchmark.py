@@ -106,11 +106,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     for f in scenario.flights:
         base_h = 0.  # If flat, start at the default segment insertion h
         if output_options_planning['elevation_mode'] != 'flat':
-            base_h = env.raster["elevation"][env.raster.array_index((f.base_waypoint[0],
-                                                                     f.base_waypoint[1]))]
+            base_h = base_h + env.raster["elevation"][env.raster.array_index((f.base_waypoint[0],
+                                                                              f.base_waypoint[1]))]
         # The new WP is (old_x, old_y, old_z + elevation[old_x, old_y], old_dir)
-        f.base_waypoint = Waypoint(f.base_waypoint[0], f.base_waypoint[1],
-                                   f.base_waypoint[2] + base_h, f.base_waypoint[3])
+        f.base_waypoint = Waypoint(f.base_waypoint[0], f.base_waypoint[1], base_h,
+                                   f.base_waypoint[3])
 
     conf = {
         'min_time': scenario.time_window_start,
@@ -363,10 +363,10 @@ def generate_scenario():
     uav_max_pitch_angle = 6. / 180. * np.pi
     uav_max_turn_rate = 32. * np.pi / 180
     uav_bases = [  # four corners of the map
-        Waypoint(area.xmin + 100, area.ymin + 100, 100, 0),
-        Waypoint(area.xmin + 100, area.ymax - 100, 100, 0),
-        Waypoint(area.xmax - 100, area.ymin + 100, 100, 0),
-        Waypoint(area.xmax - 100, area.ymax - 100, 100, 0)
+        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmin + 100, area.ymax - 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymax - 100, 0, 0)
     ]
 
     wind_speed = 15.  # random.uniform(10., 20.)  # wind speed in [10,20] km/h
