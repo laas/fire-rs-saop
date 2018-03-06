@@ -110,7 +110,6 @@ namespace SAOP {
         double current_l = 0.0;
         double length = dubins_path_length(&air_path);
 
-        Waypoint3d q_prev = wp_s;
         Waypoint3d p_prev = wp_s;
         while (current_l < length) {
             double q[3];
@@ -118,15 +117,17 @@ namespace SAOP {
             // p⃗_g = p⃗_a + w⃗ ⨯ Δt
             Waypoint3d q_now{q[0], q[1], wp_s.z, q[2]};
 
-            auto p_x = p_prev.x + (q_now.x - q_prev.x) + t_step * wind_vector.x();
-            auto p_y = p_prev.y + (q_now.y - q_prev.y) + t_step * wind_vector.y();
-            auto p_theta = WindVector(wind_vector.x() + air_speed * std::cos(q[2]),
-                                      wind_vector.y() + air_speed * std::sin(q[2])).dir();
+            double d_x = (air_speed * std::sin(-(q_now.dir) + M_PI_2) + wind_vector.x());
+            double d_y = (air_speed * std::cos(-(q_now.dir) + M_PI_2) + wind_vector.y());
+
+            double p_x = p_prev.x + d_x * t_step;
+            double p_y = p_prev.y + d_y * t_step;
+            double p_theta = std::remainder(p_prev.dir + atan2(d_y, d_x), M_2_PI);
+
             Waypoint3d p_now{p_x, p_y, wp_s.z, p_theta};
             wp_ground.emplace_back(p_now);
 
             p_prev = p_now;
-            q_prev = q_now;
 
             current_l += l_step;
         }
@@ -147,7 +148,6 @@ namespace SAOP {
         double current_t = 0.0;
         double length = dubins_path_length(&air_path);
 
-        Waypoint3d q_prev = wp_s;
         Waypoint3d p_prev = wp_s;
         while (current_l < length) {
             double q[3];
@@ -155,16 +155,18 @@ namespace SAOP {
             // p⃗_g = p⃗_a + w⃗ ⨯ Δt
             Waypoint3d q_now{q[0], q[1], wp_s.z, q[2]};
 
-            auto p_x = p_prev.x + (q_now.x - q_prev.x) + t_step * wind_vector.x();
-            auto p_y = p_prev.y + (q_now.y - q_prev.y) + t_step * wind_vector.y();
-            auto p_theta = WindVector(wind_vector.x() + air_speed * std::cos(q[2]),
-                                      wind_vector.y() + air_speed * std::sin(q[2])).dir();
+            double d_x = (air_speed * std::sin(-(q_now.dir) + M_PI_2) + wind_vector.x());
+            double d_y = (air_speed * std::cos(-(q_now.dir) + M_PI_2) + wind_vector.y());
+
+            double p_x = p_prev.x + d_x * t_step;
+            double p_y = p_prev.y + d_y * t_step;
+            double p_theta = std::remainder(p_prev.dir + atan2(d_y, d_x), M_2_PI);
+
             Waypoint3d p_now{p_x, p_y, wp_s.z, p_theta};
             wp_ground.emplace_back(p_now);
             time.emplace_back(current_t);
 
             p_prev = p_now;
-            q_prev = q_now;
 
             current_l += l_step;
             current_t += t_step;
