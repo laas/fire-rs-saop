@@ -117,7 +117,7 @@ if __name__ == '__main__':
         ax.scatter(t_air[0][-1], t_air[1][-1], c='k', zorder=100)  # vt
         ax.annotate('virtual\ntarget', xy=(t_air[0][-1], t_air[1][-1]),
                     xytext=(t_air[0][-1] - 10, t_air[1][-1] - 10))
-        ax.annotate("", xy=(t_air[0][-1], t_air[1][-1]), xytext=(t_wind[0][-1], t_wind[1][-1]),
+        ax.annotate("", xy=(t_air[0][-1], t_air[1][-1]), xytext=(wp_ma[i + 1][0], wp_ma[i + 1][1]),
                     arrowprops=dict(arrowstyle="->"), zorder=101)
 
     # plt.xlabel("x")
