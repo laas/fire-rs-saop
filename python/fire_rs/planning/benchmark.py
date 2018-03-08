@@ -47,7 +47,8 @@ from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.geodata.geo_data import TimedPoint, Area
 from fire_rs.geodata.geo_data import Point as GeoData_Point
 from fire_rs.planning.display import plot_plan_with_background, TrajectoryDisplayExtension
-from fire_rs.planning.planning import FlightConf, Planner, PlanningEnvironment, UAVConf, Waypoint
+from fire_rs.planning.planning import FlightConf, Planner, PlanningEnvironment, SAOPPlannerConf, \
+    UAVConf, VNSConfDB, Waypoint
 
 _DBL_MAX = np.finfo(np.float64).max
 DISCRETE_ELEVATION_INTERVAL = 100
@@ -122,7 +123,9 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     conf['vns']['configuration_name'] = vns_name
 
     # Call the planner
-    pl = Planner(env, ignitions, scenario.flights, conf)
+    pl = Planner(env, ignitions, scenario.flights, SAOPPlannerConf((scenario.time_window_start,
+                                                                    scenario.time_window_end),
+                                                                   vns_configurations[vns_name]))
     res = pl.compute_plan()
     plan = res.final_plan()
 
@@ -401,26 +404,7 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'windy_scenario': generate_windy_scenario,
                           }
 
-max_planning_time = 15.
-
-vns_configurations = {
-    "demo": {
-        "max_restarts": 0,
-        "max_time": max_planning_time,
-        "neighborhoods": [
-            {"name": "dubins-opt",
-             "max_trials": 500,
-             "generators": [
-                 {"name": "MeanOrientationChangeGenerator"},
-                 {"name": "RandomOrientationChangeGenerator"},
-                 {"name": "FlipOrientationChangeGenerator"}]},
-            {"name": "one-insert",
-             "max_trials": 50,
-             "select_arbitrary_trajectory": False,
-             "select_arbitrary_position": False}
-        ]
-    }
-}
+vns_configurations = VNSConfDB.demo_db()
 
 
 def main():
@@ -511,7 +495,7 @@ def main():
 
     if args.vns_conf:
         global vns_configurations
-        vns_configurations = args.vns_conf
+        vns_configurations = VNSConfDB(args.vns_conf)
 
     # Set-up output options
     output_options = {'plot': {}, 'planning': {}, }

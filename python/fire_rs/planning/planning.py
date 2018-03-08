@@ -22,11 +22,13 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import copy
 import json
 import logging
 import types
-from collections import namedtuple
-from typing import List, Optional, Sequence, Tuple, Union
+import typing as t
+from collections import namedtuple, Mapping
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -35,6 +37,94 @@ import fire_rs.firemapping as fmapping
 
 from fire_rs.firemodel.propagation import Environment, FirePropagation
 from fire_rs.geodata.geo_data import GeoData
+
+
+class VNSConfDB(Mapping):
+    """VNS configuration DB for SAOP Planner.
+
+    This class provides a unique interface to fetch VNS configuration
+    dictionaries, initialized with a json file, a json str or a dictionary
+    """
+
+    def __init__(self, vns_json: 'Dict[str, dict]'):
+        if isinstance(vns_json, str):
+            self._vns_confs = json.loads(vns_json)  # type: 'dict'
+        if isinstance(vns_json, dict):
+            self._vns_confs = vns_json  # type: 'dict'
+        else:
+            self._vns_confs = json.load(vns_json)  # type: 'dict'
+
+        for k in self._vns_confs.keys():
+            self._vns_confs[k]["configuration_name"] = k
+
+    def __getitem__(self, item) -> 'Dict':
+        return copy.deepcopy(self._vns_confs[item])
+
+    def __iter__(self):
+        return iter(self._vns_confs)
+
+    def __len__(self):
+        return len(self._vns_confs)
+
+    def __repr__(self):
+        return '{self.__class__.__name__}({self._vns_confs})'.format(self=self)
+
+    @classmethod
+    def demo_db(cls):
+        demo_vns_key = 'demo'
+        demo_vns = {
+            "max_time": 30.,
+            "neighborhoods": [
+                {"name": "dubins-opt",
+                 "max_trials": 100,
+                 "generators": [
+                     {"name": "MeanOrientationChangeGenerator"},
+                     {"name": "RandomOrientationChangeGenerator"},
+                     {"name": "FlipOrientationChangeGenerator"}]},
+                {"name": "one-insert",
+                 "max_trials": 50,
+                 "select_arbitrary_trajectory": True,
+                 "select_arbitrary_position": False},
+            ]
+        }
+        return cls({demo_vns_key: demo_vns})
+
+
+class SAOPPlannerConf(Mapping):
+    """SAOP Planner configuration builder"""
+
+    def __init__(self, fligth_window: 'Tuple[float, float]', vnsconf: 'Dict',
+                 max_planning_time: 'Optional[float]' = None, save_improvements: 'bool' = False,
+                 save_every: 'int' = 0):
+        self._conf = {
+            'min_time': fligth_window[0],
+            'max_time': fligth_window[1],
+            'save_improvements': save_improvements,
+            'save_every': save_every,
+            'vns': vnsconf
+        }
+        if max_planning_time:
+            self._conf['vns']['max_time'] = max_planning_time
+
+    @classmethod
+    def from_dict(cls, d: 't.Mapping'):
+        cls((d['min_time'], d['max_time']), d['vns'], d['vns'].get('max_time', None),
+            d['save_improvements'], d['save_every'])
+
+    def to_json(self) -> 'str':
+        return json.dumps(self._conf)
+
+    def __getitem__(self, item) -> 'Dict':
+        return self._conf[item]
+
+    def __iter__(self):
+        return iter(self._conf)
+
+    def __len__(self):
+        return len(self._conf)
+
+    def __str__(self):
+        return 'self._conf'.format(self=self)
 
 
 class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
@@ -141,12 +231,13 @@ class PlanningEnvironment(Environment):
 
 class Planner:
     def __init__(self, env: 'PlanningEnvironment', firemap: 'GeoData', flights: '[FlightConf]',
-                 planning_conf: 'dict'):
+                 planning_conf: 'Union[Dict, SAOPPlannerConf]'):
         assert "ignition" in firemap.layers
         self._env = env  # type: 'PlanningEnvironment'
         self._firemap = firemap  # type: 'GeoData'
         self._flights = flights[:]  # type: 'List[FlightConf]'
-        self._planning_conf = planning_conf  # type: 'dict'
+        # type: 'Dict'
+        self._planning_conf = dict(planning_conf)
 
         self._searchresult = None  # type: 'Optional(up.SearchResult)'
 
@@ -253,7 +344,7 @@ class Planner:
         return self._searchresult
 
     @property
-    def planning_conf(self) -> 'dict':
+    def planning_conf(self) -> 'Dict':
         return self._planning_conf
 
 
