@@ -105,7 +105,6 @@ namespace SAOP {
     std::vector<Waypoint3d> DubinsWind::sampled(double l_step) const {
         ASSERT(l_step > 0);
 
-        std::vector<Waypoint3d> wp_air = sampled_airframe(l_step);
         std::vector<Waypoint3d> wp_ground = {};
 
         double t_step = l_step / air_speed;
@@ -125,7 +124,7 @@ namespace SAOP {
 
             double p_x = p_prev.x + d_x * t_step;
             double p_y = p_prev.y + d_y * t_step;
-            double p_theta = std::remainder(p_prev.dir + atan2(d_y, d_x), M_2_PI);
+            double p_theta = atan2(d_y, d_x);
 
             Waypoint3d p_now{p_x, p_y, wp_s.z, p_theta};
             wp_ground.emplace_back(p_now);
@@ -141,7 +140,6 @@ namespace SAOP {
     std::pair<std::vector<Waypoint3d>, std::vector<double>> DubinsWind::sampled_with_time(double l_step) const {
         ASSERT(l_step > 0);
 
-        std::vector<Waypoint3d> wp_air = sampled_airframe(l_step);
         std::vector<Waypoint3d> wp_ground = {};
         std::vector<double> time = {};
 
@@ -163,7 +161,7 @@ namespace SAOP {
 
             double p_x = p_prev.x + d_x * t_step;
             double p_y = p_prev.y + d_y * t_step;
-            double p_theta = std::remainder(p_prev.dir + atan2(d_y, d_x), M_2_PI);
+            double p_theta = atan2(d_y, d_x);
 
             Waypoint3d p_now{p_x, p_y, wp_s.z, p_theta};
             wp_ground.emplace_back(p_now);
