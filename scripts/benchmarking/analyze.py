@@ -66,7 +66,7 @@ print("Benchmark dir: " + str(bench_dir))
 
 
 for f in result_files:
-    print("Processing: " + str(f))
+    #print("Processing: " + str(f))
     j = {}
     # read result file
     with open(f) as raw:
@@ -102,6 +102,7 @@ for f in result_files:
 
 # create a dataframe from all benchmark results
 df = pd.DataFrame.from_records(all_lines)
+print("Dataframe initialized")
 
 
 def best_util(instance):
@@ -119,14 +120,14 @@ for conf in ["insert_pos_no_shuffling", "base", "insert_pos_no_dubins", "insert_
     df_of_conf = df[df["configuration_name"]==conf]
 
     # extract all utility histories and normalize them (a normalized utility of 1 means the best utility for the given instance)
-    normalized_utility_histories = [ (hist+0.001) / (u_star+0.001) for (_, (hist, u_star))
+    normalized_utility_histories = [  (u_star+0.001) / (hist+0.001) for (_, (hist, u_star))
                                      in df_of_conf[['utility_history', 'utility_star']].iterrows()]
     # mean of all utility histories for the current configuration
     mean_utility_history = np.mean(normalized_utility_histories, axis=0)
 
 
     # extract all utility histories and normalize them (a normalized utility of 1 means the best utility for the given instance)
-    normalized_short_utility_histories = [ (hist+0.001) / (u_star+0.001) for (_, (hist, u_star))
+    normalized_short_utility_histories = [ (u_star+0.001) / (hist+0.001) for (_, (hist, u_star))
                                      in df_of_conf[['utility_history_short', 'utility_star']].iterrows()]
     # mean of all utility histories for the current configuration
     mean_short_utility_history = np.mean(normalized_short_utility_histories, axis=0)
@@ -134,20 +135,21 @@ for conf in ["insert_pos_no_shuffling", "base", "insert_pos_no_dubins", "insert_
     fmt = " & ".join("{0:.2f}".format(i) for i in mean_short_utility_history)
     print(conf.ljust(25)+" & "+str(fmt) + "  \\\\")
 
-    ax.loglog(x, mean_utility_history, label=texify(conf), fillstyle=None)
+    ax.semilogx(x, mean_utility_history, label=texify(conf), fillstyle=None)
 
 def log_10_product(x, pos):
     """The two args are the value and tick position.
     Label ticks with the product of the exponentiation"""
-    return '%1i' % (x)
+    return str(x).replace("0.", ".").replace(".0", "")
 
 import matplotlib
 from matplotlib.pyplot import FuncFormatter
 
 
 styles = ['-', '--', ':', '-.', '--', '-.']
-markers = ['.', 'o', '*', '', 'x', '+']
-markers_every = [0, (500, 1000), 0, 0, 1000, 1000]
+#markers = ['.', 'o', '*', '', 'x', '+']
+markers = ['', 'o', '', '', 'x', '+']
+markers_every = [777, (500, 1000), 777, 777, 1000, 1000]
 for l, ls, ms, me in zip(ax.lines, styles, markers, markers_every):
     l.set_marker(ms)
     l.set_markevery(me)
@@ -158,30 +160,32 @@ for l, ls, ms, me in zip(ax.lines, styles, markers, markers_every):
     l.set_linewidth(1)
 
 
-ax.legend(loc="upper right", fontsize=7)
+ax.legend(loc="lower right", fontsize=7)
 ax.set_xlim(0.1, 30)
-ax.set_ylim(1, 4)
+ax.set_ylim(0.5, 1)
 ax.minorticks_off()
 ax.grid(True)
 ax.set_xlabel("Planning time (s)")
 ax.set_ylabel("Average score")
-ax.set_yticks([1, 2, 4])
+ax.set_yticks([0.5, 0.6, 0.7, 0.8, 0.9,  1])
 
 formatter = FuncFormatter(log_10_product)
 ax.xaxis.set_major_formatter(FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
-ax.yaxis.set_major_formatter(FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
+#ax.yaxis.set_major_formatter(FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
 ax.yaxis.set_minor_formatter(FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
 # ax.xaxis.set_major_formatter(formatter)
-# ax.yaxis.set_major_formatter(formatter)
-sys.exit(0)
+ax.yaxis.set_major_formatter(formatter)
+
+#sys.exit(0)
 
 
 fig.set_size_inches(3.3, 4)
 
-# ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+# # ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+
 plt.savefig("out.pdf", bbox_inches='tight')
 import shutil
-shutil.copy("out.pdf", "/mnt/data/firers/report/icaps/img/bench.pdf")
+#shutil.copy("out.pdf", "/mnt/data/firers/report/icaps/img/bench.pdf")
 #plt.show()
 
 # remove the utility history column because it is very large (each cell is an array)
@@ -196,7 +200,7 @@ df["utility_norm"] = (df["utility"]+0.001) / (df["utility_star"]+0.001)
 del df["utility"]
 del df["utility_star"]
 
-# print summary data for each configuration
-for conf in df["configuration_name"].unique():
-    print("\n\n------- "+conf+" --------")
-    print(df[df['configuration_name']==conf].dropna(axis=1,how='all').describe())
+# # print summary data for each configuration
+# for conf in df["configuration_name"].unique():
+#     print("\n\n------- "+conf+" --------")
+#     print(df[df['configuration_name']==conf].dropna(axis=1,how='all').describe())
