@@ -320,6 +320,29 @@ class GeoDataDisplay(GeoDataDisplayBase):
         cb.set_label(label)
         self._colorbars.append(cb)
 
+    def draw_utility_shade(self, with_colorbar=True, geodata: GeoData = None, layer='utility',
+                           label: 'str' = "Utility", **kwargs):
+        # mask all cells whose ignition has not been computed
+        util_arr = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
+
+        if 'vmin' not in kwargs:
+            kwargs['vmin'] = np.nanmin(util_arr)
+        if 'vmax' not in kwargs:
+            kwargs['vmin'] = np.nanmax(util_arr)
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = matplotlib.cm.viridis
+
+        shade = self._axis.imshow(util_arr.T[::-1, ...], extent=self._image_scale, **kwargs)
+
+        self._drawings.append(shade)
+        if with_colorbar:
+            self._add_utility_shade_colorbar(shade, label)
+
+    def _add_utility_shade_colorbar(self, shade, label: 'str' = "Utility"):
+        cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20, format="%f")
+        cb.set_label(label)
+        self._colorbars.append(cb)
+
     def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]',
                              **kwargs):
         """Draw one or multiple ignition points in a GeoDataDisplay figure."""

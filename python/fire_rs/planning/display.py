@@ -361,6 +361,9 @@ def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, ou
                 logging.warning(e)
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
+        elif layer == 'utilitymap':
+            geodatadisplay.draw_utility_shade(geodata=planner.utility_map('utility'),
+                                              layer='utility', vmin=0., vmax=1.)
 
     # Plot the plan
     if plan == 'final':

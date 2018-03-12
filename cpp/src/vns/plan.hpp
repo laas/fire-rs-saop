@@ -135,6 +135,25 @@ namespace SAOP {
             return global_cost;
         }
 
+        GenRaster<double> utility_map() const {
+            GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::quiet_NaN());
+            vector<PositionTime> done_obs = observations_full();
+            for (const PointTimeWindow& possible_obs : possible_observations) {
+                double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
+                // find the closest observation.
+                for (const PositionTime& obs : done_obs) {
+                    min_dist = min(min_dist, possible_obs.pt.dist_squared(obs.pt));
+                }
+                // utility is based on the minimal distance to the observation and normalized such that
+                // utility = 0 if min_dist <= REDUNDANT_OBS_DIST
+                // utility = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
+                // evolves linearly in between.
+                u_map.set(u_map.as_cell(possible_obs.pt), (max(sqrt(min_dist), REDUNDANT_OBS_DIST) - REDUNDANT_OBS_DIST) /
+                                         (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST));
+            }
+            return u_map;
+        }
+
         size_t num_segments() const {
             return trajectories.num_segments();
         }

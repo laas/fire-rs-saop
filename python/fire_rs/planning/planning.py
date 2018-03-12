@@ -339,6 +339,9 @@ class Planner:
             map[layer_name][array_pos] = t
         return map
 
+    def utility_map(self, layer_name='utility') -> 'GeoData':
+        return GeoData.from_cpp_raster(self._searchresult.final_plan().utility_map(), layer_name)
+
     @property
     def search_result(self):
         return self._searchresult

@@ -440,7 +440,7 @@ def main():
     parser.add_argument("--background", nargs='+',
                         help="List of background layers for the output figures, from bottom to top.",
                         choices=['elevation_shade', 'elevation_planning_shade', 'ignition_shade',
-                                 'observedcells', 'ignition_contour', 'wind_quiver'],
+                                 'observedcells', 'ignition_contour', 'wind_quiver', 'utilitymap'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
     parser.add_argument('--colorbar', dest='colorbar', action='store_true',
                         help="Display colorbars")

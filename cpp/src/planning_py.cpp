@@ -426,6 +426,7 @@ PYBIND11_MODULE(uav_planning, m) {
     py::class_<Plan>(m, "Plan")
             .def("trajectories", [](Plan& self) { return self.trajectories.trajectories; })
             .def("utility", &Plan::utility)
+            .def("utility_map", &Plan::utility_map)
             .def("duration", &Plan::duration)
             .def_readonly("firedata", &Plan::firedata)
             .def_readonly("time_window", &Plan::time_window)
