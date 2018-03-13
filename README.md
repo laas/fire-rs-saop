@@ -4,7 +4,7 @@ FireRS Situation Assessment and Observation Planning
 Build process details.
 -----
 
-[![Build Status](https://travis-ci.org/fire-rs-laas/fire-rs-saop.svg?branch=master)](https://travis-ci.org/fire-rs-laas/fire-rs-saop)
+[![Build Status](https://travis-ci.org/laas/fire-rs-saop.svg?branch=master)](https://travis-ci.org/laas/fire-rs-saop)
 
 SAOP require pybind11 which is present as a submodule of the current repository. To retrieve it:
 
