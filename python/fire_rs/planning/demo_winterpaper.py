@@ -104,7 +104,7 @@ def wp_insertion() -> "fire_rs.geodata.display.GeoDataDisplay":
     # gdd.axis.set_xticks(np.arange(area[0][0]-25, area[0][1], 22.22))
     # gdd.axis.set_yticks(np.arange(area[1][0]-25, area[1][1], 22.22))
     # gdd.axis.grid(True)
-    gdd.axis.tick_params(
+    gdd.axes.tick_params(
         axis='both',  # changes apply to the x-axis
         which='both',  # both major and minor ticks are affected
         bottom='off',  # ticks along the bottom edge are off
@@ -112,8 +112,8 @@ def wp_insertion() -> "fire_rs.geodata.display.GeoDataDisplay":
         top='off',  # ticks along the top edge are off
         labelleft='off',  # ticks along the bottom edge are off
         labelbottom='off')  # labels along the bottom edge are off
-    gdd.axis.set_xlabel("")
-    gdd.axis.set_ylabel("")
+    gdd.axes.set_xlabel("")
+    gdd.axes.set_ylabel("")
     t_range_fire = (0, np.inf)
     gdd.draw_ignition_contour(geodata=fire1, time_range=t_range_fire, cmap=matplotlib.cm.plasma)
     gdd.draw_ignition_shade(with_colorbar=False, geodata=fire1, vmin=0, vmax=120*60, cmap=matplotlib.cm.Reds)
@@ -163,7 +163,7 @@ def detail_case_figure(wind_speed=5., wind_dir=0.) -> "fire_rs.geodata.display.G
                                                                frame=(0, 0))
     gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
 
-    gdd.axis.grid(True)
+    gdd.axes.grid(True)
 
     # Draw expected fire contour
     t_range = (sr_1.final_plan().trajectories()[0].start_time(0) - 120,

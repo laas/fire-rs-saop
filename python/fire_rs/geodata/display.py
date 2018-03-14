@@ -44,6 +44,7 @@ from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.mplot3d import Axes3D
 
 from fire_rs.geodata.geo_data import GeoData
+from fire_rs.deprecation import deprecated
 
 
 class EngOffsetFormatter(matplotlib.ticker.EngFormatter):
@@ -81,64 +82,22 @@ def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwarg
     return ax.add_patch(plane_polygon)
 
 
-def plot_ignition_shade(ax, x, y, ignition_times, dx=25, dy=25, image_scale=None, **kwargs):
-    if not 'vmin' in kwargs:
-        kwargs['vmin'] = np.nanmin(ignition_times)
-    if not 'vmax' in kwargs:
-        kwargs['vmin'] = np.nanmax(ignition_times)
-    if not image_scale:
-        image_scale = (x[0][0], x[0][x.shape[0] - 1], y[0][0], y[y.shape[0] - 1][0])
-    if not 'cmap' in kwargs:
-        kwargs['cmap'] = matplotlib.cm.gist_heat
-    return ax.imshow(ignition_times, extent=image_scale, **kwargs)
-
-
-def plot_ignition_contour(ax, x, y, ignition_times, nfronts=None, **kwargs):
-    if not nfronts:
-        lim = (np.nanmin(ignition_times), np.nanmax(ignition_times))
-        ignition_times[np.isnan(ignition_times)] = np.finfo(np.float64).max
-        ignition_times[ignition_times > lim[1]] = lim[1]
-        ignition_times[ignition_times < lim[0]] = lim[0]
-        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 20))
-    if not 'cmap' in kwargs:
-        kwargs['cmap'] = matplotlib.cm.gist_rainbow
-    return ax.contour(x, y, ignition_times, nfronts, **kwargs)
-
-
+@deprecated
 def plot_elevation_contour(ax, x, y, z, **kwargs):
     contour = ax.contour(x, y, z, 15, cmap=kwargs.get('cmap', matplotlib.cm.gist_earth))
     # labels = plt.clabel(contour, inline=1, fontsize=10)
     return contour
 
 
-def plot_elevation_shade(ax, x, y, z, dx=25, dy=25, image_scale=None, **kwargs):
-    cbar_lim = (np.nanmin(z), np.nanmax(z))
-    if not image_scale:
-        image_scale = (x[0][0], x[0][x.shape[0] - 1], y[0][0], y[y.shape[0] - 1][0])
-    ls = LightSource(azdeg=315, altdeg=35)
-    ax.imshow(ls.hillshade(z, vert_exag=1, dx=dx, dy=dy), extent=image_scale, cmap='gray')
-    return ax.imshow(
-        ls.shade(z, cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), blend_mode='overlay',
-                 vert_exag=1,
-                 dx=dx, dy=dy, vmin=cbar_lim[0], vmax=cbar_lim[1]),
-        extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1],
-        cmap=kwargs.get('cmap', matplotlib.cm.gist_earth), interpolation='none')
-
-
+@deprecated
 def plot_wind_flow(ax, x, y, wx, wy, wvel, **kwargs):
     return ax.streamplot(x, y, wx, wy, density=1, linewidth=1, color='dimgrey')
 
 
+@deprecated
 def plot_wind_quiver(ax, x, y, wx, wy, **kwargs):
     return ax.quiver(x, y, wx, wy, pivot=kwargs.get('pivot', 'middle'),
                      color=kwargs.get('color', 'dimgrey'), **kwargs)
-
-
-def plot_ignition_point(ax, point, **kwargs):
-    return ax.scatter(point[0], point[1], color=kwargs.get('color', 'r'),
-                      edgecolor=kwargs.get('edgecolor', 'k'),
-                      marker=kwargs.get('marker', 'o'), linewidth=kwargs.get('linewidth', 2),
-                      **kwargs)
 
 
 class GeoDataDisplayBase:
@@ -147,17 +106,17 @@ class GeoDataDisplayBase:
     FOREGROUND_LAYER = 200
     FOREGROUND_OVERLAY_LAYER = 300
 
-    def __init__(self, figure: 'matplotlib.figure.Figure', axis: 'matplotlib.axis.Axis',
+    def __init__(self, figure: 'matplotlib.figure.Figure', axes: 'matplotlib.axes.Axes',
                  geodata: 'GeoData', frame: 'Optional[Tuple[float, float]]' = None):
         """
         Initialize GeoDataDisplayBase
         :param figure: a matplotlib figure
-        :param axis: a matplotlib axis
+        :param axes: a matplotlib axis
         :param geodata: a geodata
         :param frame: an optional reference frame for the figure data.
         ie. (0., 0.) for X and Y with local reference instead of Lambert93 by default.
         """
-        self._figure, self._axis = figure, axis
+        self._figure, self._axes = figure, axes
         self._geodata = geodata
 
         if not frame:
@@ -170,8 +129,8 @@ class GeoDataDisplayBase:
 
         x_fmtr = EngOffsetFormatter(unit='m', offset=-geodata.x_offset + frame[0])
         y_fmtr = EngOffsetFormatter(unit='m', offset=-geodata.y_offset + frame[1])
-        self._axis.xaxis.set_major_formatter(x_fmtr)
-        self._axis.yaxis.set_major_formatter(y_fmtr)
+        self._axes.xaxis.set_major_formatter(x_fmtr)
+        self._axes.yaxis.set_major_formatter(y_fmtr)
 
         self._image_scale = (
             self._x_ticks[0], self._x_ticks[-1], self._y_ticks[0], self._y_ticks[-1])
@@ -196,8 +155,8 @@ class GeoDataDisplayBase:
         return self._figure
 
     @property
-    def axis(self):
-        return self._axis
+    def axes(self):
+        return self._axes
 
     @property
     def x_ticks(self):
@@ -241,7 +200,7 @@ class GeoDataDisplayBase:
 
     def legend(self):
         """Draw legend of labeled plots"""
-        self._axis.legend()
+        self._axes.legend()
 
 
 class GeoDataDisplay(GeoDataDisplayBase):
@@ -250,107 +209,155 @@ class GeoDataDisplay(GeoDataDisplayBase):
     'draw_' methods should be called in the order from background to foreground.
     """
 
-    def draw_elevation_shade(self, with_colorbar=True, layer='elevation', **kwargs):
-        shade = plot_elevation_shade(self.axis, self._x_mesh, self._y_mesh,
-                                     self._geodata[layer].T[::-1, ...],
-                                     dx=self._geodata.cell_width, dy=self._geodata.cell_height,
-                                     image_scale=self._image_scale, **kwargs)
-        self._drawings.append(shade)
-        if with_colorbar:
-            self._add_elevation_shade_colorbar(shade)
+    def draw_elevation_shade(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'elevation',
+                             with_colorbar: 'bool' = False, label: 'str' = "Elevation", **kwargs):
+        gd = self._geodata if geodata is None else geodata
 
-    def _add_elevation_shade_colorbar(self, shade):
-        cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20)
-        cb.set_label("Height [m]")
+        z = gd[layer].T[::-1, ...]
+
+        if 'vmin' not in kwargs:
+            kwargs['vmin'] = np.nanmin(z)
+        if 'vmax' not in kwargs:
+            kwargs['vmax'] = np.nanmax(z)
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = matplotlib.cm.gist_earth
+        if 'interpolation' not in kwargs:
+            kwargs['interpolation'] = 'none'
+        if 'extent' not in kwargs:
+            kwargs['extent'] = self._image_scale
+
+        ls = LightSource(azdeg=315, altdeg=35)
+        axim = self.axes.imshow(
+            ls.shade(z, cmap=kwargs['cmap'], blend_mode='overlay', vert_exag=1, dx=gd.cell_width,
+                     dy=gd.cell_height, vmin=kwargs['vmin'], vmax=kwargs['vmax']), **kwargs)
+
+        self._drawings.append(axim)
+        if with_colorbar:
+            self._add_elevation_shade_colorbar(axim, label)
+
+        return axim
+
+    def _add_elevation_shade_colorbar(self, axim, label):
+        cb = self._figure.colorbar(axim, ax=self.axes, shrink=0.65, aspect=20, format="%d m")
+        cb.set_label(label)
         self._colorbars.append(cb)
 
-    def draw_wind_quiver(self, **kwargs):
-        wind_vel = self._geodata['wind_velocity']
-        wind_ang = self._geodata['wind_angle']
-        WX = wind_vel * np.cos(wind_ang)
-        WY = wind_vel * np.sin(wind_ang)
+    def draw_wind_quiver(self, geodata: 'Optional[GeoData]' = None,
+                         layer: 'Tuple[str, str]' = ('wind_velocity', 'wind_angle'),
+                         skip: 'int' = 10, **kwargs):
+        gd = self._geodata if geodata is None else geodata
 
-        self._drawings.append(
-            plot_wind_quiver(self.axis, *np.meshgrid(self._x_ticks[::10], self._y_ticks[::10]),
-                             WX[::10, ::10], WY[::10, ::10], **kwargs))
+        wind_vel = gd[layer[0]][::skip, ::skip]
+        wind_ang = gd[layer[1]][::skip, ::skip]
+        wx = wind_vel * np.cos(wind_ang)
+        wy = wind_vel * np.sin(wind_ang)
 
-    def draw_ignition_contour(self, with_labels=True, geodata: GeoData = None, layer='ignition',
-                              time_range=None, **kwargs):
-        # mask all cells whose ignition has not been computed
-        igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
-        igni[igni >= np.finfo(np.float64).max] = np.nan
+        if 'pivot' not in kwargs:
+            kwargs['pivot'] = 'middle'
+        if 'color' not in kwargs:
+            kwargs['color'] = 'dimgrey'
+
+        w_quiver = self.axes.quiver(*np.meshgrid(self._x_ticks[::skip], self._y_ticks[::skip]),
+                                    wx, wy, **kwargs)
+        self.drawings.append(w_quiver)
+
+        return w_quiver
+
+    def draw_ignition_contour(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'ignition',
+                              time_range: 'Optional[Tuple[float, float]]' = None,
+                              with_labels: 'bool' = False, **kwargs):
+        gd = self._geodata if geodata is None else geodata
+
+        igni = np.array(gd[layer])
+        igni[igni >= np.finfo(np.float64).max] = np.nan  # mask non ignited cells
 
         if time_range:
             igni[igni > time_range[1]] = time_range[1]
             igni[igni < time_range[0]] = time_range[0]
 
-        # plot fire front with contour lines in minutes
-        self._drawings.append(plot_ignition_contour(self.axis, self._x_ticks, self._y_ticks,
-                                                    igni.T / 60., **kwargs))
+        igni = igni.T / 60.  # To minutes
+
+        # Determine how many contour lines we are going to draw
+        lim = (np.nanmin(igni), np.nanmax(igni))
+        igni[np.isnan(igni)] = np.finfo(np.float64).max
+        igni[igni > lim[1]] = lim[1]
+        igni[igni < lim[0]] = lim[0]
+        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 20))
+
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = matplotlib.cm.YlOrRd
+
+        # contour(X, Y, Z, N, **kwargs)
+        firecont = self.axes.contour(self._x_ticks, self._y_ticks, igni, nfronts, **kwargs)
 
         if with_labels:
-            self._add_ignition_contour_labels()
+            self._add_ignition_contour_labels(firecont)
 
-    def _add_ignition_contour_labels(self, **kwargs):
-        self.axis.clabel(self._drawings[-1], inline=True, fontsize='smaller', inline_spacing=1,
-                         linewidth=2, fmt='%.0f')
+        return firecont
 
-    def draw_ignition_shade(self, with_colorbar=True, geodata: GeoData = None, layer='ignition',
-                            label: 'str'="Ignition time", **kwargs):
-        # mask all cells whose ignition has not been computed
-        igni = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
-        igni[np.abs(igni) >= np.finfo(np.float64).max] = np.nan
+    def _add_ignition_contour_labels(self, firecont):
+        self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
+                         fmt='%.0f')
 
-        if 'vmin' in kwargs:
+    def draw_ignition_shade(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'ignition',
+                            time_range: 'Optional[Tuple[float, float]]' = None,
+                            with_colorbar: 'bool' = False, label: 'str' = "Ignition time",
+                            **kwargs):
+        gd = self._geodata if geodata is None else geodata
+
+        igni = np.array(gd[layer])
+        igni[igni >= np.finfo(np.float64).max] = np.nan  # mask non ignited cells
+
+        if time_range:
+            igni[igni > time_range[1]] = np.nan
+            igni[igni < time_range[0]] = np.nan
+
+        igni = np.around(igni.T[::-1, ...] / 60., 0)  # Convert and clip to minutes
+
+        if 'vmin' not in kwargs:
+            kwargs['vmin'] = np.nanmin(igni)
+        else:
             kwargs['vmin'] /= 60.
-
-        if 'vmax' in kwargs:
+        if 'vmax' not in kwargs:
+            kwargs['vmax'] = np.nanmax(igni)
+        else:
             kwargs['vmax'] /= 60.
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = matplotlib.cm.YlOrRd
+        if 'interpolation' not in kwargs:
+            kwargs['interpolation'] = 'none'
+        if 'extent' not in kwargs:
+            kwargs['extent'] = self._image_scale
 
-        shade = plot_ignition_shade(self.axis, self._x_mesh, self._y_mesh,
-                                    np.around(igni.T[::-1, ...] / 60., 1),
-                                    dx=self._geodata.cell_width, dy=self._geodata.cell_height,
-                                    image_scale=self._image_scale, **kwargs)
+        shade = self.axes.imshow(igni, **kwargs)
         self._drawings.append(shade)
+
         if with_colorbar:
             self._add_ignition_shade_colorbar(shade, label)
 
-    def _add_ignition_shade_colorbar(self, shade, label: 'str'="Ignition time", **kwargs):
-        cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20, format="%d min")
-        cb.set_label(label)
-        self._colorbars.append(cb)
+        return shade
 
-    def draw_utility_shade(self, with_colorbar=True, geodata: GeoData = None, layer='utility',
-                           label: 'str' = "Utility", **kwargs):
-        # mask all cells whose ignition has not been computed
-        util_arr = np.array(self._geodata[layer]) if geodata is None else np.array(geodata[layer])
-
-        if 'vmin' not in kwargs:
-            kwargs['vmin'] = np.nanmin(util_arr)
-        if 'vmax' not in kwargs:
-            kwargs['vmin'] = np.nanmax(util_arr)
-        if 'cmap' not in kwargs:
-            kwargs['cmap'] = matplotlib.cm.viridis
-
-        shade = self._axis.imshow(util_arr.T[::-1, ...], extent=self._image_scale, **kwargs)
-
-        self._drawings.append(shade)
-        if with_colorbar:
-            self._add_utility_shade_colorbar(shade, label)
-
-    def _add_utility_shade_colorbar(self, shade, label: 'str' = "Utility"):
-        cb = self._figure.colorbar(shade, ax=self.axis, shrink=0.65, aspect=20, format="%f")
+    def _add_ignition_shade_colorbar(self, shade, label: 'str'):
+        cb = self._figure.colorbar(shade, ax=self.axes, shrink=0.65, aspect=20, format="%d min")
         cb.set_label(label)
         self._colorbars.append(cb)
 
     def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]',
                              **kwargs):
         """Draw one or multiple ignition points in a GeoDataDisplay figure."""
-        if isinstance(ignition_points[0], Sequence):  # Sequence of tuples
-            for p in ignition_points:
-                self._drawings.append(plot_ignition_point(self.axis, p, **kwargs))
-        else:
-            self._drawings.append(plot_ignition_point(self.axis, ignition_points, **kwargs))
+        ip_arr = np.array(ignition_points)
+
+        if 'color' not in kwargs:
+            kwargs['color'] = 'red'
+        if 'edgecolor' not in kwargs:
+            kwargs['edgecolor'] = 'black'
+        if 'marker' not in kwargs:
+            kwargs['marker'] = 'o'
+
+        scattered = self.axes.scatter(ip_arr[..., 0], ip_arr[..., 1], **kwargs)
+        self._drawings.append(scattered)
+
+        return scattered
 
 
 class DisplayExtension:
@@ -375,9 +382,10 @@ class UAVDisplayExtension(DisplayExtension):
         """Draw ignition point in a GeoDataDisplay figure."""
         for p in self.uav_state_list:
             self._base_display.drawings.append(
-                plot_uav(self._base_display.axis, p, *args, **kwargs))
+                plot_uav(self._base_display.axes, p, *args, **kwargs))
 
 
+@deprecated
 def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25, **kwargs):
     ls = LightSource(azdeg=120, altdeg=45)
     rgb = ls.shade(z, cmap=matplotlib.cm.terrain, vert_exag=0.1, blend_mode='overlay')
@@ -385,5 +393,6 @@ def plot3d_elevation_shade(ax, x, y, z, dx=25, dy=25, **kwargs):
                            antialiased=True, shade=True)
 
 
+@deprecated
 def plot3d_wind_arrows(ax, x, y, z, wx, wy, wz, **kwargs):
     return ax.quiver(x, y, z, wx, wy, wz, pivot='middle', cmap=matplotlib.cm.viridis)

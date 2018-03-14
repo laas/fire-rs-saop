@@ -45,6 +45,29 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         super().__init__(base_display, self.__class__.__name__)
         self.plan_trajectory = plan_trajectory
 
+    def draw_utility_shade(self, with_colorbar=True, geodata: GeoData = None, layer='utility',
+                           label: 'str' = "Utility", **kwargs):
+        # mask all cells whose ignition has not been computed
+        util_arr = np.array(self._base_display.geodata[layer]) if geodata is None else np.array(geodata[layer])
+
+        if 'vmin' not in kwargs:
+            kwargs['vmin'] = np.nanmin(util_arr)
+        if 'vmax' not in kwargs:
+            kwargs['vmin'] = np.nanmax(util_arr)
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = matplotlib.cm.viridis
+
+        shade = self._base_display.axes.imshow(util_arr.T[::-1, ...], extent=self._base_display.image_scale, **kwargs)
+
+        self._base_display.drawings.append(shade)
+        if with_colorbar:
+            self._add_utility_shade_colorbar(shade, label)
+
+    def _add_utility_shade_colorbar(self, shade, label: 'str' = "Utility"):
+        cb = self._base_display.figure.colorbar(shade, ax=self._base_display.axes, shrink=0.65, aspect=20, format="%f")
+        cb.set_label(label)
+        self._base_display.colorbars.append(cb)
+
     def draw_waypoints(self, *args, **kwargs):
         """Draw path waypoints in a GeoDataDisplay figure."""
         color = kwargs.get('color', 'C0')
@@ -52,9 +75,9 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         x = [wp.x for wp in waypoints]
         y = [wp.y for wp in waypoints]
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(x[::2], y[::2], s=7, c=color, marker='D'))
+            self._base_display.axes.scatter(x[::2], y[::2], s=7, c=color, marker='D'))
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(x[1::2], y[1::2], s=7, c=color, marker='>'))
+            self._base_display.axes.scatter(x[1::2], y[1::2], s=7, c=color, marker='>'))
 
     def draw_flighttime_path(self, *args,
                              colorbar_time_range: 'Optional[Tuple[float, float]]' = None,
@@ -81,13 +104,13 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
             color_norm = matplotlib.colors.Normalize(vmin=colorbar_time_range[0] / 60,
                                                      vmax=colorbar_time_range[1] / 60)
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(x, y, s=1, edgecolors='none', c=color_range,
+            self._base_display.axes.scatter(x, y, s=1, edgecolors='none', c=color_range,
                                             label=label, norm=color_norm,
                                             cmap=matplotlib.cm.plasma,
                                             zorder=self._base_display.FOREGROUND_LAYER))
         if kwargs.get('with_colorbar', False):
             cb = self._base_display.figure.colorbar(self._base_display.drawings[-1],
-                                                    ax=self._base_display.axis,
+                                                    ax=self._base_display.axes,
                                                     shrink=0.65, aspect=20, format="%d min")
             cb.set_label("Flight time")
             self._base_display.colorbars.append(cb)
@@ -114,7 +137,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
              time_range[0] < sampled_waypoints[1][i] < time_range[1]]
 
         self._base_display.drawings.append(
-            self._base_display.axis.plot(x, y, linewidth=size, linestyle=linestyle, c=color,
+            self._base_display.axes.plot(x, y, linewidth=size, linestyle=linestyle, c=color,
                                          label=label, zorder=self._base_display.FOREGROUND_LAYER))
         # TODO: implement legend
 
@@ -141,11 +164,11 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         end_y_m = [s.end.y for s in py_modifi_segments]
 
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(start_x_m, start_y_m, s=10, edgecolor='black', c=color,
+            self._base_display.axes.scatter(start_x_m, start_y_m, s=10, edgecolor='black', c=color,
                                             marker='o',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(end_x_m, end_y_m, s=10, edgecolor='black', c=color,
+            self._base_display.axes.scatter(end_x_m, end_y_m, s=10, edgecolor='black', c=color,
                                             marker='>',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
@@ -160,17 +183,17 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                    not (s == py_segments[0] or s == py_segments[-1])]
 
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(start_x_f, start_y_f, s=10, edgecolor='black',
+            self._base_display.axes.scatter(start_x_f, start_y_f, s=10, edgecolor='black',
                                             c='black', marker='o',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(end_x_f, end_y_f, s=10, edgecolor='black', c='black',
+            self._base_display.axes.scatter(end_x_f, end_y_f, s=10, edgecolor='black', c='black',
                                             marker='>',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
         if time_range[0] <= self.plan_trajectory.start_time(0) <= time_range[1]:
             start_base = py_segments[0]
-            self._base_display.drawings.append(self._base_display.axis.scatter(
+            self._base_display.drawings.append(self._base_display.axes.scatter(
                 start_base.start.x, start_base.start.y, s=10, edgecolor=color, c=color, marker='D',
                 zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
@@ -178,7 +201,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                 time_range[1]:
             finish_base = py_segments[-1]
             self._base_display.drawings.append(
-                self._base_display.axis.scatter(finish_base.start.x, finish_base.start.y, s=10,
+                self._base_display.axes.scatter(finish_base.start.x, finish_base.start.y, s=10,
                                                 edgecolor=color, c=color, marker='D',
                                                 zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
@@ -194,7 +217,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         # Draw lines between segment bounds
         for i in range(len(start_x)):
             self._base_display.drawings.append(
-                self._base_display.axis.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]],
+                self._base_display.axes.plot([start_x[i], end_x[i]], [start_y[i], end_y[i]],
                                              c=color, linewidth=2,
                                              zorder=self._base_display.FOREGROUND_LAYER))
 
@@ -221,9 +244,9 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
 
         for i in range(len(start_x_m)):
             self._base_display.drawings.append(
-                self._base_display.axis.quiver(start_x_m[i], start_y_m[i],
-                                               100*np.cos(start_dir_m[i]),
-                                               100*np.sin(start_dir_m[i]), units='xy', angles='xy',
+                self._base_display.axes.quiver(start_x_m[i], start_y_m[i],
+                                               100 * np.cos(start_dir_m[i]),
+                                               100 * np.sin(start_dir_m[i]), units='xy', angles='xy',
                                                scale_units='xy', scale=1,
                                                facecolor=color, edgecolor='black',
                                                headaxislength=4, headlength=5, headwidth=5,
@@ -250,18 +273,18 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         start_base = py_segments[0]
         finish_base = py_segments[-1]
 
-        self._base_display.drawings.append(self._base_display.axis.scatter(
+        self._base_display.drawings.append(self._base_display.axes.scatter(
             start_base.start.x, start_base.start.y, s=10, edgecolor=color, c=color, marker='D',
             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
         self._base_display.drawings.append(
-            self._base_display.axis.scatter(finish_base.start.x, finish_base.start.y, s=10,
+            self._base_display.axes.scatter(finish_base.start.x, finish_base.start.y, s=10,
                                             edgecolor=color, c=color, marker='D',
                                             zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
     def draw_observedcells(self, observations, **kwargs):
         """Plot observed cells as points"""
         for ptt in observations:
-            self._base_display.axis.scatter(ptt[0][0], ptt[0][1], s=4, c=(0., 1., 0., .5),
+            self._base_display.axes.scatter(ptt[0][0], ptt[0][1], s=4, c=(0., 1., 0., .5),
                                             zorder=self._base_display.BACKGROUND_OVERLAY_LAYER,
                                             edgecolors='none', marker='s')
 
@@ -274,7 +297,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         # define the colors
         cmap = matplotlib.colors.ListedColormap([color])
 
-        shade = gdd.plot_ignition_shade(self._base_display.axis, self._base_display.x_mesh,
+        shade = gdd.plot_ignition_shade(self._base_display.axes, self._base_display.x_mesh,
                                         self._base_display.y_mesh,
                                         np.around(o_map.T[::-1, ...] / 60., 1),
                                         dx=self._base_display.geodata.cell_width,

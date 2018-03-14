@@ -146,8 +146,8 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     # Save the picture
     print("saving as: " + str(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png')))))
-    geodatadisplay.axis.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
-    geodatadisplay.axis.get_figure().savefig(os.path.join(
+    geodatadisplay.axes.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
+    geodatadisplay.axes.get_figure().savefig(os.path.join(
         save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
         dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
 
@@ -163,7 +163,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         parsed["date"] = time.strftime("%Y-%m-%d--%H:%M:%S")
         print(json.dumps(parsed, indent=4), file=metadata_file)
 
-    matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
+    matplotlib.pyplot.close(geodatadisplay.axes.get_figure())
 
     # If intermediate plans are available, save them
     for i in range(len(res.intermediate_plans)):
@@ -178,11 +178,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
         print("saving as: " + str(
             os.path.join(i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png')))))
-        geodatadisplay.axis.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
-        geodatadisplay.axis.get_figure().savefig(os.path.join(
+        geodatadisplay.axes.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
+        geodatadisplay.axes.get_figure().savefig(os.path.join(
             i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png'))),
             dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
-        matplotlib.pyplot.close(geodatadisplay.axis.get_figure())
+        matplotlib.pyplot.close(geodatadisplay.axes.get_figure())
 
     del res
 
