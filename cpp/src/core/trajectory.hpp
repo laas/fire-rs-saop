@@ -32,13 +32,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <algorithm>
 #include <cassert>
 #include <memory>
+
 #include "../ext/dubins.h"
-#include "waypoint.hpp"
-#include "uav.hpp"
-#include "../utils.hpp"
+#include "../ext/json.hpp"
 #include "../ext/optional.hpp"
+#include "../utils.hpp"
+#include "uav.hpp"
+#include "waypoint.hpp"
 
 namespace SAOP {
+
+    using json = nlohmann::json;
 
     struct TrajectoryConfig {
         UAV uav;
@@ -797,5 +801,15 @@ namespace SAOP {
 //            return cost;
 //        }
     };
+
+    static void to_json(json& j, const Trajectory& traj) {
+        j = json{{"duration",     traj.duration()},
+                 {"num_segments", traj.size()},
+                 {"start_time",   traj.start_time()},
+                 {"start_times",  traj.start_times()},
+                 {"end_time",     traj.end_time()},
+                 {"maneuvers",    traj.maneuvers()}};
+    }
+
 }
 #endif //PLANNING_CPP_TRAJECTORY_H

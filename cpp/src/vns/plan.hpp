@@ -91,13 +91,7 @@ namespace SAOP {
             j["num_segments"] = num_segments();
             j["trajectories"] = json::array();
             for (auto& t : trajectories.trajectories) {
-                json jt;
-                jt["duration"] = t.duration();
-                jt["max_duration"] = t.conf().max_flight_time;
-                jt["num_segments"] = t.size();
-                jt["start_time"] = t.start_time();
-                jt["end_time"] = t.end_time();
-                j["trajectories"].push_back(jt);
+                j["trajectories"].push_back(t);
             }
             return j;
         }

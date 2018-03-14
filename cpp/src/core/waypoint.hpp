@@ -29,8 +29,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <limits>
 #include <sstream>
 #include "../utils.hpp"
+#include "../ext/json.hpp"
+
 
 namespace SAOP {
+
+    using json = nlohmann::json;
 
     struct WindVector final {
         WindVector() = default;
@@ -87,6 +91,11 @@ namespace SAOP {
         double y_speed;
 
     };
+
+    static void to_json(json& j, const WindVector& wv) {
+        j = json{{"x", wv.x()},
+                 {"y", wv.y()}};
+    }
 
     struct Position final {
         double x;
@@ -263,6 +272,12 @@ namespace SAOP {
         }
     };
 
+    static void to_json(json& j, const Waypoint3d& wp) {
+        j = json{{"x",   wp.x},
+                 {"y",   wp.y},
+                 {"z",   wp.z},
+                 {"dir", wp.dir}};
+    }
 
     struct Segment final {
         Waypoint start;
@@ -355,6 +370,12 @@ namespace SAOP {
             return Segment{start.as_2d(), end.as_2d()};
         }
     };
+
+    static void to_json(json& j, const Segment3d& seg) {
+        j = json{{"start",  seg.start},
+                 {"end",    seg.end},
+                 {"length", seg.length}};
+    }
 
     struct PositionTime final {
         Position pt;
