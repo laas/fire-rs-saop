@@ -171,11 +171,6 @@ namespace SAOP {
 
         std::vector<Waypoint3d> segment_sampling(const Segment3d& segment, const WindVector& wind, double step_size) {
             ASSERT(step_size > 0);
-            auto v = WindVector(_max_air_speed * cos(segment.start.dir),
-                                _max_air_speed * sin(segment.start.dir));
-            auto vw = (v + wind);
-            auto v_eff = vw.modulo() * cos(-vw.dir() + v.dir());
-
             std::vector<Waypoint3d> waypoints;
 
             for (double i = 0; i < segment.length; i += step_size) {
