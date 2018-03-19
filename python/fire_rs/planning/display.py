@@ -36,6 +36,7 @@ import numpy as np
 import fire_rs.geodata.display as gdd
 from fire_rs.geodata.geo_data import GeoData
 from fire_rs.planning.planning import Planner
+import fire_rs.uav_planning as up
 
 
 class TrajectoryDisplayExtension(gdd.DisplayExtension):
@@ -45,10 +46,10 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         super().__init__(base_display, self.__class__.__name__)
         self.plan_trajectory = plan_trajectory
 
-    def draw_utility_shade(self, with_colorbar=True, geodata: GeoData = None, layer='utility',
-                           label: 'str' = "Utility", **kwargs):
-        # mask all cells whose ignition has not been computed
-        util_arr = np.array(self._base_display.geodata[layer]) if geodata is None else np.array(geodata[layer])
+    def draw_utility_shade(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'utility',
+                           with_colorbar: 'bool' = True, label: 'str' = "Utility", **kwargs):
+        util_arr = np.array(self._base_display.geodata[layer]) if geodata is None else np.array(
+            geodata[layer])
 
         if 'vmin' not in kwargs:
             kwargs['vmin'] = np.nanmin(util_arr)
@@ -56,15 +57,20 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
             kwargs['vmin'] = np.nanmax(util_arr)
         if 'cmap' not in kwargs:
             kwargs['cmap'] = matplotlib.cm.viridis
+        if 'interpolation' not in kwargs:
+            kwargs['interpolation'] = 'none'
+        if 'extent' not in kwargs:
+            kwargs['extent'] = self._base_display.image_scale
 
-        shade = self._base_display.axes.imshow(util_arr.T[::-1, ...], extent=self._base_display.image_scale, **kwargs)
+        shade = self._base_display.axes.imshow(util_arr.T[::-1, ...], **kwargs)
 
         self._base_display.drawings.append(shade)
         if with_colorbar:
             self._add_utility_shade_colorbar(shade, label)
 
     def _add_utility_shade_colorbar(self, shade, label: 'str' = "Utility"):
-        cb = self._base_display.figure.colorbar(shade, ax=self._base_display.axes, shrink=0.65, aspect=20, format="%f")
+        cb = self._base_display.figure.colorbar(shade, ax=self._base_display.axes, shrink=0.65,
+                                                aspect=20, format="%f")
         cb.set_label(label)
         self._base_display.colorbars.append(cb)
 
@@ -115,21 +121,23 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
             cb.set_label("Flight time")
             self._base_display.colorbars.append(cb)
 
-    def draw_solid_path(self, *args, **kwargs):
+    def draw_trajectory_solid(self, trajectory: 'Optional[up.Trajectory]' = None, **kwargs):
         """Draw trajectory in a GeoDataDisplay figure with solid color
 
         kwargs:
             color: desired color. Default: C0.
         """
-        if len(self.plan_trajectory) < 2:
+        traj = trajectory if trajectory is not None else self.plan_trajectory
+        if len(traj) < 2:
             return
+
         color = kwargs.get('color', 'C0')
         size = kwargs.get('size', 1)
         label = kwargs.get('label', None)
         linestyle = kwargs.get('linestyle', '-')
         time_range = kwargs.get('time_range', (-np.inf, np.inf))
 
-        sampled_waypoints = self.plan_trajectory.sampled_with_time(time_range, step_size=5)
+        sampled_waypoints = traj.sampled_with_time(time_range, step_size=5)
 
         x = [wp.x for i, wp in enumerate(sampled_waypoints[0]) if
              time_range[0] < sampled_waypoints[1][i] < time_range[1]]
@@ -221,37 +229,83 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                                              c=color, linewidth=2,
                                              zorder=self._base_display.FOREGROUND_LAYER))
 
-    def draw_arrows(self, *args, **kwargs):
-        """Draw observation segments with start and end points in a GeoDataDisplay figure."""
-        if len(self.plan_trajectory) < 2:
-            return
-        color = kwargs.get('color', 'C0')
-        size = kwargs.get('size', 10)
+    def draw_bases(self, trajectory: 'Optional[up.Trajectory]' = None, **kwargs):
+        traj = trajectory if trajectory is not None else self.plan_trajectory
 
-        py_segments = self.plan_trajectory.segments[:]
-        py_modifi_segments = [s for i, s in enumerate(py_segments) if
-                              self.plan_trajectory.can_modify(i)]
-        py_frozen_segments = [s for i, s in enumerate(py_segments) if
-                              not self.plan_trajectory.can_modify(i)]
+        if 's' not in kwargs:
+            kwargs['s'] = 10
+        if 'color' not in kwargs:
+            kwargs['color'] = 'black'
+        if 'edgecolor' not in kwargs:
+            kwargs['edgecolor'] = 'face'
+        if 'marker' not in kwargs:
+            kwargs['marker'] = 'D'
+        if 'zorder' not in kwargs:
+            kwargs['zorder'] = self._base_display.FOREGROUND_OVERLAY_LAYER
 
-        # Plot modifiable segments
-        start_x_m = [s.start.x for s in py_modifi_segments]
-        start_y_m = [s.start.y for s in py_modifi_segments]
-        start_dir_m = [s.start.dir for s in py_modifi_segments]
-        end_x_m = [s.end.x for s in py_modifi_segments]
-        end_y_m = [s.end.y for s in py_modifi_segments]
-        end_dir_m = [s.end.dir for s in py_modifi_segments]
-
-        for i in range(len(start_x_m)):
+        base_s = traj.segments[0]
+        base_e = traj.segments[-1]
+        if base_s:
             self._base_display.drawings.append(
-                self._base_display.axes.quiver(start_x_m[i], start_y_m[i],
-                                               100 * np.cos(start_dir_m[i]),
-                                               100 * np.sin(start_dir_m[i]), units='xy', angles='xy',
-                                               scale_units='xy', scale=1,
-                                               facecolor=color, edgecolor='black',
-                                               headaxislength=4, headlength=5, headwidth=5,
-                                               width=15, pivot='middle',
-                                               zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
+                self._base_display.axes.scatter(base_s.start.x, base_s.start.y,
+                                                **kwargs))
+        if base_e:
+            self._base_display.drawings.append(
+                self._base_display.axes.scatter(base_e.end.x, base_e.end.y, **kwargs))
+
+    def draw_arrows(self, trajectory: 'Optional[up.Trajectory]' = None, **kwargs):
+        """Draw trajectory waypoints in a GeoDataDisplay figure."""
+        traj = trajectory if trajectory is not None else self.plan_trajectory
+        if len(traj) < 2:
+            return
+
+        # if 'size' not in kwargs:
+        #     kwargs['size'] = 10
+        if 'color' not in kwargs:
+            kwargs['color'] = 'black'
+        if 'edgecolor' not in kwargs:
+            kwargs['edgecolor'] = 'face'
+
+        if 'units' not in kwargs:
+            kwargs['units'] = 'xy'
+        if 'angles' not in kwargs:
+            kwargs['angles'] = 'xy'
+        if 'scale_units' not in kwargs:
+            kwargs['scale_units'] = 'xy'
+        if 'scale' not in kwargs:
+            kwargs['scale'] = 1
+
+        if 'headaxislength' not in kwargs:
+            kwargs['headaxislength'] = 4
+        if 'headlength' not in kwargs:
+            kwargs['headlength'] = 5
+        if 'headwidth' not in kwargs:
+            kwargs['headwidth'] = 5
+        if 'width' not in kwargs:
+            kwargs['width'] = 15
+        if 'pivot' not in kwargs:
+            kwargs['pivot'] = 'middle'
+
+        if 'zorder' not in kwargs:
+            kwargs['zorder'] = self._base_display.FOREGROUND_OVERLAY_LAYER
+
+        py_segments = traj.segments[:]
+        py_modifi_segments = [s for i, s in enumerate(py_segments) if
+                              traj.can_modify(i)]
+        py_frozen_segments = [s for i, s in enumerate(py_segments) if
+                              traj.can_modify(i)]
+
+        if py_modifi_segments:
+            # Plot modifiable segments
+            start_x_m = np.array([s.start.x for s in py_modifi_segments])
+            start_y_m = np.array([s.start.y for s in py_modifi_segments])
+            start_dir_m = np.array([s.start.dir for s in py_modifi_segments])
+
+            self._base_display.drawings.append(
+                self._base_display.axes.quiver(start_x_m, start_y_m,
+                                               100 * np.cos(start_dir_m),
+                                               100 * np.sin(start_dir_m),
+                                               **kwargs))
 
         # Plot frozen segments (all but the bases)
         # start_x_f = [s.start.x for s in py_frozen_segments[1:len(py_frozen_segments) - 1]]
@@ -269,17 +323,6 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         #                                        headaxislength=4, headlength=5, headwidth=5,
         #                                        width=15, pivot='middle',
         #                                        zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
-
-        start_base = py_segments[0]
-        finish_base = py_segments[-1]
-
-        self._base_display.drawings.append(self._base_display.axes.scatter(
-            start_base.start.x, start_base.start.y, s=10, edgecolor=color, c=color, marker='D',
-            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
-        self._base_display.drawings.append(
-            self._base_display.axes.scatter(finish_base.start.x, finish_base.start.y, s=10,
-                                            edgecolor=color, c=color, marker='D',
-                                            zorder=self._base_display.FOREGROUND_OVERLAY_LAYER))
 
     def draw_observedcells(self, observations, **kwargs):
         """Plot observed cells as points"""
@@ -307,53 +350,38 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         self._base_display.drawings.append(shade)
 
 
-def plot_plan_trajectories(plan, geodatadisplay,
+def plot_trajectory(geodatadisplay, trajectory, layers: 'List[str]',
+                    time_range: 'Tuple[float, float]' = (-np.inf, np.inf), **kwargs):
+    for layer in layers:
+        if layer == 'bases':
+            geodatadisplay.TrajectoryDisplayExtension.draw_bases(trajectory, **kwargs)
+        if layer == 'trajectory_solid':
+            geodatadisplay.TrajectoryDisplayExtension.draw_trajectory_solid(
+                trajectory, time_range=time_range, **kwargs)
+        if layer == 'arrows':
+            geodatadisplay.TrajectoryDisplayExtension.draw_arrows(trajectory, **kwargs)
+
+
+def plot_plan_trajectories(plan, geodatadisplay, layers: 'List[str]',
                            trajectories: 'Union[slice, int]' = slice(None),
                            time_range: 'Tuple[float, float]' = (-np.inf, np.inf),
-                           colors: 'Optional[List]' = None, sizes: 'Optional[List[int]]' = None,
-                           labels: 'Optional[List[str]]' = None,
-                           linestyles: 'Optional[List[str]]' = None,
-                           draw_segments: bool = True, draw_path: bool = True,
-                           draw_flighttime_path: bool = False, show=False):
+                           colors: 'Optional[List]' = None, labels: 'Optional[List[str]]' = None):
     """Plot the trajectories of a plan."""
     if not colors:
         colors = ["darkred", "darkgreen", "darkblue", "darkorange", "darkmagenta"]
     colors = cycle(colors)
-    if not sizes:
-        sizes = [1, ]
-    sizes = cycle(sizes)
     if not labels:
         labels = [None, ]
     labels = cycle(labels)
-    if not linestyles:
-        linestyles = ['-', ]
-    linestyles = cycle(linestyles)
 
     trajs = plan.trajectories()[trajectories]
 
     if isinstance(trajectories, int):
         trajs = [trajs]
 
-    for traj, color, size, label, linestyle in zip(trajs, colors, sizes, labels, linestyles):
-        geodatadisplay.TrajectoryDisplayExtension.plan_trajectory = traj
-        if draw_path:
-            geodatadisplay.TrajectoryDisplayExtension.draw_solid_path(time_range=time_range,
-                                                                      color=color, size=size,
-                                                                      label=label,
-                                                                      linestyle=linestyle)
-        if draw_flighttime_path:
-            logging.warning("time_Range not implemented for this method")
-            geodatadisplay.TrajectoryDisplayExtension.draw_flighttime_path(with_colorbar=True)
-
-        if draw_segments:
-            geodatadisplay.TrajectoryDisplayExtension.draw_arrows(time_range=time_range,
-                                                                  color=color,
-                                                                  size=size * 5)
-            # geodatadisplay.TrajectoryDisplayExtension.draw_segments(time_range=time_range,
-            #                                                         color=color,
-            #                                                         size=size * 5)
-    if show:
-        geodatadisplay.figure.show()
+    for traj, color, label in zip(trajs, colors, labels):
+        plot_trajectory(geodatadisplay, traj, layers, time_range,
+                        color=color, label=label)
 
 
 def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, output_options_plot,
@@ -388,13 +416,5 @@ def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, ou
             geodatadisplay.draw_utility_shade(geodata=planner.utility_map('utility'),
                                               layer='utility', vmin=0., vmax=1.)
 
-    # Plot the plan
-    if plan == 'final':
-        plot_plan_trajectories(planner.search_result.final_plan(), geodatadisplay,
-                               time_range=time_range, show=True)
-    elif plan == 'initial':
-        plot_plan_trajectories(planner.search_result.initial_plan(), geodatadisplay,
-                               time_range=time_range, show=True)
-    else:
-        plot_plan_trajectories(planner.search_result.intermediate_plans[plan], geodatadisplay,
-                               time_range=time_range, show=True)
+    plot_plan_trajectories(planner.search_result.plan(plan), geodatadisplay,
+                           layers=output_options_plot["foreground"], time_range=time_range)

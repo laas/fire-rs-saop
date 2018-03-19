@@ -442,6 +442,10 @@ def main():
                         choices=['elevation_shade', 'elevation_planning_shade', 'ignition_shade',
                                  'observedcells', 'ignition_contour', 'wind_quiver', 'utilitymap'],
                         default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
+    parser.add_argument("--foreground", nargs='+',
+                        help="List of plan information foreground layers for the output figures",
+                        choices=['trajectory_solid', 'arrows', 'bases'],
+                        default=['trajectory_solid', 'arrows', 'bases'])
     parser.add_argument('--colorbar', dest='colorbar', action='store_true',
                         help="Display colorbars")
     parser.add_argument('--no-colorbar', dest='colorbar', action='store_false',
@@ -500,6 +504,7 @@ def main():
     # Set-up output options
     output_options = {'plot': {}, 'planning': {}, }
     output_options['plot']['background'] = args.background
+    output_options['plot']['foreground'] = args.foreground
     output_options['plot']['format'] = args.format
     output_options['plot']['colorbar'] = args.colorbar
     output_options['plot']['dpi'] = args.dpi
