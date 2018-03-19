@@ -38,6 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 
 namespace py = pybind11;
 
@@ -443,8 +444,19 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("initial_plan", &SearchResult::initial)
             .def("final_plan", &SearchResult::final)
             .def_readonly("intermediate_plans", &SearchResult::intermediate_plans)
-            .def("metadata", [](SearchResult& self) { return self.metadata.dump(); });
-
+            .def("metadata", [](SearchResult& self) { return self.metadata.dump(); })
+            .def("plan", [](SearchResult& self, size_t p) -> Plan {
+                return self.intermediate_plans.at(p);
+            })
+            .def("plan", [](SearchResult& self, std::string p) -> Plan {
+                if (p == "final") {
+                    return self.final();
+                } else if (p == "initial") {
+                    return self.initial();
+                } else {
+                    throw std::invalid_argument("Wrong plan tag. Use 'initial', or 'final'");
+                }
+            });
 
     py::class_<DubinsWind>(m, "DubinsWind")
             .def(py::init<const Waypoint3d&, const Waypoint3d&, const WindVector&, double, double>(),
