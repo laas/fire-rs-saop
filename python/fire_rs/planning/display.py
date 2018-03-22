@@ -56,7 +56,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         if 'vmax' not in kwargs:
             kwargs['vmin'] = np.nanmax(util_arr)
         if 'cmap' not in kwargs:
-            kwargs['cmap'] = matplotlib.cm.viridis
+            kwargs['cmap'] = matplotlib.cm.Purples_r
         if 'interpolation' not in kwargs:
             kwargs['interpolation'] = 'none'
         if 'extent' not in kwargs:
