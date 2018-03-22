@@ -178,6 +178,14 @@ namespace SAOP {
             ASSERT(is_y_in(y_coord));
             return (size_t) lround((y_coord - y_offset) / cell_width);
         }
+
+        typename std::vector<T>::iterator begin() {
+            return data.begin();
+        }
+
+        typename std::vector<T>::iterator end() {
+            return data.end();
+        }
     };
 
     typedef GenRaster<double> DRaster;
