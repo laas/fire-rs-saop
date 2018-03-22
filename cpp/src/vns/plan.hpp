@@ -308,6 +308,10 @@ namespace SAOP {
          * This is defined such that those point are in the visible area when pictured. */
         const double REDUNDANT_OBS_DIST = 50.;
 
+        /* Max and min utility values. Visited cells have MIN_UTILITY utility. */
+        double MAX_UTILITY = 1.;
+        double MIN_UTILITY = 0.;
+
         /** Utility map of the plan.
          * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
          **/
@@ -328,6 +332,64 @@ namespace SAOP {
                           (max(sqrt(min_dist), REDUNDANT_OBS_DIST) - REDUNDANT_OBS_DIST) /
                           (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST));
             }
+            return u_map;
+        }
+
+        /* Utility map of the plan
+         * This algorithm applies regressive utility gains to future ignited cells following the propagation graph.*/
+        GenRaster<double> utility_comp_propagation() const {
+
+            // Start with NaN utility everywhere
+            GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, MAX_UTILITY);
+
+            // Fill u_map observable cells with MAX_UTILITY
+            for (auto& obs : possible_observations) {
+                Cell obs_cell = u_map.as_cell(obs.pt);
+                u_map.set(obs_cell, MAX_UTILITY);
+            }
+
+            // Set-up a priority queue
+            auto time_cell_comp = [this](Cell a, Cell b) -> bool {
+                return (*this).firedata->ignitions(a) > (*this).firedata->ignitions(b);
+            };
+            typedef std::priority_queue<Cell, vector<Cell>, decltype(time_cell_comp)> TimeCellPriorityQueue;
+            auto prop_q = TimeCellPriorityQueue(time_cell_comp, vector<Cell>());
+
+            // Init u_map and propagation queue with observed cells
+            for (const PositionTime& obs : observations_full()) {
+                Cell obs_cell = u_map.as_cell(obs.pt);
+                prop_q.push(obs_cell);
+                u_map.set(obs_cell, MIN_UTILITY);
+            }
+
+            double U_INC = 0.1;
+
+            // Propagate utility
+            while (!prop_q.empty()) {
+                auto a_cell = prop_q.top();
+                prop_q.pop();
+
+                auto neig_c = u_map.neighbor_cells(a_cell);
+                for (auto& n_cell: neig_c) {
+                    // Discard not observable neighbors
+                    if (u_map(n_cell) == numeric_limits<double>::quiet_NaN()) { continue; }
+                    // Discard older neighbors
+                    if (firedata->ignitions(n_cell) < firedata->ignitions(a_cell)) { continue; }
+                    // Discard neighbors that already have lower utility
+                    if (u_map(n_cell) <= u_map(a_cell) + U_INC) { continue; }
+
+                    // Apply utility degradation
+                    u_map.set(n_cell, u_map(a_cell) + U_INC);
+
+                    if (u_map(n_cell) < MAX_UTILITY) {
+                        prop_q.push(n_cell);
+                    } else {
+                        // Set utility to MAX_UTILITY and stop propagating from this cell
+                        u_map.set(n_cell, MAX_UTILITY);
+                    }
+                }
+            }
+
             return u_map;
         }
     };

@@ -179,6 +179,24 @@ namespace SAOP {
             return (size_t) lround((y_coord - y_offset) / cell_width);
         }
 
+        /* Neighbor cells of cell taking in account raster limits*/
+        std::vector<Cell> neighbor_cells(Cell cell) const {
+            std::vector<Cell> neighbors = {};
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    // exclude any neighbor that is of the grid or is never ignited.
+                    if (dx == 0 && dy == 0) continue;
+                    if (cell.x == 0 && dx < 0) continue;
+                    if (cell.x + dx >= x_width) continue;
+                    if (cell.y == 0 && dy < 0) continue;
+                    if (cell.y + dy >= y_height) continue;
+
+                    neighbors.push_back(Cell{cell.x + dx, cell.y + dy});
+                }
+            }
+            return neighbors;
+        }
+
         typename std::vector<T>::iterator begin() {
             return data.begin();
         }
