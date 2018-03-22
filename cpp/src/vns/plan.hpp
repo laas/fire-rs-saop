@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_PLAN_H
 #define PLANNING_CPP_PLAN_H
 
+#include <queue>
 
 #include "../core/trajectory.hpp"
 #include "../core/fire_data.hpp"
@@ -106,46 +107,14 @@ namespace SAOP {
             return trajectories.duration();
         }
 
-        /** Cost of the plan.
-         * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
-         **/
+        /* Utility of the plan */
         double utility() const {
-            vector<PositionTime> done_obs = observations_full();
-            double global_cost = 0;
-            for (const PointTimeWindow& possible_obs : possible_observations) {
-                double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
-                // find the closest observation.
-                for (const PositionTime& obs : done_obs) {
-                    min_dist = min(min_dist, possible_obs.pt.dist_squared(obs.pt));
-                }
-                // utility is based on the minimal distance to the observation and normalized such that
-                // utility = 0 if min_dist <= REDUNDANT_OBS_DIST
-                // utility = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
-                // evolves linearly in between.
-                const double self_cost = (max(sqrt(min_dist), REDUNDANT_OBS_DIST) - REDUNDANT_OBS_DIST) /
-                                         (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST);
-                global_cost += self_cost;
-            }
-            return global_cost;
+            GenRaster<double> utility = utility_map();
+            return std::accumulate(utility.begin(), utility.end(), 0.);
         }
 
         GenRaster<double> utility_map() const {
-            GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::quiet_NaN());
-            vector<PositionTime> done_obs = observations_full();
-            for (const PointTimeWindow& possible_obs : possible_observations) {
-                double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
-                // find the closest observation.
-                for (const PositionTime& obs : done_obs) {
-                    min_dist = min(min_dist, possible_obs.pt.dist_squared(obs.pt));
-                }
-                // utility is based on the minimal distance to the observation and normalized such that
-                // utility = 0 if min_dist <= REDUNDANT_OBS_DIST
-                // utility = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
-                // evolves linearly in between.
-                u_map.set(u_map.as_cell(possible_obs.pt), (max(sqrt(min_dist), REDUNDANT_OBS_DIST) - REDUNDANT_OBS_DIST) /
-                                         (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST));
-            }
-            return u_map;
+            return utility_comp_radial();
         }
 
         size_t num_segments() const {
@@ -338,6 +307,29 @@ namespace SAOP {
         /** If a point is less than REDUNDANT_OBS_DIST aways from another observation, it useless to observe it.
          * This is defined such that those point are in the visible area when pictured. */
         const double REDUNDANT_OBS_DIST = 50.;
+
+        /** Utility map of the plan.
+         * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
+         **/
+        GenRaster<double> utility_comp_radial() const {
+            GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::quiet_NaN());
+            vector<PositionTime> done_obs = observations_full();
+            for (const PointTimeWindow& possible_obs : possible_observations) {
+                double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
+                // find the closest observation.
+                for (const PositionTime& obs : done_obs) {
+                    min_dist = min(min_dist, possible_obs.pt.dist_squared(obs.pt));
+                }
+                // utility is based on the minimal distance to the observation and normalized such that
+                // utility = 0 if min_dist <= REDUNDANT_OBS_DIST
+                // utility = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
+                // evolves linearly in between.
+                u_map.set(u_map.as_cell(possible_obs.pt),
+                          (max(sqrt(min_dist), REDUNDANT_OBS_DIST) - REDUNDANT_OBS_DIST) /
+                          (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST));
+            }
+            return u_map;
+        }
     };
 }
 
