@@ -233,9 +233,9 @@ namespace SAOP {
 
         // PyBind11 won't cast our opt<T> as std::experimental::optional so these functions cannot be used in python
         // FIXME: Switch to C++14 and use std::experimental::optional
-        opt<Segment3d> base_start() const { return config.start_position ? _maneuvers.front() : opt<Segment3d>{};}
+        opt<Segment3d> base_start() const { return config.start_position ? _maneuvers.front() : opt<Segment3d>{}; }
 
-        opt<Segment3d> base_end() const { return config.end_position ? _maneuvers.back() : opt<Segment3d>{};}
+        opt<Segment3d> base_end() const { return config.end_position ? _maneuvers.back() : opt<Segment3d>{}; }
 
         /* Only for python interface */
         std::vector<Segment3d> maneuvers() const { return _maneuvers; };
@@ -808,6 +808,7 @@ namespace SAOP {
 //        }
     };
 
+    [[maybe_unused]]
     static void to_json(json& j, const Trajectory& traj) {
         j = json{{"duration",     traj.duration()},
                  {"num_segments", traj.size()},

@@ -92,6 +92,7 @@ namespace SAOP {
 
     };
 
+    [[maybe_unused]]
     static void to_json(json& j, const WindVector& wv) {
         j = json{{"x", wv.x()},
                  {"y", wv.y()}};
@@ -371,6 +372,7 @@ namespace SAOP {
         }
     };
 
+    [[maybe_unused]]
     static void to_json(json& j, const Segment3d& seg) {
         j = json{{"start",  seg.start},
                  {"end",    seg.end},
