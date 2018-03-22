@@ -413,8 +413,8 @@ def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, ou
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
         elif layer == 'utilitymap':
-            geodatadisplay.draw_utility_shade(geodata=planner.utility_map('utility'),
-                                              layer='utility', vmin=0., vmax=1.)
+            geodatadisplay.TrajectoryDisplayExtension.draw_utility_shade(
+                geodata=planner.utility_map('utility'), layer='utility', vmin=0., vmax=1.)
 
     plot_plan_trajectories(planner.search_result.plan(plan), geodatadisplay,
                            layers=output_options_plot["foreground"], time_range=time_range)
