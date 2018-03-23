@@ -20,13 +20,17 @@ set(CORE_SOURCE_FILES
         src/utils.hpp
         src/ext/dubins.cpp
         src/ext/dubins.h
+        src/core/dubins3d.cpp
         src/core/dubins3d.hpp
         src/core/dubinswind.cpp
         src/core/dubinswind.hpp
+        src/core/fire_data.cpp
         src/core/fire_data.hpp
         src/core/raster.hpp
         src/core/trajectories.hpp
+        src/core/trajectory.cpp
         src/core/trajectory.hpp
+        src/core/uav.cpp
         src/core/uav.hpp
         src/core/updates/updates.cpp
         src/core/updates/updates.hpp
@@ -39,6 +43,7 @@ set(PLANNING_SOURCE_FILES
         src/vns/factory.cpp
         src/vns/factory.hpp
         src/vns/plan.hpp
+        src/vns/plan.cpp
         src/vns/neighborhoods/dubins_optimization.hpp
         src/vns/neighborhoods/insertions.hpp
         src/vns/neighborhoods/moves.hpp
