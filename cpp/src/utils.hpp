@@ -61,14 +61,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 // http://cnicholson.net/2009/02/stupid-c-tricks-adventures-in-assert/
 #ifdef DEBUG
 #define ASSERT(test)                  \
-do { if(!(test)) {                         \
+do { if(!(test)) {                    \
   fprintf(stderr, "Failed assert\n"); \
   print_trace();                      \
 }                                     \
-assert(test); } while(0)
+assert(test); } while(false)
 #else
 #define ASSERT(test) \
-        do { (void)sizeof(test); } while(0)
+        do { (void)sizeof(test); } while(false)
 #endif
 
 #endif //PLANNING_CPP_DEBUG_H
