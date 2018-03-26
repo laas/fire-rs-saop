@@ -95,7 +95,7 @@ namespace SAOP {
         while (current_l < length) {
             double q[3];
             dubins_path_sample(&air_path, current_l, q);
-            wps.emplace_back(Waypoint3d{q[0], q[1], wp_s.z, q[3]});
+            wps.emplace_back(Waypoint3d{q[0], q[1], wp_s.z, q[2]});
             current_l += l_step;
         }
 
