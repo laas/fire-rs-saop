@@ -64,7 +64,7 @@ namespace SAOP {
         j["utility"] = utility();
         j["num_segments"] = num_segments();
         j["trajectories"] = json::array();
-        for (auto& t : trajectories.trajectories) {
+        for (const Trajectory& t : trajectories) {
             j["trajectories"].push_back(t);
         }
         return j;
@@ -72,7 +72,7 @@ namespace SAOP {
 
     vector<PositionTime> Plan::observations_full() const {
         std::vector<PositionTime> result = {};
-        for (auto& tr: trajectories.trajectories) {
+        for (const auto& tr: trajectories) {
             GhostFireMapper<double> gfm = GhostFireMapper<double>(firedata);
             auto wp_and_t = tr.sampled_with_time(50);
             auto obs = gfm.observed_fire_locations(std::get<0>(wp_and_t), std::get<1>(wp_and_t), tr.conf().uav);
@@ -83,7 +83,7 @@ namespace SAOP {
 
     vector<PositionTime> Plan::observations(const TimeWindow& tw) const {
         vector<PositionTime> obs = std::vector<PositionTime>(observed_previously);
-        for (auto& traj : trajectories.trajectories) {
+        for (const auto& traj : trajectories) {
             UAV drone = traj.conf().uav;
             for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
                 const Segment3d& seg = traj[seg_id].maneuver;
@@ -112,7 +112,7 @@ namespace SAOP {
     /*All the positions observed by the UAV camera*/
     vector<PositionTime> Plan::view_trace(const TimeWindow& tw) const {
         vector<PositionTime> obs = {};
-        for (auto& traj : trajectories.trajectories) {
+        for (const auto& traj : trajectories) {
             UAV drone = traj.conf().uav;
             for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
                 const Segment3d& seg = traj[seg_id].maneuver;
@@ -174,7 +174,7 @@ namespace SAOP {
     }
 
     void Plan::project_on_fire_front() {
-        for (auto& traj : trajectories.trajectories) {
+        for (auto& traj : trajectories) {
             size_t seg_id = traj.first_modifiable_maneuver();
             while (seg_id <= traj.last_modifiable_maneuver()) {
                 const Segment3d& seg = traj[seg_id].maneuver;
@@ -195,7 +195,7 @@ namespace SAOP {
     }
 
     void Plan::smooth_trajectory() {
-        for (auto& traj : trajectories.trajectories) {
+        for (auto& traj : trajectories) {
             size_t seg_id = traj.first_modifiable_maneuver();
             while (seg_id < traj.last_modifiable_maneuver()) {
                 const Segment3d& current = traj[seg_id].maneuver;

@@ -34,25 +34,23 @@ namespace SAOP {
 
     struct Trajectories {
 
-        vector<Trajectory> trajectories;
-
-        explicit Trajectories(const vector<Trajectory>& trajectories) : trajectories(trajectories) {}
+        explicit Trajectories(const vector<Trajectory>& trajectories) : trajs(trajectories) {}
 
         explicit Trajectories(vector<TrajectoryConfig> traj_confs) {
             for (auto& conf : traj_confs) {
                 auto traj = Trajectory(conf);
-                trajectories.push_back(traj);
+                trajs.push_back(traj);
             }
         }
 
         friend ostream& operator<<(ostream& os, const Trajectories& trajectories) {
-            os << "#trajectories: " << trajectories.trajectories.size();
+            os << "#trajectories: " << trajectories.trajs.size();
             return os;
         }
 
         /** A plan is valid iff all trajectories are valid (match their configuration. */
         bool is_valid() const {
-            for (auto& traj : trajectories)
+            for (auto& traj : trajs)
                 if (!traj.has_valid_flight_time())
                     return false;
             return true;
@@ -61,43 +59,66 @@ namespace SAOP {
         /** Sum of all trajectory durations. */
         double duration() const {
             double duration = 0;
-            for (auto& traj : trajectories)
+            for (auto& traj : trajs)
                 duration += traj.duration();
             return duration;
         }
 
         size_t num_segments() const {
             size_t total = 0;
-            for (auto& traj : trajectories)
+            for (auto& traj : trajs)
                 total += traj.size();
             return total;
         }
 
         /** Returns the UAV performing the given trajectory */
         UAV uav(size_t traj_id) const {
-            ASSERT(traj_id < trajectories.size());
-            return trajectories[traj_id].conf().uav;
+            ASSERT(traj_id < trajs.size());
+            return trajs[traj_id].conf().uav;
         }
 
         /* For every trajectory, make the maneuvers before and including 'man_id' unmodifiable */
         void freeze_before(double time) {
-            for (auto& traj : trajectories)
+            for (auto& traj : trajs)
                 traj.freeze_before(time);
         }
 
         /* For every trajectory, make the maneuvers before and including 'man_id' unmodifiable */
         void erase_modifiable_maneuvers() {
-            for (auto& traj : trajectories)
+            for (auto& traj : trajs)
                 traj.erase_all_modifiable_maneuvers();
         }
 
-        size_t size() const { return trajectories.size(); }
+        size_t size() const { return trajs.size(); }
 
         bool empty() const { return size() == 0; }
 
-        Trajectory& operator[](size_t id) { return trajectories[id]; }
+        const Trajectory& operator[](size_t id) const { return trajs[id]; }
 
-        const Trajectory& operator[](size_t id) const { return trajectories[id]; }
+        Trajectory& operator[](size_t id) { return trajs[id]; }
+
+        std::vector<Trajectory>::iterator begin() {
+            return trajs.begin();
+        }
+
+        std::vector<Trajectory>::iterator end() {
+            return trajs.end();
+        }
+
+        std::vector<Trajectory>::const_iterator begin() const {
+            return trajs.begin();
+        }
+
+        std::vector<Trajectory>::const_iterator end() const {
+            return trajs.end();
+        }
+
+        /* Get a refrence to the internal Trajectory vector in Trajectories.
+         * To be used only fro compatibility in the python interface.*/
+        static const std::vector<Trajectory>& get_internal_vector(const Trajectories& ts) { return ts.trajs; };
+
+    private:
+        vector<Trajectory> trajs;
     };
 }
 #endif //PROJECT_TRAJECTORIES_H

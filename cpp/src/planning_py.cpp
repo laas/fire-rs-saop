@@ -395,7 +395,8 @@ PYBIND11_MODULE(uav_planning, m) {
                         py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
-            .def("trajectories", [](Plan& self) { return self.trajectories.trajectories; })
+            /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
+            .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories); })
             .def("utility", &Plan::utility)
             .def("utility_map", &Plan::utility_map)
             .def("duration", &Plan::duration)

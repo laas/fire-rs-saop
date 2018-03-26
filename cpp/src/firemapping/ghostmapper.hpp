@@ -70,7 +70,7 @@ namespace SAOP {
         }
 
         void observe(const Trajectories& trajs) {
-            for (const auto& t: trajs.trajectories) {
+            for (const auto& t: trajs) {
                 observe(t);
             }
         }
