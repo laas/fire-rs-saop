@@ -34,7 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/Enumerations.hpp"
 #include "../../IMC/Spec/PlanManeuver.hpp"
 #include "../../IMC/Spec/PlanSpecification.hpp"
-#include "../../IMC/Spec/PlanTransition.hpp"
 #include "../../IMC/Spec/Goto.hpp"
 #include "../../IMC/Spec/EntityParameter.hpp"
 #include "../../IMC/Spec/EntityParameters.hpp"

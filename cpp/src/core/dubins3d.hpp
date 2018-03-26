@@ -25,13 +25,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_DUBINS3D_H
 #define PLANNING_CPP_DUBINS3D_H
 
-#include "../ext/dubins.h"
-#include "../ext/optional.hpp"
-#include "waypoint.hpp"
 #include <cmath>
 #include <limits>
 #include <memory>
 #include <iostream>
+
+#include "../ext/dubins.h"
+#include "../ext/optional.hpp"
+#include "waypoint.hpp"
 
 #undef LSL
 #undef LSR

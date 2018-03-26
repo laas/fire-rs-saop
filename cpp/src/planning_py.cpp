@@ -26,48 +26,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_PYTHON_VNS_H
 
 #include <pybind11/pybind11.h>
-
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
+
 #include "core/dubinswind.hpp"
 #include "core/trajectory.hpp"
 #include "core/raster.hpp"
+#include "cpp_py_utils.hpp"
 #include "vns/factory.hpp"
-#include "firemapping/ghostmapper.hpp"
-
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <stdexcept>
 
 namespace py = pybind11;
-
-/** Converts a numpy array to a vector */
-template<class T>
-std::vector<T> as_vector(py::array_t<T, py::array::c_style | py::array::forcecast> array) {
-    std::vector<T> data(array.size());
-    for (ssize_t x = 0; x < array.shape(0); x++) {
-        for (ssize_t y = 0; y < array.shape(1); y++) {
-            data[x + y * array.shape(0)] = *(array.data(x, y));
-        }
-    }
-    return data;
-}
-
-/** Converts a vector to a 2D numpy array. */
-template<class T>
-py::array_t<T> as_nparray(std::vector<T> vec, size_t x_width, size_t y_height) {
-    ASSERT(vec.size() == x_width * y_height);
-    py::array_t<T, py::array::c_style | py::array::forcecast> array(std::vector<size_t> { x_width, y_height });
-    auto s_x_width = static_cast<ssize_t>(x_width);
-    auto s_y_height = static_cast<ssize_t>(y_height);
-    for (ssize_t x = 0; x < s_x_width; x++) {
-        for (ssize_t y = 0; y < s_y_height; y++) {
-            *(array.mutable_data(x, y)) = vec[x + y * x_width];
-        }
-    }
-    return array;
-}
 
 namespace SAOP {
     SearchResult

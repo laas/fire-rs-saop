@@ -29,9 +29,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <stdexcept>
 #include <vector>
 
-#include "waypoint.hpp"
 #include "../ext/dubins.h"
 #include "dubins3d.hpp"
+#include "waypoint.hpp"
 
 namespace SAOP {
 

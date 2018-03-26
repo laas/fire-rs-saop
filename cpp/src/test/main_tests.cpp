@@ -23,7 +23,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "test_dubinswind.hpp"
-#include "test_dubins.hpp"
 #include "test_position_manipulation.hpp"
 #include "core/test_reversible_updates.hpp"
 #include <boost/test/included/unit_test.hpp>

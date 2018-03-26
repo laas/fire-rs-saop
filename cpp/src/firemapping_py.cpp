@@ -30,7 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <pybind11/numpy.h> // support for numpy arrays
 
 #include "firemapping/ghostmapper.hpp"
-#include "core/raster.hpp"
 #include "cpp_py_utils.hpp"
 
 namespace py = pybind11;

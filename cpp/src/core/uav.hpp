@@ -25,13 +25,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_UAV_H
 #define PLANNING_CPP_UAV_H
 
-#include <vector>
 #include <cassert>
+#include <vector>
+
 #include "../ext/dubins.h"
-#include "waypoint.hpp"
 #include "../utils.hpp"
 #include "dubins3d.hpp"
 #include "dubinswind.hpp"
+#include "waypoint.hpp"
 
 namespace SAOP {
 

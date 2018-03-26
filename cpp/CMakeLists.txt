@@ -15,6 +15,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(CORE_SOURCE_FILES
+        src/ext/json.hpp
+        src/ext/optional.hpp
         src/cpp_py_utils.hpp
         src/utils.cpp
         src/utils.hpp
@@ -38,8 +40,6 @@ set(CORE_SOURCE_FILES
         )
 
 set(PLANNING_SOURCE_FILES
-        src/ext/json.hpp
-        src/ext/optional.hpp
         src/vns/factory.cpp
         src/vns/factory.hpp
         src/vns/plan.hpp

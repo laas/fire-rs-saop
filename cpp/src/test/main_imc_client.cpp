@@ -33,12 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 using boost::asio::ip::tcp;
 
 enum { max_length = 1024 };
-#include "../../IMC/Base/Message.hpp"
-#include "../../IMC/Base/Packet.hpp"
-#include "../../IMC/Spec/Enumerations.hpp"
+
 #include "../../IMC/Spec/PlanManeuver.hpp"
 #include "../../IMC/Spec/PlanSpecification.hpp"
-#include "../../IMC/Spec/PlanTransition.hpp"
 #include "../../IMC/Spec/Goto.hpp"
 #include "../../IMC/Spec/EntityParameter.hpp"
 #include "../../IMC/Spec/EntityParameters.hpp"
