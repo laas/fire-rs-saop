@@ -69,7 +69,8 @@ namespace SAOP {
         /* Utility of the plan */
         double utility() const {
             GenRaster<double> utility = utility_map();
-            return std::accumulate(utility.begin(), utility.end(), 0.);
+            auto accumulate_ignoring_nan = [](double a, double b) { return isnan(b) ? a : a + b; };
+            return std::accumulate(utility.begin(), utility.end(), 0., accumulate_ignoring_nan);
         }
 
         GenRaster<double> utility_map() const {

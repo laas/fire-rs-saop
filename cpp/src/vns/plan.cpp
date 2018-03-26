@@ -215,7 +215,7 @@ namespace SAOP {
     }
 
     GenRaster<double> Plan::utility_comp_radial() const {
-        GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::quiet_NaN());
+        GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::signaling_NaN());
         vector<PositionTime> done_obs = observations_full();
         for (const PointTimeWindow& possible_obs : possible_observations) {
             double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
@@ -236,7 +236,7 @@ namespace SAOP {
 
     GenRaster<double> Plan::utility_comp_propagation() const {
         // Start with NaN utility everywhere
-        GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, MAX_UTILITY);
+        GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::signaling_NaN());
 
         // Fill u_map observable cells with MAX_UTILITY
         for (auto& obs : possible_observations) {
@@ -268,7 +268,7 @@ namespace SAOP {
             auto neig_c = u_map.neighbor_cells(a_cell);
             for (auto& n_cell: neig_c) {
                 // Discard not observable neighbors
-                if (u_map(n_cell) == numeric_limits<double>::quiet_NaN()) { continue; }
+                if (isnan(u_map(n_cell))) { continue; }
                 // Discard older neighbors
                 if (firedata->ignitions(n_cell) < firedata->ignitions(a_cell)) { continue; }
                 // Discard neighbors that already have lower utility
