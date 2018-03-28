@@ -25,13 +25,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_PLAN_H
 #define PLANNING_CPP_PLAN_H
 
+#include <memory>
 #include <queue>
+#include <stack>
 
 #include "../core/trajectory.hpp"
 #include "../core/fire_data.hpp"
 #include "../core/raster.hpp"
-#include "../ext/json.hpp"
 #include "../core/trajectories.hpp"
+#include "../core/updates/updates.hpp"
+#include "../ext/json.hpp"
 
 #include "../firemapping/ghostmapper.hpp"
 
@@ -49,10 +52,22 @@ namespace SAOP {
         vector<PointTimeWindow> possible_observations;
         vector<PositionTime> observed_previously;
 
-        Plan(const Plan& plan) = default;
-
         Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
              vector<PositionTime> observed_previously = {});
+
+        ~Plan() = default;
+
+        // copy constructor
+        Plan(const Plan& plan) = default;
+
+        // move constructor
+        Plan(Plan&& plan) = default;
+
+        // copy assignment operator
+        Plan& operator=(const Plan& plan) = default;
+
+        // move assignment operator
+        Plan& operator=(Plan&& plan) = default;
 
         json metadata() const;
 
@@ -111,6 +126,8 @@ namespace SAOP {
 
         void
         replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment3d>& segments);
+
+        PReversibleTrajectoriesUpdate update(PReversibleTrajectoriesUpdate u, bool do_post_processing = false);
 
         void post_process() {
             project_on_fire_front();

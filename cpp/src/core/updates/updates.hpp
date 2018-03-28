@@ -32,18 +32,27 @@ using namespace std;
 namespace SAOP {
 
     struct ReversibleTrajectoriesUpdate;
-    typedef shared_ptr<ReversibleTrajectoriesUpdate> PReversibleTrajectoriesUpdate;
+    typedef unique_ptr<ReversibleTrajectoriesUpdate> PReversibleTrajectoriesUpdate;
 
-    struct DeleteSegment;
+    struct DeleteSegmentUpdate;
 
     struct ReversibleTrajectoriesUpdate {
+
+        virtual std::string to_string() const = 0;
+
+        friend std::ostream& operator<<(std::ostream& stream, const ReversibleTrajectoriesUpdate& u) {
+            return stream << u.to_string();
+        }
 
         virtual PReversibleTrajectoriesUpdate apply(Trajectories& p) = 0;
     };
 
     struct NoOp final : public ReversibleTrajectoriesUpdate {
+
+        std::string to_string() const override;
+
         PReversibleTrajectoriesUpdate apply(Trajectories& p) override {
-            return make_shared<NoOp>();
+            return unique_ptr<NoOp>();
         }
 
     };
@@ -52,15 +61,34 @@ namespace SAOP {
         PReversibleTrajectoriesUpdate first;
         PReversibleTrajectoriesUpdate second;
 
-        SequencedUpdates(const PReversibleTrajectoriesUpdate& first, const PReversibleTrajectoriesUpdate& second)
-                : first(
-                first),
-                  second(second) {}
+        SequencedUpdates(PReversibleTrajectoriesUpdate first, PReversibleTrajectoriesUpdate second)
+                : first(std::move(first)),
+                  second(std::move(second)) {}
+
+        std::string to_string() const override;
 
         PReversibleTrajectoriesUpdate apply(Trajectories& p) override;
     };
 
-    struct InsertSegment final : public ReversibleTrajectoriesUpdate {
+    struct ReplaceSegmentUpdate : public ReversibleTrajectoriesUpdate {
+        /** Index of the trajectory in which to perform the insertion. */
+        const size_t traj_id;
+
+        /** Index of the replaced segment. */
+        const size_t at_index;
+
+        /** Replacement segment */
+        const Segment3d new_seg;
+
+        ReplaceSegmentUpdate(size_t traj_id, size_t at_index, const Segment3d& new_seg)
+                : traj_id(traj_id), at_index(at_index), new_seg(new_seg) {};
+
+        std::string to_string() const override;
+
+        PReversibleTrajectoriesUpdate apply(Trajectories& p) override;
+    };
+
+    struct InsertSegmentUpdate final : public ReversibleTrajectoriesUpdate {
         /** Index of the trajectory in which to perform the insertion. */
         const size_t traj_id;
 
@@ -68,15 +96,17 @@ namespace SAOP {
         const Segment3d seg;
 
         /** Place in the trajectory where this segment should be inserted. */
-        const size_t insert_loc;
+        const size_t at_index;
 
-        InsertSegment(size_t traj_id, const Segment3d& seg, size_t insert_loc) : traj_id(traj_id), seg(seg),
-                                                                                 insert_loc(insert_loc) {}
+        InsertSegmentUpdate(size_t traj_id, const Segment3d& seg, size_t at_index) : traj_id(traj_id), seg(seg),
+                                                                                     at_index(at_index) {}
+
+        std::string to_string() const override;
 
         PReversibleTrajectoriesUpdate apply(Trajectories& p) override;
     };
 
-    struct DeleteSegment final : public ReversibleTrajectoriesUpdate {
+    struct DeleteSegmentUpdate final : public ReversibleTrajectoriesUpdate {
 
         /** Index of the trajectory in which to perform the insertion. */
         const size_t traj_id;
@@ -84,7 +114,9 @@ namespace SAOP {
         /** Place in the trajectory where this segment should be inserted. */
         const size_t at_index;
 
-        DeleteSegment(const size_t traj_id, const size_t at_index) : traj_id(traj_id), at_index(at_index) {}
+        DeleteSegmentUpdate(const size_t traj_id, const size_t at_index) : traj_id(traj_id), at_index(at_index) {}
+
+        std::string to_string() const override;
 
         PReversibleTrajectoriesUpdate apply(Trajectories& p) override;
     };

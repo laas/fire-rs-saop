@@ -26,24 +26,61 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
+    std::string NoOp::to_string() const {
+        return "NoOp()";
+    }
+
     PReversibleTrajectoriesUpdate SequencedUpdates::apply(Trajectories& p) {
         PReversibleTrajectoriesUpdate first_reverse = first->apply(p);
         PReversibleTrajectoriesUpdate second_reverse = second->apply(p);
-        return make_shared<SequencedUpdates>(second_reverse, first_reverse);
+        return unique_ptr<SequencedUpdates>(
+                new SequencedUpdates(std::move(second_reverse), std::move(first_reverse)));
     }
 
-    PReversibleTrajectoriesUpdate InsertSegment::apply(Trajectories& p) {
-        ASSERT(traj_id < p.trajectories.size());
-        ASSERT(insert_loc <= p.trajectories[traj_id].size());
-        p.trajectories[traj_id].insert_segment(seg, insert_loc);
-        return make_shared<DeleteSegment>(traj_id, insert_loc);
+    std::string SequencedUpdates::to_string() const {
+        std::stringstream ss;
+        ss << "SequencedUpdates(" << first.get() << ", " << second.get() << ")";
+        return ss.str();
     }
 
-    PReversibleTrajectoriesUpdate DeleteSegment::apply(Trajectories& p) {
-        ASSERT(traj_id < p.trajectories.size());
-        ASSERT(at_index < p.trajectories[traj_id].size());
-        Segment3d seg = p.trajectories[traj_id][at_index].maneuver;
-        p.trajectories[traj_id].erase_segment(at_index);
-        return make_shared<InsertSegment>(traj_id, seg, at_index);
+    PReversibleTrajectoriesUpdate InsertSegmentUpdate::apply(Trajectories& p) {
+        ASSERT(traj_id < p.size());
+        ASSERT(at_index <= p[traj_id].size());
+        p[traj_id].insert_segment(seg, at_index);
+        return unique_ptr<DeleteSegmentUpdate>(new DeleteSegmentUpdate(traj_id, at_index));
+    }
+
+    std::string InsertSegmentUpdate::to_string() const {
+        std::stringstream ss;
+        ss << "InsertSegment(t=" << traj_id << ", s=" << seg << ", i=" << at_index << ")";
+        return ss.str();
+    }
+
+    PReversibleTrajectoriesUpdate DeleteSegmentUpdate::apply(Trajectories& p) {
+        ASSERT(traj_id < p.size());
+        ASSERT(at_index < p[traj_id].size());
+        Segment3d seg = p[traj_id][at_index].maneuver;
+        p[traj_id].erase_segment(at_index);
+        return unique_ptr<InsertSegmentUpdate>(new InsertSegmentUpdate(traj_id, seg, at_index));
+    }
+
+    std::string DeleteSegmentUpdate::to_string() const {
+        std::stringstream ss;
+        ss << "DeleteSegment(t=" << traj_id << ", i=" << at_index << ")";
+        return ss.str();
+    }
+
+    PReversibleTrajectoriesUpdate ReplaceSegmentUpdate::apply(Trajectories& p) {
+        ASSERT(traj_id < p.size());
+        ASSERT(at_index < p[traj_id].size());
+        Segment3d old_seg = p[traj_id][at_index].maneuver;
+        p[traj_id].replace_segment(at_index, new_seg);
+        return unique_ptr<ReplaceSegmentUpdate>(new ReplaceSegmentUpdate(traj_id, at_index, old_seg));
+    }
+
+    std::string ReplaceSegmentUpdate::to_string() const {
+        std::stringstream ss;
+        ss << "ReplaceSegmentUpdate(t=" << traj_id << ", i=" << at_index << ", s=" << new_seg << ")";
+        return ss.str();
     }
 }

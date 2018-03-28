@@ -55,19 +55,28 @@ namespace SAOP {
                     end,
                     10)};
             Trajectories ts(confs);
-            InsertSegment(0, seg(1), 1).apply(ts);
-            InsertSegment(0, seg(2), 2).apply(ts);
-            InsertSegment(0, seg(3), 3).apply(ts);
+            InsertSegmentUpdate(0, seg(1), 1).apply(ts);
+            InsertSegmentUpdate(0, seg(2), 2).apply(ts);
+            InsertSegmentUpdate(0, seg(3), 3).apply(ts);
             BOOST_CHECK(ts.num_segments() == 5);
 
             double dur = ts.duration();
-            auto rev = DeleteSegment(0, 1).apply(ts);
+            auto rev = DeleteSegmentUpdate(0, 1).apply(ts);
             BOOST_CHECK(ts.num_segments() == 4);
             BOOST_CHECK(ts.duration() < dur);
-            BOOST_CHECK(ts.trajectories[0][1].maneuver.start.x == 2);
+            BOOST_CHECK(ts[0][1].maneuver.start.x == 2);
             rev->apply(ts);
             BOOST_CHECK(ALMOST_EQUAL(ts.duration(), dur));
 
+            Segment3d old_seg = ts[0][3].maneuver;
+            Segment3d new_seg = seg(4);
+            size_t orig_size = ts.num_segments();
+            auto updt_rev = ReplaceSegmentUpdate(0, 3, new_seg).apply(ts);
+            BOOST_CHECK(ts.num_segments() == orig_size);
+            BOOST_CHECK(ts[0][3].maneuver.start.x == new_seg.start.x);
+            updt_rev->apply(ts);
+            BOOST_CHECK(ts[0][3].maneuver.start.x == old_seg.start.x);
+            BOOST_CHECK(ALMOST_EQUAL(ts.duration(), dur));
 
             return ts;
         }

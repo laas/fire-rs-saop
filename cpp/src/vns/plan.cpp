@@ -258,7 +258,7 @@ namespace SAOP {
             u_map.set(obs_cell, MIN_UTILITY);
         }
 
-        double U_INC = 0.1;
+        double U_INC = 0.25;
 
         // Propagate utility
         while (!prop_q.empty()) {
@@ -286,5 +286,13 @@ namespace SAOP {
             }
         }
         return u_map;
+    }
+
+    PReversibleTrajectoriesUpdate Plan::update(PReversibleTrajectoriesUpdate u, bool do_post_processing) {
+//        std::cout << *u << std::endl;
+        PReversibleTrajectoriesUpdate rev = u->apply(trajectories);
+        if (do_post_processing)
+            post_process();
+        return rev;
     }
 }
