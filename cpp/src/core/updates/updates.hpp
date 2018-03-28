@@ -47,12 +47,12 @@ namespace SAOP {
         virtual PReversibleTrajectoriesUpdate apply(Trajectories& p) = 0;
     };
 
-    struct NoOp final : public ReversibleTrajectoriesUpdate {
+    struct EmptyUpdate final : public ReversibleTrajectoriesUpdate {
 
         std::string to_string() const override;
 
         PReversibleTrajectoriesUpdate apply(Trajectories& p) override {
-            return unique_ptr<NoOp>();
+            return unique_ptr<EmptyUpdate>(new EmptyUpdate());
         }
 
     };

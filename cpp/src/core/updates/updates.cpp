@@ -26,8 +26,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
-    std::string NoOp::to_string() const {
-        return "NoOp()";
+    std::string EmptyUpdate::to_string() const {
+        return "EmptyUpdate()";
     }
 
     PReversibleTrajectoriesUpdate SequencedUpdates::apply(Trajectories& p) {
