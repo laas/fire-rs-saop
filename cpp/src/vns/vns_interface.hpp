@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_VNS_INTERFACE_H
 
 #include <ctime>
+#include <memory>
 #include "plan.hpp"
 
 #include "../ext/json.hpp"
@@ -100,14 +101,10 @@ namespace SAOP {
 
 
     struct SearchResult {
-        shared_ptr<Plan> init_plan;
-        shared_ptr<Plan> final_plan;
-
-    public:
         vector<Plan> intermediate_plans;
 
         SearchResult(Plan& init_plan)
-                : init_plan(shared_ptr<Plan>(new Plan(init_plan))),
+                : init_plan(make_shared<Plan>(init_plan)),
                   final_plan(shared_ptr<Plan>()) {}
 
         void set_final_plan(Plan& p) {
@@ -121,6 +118,10 @@ namespace SAOP {
         Plan final() const { return *final_plan; }
 
         json metadata;
+
+    private:
+        shared_ptr<Plan> init_plan;
+        shared_ptr<Plan> final_plan;
     };
 
     struct VariableNeighborhoodSearch {

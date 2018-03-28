@@ -73,8 +73,8 @@ namespace SAOP {
         const double planning_end = time();
 
         std::cout << "Plan found in " << planning_end - planning_start << " seconds" << std::endl;
-        std::cout << "Best plan: utility: " << res.final_plan->utility()
-                  << " -- duration:" << res.final_plan->duration() << std::endl;
+        std::cout << "Best plan: utility: " << res.final().utility()
+                  << " -- duration:" << res.final().duration() << std::endl;
         res.metadata["planning_time"] = planning_end - planning_start;
         res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
         res.metadata["configuration"] = conf;
@@ -124,8 +124,8 @@ namespace SAOP {
         res.metadata["configuration"] = conf;
 
         std::cout << "Plan found in " << planning_end - planning_start << " seconds" << std::endl;
-        std::cout << "Best plan: utility: " << res.final_plan->utility()
-                  << " -- duration:" << res.final_plan->duration() << std::endl;
+        std::cout << "Best plan: utility: " << res.final().utility()
+                  << " -- duration:" << res.final().duration() << std::endl;
 
         return res;
     }
