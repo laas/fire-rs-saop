@@ -151,8 +151,8 @@ namespace SAOP {
     }
 
     std::pair<std::vector<Waypoint3d>, std::vector<double>> Trajectory::as_waypoints_with_time() const {
-        std::vector<Waypoint3d> waypoints;
-        std::vector<double> time;
+        std::vector<Waypoint3d> waypoints = {};
+        std::vector<double> time = {};
         for (auto i = 0ul; i < _maneuvers.size(); ++i) {
             waypoints.push_back(_maneuvers[i].start);
             time.push_back(_start_times[i]);
@@ -181,6 +181,10 @@ namespace SAOP {
         ASSERT(step_size > 0);
 
         auto waypoints_time = as_waypoints_with_time();
+
+        if (std::get<0>(waypoints_time).empty()) {
+            return {};
+        }
 
         std::vector<Waypoint3d> sampled;
         std::vector<double> time;
