@@ -248,7 +248,6 @@ namespace SAOP {
         }
     };
 
-
     struct SegmentRotation final : public CloneBasedLocalMove {
         const size_t traj_id;
         const size_t segment_index;
@@ -257,8 +256,9 @@ namespace SAOP {
         SegmentRotation(PlanPtr base, size_t traj_id, size_t segment_index, double target_dir)
                 : CloneBasedLocalMove(base),
                   traj_id(traj_id), segment_index(segment_index),
-                  newSegment(base->trajectories.uav(traj_id).rotate_on_visibility_center(base->trajectories[traj_id][segment_index].maneuver,
-                                                                                 target_dir)) {
+                  newSegment(base->trajectories.uav(traj_id).rotate_on_visibility_center(
+                          base->trajectories[traj_id][segment_index].maneuver,
+                          target_dir)) {
             ASSERT(duration() >= 0);
         }
 

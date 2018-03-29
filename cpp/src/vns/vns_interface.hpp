@@ -41,7 +41,7 @@ namespace SAOP {
         /** Reference to the plan this move is created for. */
         PlanPtr base_plan;
 
-        explicit LocalMove(PlanPtr base) : base_plan(base) {};
+        explicit LocalMove(PlanPtr base) : base_plan(std::move(base)) {};
 
         /** Cost that would result in applying the move. */
         virtual double utility() = 0;
@@ -74,7 +74,7 @@ namespace SAOP {
         Plan* plan_raw = base_plan.get();
     };
 
-    typedef shared_ptr<LocalMove> PLocalMove;
+//    typedef unique_ptr<LocalMove> PLocalMove;
 
 
 /** Interface for generating local move in local search.
@@ -89,7 +89,7 @@ namespace SAOP {
          * If the optional return is non-empty, local search will apply this move regardless of its cost.
          * Hence subclasses should make sure the returned values contribute to the overall quality of the plan.
          * */
-        virtual opt<PLocalMove> get_move(PlanPtr plan) = 0;
+        virtual unique_ptr<LocalMove> get_move(shared_ptr<Plan> plan) = 0;
 
         virtual std::string name() const = 0;
     };
@@ -153,8 +153,8 @@ namespace SAOP {
 
             SearchResult result(p);
 
-            PlanPtr best_plan = make_shared<Plan>(p);
-            PlanPtr best_plan_for_restart = make_shared<Plan>(p);
+            shared_ptr<Plan> best_plan = make_shared<Plan>(p);
+            shared_ptr<Plan> best_plan_for_restart = best_plan;
 
             // a list of tuples (t, u) where 't' is a time in seconds reliative to the start of search and 'u' is the value
             // of the best utility found a 't'
@@ -167,15 +167,15 @@ namespace SAOP {
 
             vector<double> runtime_per_neighborhood(neighborhoods.size(), 0.0);
 
-            bool saved = false; /*True if an improvement was saved so save_every do not take an snapshot again*/
+            bool saved = false; /* True if an improvement was saved so save_every do not take an snapshot again */
 
             while (seconds_since_start() < max_time_secs) {
                 // choose first neighborhood
                 size_t current_neighborhood = 0;
                 if (num_restarts > 0) {
                     std::cout << "Shuffle no. " << num_restarts << std::endl;
-                    best_plan_for_restart = std::make_shared<Plan>(*best_plan);
-                    shuffler->suffle(best_plan_for_restart);
+                    best_plan_for_restart = std::make_shared<Plan>(Plan(*best_plan));
+                    shuffler->shuffle(best_plan_for_restart);
                     if (save_improvements) {
                         // save plan even though its is probably not an improvement
                         result.intermediate_plans.push_back(*best_plan_for_restart);
@@ -183,25 +183,22 @@ namespace SAOP {
                 }
 
                 while (seconds_since_start() < max_time_secs && current_neighborhood < neighborhoods.size()) {
-                    // current neighborhood
-                    shared_ptr<Neighborhood> neighborhood = neighborhoods[current_neighborhood];
-
                     // get move for current neighborhood
                     const clock_t start = clock();
-                    const opt<PLocalMove> move = neighborhood->get_move(best_plan_for_restart);
+                    const unique_ptr<LocalMove> move = neighborhoods[current_neighborhood]->get_move(
+                            best_plan_for_restart);
                     const clock_t end = clock();
                     runtime_per_neighborhood[current_neighborhood] += double(end - start) / CLOCKS_PER_SEC;
 
                     if (move) {
                         // neighborhood generate a move, apply it
-                        LocalMove& m = **move;
-                        ASSERT(m.is_valid());
+                        ASSERT(move->is_valid());
 
                         // apply the move on best_plan_for_restart
-                        m.apply();
+                        move->apply();
 
                         if (best_plan_for_restart->utility() < best_plan->utility()) {
-                            best_plan = make_shared<Plan>(*best_plan_for_restart);
+                            best_plan = best_plan_for_restart;
                             utility_history.emplace_back(
                                     std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                         }

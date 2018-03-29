@@ -55,16 +55,15 @@ namespace SAOP {
                   select_arbitrary_trajectory(select_arbitrary_trajectory),
                   select_arbitrary_position(select_arbitrary_position) {}
 
-        opt<PLocalMove> get_move(PlanPtr p) override {
-            IdentityMove no_move(p);
-            opt<PLocalMove> best = {};
+        unique_ptr<LocalMove> get_move(PlanPtr p) override {
+            UpdateBasedMove no_move(p, unique_ptr<EmptyUpdate>(new EmptyUpdate()));
+            unique_ptr<LocalMove> best = {};
 
             size_t num_tries = 0;
             while (num_tries++ < max_trials) {
-                opt<PLocalMove> candidateOpt = get_move_for_random_possible_observation(p);
-                if (candidateOpt) {
+                unique_ptr<LocalMove> candidate_move = get_move_for_random_possible_observation(p);
+                if (candidate_move) {
                     // a move was generated
-                    PLocalMove candidate_move = *candidateOpt;
 
                     if (!candidate_move->is_valid())
                         // move is not valid, discard it
@@ -72,10 +71,10 @@ namespace SAOP {
 
                     if (!best && is_better_than(*candidate_move, no_move)) {
                         // no best move, and better than doing nothing
-                        best = candidate_move;
-                    } else if (best && is_better_than(*candidate_move, **best)) {
+                        best = std::move(candidate_move);
+                    } else if (best && is_better_than(*candidate_move, *best)) {
                         // better than the best move
-                        best = candidate_move;
+                        best = std::move(candidate_move);
                     }
                 }
             }
@@ -90,7 +89,7 @@ namespace SAOP {
         }
 
         /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
-        opt<PLocalMove> get_move_for_random_possible_observation(PlanPtr p) {
+        unique_ptr<LocalMove> get_move_for_random_possible_observation(PlanPtr p) {
             ASSERT(!p->trajectories.empty());
             if (p->possible_observations.empty())
                 return {};
@@ -171,10 +170,13 @@ namespace SAOP {
             }
 
             /** Return the best, if any */
-            if (best)
-                return opt<PLocalMove>(make_shared<Insert>(p, best->traj_id, best->segment, best->insert_loc));
-            else
+            if (best) {
+//                return unique_ptr<UpdateBasedMove>(new UpdateBasedMove(p, unique_ptr<InsertSegmentUpdate>(
+//                        new InsertSegmentUpdate(best->traj_id, best->segment, best->insert_loc))));
+                return unique_ptr<Insert>(new Insert(p, best->traj_id, best->segment, best->insert_loc));
+            } else {
                 return {};
+            };
         }
 
     private:
@@ -185,7 +187,8 @@ namespace SAOP {
             double additional_flight_time;
         };
 
-        double default_insertion_angle(const Trajectory& traj, size_t insertion_loc, const Segment3d& segment) const {
+        double
+        default_insertion_angle(const Trajectory& traj, size_t insertion_loc, const Segment3d& segment) const {
             if (traj.size() == 0) {
                 return segment.start.dir;
             } else if (insertion_loc == 0) {
@@ -210,7 +213,8 @@ namespace SAOP {
          * if inserted after the insert_loc^th observation of the traj_id^th trajectory, the UAV will reach it when
          * the underneath cell is on fire.
          * If there is no such cell, an empty option is returned. */
-        opt<Segment3d> get_projection(const PlanPtr p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
+        opt<Segment3d>
+        get_projection(const PlanPtr p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
             const Trajectory& traj = p->trajectories[traj_id];
             // start iteration from last valid projection made.
             opt<Segment3d> current_segment = to_project;
@@ -223,14 +227,16 @@ namespace SAOP {
                 const double time = insert_loc == 0 ?
                                     traj.start_time() :
                                     traj.end_time(insert_loc - 1) +
-                                    traj.conf().uav.travel_time(traj[insert_loc - 1].maneuver.end, to_project.start);
+                                    traj.conf().uav.travel_time(traj[insert_loc - 1].maneuver.end,
+                                                                to_project.start);
                 // back up current segment
                 const Segment3d previous = *current_segment;
 
                 // project the segment on the firefront.
                 current_segment = p->firedata->project_on_firefront(previous, traj.conf().uav, time);
                 ASSERT(!current_segment ||
-                       previous.start.dir == current_segment->start.dir); // projection should not change orientation
+                       previous.start.dir ==
+                       current_segment->start.dir); // projection should not change orientation
 
                 if (current_segment && previous != *current_segment) {
                     // segment has changed due to projection,

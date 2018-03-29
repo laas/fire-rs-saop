@@ -93,7 +93,7 @@ namespace SAOP {
             ASSERT(!generators.empty());
         }
 
-        opt<PLocalMove> get_move(PlanPtr plan) {
+        unique_ptr<LocalMove> get_move(PlanPtr plan) {
             if (plan->num_segments() == 0)
                 return {};
 
@@ -114,20 +114,26 @@ namespace SAOP {
 
                 // pick an angle generator and generate a candidate angle
                 const shared_ptr<OrientationChangeGenerator> generator = generators[rand(0, generators.size())];
-                 opt<double> optAngle = generator->get_orientation_change(traj, seg_id);
+                opt<double> optAngle = generator->get_orientation_change(traj, seg_id);
 
                 if (!optAngle)
                     continue; // generator not adapted to current segment, go to next trial
 
                 // compute the utility of the change
-                const Segment3d replacement_segment = plan->trajectories.uav(traj_id).rotate_on_visibility_center(traj[seg_id].maneuver,
-                                                                                                          *optAngle);
+                const Segment3d replacement_segment = plan->trajectories.uav(traj_id).rotate_on_visibility_center(
+                        traj[seg_id].maneuver,
+                        *optAngle);
                 const double local_duration_cost = traj.replacement_duration_cost(seg_id, replacement_segment);
 
 
                 // if the duration is improving and the utility doesn't get worse then return the move
                 if (local_duration_cost < -1) {
-                    PLocalMove move = make_shared<SegmentRotation>(plan, traj_id, seg_id, *optAngle);
+                    unique_ptr<LocalMove> move = unique_ptr<SegmentRotation>(new SegmentRotation(plan, traj_id, seg_id, *optAngle));
+
+//                    PReversibleTrajectoriesUpdate rotation_update = unique_ptr<ReplaceSegmentUpdate>(
+//                            new ReplaceSegmentUpdate(traj_id, seg_id, replacement_segment));
+//                    unique_ptr<LocalMove> move = unique_ptr<UpdateBasedMove>(
+//                            new UpdateBasedMove(plan, std::move(rotation_update)));
                     if (move->is_valid())
                         return move;
                 }
