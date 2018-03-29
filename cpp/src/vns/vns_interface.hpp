@@ -96,7 +96,7 @@ namespace SAOP {
 
     struct Shuffler {
     public:
-        virtual void suffle(shared_ptr<Plan> plan) = 0;
+        virtual void shuffle(shared_ptr<Plan> plan) = 0;
     };
 
 

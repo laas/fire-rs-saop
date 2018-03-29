@@ -37,7 +37,7 @@ namespace SAOP {
         const double min_removal_portion;
         const double max_removal_portion;
 
-        void suffle(shared_ptr<Plan> plan) override {
+        void shuffle(shared_ptr<Plan> plan) override {
             for (auto& traj : plan->trajectories) {
                 if (traj.modifiable_size() < 1)
                     // trajectory has no modifiable parts, skip
