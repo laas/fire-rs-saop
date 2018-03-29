@@ -94,9 +94,9 @@ namespace SAOP {
         mutable bool _valid = false;
     };
 
-    struct ReverseBasedMove : public LocalMove {
-        ReverseBasedMove(const PlanPtr& base, const PReversibleTrajectoriesUpdate& update) : LocalMove(base),
-                                                                                             update(update) {}
+    struct UpdateBasedMove : public LocalMove {
+        UpdateBasedMove(PlanPtr base, PReversibleTrajectoriesUpdate update)
+                : LocalMove(std::move(base)), update(std::move(update)) {}
 
         /** Cost that would result in applying the move. */
         double utility() override {
@@ -117,14 +117,16 @@ namespace SAOP {
 
     protected:
         void apply_on(PlanPtr target) override {
-
+            if (update) {
+                base_plan->update(std::move(update));
+                update.reset();
+            } else {
+                std::cerr << "An UpdateBasedMove can be applied only once." << endl;
+            }
         }
 
-    public:
-
-        PReversibleTrajectoriesUpdate update;
-
     private:
+        PReversibleTrajectoriesUpdate update;
 
         mutable bool lazily_initialized = false;
         mutable double _cost = 0;
@@ -133,16 +135,18 @@ namespace SAOP {
         mutable bool _valid = false;
 
         void init() {
-            if (!lazily_initialized) {
-                const double duration = base_plan->duration();
-                auto rev = update->apply(base_plan->trajectories);
+            if (!lazily_initialized || update != nullptr) {
+                double duration = base_plan->duration();
+                // Do update
+                update = std::move(base_plan->update(std::move(update)));
                 _cost = base_plan->utility();
                 _duration = base_plan->duration();
                 _num_segments = base_plan->num_segments();
                 _valid = base_plan->is_valid();
                 lazily_initialized = true;
-                rev->apply(base_plan->trajectories);
-                ASSERT(duration == base_plan->duration());
+                // Revert update
+                update = std::move(base_plan->update(std::move(update)));
+                ASSERT(ALMOST_EQUAL(duration, base_plan->duration()));
             }
         }
     };
