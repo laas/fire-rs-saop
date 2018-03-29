@@ -109,8 +109,8 @@ namespace SAOP {
 
         std::cout << "Building initial plan from last final plan" << std::endl;
         Plan p = last_search.final();
-        p.firedata = fire_data;
-        p.trajectories.freeze_before(after_time);
+        p.firedata(fire_data);
+        p.freeze_before(after_time);
         p.project_on_fire_front();
 
         std::cout << "Planning" << std::endl;
@@ -396,11 +396,11 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<Plan>(m, "Plan")
             /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
-            .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories); })
+            .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories()); })
             .def("utility", &Plan::utility)
             .def("utility_map", &Plan::utility_map)
             .def("duration", &Plan::duration)
-            .def_readonly("firedata", &Plan::firedata)
+            .def_property_readonly("firedata", (const FireData& (Plan::*)() const) &Plan::firedata)
             .def_readonly("time_window", &Plan::time_window)
             .def("observations", (vector<PositionTime> (Plan::*)() const) &Plan::observations)
             .def("observations", (vector<PositionTime> (Plan::*)(const TimeWindow&) const) &Plan::observations,

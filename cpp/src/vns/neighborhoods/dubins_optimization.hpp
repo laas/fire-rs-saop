@@ -101,8 +101,8 @@ namespace SAOP {
             size_t num_trials = 0;
             while (num_trials++ < max_trials) {
                 // pick a random trajectory in plan.
-                const size_t traj_id = rand(0, plan->trajectories.size());
-                const Trajectory& traj = plan->trajectories[traj_id];
+                const size_t traj_id = rand(0, plan->trajectories().size());
+                const Trajectory& traj = plan->trajectories()[traj_id];
 
                 // pick a random segment in the trajectory
                 const opt<size_t> opt_seg_id = traj.random_modifiable_id();
@@ -120,7 +120,7 @@ namespace SAOP {
                     continue; // generator not adapted to current segment, go to next trial
 
                 // compute the utility of the change
-                const Segment3d replacement_segment = plan->trajectories.uav(traj_id).rotate_on_visibility_center(
+                const Segment3d replacement_segment = plan->trajectories().uav(traj_id).rotate_on_visibility_center(
                         traj[seg_id].maneuver,
                         *optAngle);
                 const double local_duration_cost = traj.replacement_duration_cost(seg_id, replacement_segment);

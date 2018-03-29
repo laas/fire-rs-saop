@@ -90,7 +90,7 @@ namespace SAOP {
 
         /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
         unique_ptr<LocalMove> get_move_for_random_possible_observation(PlanPtr p) {
-            ASSERT(!p->trajectories.empty());
+            ASSERT(!p->trajectories().empty());
             if (p->possible_observations.empty())
                 return {};
 
@@ -102,9 +102,9 @@ namespace SAOP {
             const double random_angle = drand(0, 2 * M_PI);
 
             /** Waypoint and segment resulting from the random picks */
-            const Segment3d random_observation = p->trajectories.uav(0).observation_segment(
+            const Segment3d random_observation = p->trajectories().uav(0).observation_segment(
                     pt.pt.x, pt.pt.y,
-                    default_height + (*p->firedata->elevation)(p->firedata->elevation->as_cell(pt.pt)),
+                    default_height + (*p->firedata().elevation)(p->firedata().elevation->as_cell(pt.pt)),
                     random_angle, default_segment_length);
 
             opt<Candidate> best;
@@ -117,23 +117,23 @@ namespace SAOP {
 
             size_t first_traj, last_traj;
             if (select_arbitrary_trajectory) {
-                const size_t t = rand(0, p->trajectories.size());
+                const size_t t = rand(0, p->trajectories().size());
                 first_traj = t;
                 last_traj = t;
             } else {
                 first_traj = 0;
-                last_traj = p->trajectories.size() - 1;
+                last_traj = p->trajectories().size() - 1;
             }
 
             /** Try best insert for each subtrajectory in the plan */
             for (size_t i = first_traj; i <= last_traj; i++) {
-                const Trajectory& traj = p->trajectories[i];
+                const Trajectory& traj = p->trajectories()[i];
 
                 // get projected observation closer to the fire front at the beginning of the trajectory
                 // this is useful to avoid to projection to follow the same path multiple times to end up on a failure.
-                projected_random_observation = p->firedata->project_closest_to_fire_front(random_observation,
-                                                                                          traj.conf().uav,
-                                                                                          traj.start_time());
+                projected_random_observation = p->firedata().project_closest_to_fire_front(random_observation,
+                                                                                           traj.conf().uav,
+                                                                                           traj.start_time());
 
                 size_t first_insertion_loc, last_insertion_loc;
                 if (select_arbitrary_position) {
@@ -163,7 +163,7 @@ namespace SAOP {
                             continue;
 
                         if (!best || additional_flight_time < best->additional_flight_time) {
-                            best = Candidate {i, insert_loc, *current_segment, additional_flight_time};
+                            best = Candidate{i, insert_loc, *current_segment, additional_flight_time};
                         }
                     }
                 }
@@ -214,8 +214,8 @@ namespace SAOP {
          * the underneath cell is on fire.
          * If there is no such cell, an empty option is returned. */
         opt<Segment3d>
-        get_projection(const PlanPtr p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
-            const Trajectory& traj = p->trajectories[traj_id];
+        get_projection(const PlanPtr& p, const Segment3d to_project, size_t traj_id, size_t insert_loc) {
+            const Trajectory& traj = p->trajectories()[traj_id];
             // start iteration from last valid projection made.
             opt<Segment3d> current_segment = to_project;
             bool updated = true;
@@ -233,7 +233,7 @@ namespace SAOP {
                 const Segment3d previous = *current_segment;
 
                 // project the segment on the firefront.
-                current_segment = p->firedata->project_on_firefront(previous, traj.conf().uav, time);
+                current_segment = p->firedata().project_on_firefront(previous, traj.conf().uav, time);
                 ASSERT(!current_segment ||
                        previous.start.dir ==
                        current_segment->start.dir); // projection should not change orientation

@@ -26,10 +26,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
-    Plan::Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+    Plan::Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fdata, TimeWindow tw,
                vector<PositionTime> observed_previously)
-            : time_window(tw), trajectories(traj_confs), firedata(std::move(fire_data)),
-              observed_previously(observed_previously) {
+            : time_window(tw), observed_previously(observed_previously),
+              trajs(traj_confs), fire_data(std::move(fdata)) {
         for (auto& conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
         }
@@ -38,11 +38,11 @@ namespace SAOP {
         obs_prev_cells.reserve(observed_previously.size());
         std::transform(observed_previously.begin(), observed_previously.end(),
                        std::back_inserter(obs_prev_cells),
-                       [this](const PositionTime& pt) -> Cell { return firedata->ignitions.as_cell(pt.pt); });
+                       [this](const PositionTime& pt) -> Cell { return this->firedata().ignitions.as_cell(pt.pt); });
 
-        for (size_t x = 0; x < firedata->ignitions.x_width; x++) {
-            for (size_t y = 0; y < firedata->ignitions.y_height; y++) {
-                const double t = firedata->ignitions(x, y);
+        for (size_t x = 0; x < firedata().ignitions.x_width; x++) {
+            for (size_t y = 0; y < firedata().ignitions.y_height; y++) {
+                const double t = firedata().ignitions(x, y);
                 if (time_window.start <= t && t <= time_window.end) {
                     Cell c{x, y};
 
@@ -50,8 +50,8 @@ namespace SAOP {
                     if (std::find(obs_prev_cells.begin(), obs_prev_cells.end(), c)
                         == obs_prev_cells.end()) {
                         possible_observations.push_back(
-                                PointTimeWindow{firedata->ignitions.as_position(c),
-                                                {firedata->ignitions(c), firedata->traversal_end(c)}});
+                                PointTimeWindow{fire_data->ignitions.as_position(c),
+                                                {fire_data->ignitions(c), fire_data->traversal_end(c)}});
                     }
                 }
             }
@@ -64,7 +64,7 @@ namespace SAOP {
         j["utility"] = utility();
         j["num_segments"] = num_segments();
         j["trajectories"] = json::array();
-        for (const Trajectory& t : trajectories) {
+        for (const Trajectory& t : trajs) {
             j["trajectories"].push_back(t);
         }
         return j;
@@ -72,8 +72,8 @@ namespace SAOP {
 
     vector<PositionTime> Plan::observations_full() const {
         std::vector<PositionTime> result = {};
-        for (const auto& tr: trajectories) {
-            GhostFireMapper<double> gfm = GhostFireMapper<double>(firedata);
+        for (const auto& tr: trajs) {
+            GhostFireMapper<double> gfm = GhostFireMapper<double>(fire_data);
             auto wp_and_t = tr.sampled_with_time(50);
             auto obs = gfm.observed_fire_locations(std::get<0>(wp_and_t), std::get<1>(wp_and_t), tr.conf().uav);
             result.insert(result.end(), obs.begin(), obs.end());
@@ -83,7 +83,7 @@ namespace SAOP {
 
     vector<PositionTime> Plan::observations(const TimeWindow& tw) const {
         vector<PositionTime> obs = std::vector<PositionTime>(observed_previously);
-        for (const auto& traj : trajectories) {
+        for (const auto& traj : trajs) {
             UAV drone = traj.conf().uav;
             for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
                 const Segment3d& seg = traj[seg_id].maneuver;
@@ -93,13 +93,13 @@ namespace SAOP {
                 TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
                 if (tw.contains(seg_tw)) {
                     opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth(), drone.view_width(),
-                                                                     firedata->ignitions);
+                                                                     fire_data->ignitions);
                     if (opt_cells) {
                         for (const auto& c : *opt_cells) {
-                            if (firedata->ignitions(c) <= obs_time && obs_time <= firedata->traversal_end(c)) {
+                            if (fire_data->ignitions(c) <= obs_time && obs_time <= fire_data->traversal_end(c)) {
                                 // If the cell is observable, add it to the observations list
                                 obs.push_back(
-                                        PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
+                                        PositionTime{fire_data->ignitions.as_position(c), traj.start_time(seg_id)});
                             }
                         }
                     }
@@ -112,7 +112,7 @@ namespace SAOP {
     /*All the positions observed by the UAV camera*/
     vector<PositionTime> Plan::view_trace(const TimeWindow& tw) const {
         vector<PositionTime> obs = {};
-        for (const auto& traj : trajectories) {
+        for (const auto& traj : trajs) {
             UAV drone = traj.conf().uav;
             for (size_t seg_id = 0; seg_id < traj.size(); seg_id++) {
                 const Segment3d& seg = traj[seg_id].maneuver;
@@ -122,11 +122,11 @@ namespace SAOP {
                 TimeWindow seg_tw = TimeWindow{obs_time, obs_end_time};
                 if (tw.contains(seg_tw)) {
                     opt<std::vector<Cell>> opt_cells = segment_trace(seg, drone.view_depth(), drone.view_width(),
-                                                                     firedata->ignitions);
+                                                                     fire_data->ignitions);
                     if (opt_cells) {
                         for (const auto& c : *opt_cells) {
                             obs.emplace_back(
-                                    PositionTime{firedata->ignitions.as_position(c), traj.start_time(seg_id)});
+                                    PositionTime{fire_data->ignitions.as_position(c), traj.start_time(seg_id)});
                         }
                     }
                 }
@@ -136,19 +136,22 @@ namespace SAOP {
     }
 
     void Plan::insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing) {
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(insert_loc <= trajectories[traj_id].size());
-        trajectories[traj_id].insert_segment(seg, insert_loc);
-        if (do_post_processing)
+        ASSERT(traj_id < trajs.size());
+        ASSERT(insert_loc <= trajs[traj_id].size());
+        trajs[traj_id].insert_segment(seg, insert_loc);
+        if (do_post_processing) {
             post_process();
+        }
     }
 
     void Plan::erase_segment(size_t traj_id, size_t at_index, bool do_post_processing) {
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(at_index < trajectories[traj_id].size());
-        trajectories[traj_id].erase_segment(at_index);
-        if (do_post_processing)
+        ASSERT(traj_id < trajs.size());
+        ASSERT(at_index < trajs[traj_id].size());
+        trajs[traj_id].erase_segment(at_index);
+        if (do_post_processing) {
             post_process();
+        }
+        utility_recomp_request = true;
     }
 
     void Plan::replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment) {
@@ -158,8 +161,8 @@ namespace SAOP {
     void
     Plan::replace_segment(size_t traj_id, size_t at_index, size_t n_replaced, const std::vector<Segment3d>& segments) {
         ASSERT(n_replaced > 0);
-        ASSERT(traj_id < trajectories.size());
-        ASSERT(at_index + n_replaced - 1 < trajectories[traj_id].size());
+        ASSERT(traj_id < trajs.size());
+        ASSERT(at_index + n_replaced - 1 < trajs[traj_id].size());
 
         // do not post process as we will do that at the end
         for (size_t i = 0; i < n_replaced; ++i) {
@@ -171,15 +174,16 @@ namespace SAOP {
         }
 
         post_process();
+        utility_recomp_request = true;
     }
 
     void Plan::project_on_fire_front() {
-        for (auto& traj : trajectories) {
+        for (auto& traj : trajs) {
             size_t seg_id = traj.first_modifiable_maneuver();
             while (seg_id <= traj.last_modifiable_maneuver()) {
                 const Segment3d& seg = traj[seg_id].maneuver;
                 const double t = traj.start_time(seg_id);
-                opt<Segment3d> projected = firedata->project_on_firefront(seg, traj.conf().uav, t);
+                opt<Segment3d> projected = fire_data->project_on_firefront(seg, traj.conf().uav, t);
                 if (projected) {
                     if (*projected != seg) {
                         // original is different than projection, replace it
@@ -192,10 +196,12 @@ namespace SAOP {
                 }
             }
         }
+
+        utility_recomp_request = true;
     }
 
     void Plan::smooth_trajectory() {
-        for (auto& traj : trajectories) {
+        for (auto& traj : trajs) {
             size_t seg_id = traj.first_modifiable_maneuver();
             while (seg_id < traj.last_modifiable_maneuver()) {
                 const Segment3d& current = traj[seg_id].maneuver;
@@ -215,7 +221,7 @@ namespace SAOP {
     }
 
     GenRaster<double> Plan::utility_comp_radial() const {
-        GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::signaling_NaN());
+        GenRaster<double> u_map = GenRaster<double>(fire_data->ignitions, numeric_limits<double>::signaling_NaN());
         vector<PositionTime> done_obs = observations_full();
         for (const PointTimeWindow& possible_obs : possible_observations) {
             double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
@@ -236,7 +242,7 @@ namespace SAOP {
 
     GenRaster<double> Plan::utility_comp_propagation() const {
         // Start with NaN utility everywhere
-        GenRaster<double> u_map = GenRaster<double>(firedata->ignitions, numeric_limits<double>::signaling_NaN());
+        GenRaster<double> u_map = GenRaster<double>(fire_data->ignitions, numeric_limits<double>::signaling_NaN());
 
         // Fill u_map observable cells with MAX_UTILITY
         for (auto& obs : possible_observations) {
@@ -246,7 +252,7 @@ namespace SAOP {
 
         // Set-up a priority queue
         auto time_cell_comp = [this](Cell a, Cell b) -> bool {
-            return (*this).firedata->ignitions(a) > (*this).firedata->ignitions(b);
+            return (*this).fire_data->ignitions(a) > (*this).fire_data->ignitions(b);
         };
         typedef std::priority_queue<Cell, vector<Cell>, decltype(time_cell_comp)> TimeCellPriorityQueue;
         auto prop_q = TimeCellPriorityQueue(time_cell_comp, vector<Cell>());
@@ -270,7 +276,7 @@ namespace SAOP {
                 // Discard not observable neighbors
                 if (isnan(u_map(n_cell))) { continue; }
                 // Discard older neighbors
-                if (firedata->ignitions(n_cell) < firedata->ignitions(a_cell)) { continue; }
+                if (fire_data->ignitions(n_cell) < fire_data->ignitions(a_cell)) { continue; }
                 // Discard neighbors that already have lower utility
                 if (u_map(n_cell) <= u_map(a_cell) + U_INC) { continue; }
 
@@ -290,9 +296,14 @@ namespace SAOP {
 
     PReversibleTrajectoriesUpdate Plan::update(PReversibleTrajectoriesUpdate u, bool do_post_processing) {
 //        std::cout << *u << std::endl;
-        PReversibleTrajectoriesUpdate rev = u->apply(trajectories);
-        if (do_post_processing)
+        PReversibleTrajectoriesUpdate rev = u->apply(trajs);
+        if (do_post_processing) {
             post_process();
+        }
         return rev;
+    }
+
+    void Plan::freeze_before(double time) {
+        trajs.freeze_before(time);
     }
 }

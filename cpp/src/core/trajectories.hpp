@@ -97,6 +97,8 @@ namespace SAOP {
 
         Trajectory& operator[](size_t id) { return trajs[id]; }
 
+//        const std::vector<Trajectory>& trajectories() const { return trajs; }
+
         std::vector<Trajectory>::iterator begin() {
             return trajs.begin();
         }
@@ -114,7 +116,7 @@ namespace SAOP {
         }
 
         /* Get a refrence to the internal Trajectory vector in Trajectories.
-         * To be used only fro compatibility in the python interface.*/
+         * To be used only for compatibility in the python interface.*/
         static const std::vector<Trajectory>& get_internal_vector(const Trajectories& ts) { return ts.trajs; };
 
     private:

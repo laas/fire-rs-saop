@@ -113,7 +113,7 @@ namespace SAOP {
             auto res = vns->search(std::move(p), 0, 1);
 //            BOOST_CHECK(Plan(res.final()));
 
-            auto& traj = res.final().trajectories[0];
+            const auto& traj = res.final().trajectories()[0];
             //ASSERT(traj[0] == start);
             //ASSERT(traj[traj.size()-1] == end);
             BOOST_CHECK(traj.insertion_range_start() == 1);

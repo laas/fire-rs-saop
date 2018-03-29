@@ -48,8 +48,8 @@ namespace SAOP {
             size_t trials = 0;
             while (++trials < max_trials) {
                 // pick a random trajectory in plan.
-                const size_t traj_id = rand(0, plan->trajectories.size());
-                const Trajectory& traj = plan->trajectories[traj_id];
+                const size_t traj_id = rand(0, plan->trajectories().size());
+                const Trajectory& traj = plan->trajectories()[traj_id];
 
                 if (traj.size() <= 2) {
                     continue;

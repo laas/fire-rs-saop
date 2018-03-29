@@ -47,8 +47,6 @@ namespace SAOP {
 
     struct Plan {
         TimeWindow time_window; /* Cells outside the range are not considered in possible observations */
-        Trajectories trajectories;
-        shared_ptr<FireData> firedata;
         vector<PointTimeWindow> possible_observations;
         vector<PositionTime> observed_previously;
 
@@ -73,12 +71,26 @@ namespace SAOP {
 
         /** A plan is valid iff all trajectories are valid (match their configuration. */
         bool is_valid() const {
-            return trajectories.is_valid();
+            return trajs.is_valid();
+        }
+
+        const Trajectories& trajectories() const {
+            return trajs;
+        }
+
+        const FireData& firedata() const {
+            return *fire_data;
+        }
+
+        /* Replace plan firedata */
+        void firedata(shared_ptr<FireData> fdata) {
+            fire_data = fdata;
+            utility_recomp_request = true;
         }
 
         /** Sum of all trajectory durations. */
         double duration() const {
-            return trajectories.duration();
+            return trajs.duration();
         }
 
         /* Utility of the plan */
@@ -93,7 +105,7 @@ namespace SAOP {
         }
 
         size_t num_segments() const {
-            return trajectories.num_segments();
+            return trajs.num_segments();
         }
 
         /** All observations in the plan. Computed by taking the visibility center of all segments.
@@ -129,6 +141,8 @@ namespace SAOP {
 
         PReversibleTrajectoriesUpdate update(PReversibleTrajectoriesUpdate u, bool do_post_processing = false);
 
+        void freeze_before(double time);
+
         void post_process() {
             project_on_fire_front();
             smooth_trajectory();
@@ -152,6 +166,9 @@ namespace SAOP {
         }
 
     private:
+        Trajectories trajs;
+        shared_ptr<FireData> fire_data;
+
         /** Constants used for computed the cost associated to a pair of points.
          * The cost is MAX_INDIVIDUAL_COST if the distance between two points
          * is >= MAX_INFORMATIVE_DISTANCE. It is be 0 if the distance is 0 and scales linearly between the two. */
