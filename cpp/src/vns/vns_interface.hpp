@@ -166,6 +166,7 @@ namespace SAOP {
             size_t num_restarts = 0;
 
             vector<double> runtime_per_neighborhood(neighborhoods.size(), 0.0);
+            vector<double> runs_per_neighborhood(neighborhoods.size(), 0);
 
             bool saved = false; /* True if an improvement was saved so save_every do not take an snapshot again */
 
@@ -189,6 +190,7 @@ namespace SAOP {
                             best_plan_for_restart);
                     const clock_t end = clock();
                     runtime_per_neighborhood[current_neighborhood] += double(end - start) / CLOCKS_PER_SEC;
+                    runs_per_neighborhood[current_neighborhood] += 1;
 
                     if (move) {
                         // neighborhood generate a move, apply it
@@ -240,6 +242,7 @@ namespace SAOP {
                 auto& n = *neighborhoods[i];
                 j["name"] = std::to_string(i) + "-" + n.name();
                 j["runtime"] = runtime_per_neighborhood[i];
+                j["runs"] = runs_per_neighborhood[i];
                 result.metadata["neighborhoods"].push_back(j);
             }
             result.metadata["utility_history"] = json::array();
