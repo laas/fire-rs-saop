@@ -67,7 +67,7 @@ namespace SAOP {
         // move assignment operator
         Plan& operator=(Plan&& plan) = default;
 
-        json metadata() const;
+        json metadata();
 
         /** A plan is valid iff all trajectories are valid (match their configuration. */
         bool is_valid() const {
@@ -94,10 +94,13 @@ namespace SAOP {
         }
 
         /* Utility of the plan */
-        double utility() const {
-            GenRaster<double> utility = utility_map();
-            auto accumulate_ignoring_nan = [](double a, double b) { return isnan(b) ? a : a + b; };
-            return std::accumulate(utility.begin(), utility.end(), 0., accumulate_ignoring_nan);
+        double utility() {
+            if (utility_recomp_request) {
+                GenRaster<double> utility = utility_map();
+                auto accumulate_ignoring_nan = [](double a, double b) { return isnan(b) ? a : a + b; };
+                utility_cache = std::accumulate(utility.begin(), utility.end(), 0., accumulate_ignoring_nan);
+            }
+            return utility_cache;
         }
 
         GenRaster<double> utility_map() const {
@@ -146,6 +149,7 @@ namespace SAOP {
         void post_process() {
             project_on_fire_front();
             smooth_trajectory();
+            utility_recomp_request = true;
         }
 
         /** Make sure every segment makes an observation, i.e., that the picture will be taken when the fire in traversing the main cell.
@@ -181,6 +185,9 @@ namespace SAOP {
         /* Max and min utility values. Visited cells have MIN_UTILITY utility. */
         double MAX_UTILITY = 1.;
         double MIN_UTILITY = 0.;
+
+        bool utility_recomp_request = true;
+        double utility_cache = 0.;
 
         /** Utility map of the plan.
          * The key idea is to sum the distance of all ignited points in the time window to their closest observation.

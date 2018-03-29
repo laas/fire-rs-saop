@@ -56,9 +56,11 @@ namespace SAOP {
                 }
             }
         }
+
+        utility_recomp_request = true;
     }
 
-    json Plan::metadata() const {
+    json Plan::metadata()  {
         json j;
         j["duration"] = duration();
         j["utility"] = utility();
@@ -142,6 +144,7 @@ namespace SAOP {
         if (do_post_processing) {
             post_process();
         }
+        utility_recomp_request = true;
     }
 
     void Plan::erase_segment(size_t traj_id, size_t at_index, bool do_post_processing) {
@@ -156,6 +159,7 @@ namespace SAOP {
 
     void Plan::replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment) {
         replace_segment(traj_id, at_index, 1, std::vector<Segment3d>({by_segment}));
+        utility_recomp_request = true;
     }
 
     void
@@ -218,6 +222,8 @@ namespace SAOP {
                     seg_id++;
             }
         }
+
+        utility_recomp_request = true;
     }
 
     GenRaster<double> Plan::utility_comp_radial() const {
@@ -300,6 +306,7 @@ namespace SAOP {
         if (do_post_processing) {
             post_process();
         }
+        utility_recomp_request = true;
         return rev;
     }
 
