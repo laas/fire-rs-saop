@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_FIRE_DATA_H
 
 #include <algorithm>
+#include <functional>
 #include <iostream>
 #include <set>
 
@@ -54,13 +55,53 @@ namespace SAOP {
         /* Terrain elevation */
         const shared_ptr<DRaster> elevation;
 
-        FireData(const DRaster& ignitions, const DRaster& elevation)
-                : ignitions(ignitions),
-                  traversal_end(compute_traversal_ends(ignitions)),
-                  propagation_directions(compute_propagation_direction(ignitions)),
-                  elevation(make_shared<DRaster>(elevation)) {}
+        FireData(const DRaster& ignition_raster, const DRaster& elevation_raster)
+                : ignitions(ignition_raster),
+                  traversal_end(compute_traversal_ends(ignition_raster)),
+                  propagation_directions(compute_propagation_direction(ignition_raster)),
+                  elevation(make_shared<DRaster>(elevation_raster)) {
+
+            std::vector<double> durations(ignitions.data.size());
+            // compute ignition duration
+            std::transform(traversal_end.begin(), traversal_end.end(), ignitions.begin(), durations.begin(),
+                           [](double a, double b) {
+                               // Minus (ignoring non-ignited)
+                               return b >= numeric_limits<double>::max() / 2 ?
+                                      std::numeric_limits<double>::signaling_NaN() : a - b;
+                           });
+            // Find min and max durations
+            std::pair<double, double> min_max = std::accumulate(
+                    durations.begin(), durations.end(),
+                    std::pair<double, double>({std::numeric_limits<double>::infinity(), .0}),
+                    [](std::pair<double, double> a, double b) -> std::pair<double, double> {
+                        // Accumulate min and max if b is eventually ignited (!NaN)
+                        if (isnan(b)) {
+                            return a;
+                        } else {
+                            return {std::min<double>(std::get<0>(a), b),
+                                    std::max<double>(std::get<1>(a), b)};
+                        }
+                    });
+            min_ign_duration = std::get<0>(min_max);
+            max_ign_duration = std::get<1>(min_max);
+        }
 
         FireData(const FireData& from) = default;
+
+        /* Shortest fire front duration among all cells */
+        double max_front_duration() const {
+            return max_ign_duration;
+        };
+
+        /* Longest fire front duration among all cells */
+        double min_front_duration() const {
+            return min_ign_duration;
+        };
+
+        /* Duration of the fire front on Cell c. Returns NaN if the cell is never ignited. */
+        double front_duration(const Cell& c) const {
+            return eventually_ignited(c) ? traversal_end(c) - ignitions(c) : numeric_limits<double>::signaling_NaN();
+        }
 
         /** Returns true if the cell is eventually ignited. */
         bool eventually_ignited(Cell cell) const {
@@ -88,6 +129,9 @@ namespace SAOP {
         Segment3d project_closest_to_fire_front(const Segment3d& seg, const UAV& uav, double time) const;
 
     private:
+        double max_ign_duration;
+        double min_ign_duration;
+
         /** Builds a raster containing the times at which the firefront leaves the cells. */
         static DRaster compute_traversal_ends(const DRaster& ignitions);
 
