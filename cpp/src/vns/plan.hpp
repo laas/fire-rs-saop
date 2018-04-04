@@ -133,9 +133,9 @@ namespace SAOP {
             return view_trace(time_window);
         }
 
-        void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = true);
+        void insert_segment(size_t traj_id, const Segment3d& seg, size_t insert_loc, bool do_post_processing = false);
 
-        void erase_segment(size_t traj_id, size_t at_index, bool do_post_processing = true);
+        void erase_segment(size_t traj_id, size_t at_index, bool do_post_processing = false);
 
         void replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment);
 
