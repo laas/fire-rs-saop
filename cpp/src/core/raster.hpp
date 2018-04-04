@@ -191,7 +191,7 @@ namespace SAOP {
                     if (cell.y == 0 && dy < 0) continue;
                     if (cell.y + dy >= y_height) continue;
 
-                    neighbors.push_back(Cell{cell.x + dx, cell.y + dy});
+                    neighbors.emplace_back(Cell{cell.x + dx, cell.y + dy});
                 }
             }
             return neighbors;
