@@ -204,6 +204,14 @@ namespace SAOP {
         typename std::vector<T>::iterator end() {
             return data.end();
         }
+
+        typename std::vector<T>::const_iterator begin() const {
+            return data.begin();
+        }
+
+        typename std::vector<T>::const_iterator end() const {
+            return data.end();
+        }
     };
 
     typedef GenRaster<double> DRaster;
