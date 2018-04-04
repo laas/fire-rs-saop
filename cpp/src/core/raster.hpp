@@ -384,15 +384,18 @@ namespace SAOP {
 
             // limits of the area in which to search for visible points
             // this is a subset of the raster that strictly contains the visibility rectangle
-            const double min_x = std::max(std::min(std::min(ax, bx), std::min(cx, dx)) - raster.cell_width,
-                                          raster.x_offset);
-            const double max_x = std::min(std::max(std::max(ax, bx), std::max(cx, dx)) + raster.cell_width,
+            const double min_x = std::min(std::max(std::min(std::min(ax, bx), std::min(cx, dx)) - raster.cell_width,
+                                                   raster.x_offset + raster.cell_width / 2),
                                           raster.x_offset + raster.x_width * raster.cell_width - raster.cell_width / 2);
-            const double min_y = std::max(std::min(std::min(ay, by), std::min(cy, dy)) - raster.cell_width,
-                                          raster.y_offset);
-            const double max_y = std::min(std::max(std::max(ay, by), std::max(cy, dy)) + raster.cell_width,
+            const double max_x = std::max(std::min(std::max(std::max(ax, bx), std::max(cx, dx)) + raster.cell_width,
+                                                   raster.x_offset + raster.x_width * raster.cell_width -
+                                                   raster.cell_width / 2), raster.x_offset + raster.cell_width / 2);
+            const double min_y = std::min(std::max(std::min(std::min(ay, by), std::min(cy, dy)) - raster.cell_width,
+                                                   raster.y_offset + raster.cell_width / 2), raster.y_offset + raster.y_height * raster.cell_width -
+                                                                                            raster.cell_width / 2);
+            const double max_y = std::max(std::min(std::max(std::max(ay, by), std::max(cy, dy)) + raster.cell_width,
                                           raster.y_offset + raster.y_height * raster.cell_width -
-                                          raster.cell_width / 2);
+                                          raster.cell_width / 2), raster.y_offset + raster.cell_width / 2);
 
             // coordinates of where to start the search, centered on a cell
             const size_t start_x = raster.x_coords(raster.x_index(min_x));
