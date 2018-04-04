@@ -84,8 +84,18 @@ namespace SAOP {
     private:
         /** this move is better than another if it has a significantly better cost or if it has a similar cost but a strictly better duration */
         bool is_better_than(LocalMove& first, LocalMove& other) {
-            return first.utility() < other.utility() - .7
-                   || (ALMOST_LESSER_EQUAL(first.utility(), other.utility()) && first.duration() < other.duration());
+            return localmove_efficiency(first) > localmove_efficiency(other) && first.utility() < other.utility();
+        }
+
+        double localmove_efficiency(LocalMove& localmove) {
+            double delta_duration = localmove.duration() - localmove.base_plan->duration();
+            double delta_utility = -(localmove.utility() - localmove.base_plan->utility());
+
+            if (delta_duration > 0 && delta_utility > 0) {
+                return delta_utility / delta_duration;
+            } else {
+                return 0.;
+            }
         }
 
         /** Picks an observation randomly and generates a move that inserts it into the best looking location. */
