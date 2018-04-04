@@ -60,7 +60,7 @@ namespace SAOP {
         utility_recomp_request = true;
     }
 
-    json Plan::metadata()  {
+    json Plan::metadata() {
         json j;
         j["duration"] = duration();
         j["utility"] = utility();
@@ -258,36 +258,69 @@ namespace SAOP {
 
         // Set-up a priority queue
         auto time_cell_comp = [this](Cell a, Cell b) -> bool {
-            return (*this).fire_data->ignitions(a) > (*this).fire_data->ignitions(b);
+            // Use "less" to get the lowset ignition time on top of the queue
+            return (*this).fire_data->ignitions(a) < (*this).fire_data->ignitions(b);
         };
         typedef std::priority_queue<Cell, vector<Cell>, decltype(time_cell_comp)> TimeCellPriorityQueue;
         auto prop_q = TimeCellPriorityQueue(time_cell_comp, vector<Cell>());
+
+        // Utility map value is expressed in terms of utility to be recolted.
+        // 0 meaning then that all the utility has been acquired by the UAVs
+
+        // ugain_of_cell gives the utility value that has to be *substracted* from the U map.
+        // Returns max_utility if fdc is the maximum front duration (slow moving front not very interesting)
+        // and min_utility if fdc is the minimum front duration (fast moving front -> more interesing)
+        auto u_of_cell = [this](const Cell& c, double max_utility, double min_utility) {
+            double fdc = this->fire_data->front_duration(c);
+            double Mfd = this->fire_data->max_front_duration();
+            double mfd = this->fire_data->min_front_duration();
+
+            if (!isnan(fdc)) {
+                // fdc ~ mfd : u = MIN_UTILITY = 0
+                // fdc ~ Mfd : u = MAX_UTILITY = 1
+                return ((fdc - mfd) / (Mfd - mfd) * (max_utility - min_utility)) + min_utility;
+            } else {
+                return max_utility; // Let's say 1... There is no interest then on going there
+            }
+        };
 
         // Init u_map and propagation queue with observed cells
         for (const PositionTime& obs : observations_full()) {
             Cell obs_cell = u_map.as_cell(obs.pt);
             prop_q.push(obs_cell);
+
+            auto a = u_of_cell(obs_cell, MAX_UTILITY, MIN_UTILITY);
+
             u_map.set(obs_cell, MIN_UTILITY);
         }
 
-        double U_INC = 0.25;
+        double U_SPREAD_FACTOR = 1.;
 
-        // Propagate utility
+
+        // Propagate utility using BFS
+        // TODO: try DFS?
         while (!prop_q.empty()) {
             auto a_cell = prop_q.top();
             prop_q.pop();
 
+            double a_u = 1 - (u_of_cell(a_cell, MAX_UTILITY - .1, MIN_UTILITY));
+            double U_INC = U_SPREAD_FACTOR * a_u;
             auto neig_c = u_map.neighbor_cells(a_cell);
             for (auto& n_cell: neig_c) {
                 // Discard not observable neighbors
                 if (isnan(u_map(n_cell))) { continue; }
-                // Discard older neighbors
+                // Do not go backwards in time
                 if (fire_data->ignitions(n_cell) < fire_data->ignitions(a_cell)) { continue; }
-                // Discard neighbors that already have lower utility
+                // Do not make utility worse in utility
                 if (u_map(n_cell) <= u_map(a_cell) + U_INC) { continue; }
 
                 // Apply utility degradation
-                u_map.set(n_cell, u_map(a_cell) + U_INC);
+                if (n_cell.x == a_cell.x || n_cell.y == a_cell.y) {
+                    u_map.set(n_cell, u_map(a_cell) + U_INC);
+                } else {
+                    // If corner neighbor
+                    u_map.set(n_cell, u_map(a_cell) + U_INC * M_SQRT1_2);
+                }
 
                 if (u_map(n_cell) < MAX_UTILITY) {
                     prop_q.push(n_cell);
