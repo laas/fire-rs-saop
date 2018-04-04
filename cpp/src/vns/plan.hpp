@@ -84,7 +84,7 @@ namespace SAOP {
 
         /* Replace plan firedata */
         void firedata(shared_ptr<FireData> fdata) {
-            fire_data = fdata;
+            fire_data = std::move(fdata);
             utility_recomp_request = true;
         }
 
