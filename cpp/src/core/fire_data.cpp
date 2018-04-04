@@ -190,4 +190,40 @@ namespace SAOP {
         return pd;
     }
 
+    opt<Cell> FireData::next_in_propagation_direction(const Cell& cell) const {
+        double dir = positive_modulo(propagation_directions(cell), 2 * M_PI);
+
+        /** Make it discrete, a value of 0<= N <8 means the angle was rounded to N*PI/4 */
+        long discrete_dir = lround(dir / (M_PI / 4));
+        ASSERT(discrete_dir >= 0 && discrete_dir <= 8);
+        discrete_dir = discrete_dir % 8;  // 2PI == 0
+
+        // compute relative coordinates of the cell in the main fire direction.
+        int dx = -100;
+        if (discrete_dir == 0 || discrete_dir == 1 || discrete_dir == 7)
+            dx = 1;
+        else if (discrete_dir == 3 || discrete_dir == 4 || discrete_dir == 5)
+            dx = -1;
+        else
+            dx = 0;
+
+        int dy = -100;
+        if (discrete_dir == 1 || discrete_dir == 2 || discrete_dir == 3)
+            dy = 1;
+        else if (discrete_dir == 5 || discrete_dir == 6 || discrete_dir == 7)
+            dy = -1;
+        else
+            dy = 0;
+
+        ASSERT(dx >= -1 && dx <= 1);
+        ASSERT(dy >= -1 && dy <= 1);
+        Cell next_cell{cell.x + dx, cell.y + dy};
+        // move towards propagation direction
+        if (!eventually_ignited(cell)) { return {}; }
+        if (!ignitions.is_in(next_cell) || ignitions(cell) > ignitions(next_cell)) {
+            // ignitions are not growing, we are in strange geometrical pattern inducing a local maximum, abandon
+            return {};
+        }
+        return next_cell;
+    }
 }

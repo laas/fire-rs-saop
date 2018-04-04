@@ -108,6 +108,9 @@ namespace SAOP {
             return ignitions(cell) < numeric_limits<double>::max() / 2;
         }
 
+        /* Given a cell, get the next cell following the main propagation direction.*/
+        opt<Cell> next_in_propagation_direction(const Cell& cell) const;
+
         /** Lookup a cell that ignited at `time`. Returns an empty option if no such cell was found. */
         opt<Cell> project_on_fire_front(const Cell& cell, double time) const;
 
