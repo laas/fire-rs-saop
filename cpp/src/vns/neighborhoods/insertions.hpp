@@ -84,7 +84,7 @@ namespace SAOP {
     private:
         /** this move is better than another if it has a significantly better cost or if it has a similar cost but a strictly better duration */
         bool is_better_than(LocalMove& first, LocalMove& other) {
-            return localmove_efficiency(first) > localmove_efficiency(other) && first.utility() < other.utility();
+            return localmove_efficiency(first) > localmove_efficiency(other) && (first.utility() + 1) < other.utility();
         }
 
         double localmove_efficiency(LocalMove& localmove) {
