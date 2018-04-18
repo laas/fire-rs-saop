@@ -56,7 +56,7 @@ set(PLANNING_SOURCE_FILES
 set(NEPTUSINTERFACE_SOURCE_FILES
         src/ext/coordinates.hpp
         src/neptus/imc_message_factories.hpp
-        src/neptus/saop_neptus.hpp
+        src/neptus/saop_to_dune.hpp
         )
 
 set(MAPPING_SOURCE_FILES

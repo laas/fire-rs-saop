@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
 
-#include "neptus/saop_neptus.hpp"
+#include "neptus/saop_to_dune.hpp"
 
 
 namespace py = pybind11;
