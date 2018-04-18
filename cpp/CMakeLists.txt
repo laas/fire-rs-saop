@@ -57,6 +57,7 @@ set(NEPTUSINTERFACE_SOURCE_FILES
         src/ext/coordinates.hpp
         src/neptus/imc_message_factories.hpp
         src/neptus/saop_to_dune.hpp
+        src/neptus/saop_server.cpp
         )
 
 set(MAPPING_SOURCE_FILES
@@ -99,6 +100,17 @@ IF (WITH_IMC_INTERFACE)
             )
     target_link_libraries(imc_client
             libimc
+            ${Boost_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT}
+            )
+
+
+    add_executable(saop_neptus_server
+            src/neptus/saop_server.cpp
+            )
+    target_link_libraries(saop_neptus_server
+            libimc
+            saopcore
             ${Boost_LIBRARIES}
             ${CMAKE_THREAD_LIBS_INIT}
             )
