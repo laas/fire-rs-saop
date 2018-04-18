@@ -379,8 +379,9 @@ def generate_nowind_scenario():
     num_flights = random.randint(1, 4)
     flights = []
     for i in range(num_flights):
-        uav_start = random.uniform(start+3000, start + 3001.)
+        uav_start = random.uniform(start+6000, start + 6001.)
         uav = UAVConf.X8()
+        uav.max_flight_time/=6;
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
                                   (0., 0.)))
 
