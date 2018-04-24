@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <mutex>
 #include <queue>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <boost/asio.hpp>
@@ -83,17 +84,21 @@ namespace SAOP {
 
         using boost::asio::ip::tcp;
 
-        class IMCServerTCP {
+        class IMCTransportTCP {
         private:
             unsigned short port;
 
-            std::function<void(IMC::Message&)> recv_handler;
+            std::function<void(std::unique_ptr<IMC::Message>)> recv_handler;
             std::shared_ptr<IMCMessageQueue> send_q;
-        public:
 
-            explicit IMCServerTCP(unsigned short port, std::function<void(IMC::Message&)> recv_handler,
-                                  std::shared_ptr<IMCMessageQueue> send_queue)
-                    : port(port), recv_handler(std::move(recv_handler)), send_q(std::move(send_queue)) {}
+        public:
+            explicit IMCTransportTCP(unsigned short port)
+                    : port(port), recv_handler(nullptr), send_q(std::make_shared<IMCMessageQueue>()) {}
+
+            explicit IMCTransportTCP(unsigned short port,
+                                     std::function<void(std::unique_ptr<IMC::Message>)> recv_handler)
+                    : port(port), recv_handler(std::move(recv_handler)), send_q(std::make_shared<IMCMessageQueue>()) {}
+
 
             void run() {
                 try {
@@ -101,7 +106,7 @@ namespace SAOP {
                         boost::asio::io_service io_service;
                         tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), port));
                         std::shared_ptr<tcp::socket> sock(new tcp::socket(io_service));
-                        std::cout << "waiting to accept connection" << std::endl;
+                        std::cout << "Waiting for an incoming connection" << std::endl;
                         tcp::endpoint client_endpoint;
                         a.accept(*sock, client_endpoint);
                         std::cout << "Accepting connection from " << client_endpoint << std::endl;
@@ -116,7 +121,6 @@ namespace SAOP {
             void session(std::shared_ptr<tcp::socket> sock) {
                 try {
                     std::cout << "Connected" << std::endl;
-
                     IMC::Parser parser = IMC::Parser();
                     IMC::ByteBuffer bb;
 
@@ -136,26 +140,29 @@ namespace SAOP {
                         while (delta < length) {
                             auto hb = parser.parse(*(bb.getBuffer() + delta));
                             if (hb != nullptr) {
-                                std::cout << hb->getName() << std::endl;
-                                recv_handler(*hb);
+                                std::cout << "recv ";
+                                size_t ser_size = hb->getSerializationSize();
+                                if (recv_handler) {
+                                    recv_handler(std::move(std::unique_ptr<IMC::Message>(hb)));
+                                } else {
+                                    std::cerr << "recv_handler not set. Received messages are being discarded."
+                                              << std::endl;
+                                }
                                 // Advance buffer cursor past the end of serialized hb.
-                                delta += hb->getSerializationSize();
+                                delta += ser_size;
                             } else {
                                 delta++;
                             }
                         }
 
                         std::unique_ptr<IMC::Message> m = nullptr;
-                        while(send_q->pop(m)) {
-                            m->setSource(24290);
-                            m->setSourceEntity(8);
-                            m->setDestination(3088);
-                            m->setDestinationEntity(2);
-                            m->setTimeStamp();
-
+                        while (send_q->pop(m)) {
                             IMC::ByteBuffer serl_b = IMC::ByteBuffer(65535);
                             size_t n_bytes = IMC::Packet::serialize(m.get(), serl_b);
-                            std::cout << "Sending: " << m->getName() << std::endl;
+                            std::cout << "send " << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
+                                      << "from(" << m->getSource() << ", " << static_cast<uint>(m->getSourceEntity())
+                                      << ") " << "to(" << m->getDestination() << ", "
+                                      << static_cast<uint>(m->getDestinationEntity()) << ")" << std::endl;
                             boost::asio::write(*sock, boost::asio::buffer(serl_b.getBuffer(), n_bytes));
                         }
                     }
@@ -164,6 +171,58 @@ namespace SAOP {
                     std::cerr << "Exception in thread: " << e.what() << "\n";
                 }
             }
+
+            void set_recv_handler(std::function<void(std::unique_ptr<IMC::Message>)> a_recv_handler) {
+                recv_handler = std::move(a_recv_handler);
+            }
+
+            /*Enqueue message to be sent*/
+            void send(std::unique_ptr<IMC::Message> message) {
+                send_q->push(std::move(message));
+            }
+        };
+
+        class IMCCommManager {
+            IMCTransportTCP tcp_server;
+
+            std::shared_ptr<IMCMessageQueue> recv_q;
+            std::shared_ptr<IMCMessageQueue> send_q;
+
+        public:
+
+            explicit IMCCommManager() :
+                    tcp_server(IMCTransportTCP(8888)),
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
+                    send_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+
+            explicit IMCCommManager(IMCTransportTCP tcp_server) :
+                    tcp_server(std::move(tcp_server)),
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
+                    send_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+
+            void run() {
+                tcp_server.set_recv_handler(std::bind(&IMCCommManager::handle_message, this, std::placeholders::_1));
+                auto t = std::thread(std::bind(&IMCTransportTCP::run, tcp_server));
+                for (;;) {};
+            }
+
+        private:
+            void handle_message(std::unique_ptr<IMC::Message> m) {
+                std::cout << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
+                          << "from(" << m->getSource() << ", " << static_cast<uint>(m->getSourceEntity()) << ") "
+                          << "to(" << m->getDestination() << ", " << static_cast<uint>(m->getDestinationEntity()) << ")"
+                          << std::endl;
+                if (m->getId() == IMC::Factory::getIdFromAbbrev("Heartbeat")) {
+                    // Reply with another heartbeat
+                    auto m_hb = std::unique_ptr<IMC::Message>(IMC::Factory::produce("Heartbeat"));
+                    m_hb->setSource(0);
+                    m_hb->setSourceEntity(0);
+                    m_hb->setDestination(0xFFFF);
+                    m_hb->setDestinationEntity(0xFF);
+                    tcp_server.send(std::move(m));
+                }
+            }
+
         };
     }
 }
@@ -194,22 +253,28 @@ void user_input_loop(std::shared_ptr<SAOP::neptus::IMCMessageQueue> send_q) {
 
 
 int main() {
-    std::function<void(IMC::Message&)> recv_handler = [](IMC::Message& m) {
-        std::cout << "Received: " << m.getSource() << " " << static_cast<uint>(m.getSourceEntity()) << " "
-                  << m.getDestination() << " " << static_cast<uint>(m.getDestinationEntity()) << std::endl;
+    std::function<void(std::unique_ptr<IMC::Message>)> recv_handler = [](std::unique_ptr<IMC::Message> m) {
+        std::cout << "Received: " << m->getSource() << " " << static_cast<uint>(m->getSourceEntity()) << " "
+                  << m->getDestination() << " " << static_cast<uint>(m->getDestinationEntity()) << std::endl;
     };
 
-    auto send_q = std::make_shared<SAOP::neptus::IMCMessageQueue>();
 
-    SAOP::neptus::IMCServerTCP s(8888, recv_handler, send_q);
+//    SAOP::neptus::IMCTransportTCP s(8888, recv_handler);
 
-    auto plan_spec_message = SAOP::neptus::PlanSpecificationFactory::make_message();
-    auto a_plan = SAOP::neptus::PlanControlFactory::make_load_plan_message(plan_spec_message, 12345);
-    send_q->push(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
-//    s.run();
+//    auto plan_spec_message = SAOP::neptus::PlanSpecificationFactory::make_message();
+//    auto a_plan = SAOP::neptus::PlanControlFactory::make_load_plan_message(plan_spec_message, 12345);
+////    send_q->push(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
+////    s.run();
 
-    boost::thread t(boost::bind(&SAOP::neptus::IMCServerTCP::run, s));
-    user_input_loop(send_q);
+//    boost::thread t(boost::bind(&SAOP::neptus::IMCTransportTCP::run, s));
+
+    SAOP::neptus::IMCCommManager imc_comm = SAOP::neptus::IMCCommManager();
+
+    auto t = std::thread(std::bind(&SAOP::neptus::IMCCommManager::run, imc_comm));
+
+//    imc_comm.run();
+
+//    user_input_loop(send_q);
     t.join();
 }
 
