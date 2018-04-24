@@ -49,14 +49,38 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
-//    template<typename T>
-//    class SharedQueue<T> {
-//        std::queue<T> q;
-//        std::mutex m;
-//    };
+    template<typename T>
+    class SharedQueue {
+        std::queue<T> q;
+        std::mutex m;
 
+    public:
+        SharedQueue<T>() = default;
+
+        /* Retrieve the first element
+         * returns true if the queue wasn't empty and false otherwise.*/
+        bool pop(T& x) {
+            std::lock_guard<std::mutex> lock(m);
+            if (!q.empty()) {
+                x = std::move(q.front());
+                q.pop();
+                return true;
+            }
+            return false;
+        }
+
+        /*Put an element at the end of the queue*/
+        void push(T&& x) {
+            std::lock_guard<std::mutex> lock(m);
+            q.push(std::move(x));
+        }
+
+    };
 
     namespace neptus {
+
+        typedef SharedQueue<std::unique_ptr<IMC::Message>> IMCMessageQueue;
+
         using boost::asio::ip::tcp;
 
         class IMCServerTCP {
@@ -64,11 +88,11 @@ namespace SAOP {
             unsigned short port;
 
             std::function<void(IMC::Message&)> recv_handler;
-            std::shared_ptr<std::queue<std::unique_ptr<IMC::Message>>> send_q;
+            std::shared_ptr<IMCMessageQueue> send_q;
         public:
 
             explicit IMCServerTCP(unsigned short port, std::function<void(IMC::Message&)> recv_handler,
-                                  std::shared_ptr<std::queue<std::unique_ptr<IMC::Message>>> send_queue)
+                                  std::shared_ptr<IMCMessageQueue> send_queue)
                     : port(port), recv_handler(std::move(recv_handler)), send_q(std::move(send_queue)) {}
 
             void run() {
@@ -111,10 +135,8 @@ namespace SAOP {
                             delta++;
                         }
 
-                        while (!send_q->empty()) {
-                            std::unique_ptr<IMC::Message> m = std::move(send_q->front());
-                            send_q->pop();
-
+                        std::unique_ptr<IMC::Message> m = nullptr;
+                        while(send_q->pop(m)) {
                             m->setSource(24290);
                             m->setSourceEntity(8);
                             m->setDestination(3088);
@@ -123,7 +145,7 @@ namespace SAOP {
 
                             IMC::ByteBuffer serl_b = IMC::ByteBuffer(65535);
                             size_t n_bytes = IMC::Packet::serialize(m.get(), serl_b);
-                                std::cout << "Sending: " << m->getName() << std::endl;
+                            std::cout << "Sending: " << m->getName() << std::endl;
                             boost::asio::write(*sock, boost::asio::buffer(serl_b.getBuffer(), n_bytes));
                         }
                     }
@@ -137,7 +159,7 @@ namespace SAOP {
 }
 
 
-void user_input_loop(std::shared_ptr<std::queue<std::unique_ptr<IMC::Message>>> send_q) {
+void user_input_loop(std::shared_ptr<SAOP::neptus::IMCMessageQueue> send_q) {
     bool exit = false;
     auto plan_spec_message = SAOP::neptus::PlanSpecificationFactory::make_message();
 
@@ -150,10 +172,10 @@ void user_input_loop(std::shared_ptr<std::queue<std::unique_ptr<IMC::Message>>> 
             exit = !exit;
         } else if (u_input == "lp") {
             auto a_plan = SAOP::neptus::PlanControlFactory::make_load_plan_message(plan_spec_message, 12345);
-            send_q->emplace(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
+            send_q->push(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
         } else if (u_input == "sp") {
             auto a_plan = SAOP::neptus::PlanControlFactory::make_start_plan_message(plan_spec_message.plan_id);
-            send_q->emplace(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
+            send_q->push(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
         } else {
             std::cout << "Wrong command" << std::endl;
         }
@@ -167,13 +189,13 @@ int main() {
                   << m.getDestination() << " " << static_cast<uint>(m.getDestinationEntity()) << std::endl;
     };
 
-    auto send_q = std::make_shared<std::queue<std::unique_ptr<IMC::Message>>>();
+    auto send_q = std::make_shared<SAOP::neptus::IMCMessageQueue>();
 
     SAOP::neptus::IMCServerTCP s(8888, recv_handler, send_q);
 
     auto plan_spec_message = SAOP::neptus::PlanSpecificationFactory::make_message();
     auto a_plan = SAOP::neptus::PlanControlFactory::make_load_plan_message(plan_spec_message, 12345);
-    send_q->emplace(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
+    send_q->push(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
 //    s.run();
 
     boost::thread t(boost::bind(&SAOP::neptus::IMCServerTCP::run, s));
