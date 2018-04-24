@@ -123,7 +123,7 @@ namespace SAOP {
                     for (;;) {
                         // TCP stream reception
                         bb = IMC::ByteBuffer(65535);
-                        bb.setSize(1024);
+                        bb.setSize(65535);
                         boost::system::error_code error;
                         size_t length = sock->read_some(boost::asio::buffer(bb.getBuffer(), bb.getSize()), error);
                         if (error == boost::asio::error::eof)
@@ -138,8 +138,11 @@ namespace SAOP {
                             if (hb != nullptr) {
                                 std::cout << hb->getName() << std::endl;
                                 recv_handler(*hb);
+                                // Advance buffer cursor past the end of serialized hb.
+                                delta += hb->getSerializationSize();
+                            } else {
+                                delta++;
                             }
-                            delta++;
                         }
 
                         std::unique_ptr<IMC::Message> m = nullptr;
