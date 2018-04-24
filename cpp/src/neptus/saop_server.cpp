@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <mutex>
 #include <queue>
 #include <string>
@@ -140,7 +141,7 @@ namespace SAOP {
                         while (delta < length) {
                             auto hb = parser.parse(*(bb.getBuffer() + delta));
                             if (hb != nullptr) {
-                                std::cout << "recv ";
+//                                std::cout << "recv ";
                                 size_t ser_size = hb->getSerializationSize();
                                 if (recv_handler) {
                                     recv_handler(std::move(std::unique_ptr<IMC::Message>(hb)));
@@ -176,51 +177,97 @@ namespace SAOP {
                 recv_handler = std::move(a_recv_handler);
             }
 
-            /*Enqueue message to be sent*/
+            /* Enqueue message to be sent */
             void send(std::unique_ptr<IMC::Message> message) {
                 send_q->push(std::move(message));
             }
         };
 
+        /* TODO: Enable shared_from_this ? */
         class IMCCommManager {
             IMCTransportTCP tcp_server;
 
             std::shared_ptr<IMCMessageQueue> recv_q;
-            std::shared_ptr<IMCMessageQueue> send_q;
+
+            std::map<size_t, std::function<void(std::unique_ptr<IMC::Message>)>> message_bindings;
 
         public:
 
             explicit IMCCommManager() :
                     tcp_server(IMCTransportTCP(8888)),
-                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
-                    send_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
 
             explicit IMCCommManager(IMCTransportTCP tcp_server) :
                     tcp_server(std::move(tcp_server)),
-                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
-                    send_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
 
             void run() {
-                tcp_server.set_recv_handler(std::bind(&IMCCommManager::handle_message, this, std::placeholders::_1));
+                tcp_server.set_recv_handler(std::bind(&IMCCommManager::message_inbox, this, std::placeholders::_1));
+
+                // Demo HeartBeat handler
+                bind(IMC::Factory::getIdFromAbbrev("Heartbeat"), [this] (std::unique_ptr<IMC::Message> m) {
+                    auto answer = std::unique_ptr<IMC::Message>(IMC::Factory::produce(IMC::Factory::getIdFromAbbrev("Heartbeat")));
+                    answer->setSource(0);
+                    answer->setSourceEntity(0);
+                    answer->setDestination(0xFFFF);
+                    answer->setDestinationEntity(0xFF);
+                    this->send(std::move(answer));
+                });
+
                 auto t = std::thread(std::bind(&IMCTransportTCP::run, tcp_server));
-                for (;;) {};
+                message_dispatching_loop();
             }
 
+            /* Enqueue message to be sent */
+            void send(std::unique_ptr<IMC::Message> message) {
+                tcp_server.send(std::move(message));
+            }
+
+            /* Bind a message id to a handler function */
+            void bind(size_t id, std::function<void(std::unique_ptr<IMC::Message>)> message_handler) {
+                message_bindings[id] = std::move(message_handler);
+            }
+
+//            /*Bind a message id to a handler function*/
+//            template<typename T>
+//            void bind<T>(uint16_t id, std::function<void(std::unique_ptr<T>)> message_handler) {
+//                message_bindings[id] = std::move(message_handler);
+//            }
+
         private:
-            void handle_message(std::unique_ptr<IMC::Message> m) {
-                std::cout << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
-                          << "from(" << m->getSource() << ", " << static_cast<uint>(m->getSourceEntity()) << ") "
-                          << "to(" << m->getDestination() << ", " << static_cast<uint>(m->getDestinationEntity()) << ")"
-                          << std::endl;
-                if (m->getId() == IMC::Factory::getIdFromAbbrev("Heartbeat")) {
-                    // Reply with another heartbeat
-                    auto m_hb = std::unique_ptr<IMC::Message>(IMC::Factory::produce("Heartbeat"));
-                    m_hb->setSource(0);
-                    m_hb->setSourceEntity(0);
-                    m_hb->setDestination(0xFFFF);
-                    m_hb->setDestinationEntity(0xFF);
-                    tcp_server.send(std::move(m));
+            void message_dispatching_loop() {
+                try {
+                    for (;;) {
+                        std::unique_ptr<IMC::Message> m = nullptr;
+                        while (recv_q->pop(m)) {
+                            try {
+                                auto hnld_fun = message_bindings.at(m->getId());
+                                std::cout << m->getName()
+                                          << "(" << static_cast<uint>(m->getId()) << "): "
+                                          << "from(" << m->getSource() << ", "
+                                          << static_cast<uint>(m->getSourceEntity()) << ") "
+                                          << "to(" << m->getDestination() << ", "
+                                          << static_cast<uint>(m->getDestinationEntity()) << ")"
+                                          << std::endl;
+                                hnld_fun(std::move(m));
+                            } catch (const std::out_of_range& e) {
+                                std::cerr << "UNHANDLED " << m->getName()
+                                          << "(" << static_cast<uint>(m->getId()) << "): "
+                                          << "from(" << m->getSource() << ", "
+                                          << static_cast<uint>(m->getSourceEntity()) << ") "
+                                          << "to(" << m->getDestination() << ", "
+                                          << static_cast<uint>(m->getDestinationEntity()) << ")"
+                                          << std::endl;
+                            }
+                        }
+                    }
+                } catch (...) {
+
                 }
+            }
+
+            void message_inbox(std::unique_ptr<IMC::Message> m) {
+                recv_q->push(std::move(m));
             }
 
         };
