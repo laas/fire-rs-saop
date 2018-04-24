@@ -96,13 +96,20 @@ namespace SAOP {
                     : port(port), recv_handler(std::move(recv_handler)), send_q(std::move(send_queue)) {}
 
             void run() {
-                for (;;) {
-                    boost::asio::io_service io_service;
-                    tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), port));
-                    std::shared_ptr<tcp::socket> sock(new tcp::socket(io_service));
-                    std::cout << "waiting to accept connection" << std::endl;
-                    a.accept(*sock);
-                    boost::thread t(boost::bind(&IMCServerTCP::session, this, std::move(sock)));
+                try {
+                    for (;;) {
+                        boost::asio::io_service io_service;
+                        tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), port));
+                        std::shared_ptr<tcp::socket> sock(new tcp::socket(io_service));
+                        std::cout << "waiting to accept connection" << std::endl;
+                        tcp::endpoint client_endpoint;
+                        a.accept(*sock, client_endpoint);
+                        std::cout << "Accepting connection from " << client_endpoint << std::endl;
+                        //boost::thread t(boost::bind(&IMCServerTCP::session, this, std::move(sock)));
+                        session(std::move(sock));
+                    }
+                } catch (...) {
+
                 }
             }
 
