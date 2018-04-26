@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_SAOP_SERVER_HPP
 
 #include <array>
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <functional>
@@ -46,6 +47,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/Heartbeat.hpp"
 #include "../../IMC/Spec/PlanControl.hpp"
 #include "../../IMC/Spec/PlanControlState.hpp"
+
+#include "../vns/plan.hpp"
 
 #include "imc_message_factories.hpp"
 
@@ -168,6 +171,70 @@ namespace SAOP {
                 recv_q->push(std::move(m));
             }
 
+        };
+
+        enum class PlanExecutionState {
+            Executing, // Plan is still running
+            Success, // Plan successfully executed
+            Failure, // Plan execution failed
+        };
+
+        class PlanExecutionReport {
+            // Summary of IMC::PlanControlState
+            std::chrono::system_clock::time_point timestamp;
+            std::string plan_id;
+            PlanExecutionState state;
+            // TODO: current maneuver
+            // TODO: ETA
+        };
+
+        class UAVStateReport {
+            // Summary of IMC::EstimatedState
+            uint16_t id;
+            double lat;
+            double lon;
+            double height;
+            double phi;
+            double theta;
+            double psi;
+            double vx;
+            double vy;
+            double vz;
+        };
+
+        /* Command and supervise plan execution */
+        class PlanExecutionManager {
+        public:
+            PlanExecutionManager() : imc_comm(std::make_shared<IMCCommManager>()) { imc_comm->run(); }
+//
+//            explicit PlanExecutionManager(std::function<void(PlanExecutionReport per)> plan_report_cb,
+//                                          std::function<void(UAVStateReport usr)> uav_report_cb)
+//                    : PlanExecutionManager(),
+//                      plan_report_handler(std::move(plan_report_cb)),
+//                      uav_report_handler(std::move(uav_report_cb)) {}
+
+            /* Setup, and run inmediately, a SAOP plan
+             * (Not blocking) */
+            void execute_plan(const Plan& plan) {}
+
+            /* Stop the plan currently being executed */
+            void stop_plan() {}
+
+        private:
+            std::shared_ptr<IMCCommManager> imc_comm;
+            std::thread exec_thread;
+
+            /* Function to be called periodically during execution, carrying plan execution reports */
+            std::function<void(PlanExecutionReport per)> plan_report_handler;
+
+            /* Function to be called periodically with UAV state information*/
+            std::function<void(UAVStateReport per)> uav_report_handler;
+
+
+            std::vector<std::tuple<uint16_t, std::string>> available_uavs = {{0x0c0c, "x8-02"},
+                                                                             {0x0c10, "x8-06"}};
+
+            void plan_execution_loop();
         };
     }
 }
