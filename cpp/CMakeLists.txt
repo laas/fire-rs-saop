@@ -55,6 +55,8 @@ set(PLANNING_SOURCE_FILES
 
 set(NEPTUSINTERFACE_SOURCE_FILES
         src/ext/coordinates.hpp
+        src/neptus/imc_comm.cpp
+        src/neptus/imc_comm.hpp
         src/neptus/imc_message_factories.hpp
         src/neptus/saop_to_dune.hpp
         src/neptus/saop_server.cpp
@@ -107,7 +109,8 @@ IF (WITH_IMC_INTERFACE)
 
 
     add_executable(saop_neptus_server
-            src/neptus/saop_server.cpp
+            ${NEPTUSINTERFACE_SOURCE_FILES}
+            src/neptus/main.cpp
             )
     target_link_libraries(saop_neptus_server
             libimc
