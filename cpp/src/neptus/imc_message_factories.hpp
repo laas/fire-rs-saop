@@ -47,6 +47,17 @@ namespace SAOP {
 
     namespace neptus {
 
+        template<typename M>
+        std::unique_ptr<M> produce_unique(uint16_t src, uint8_t src_ent, uint16_t dst, uint8_t dst_ent) {
+            auto m = std::unique_ptr<M>(new M());
+            m->setTimeStamp();
+            m->setSource(src);
+            m->setSourceEntity(src_ent);
+            m->setDestination(dst);
+            m->setDestinationEntity(dst_ent);
+            return m;
+        }
+
         class StartActionsFactory {
         public:
             static IMC::MessageList<IMC::Message> make_message() {

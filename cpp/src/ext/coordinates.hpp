@@ -45,7 +45,7 @@ namespace SAOP {
         //! Flattening.
         static const double c_wgs84_f = 0.0033528106647475;
 
-        void toWGS84(double north, double east, int zone, bool in_north_hem, double* lat, double* lon) {
+        static void toWGS84(double north, double east, int zone, bool in_north_hem, double* lat, double* lon) {
             double c_k0 = 0.9996;
             double c_ref_easting = 500000;
 
@@ -119,7 +119,7 @@ namespace SAOP {
             *lon = olam + dlam;
         }
 
-        void fromWGS84(double lat, double lon, double* north, double* east, int* zone, bool* in_north_hem) {
+        static void fromWGS84(double lat, double lon, double* north, double* east, int* zone, bool* in_north_hem) {
             double c_k0 = 0.9996; // scale on central meridian
             double c_ref_easting = 500000; // false easting
 

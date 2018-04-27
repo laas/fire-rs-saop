@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_SAOP_SERVER_HPP
 
 #include <array>
+#include <condition_variable>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -47,6 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "imc_comm.hpp"
 #include "imc_message_factories.hpp"
+#include "geography.hpp"
 
 namespace SAOP {
 
@@ -63,41 +65,49 @@ namespace SAOP {
             std::chrono::system_clock::time_point timestamp;
             std::string plan_id;
             PlanExecutionState state;
+            std::vector<std::string> vehicles;
             // TODO: current maneuver
             // TODO: ETA
         };
 
         class UAVStateReport {
             // Summary of IMC::EstimatedState
-            uint16_t id;
-            double lat;
-            double lon;
-            double height;
-            double phi;
-            double theta;
-            double psi;
-            double vx;
-            double vy;
-            double vz;
+            uint16_t id; // UAV id
+            double lat; // WGS84 latitude (rad)
+            double lon; // WGS84 longitude (rad)
+            double height; // WGS84 altitude asl (m)
+            double phi; // Roll (rad)
+            double theta; // Pitch (rad)
+            double psi; // Yaw (rad)
+            double vx; // North (x) ground speed (m/s)
+            double vy; // East (y) ground speed (m/s)
+            double vz; // Down (z) ground speed (m/s)
         };
 
         /* Command and supervise plan execution */
         class PlanExecutionManager {
         public:
-            PlanExecutionManager() : imc_comm(std::make_shared<IMCCommManager>()) { imc_comm->run(); }
-//
-//            explicit PlanExecutionManager(std::function<void(PlanExecutionReport per)> plan_report_cb,
-//                                          std::function<void(UAVStateReport usr)> uav_report_cb)
-//                    : PlanExecutionManager(),
-//                      plan_report_handler(std::move(plan_report_cb)),
-//                      uav_report_handler(std::move(uav_report_cb)) {}
+            explicit PlanExecutionManager(std::shared_ptr<IMCCommManager> imc) :
+                    PlanExecutionManager(std::move(imc), nullptr, nullptr) {}
+
+            PlanExecutionManager(std::shared_ptr<IMCCommManager> imc,
+                                 std::function<void(PlanExecutionReport per)> plan_report_cb,
+                                 std::function<void(UAVStateReport usr)> uav_report_cb)
+                    : imc_comm(std::move(imc)),
+                      plan_report_handler(std::move(plan_report_cb)),
+                      uav_report_handler(std::move(uav_report_cb)) {}
 
             /* Setup, and run inmediately, a SAOP plan
              * (Not blocking) */
-            void execute_plan(const Plan& plan) {}
+            void execute(const Plan& plan);
 
-            /* Stop the plan currently being executed */
-            void stop_plan() {}
+            /* Stop the plan currently being executed. */
+            void stop();
+
+            /* Return true if this PlanExecutionManager is not active. */
+            bool is_active() {
+                return exec_thread.joinable();
+            }
 
         private:
             std::shared_ptr<IMCCommManager> imc_comm;
@@ -105,16 +115,20 @@ namespace SAOP {
 
             /* Function to be called periodically during execution, carrying plan execution reports */
             std::function<void(PlanExecutionReport per)> plan_report_handler;
-
             /* Function to be called periodically with UAV state information*/
-            std::function<void(UAVStateReport per)> uav_report_handler;
-
+            std::function<void(UAVStateReport usr)> uav_report_handler;
 
             std::vector<std::tuple<uint16_t, std::string>> available_uavs = {{0x0c0c, "x8-02"},
                                                                              {0x0c10, "x8-06"}};
 
-            void plan_execution_loop();
+            std::string plan_id = "saop_plan"; // TODO: make customizable?
+            const static uint16_t req_id_stop = 0x570D;
+
+            IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory);
+
+            void plan_execution_loop(IMC::PlanSpecification imc_plan);
         };
+
     }
 }
 

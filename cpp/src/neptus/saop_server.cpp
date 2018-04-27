@@ -28,5 +28,55 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "saop_server.hpp"
 
 
+namespace SAOP {
 
+    namespace neptus {
+
+
+        void PlanExecutionManager::execute(const Plan& plan) {
+            auto ps_message = plan_specification(plan, 0);
+            exec_thread = std::thread(std::bind(&PlanExecutionManager::plan_execution_loop,
+                                                this, ps_message));
+        }
+
+        void PlanExecutionManager::stop() {
+            auto pc_stop = produce_unique<IMC::PlanControl>(0, 0, 0xFFFF, 0xFF);
+
+            pc_stop->plan_id = plan_id;
+            pc_stop->type = IMC::PlanControl::TypeEnum::PC_REQUEST;
+            pc_stop->op = IMC::PlanControl::OperationEnum::PC_STOP;
+            pc_stop->request_id = req_id_stop;
+
+            this->imc_comm->send(std::move(pc_stop));
+        }
+
+        IMC::PlanSpecification
+        PlanExecutionManager::plan_specification(const Plan& saop_plan, size_t trajectory) {
+
+            const auto& t = saop_plan.trajectories()[trajectory];
+
+            auto wp = t.as_waypoints();
+
+            // Remove bases
+            auto r_start = wp.begin();
+            auto r_end = wp.end();
+            if (t.conf().start_position && wp.front() == *t.conf().start_position) {
+                r_start++;
+            }
+            if (t.conf().end_position && wp.back() == *t.conf().end_position) {
+                r_end--;
+            }
+            auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
+
+            auto wp_wgs84 = WGS84_waypoints(wp_filtered, Position(690487, 4636304));
+
+            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84);
+        }
+
+        void PlanExecutionManager::plan_execution_loop(IMC::PlanSpecification imc_plan) {
+
+
+        }
+    }
+}
 #endif //PLANNING_CPP_SAOP_NEPTUS_H

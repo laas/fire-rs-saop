@@ -58,6 +58,7 @@ set(NEPTUSINTERFACE_SOURCE_FILES
         src/neptus/imc_comm.cpp
         src/neptus/imc_comm.hpp
         src/neptus/imc_message_factories.hpp
+        src/neptus/geography.hpp
         src/neptus/saop_to_dune.hpp
         src/neptus/saop_server.cpp
         src/neptus/saop_server.hpp
