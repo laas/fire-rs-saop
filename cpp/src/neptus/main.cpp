@@ -75,7 +75,7 @@ int main() {
     std::shared_ptr<SAOP::neptus::IMCCommManager> imc_comm = std::make_shared<SAOP::neptus::IMCCommManager>();
 
     // Start IMCCommManager in a different thread
-    auto t = std::thread(std::bind(&SAOP::neptus::IMCCommManager::run, std::ref(imc_comm)));
+    auto t = std::thread(std::bind(&SAOP::neptus::IMCCommManager::loop, std::ref(imc_comm)));
 
     // Demo EstimatedState handler
     imc_comm->bind<IMC::EstimatedState>(recv_estimatedstate);
@@ -88,5 +88,6 @@ int main() {
     imc_comm->send(std::unique_ptr<IMC::Message>(new IMC::PlanControl(std::move(a_plan))));
 
     user_input_loop(imc_comm);
+
 
 }

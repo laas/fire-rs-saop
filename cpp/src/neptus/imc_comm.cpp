@@ -29,7 +29,7 @@ namespace SAOP {
 
         using boost::asio::ip::tcp;
 
-        void IMCTransportTCP::run() {
+        void IMCTransportTCP::loop() {
             try {
                 for (;;) {
                     boost::asio::io_service io_service;
@@ -44,6 +44,11 @@ namespace SAOP {
             } catch (...) {
 
             }
+        }
+
+        /* Run without blocking */
+        void IMCTransportTCP::run() {
+            session_thread = std::thread(std::bind(&IMCTransportTCP::loop, this));
         }
 
         void IMCTransportTCP::session(std::shared_ptr<tcp::socket> sock) {
@@ -100,7 +105,7 @@ namespace SAOP {
             }
         }
 
-        void IMCCommManager::run() {
+        void IMCCommManager::loop() {
             tcp_server.set_recv_handler(std::bind(&IMCCommManager::message_inbox, this, std::placeholders::_1));
 
             // Demo HeartBeat handler
@@ -114,8 +119,12 @@ namespace SAOP {
                 this->send(std::move(answer));
             });
 
-            auto t = std::thread(std::bind(&IMCTransportTCP::run, tcp_server));
+            tcp_server.run();
             message_dispatching_loop();
+        }
+
+        void IMCCommManager::run() {
+            message_thread = std::thread(std::bind(&IMCCommManager::loop, this));
         }
 
         void IMCCommManager::message_dispatching_loop() {

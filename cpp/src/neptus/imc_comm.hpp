@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <array>
 #include <chrono>
+#include <condition_variable>
 #include <cstdlib>
 #include <fstream>
 #include <functional>
@@ -93,6 +94,8 @@ namespace SAOP {
             std::function<void(std::unique_ptr<IMC::Message>)> recv_handler;
             std::shared_ptr<IMCMessageQueue> send_q;
 
+            std::thread session_thread;
+
         public:
             explicit IMCTransportTCP(unsigned short port)
                     : port(port), recv_handler(nullptr), send_q(std::make_shared<IMCMessageQueue>()) {}
@@ -100,6 +103,8 @@ namespace SAOP {
             IMCTransportTCP(unsigned short port,
                             std::function<void(std::unique_ptr<IMC::Message>)> recv_handler)
                     : port(port), recv_handler(std::move(recv_handler)), send_q(std::make_shared<IMCMessageQueue>()) {}
+
+            void loop();
 
             void run();
 
@@ -129,9 +134,11 @@ namespace SAOP {
                     tcp_server(IMCTransportTCP(8888)),
                     recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
 
-            explicit IMCCommManager(IMCTransportTCP tcp_server) :
-                    tcp_server(std::move(tcp_server)),
-                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+//            explicit IMCCommManager(IMCTransportTCP tcp_server) :
+//                    tcp_server(std::move(tcp_server)),
+//                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+
+            void loop();
 
             void run();
 
@@ -160,6 +167,8 @@ namespace SAOP {
             }
 
         private:
+            std::thread message_thread;
+
             /* Bind a message id to a handler function */
             void bind(size_t id, std::function<void(std::unique_ptr<IMC::Message>)> message_handler) {
                 message_bindings[id] = std::move(message_handler);
