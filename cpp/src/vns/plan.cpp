@@ -57,7 +57,7 @@ namespace SAOP {
             }
         }
 
-        utility_recomp_request = true;
+        utility_cache_invalid = true;
     }
 
     json Plan::metadata() {
@@ -144,7 +144,7 @@ namespace SAOP {
         if (do_post_processing) {
             post_process();
         }
-        utility_recomp_request = true;
+        utility_cache_invalid = true;
     }
 
     void Plan::erase_segment(size_t traj_id, size_t at_index, bool do_post_processing) {
@@ -154,12 +154,12 @@ namespace SAOP {
         if (do_post_processing) {
             post_process();
         }
-        utility_recomp_request = true;
+        utility_cache_invalid = true;
     }
 
     void Plan::replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment) {
         replace_segment(traj_id, at_index, 1, std::vector<Segment3d>({by_segment}));
-        utility_recomp_request = true;
+        utility_cache_invalid = true;
     }
 
     void
@@ -178,7 +178,7 @@ namespace SAOP {
         }
 
         post_process();
-        utility_recomp_request = true;
+        utility_cache_invalid = true;
     }
 
     void Plan::project_on_fire_front() {
@@ -192,16 +192,16 @@ namespace SAOP {
                     if (*projected != seg) {
                         // original is different than projection, replace it
                         traj.replace_segment(seg_id, *projected);
+                        utility_cache_invalid = true;
                     }
                     seg_id++;
                 } else {
                     // segment has no projection, remove it
                     traj.erase_segment(seg_id);
+                    utility_cache_invalid = true;
                 }
             }
         }
-
-        utility_recomp_request = true;
     }
 
     void Plan::smooth_trajectory() {
@@ -214,16 +214,16 @@ namespace SAOP {
                 const double euclidian_dist_to_next = current.end.as_point().dist(next.start.as_point());
                 const double dubins_dist_to_next = traj.conf().uav.travel_distance(current.end, next.start);
 
-                if (dubins_dist_to_next / euclidian_dist_to_next > 2.)
+                if (dubins_dist_to_next / euclidian_dist_to_next > 2.) {
                     // tight loop, erase next and stay on this segment to check for tight loops on the new next.
                     traj.erase_segment(seg_id + 1);
-                else
+                    utility_cache_invalid = true;
+                } else {
                     // no loop detected, go to next
                     seg_id++;
+                }
             }
         }
-
-        utility_recomp_request = true;
     }
 
     GenRaster<double> Plan::utility_comp_radial() const {
@@ -339,7 +339,7 @@ namespace SAOP {
         if (do_post_processing) {
             post_process();
         }
-        utility_recomp_request = true;
+        utility_cache_invalid = true;
         return rev;
     }
 
