@@ -131,7 +131,7 @@ namespace SAOP {
             try {
                 for (;;) {
                     std::unique_ptr<IMC::Message> m = nullptr;
-                    while (recv_q->pop(m)) {
+                    while (recv_q->wait_pop(m)) {
                         try {
                             auto hnld_fun = message_bindings.at(m->getId());
 //                            std::cout << m->getName()

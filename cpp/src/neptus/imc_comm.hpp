@@ -58,27 +58,51 @@ namespace SAOP {
     template<typename T>
     class SharedQueue {
         std::queue<T> q;
-        std::mutex m;
+        mutable std::mutex mutex;
+        mutable std::condition_variable q_avail;
 
     public:
-        SharedQueue<T>() = default;
+        SharedQueue() = default;
+
+        SharedQueue(const SharedQueue& other) {
+            std::lock_guard<std::mutex> lock(other.mutex);
+            q = other.q;
+        }
+
+        // Defaults are not thread-safe
+        SharedQueue& operator=(const SharedQueue& other) = delete;
+        SharedQueue(SharedQueue&& other) = delete;
+        SharedQueue& operator=(const SharedQueue&& other) = delete; // Default is not thread-safe
 
         /* Retrieve the first element
          * returns true if the queue wasn't empty and false otherwise.*/
         bool pop(T& x) {
-            std::lock_guard<std::mutex> lock(m);
-            if (!q.empty()) {
-                x = std::move(q.front());
-                q.pop();
-                return true;
+            std::lock_guard<std::mutex> lock(mutex);
+            if (q.empty()) {
+                return false;
             }
-            return false;
+            x = std::move(q.front());
+            q.pop();
+            return true;
+        }
+
+        /* Retrieve the first element
+         * returns true if the queue wasn't empty and false otherwise.*/
+        bool wait_pop(T& x) {
+            std::unique_lock<std::mutex> lock(mutex);
+            q_avail.wait(lock, [this] { return !q.empty(); });
+            // To wait with a timeout:
+            // if (!q_avail.wait_for(lock, dur, [this] { return q.empty(); })) { return false; }
+            x = std::move(q.front());
+            q.pop();
+            return true;
         }
 
         /*Put an element at the end of the queue*/
-        void push(T&& x) {
-            std::lock_guard<std::mutex> lock(m);
+        void push(T x) {
+            std::lock_guard<std::mutex> lock(mutex);
             q.push(std::move(x));
+            q_avail.notify_one();
         }
     };
 
