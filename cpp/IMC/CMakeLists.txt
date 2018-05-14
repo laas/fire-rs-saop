@@ -321,4 +321,6 @@ set(SPEC_SOURCES Spec/Abort.hpp
         Spec/WindSpeed.hpp
         Spec/YoYo.hpp)
 
-add_library(libimc SHARED ${BASE_SOURCES} ${SPEC_SOURCES} )
+find_package(Threads)
+add_library(libimc SHARED ${BASE_SOURCES} ${SPEC_SOURCES})
+target_link_libraries(libimc ${CMAKE_THREAD_LIBS_INIT})
