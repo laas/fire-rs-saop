@@ -78,7 +78,7 @@ target_link_libraries(firemapping PUBLIC saopcore)
 
 IF (WITH_IMC_INTERFACE)
     add_subdirectory("IMC")
-    find_package(Boost COMPONENTS system thread REQUIRED)
+    find_package(Boost COMPONENTS system REQUIRED)
 
     add_executable(imc_server
             src/test/main_imc_server.cpp
@@ -86,7 +86,6 @@ IF (WITH_IMC_INTERFACE)
     target_link_libraries(imc_server
             libimc
             ${Boost_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
             )
 
     add_executable(saop_to_dune
@@ -96,7 +95,6 @@ IF (WITH_IMC_INTERFACE)
     target_link_libraries(saop_to_dune
             libimc
             ${Boost_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
             )
 
     add_executable(imc_client
@@ -105,7 +103,6 @@ IF (WITH_IMC_INTERFACE)
     target_link_libraries(imc_client
             libimc
             ${Boost_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
             )
 
 
@@ -117,7 +114,6 @@ IF (WITH_IMC_INTERFACE)
             libimc
             saopcore
             ${Boost_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
             )
 
     pybind11_add_module(neptus_interface

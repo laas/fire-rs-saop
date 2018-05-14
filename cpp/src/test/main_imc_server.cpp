@@ -27,7 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <boost/bind.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/asio.hpp>
-#include <boost/thread.hpp>
+#include <thread>
 
 #include "../../IMC/Base/Message.hpp"
 #include "../../IMC/Base/Packet.hpp"
@@ -188,7 +188,7 @@ void server(boost::asio::io_service& io_service, short port)
     {
         socket_ptr sock(new tcp::socket(io_service));
         a.accept(*sock);
-        boost::thread t(boost::bind(session, sock));
+        std::thread t(std::bind(session, sock));
     }
 }
 
