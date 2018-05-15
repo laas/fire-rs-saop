@@ -190,12 +190,22 @@ namespace SAOP {
                 bind(M::getIdStatic(), g_func);
             }
 
+            template<typename M>
+            void unbind() {
+                std::unique_lock<std::mutex> lock(*binding_mtx);
+                unbind(M::getIdStatic());
+            }
+
         private:
             std::thread message_thread;
 
             /* Bind a message id to a handler function */
             void bind(size_t id, std::function<void(std::unique_ptr<IMC::Message>)> message_handler) {
                 message_bindings[id] = std::move(message_handler);
+            }
+
+            void unbind(size_t id) {
+                message_bindings.erase(id);
             }
 
             void message_dispatching_loop();

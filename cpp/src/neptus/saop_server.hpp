@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <iostream>
 #include <unordered_map>
 #include <mutex>
+#include <numeric>
 #include <queue>
 #include <string>
 #include <thread>
@@ -54,38 +55,66 @@ namespace SAOP {
 
     namespace neptus {
 
-        enum class PlanExecutionState {
+        enum class PlanExecutionState : uint8_t {
+            None,
+            Ready,
             Executing, // Plan is still running
-            Success, // Plan successfully executed
             Failure, // Plan execution failed
+            Success, // Plan successfully executed
         };
 
-        class PlanExecutionReport {
+        struct PlanExecutionReport {
             // Summary of IMC::PlanControlState
-            std::chrono::system_clock::time_point timestamp;
+            double timestamp;
             std::string plan_id;
             PlanExecutionState state;
             std::vector<std::string> vehicles;
             // TODO: current maneuver
             // TODO: ETA
+
+            friend std::ostream& operator<<(std::ostream& stream, const PlanExecutionReport& per) {
+                stream << "PlanExecutionReport("
+                       << per.timestamp << ", "
+                       << per.plan_id << ", "
+                       << static_cast<uint8_t>(per.state) << ")";
+                // TODO Add vehicle list
+                return stream;
+            }
         };
 
-        class UAVStateReport {
+        struct UAVStateReport {
             // Summary of IMC::EstimatedState
-            uint16_t id; // UAV id
+            double timestamp;
+            uint16_t uav_id; // UAV id
             double lat; // WGS84 latitude (rad)
             double lon; // WGS84 longitude (rad)
-            double height; // WGS84 altitude asl (m)
-            double phi; // Roll (rad)
-            double theta; // Pitch (rad)
-            double psi; // Yaw (rad)
-            double vx; // North (x) ground speed (m/s)
-            double vy; // East (y) ground speed (m/s)
-            double vz; // Down (z) ground speed (m/s)
+            float height; // WGS84 altitude asl (m)
+            float phi; // Roll (rad)
+            float theta; // Pitch (rad)
+            float psi; // Yaw (rad)
+            float vx; // North (x) ground speed (m/s)
+            float vy; // East (y) ground speed (m/s)
+            float vz; // Down (z) ground speed (m/s)
+
+            friend std::ostream& operator<<(std::ostream& stream, const UAVStateReport& usr) {
+                stream << "UAVStateReport("
+                       << usr.timestamp << ", "
+                       << usr.uav_id << ", "
+                       << usr.lat << ", "
+                       << usr.lon << ", "
+                       << usr.height << ", "
+                       << usr.phi << ", "
+                       << usr.theta << ", "
+                       << usr.psi << ", "
+                       << usr.vx << ", "
+                       << usr.vy << ", "
+                       << usr.vz << ")";
+                return stream;
+            }
         };
 
         /* Command and supervise plan execution */
-        class PlanExecutionManager {
+        class PlanExecutionManager final {
         public:
             explicit PlanExecutionManager(std::shared_ptr<IMCCommManager> imc) :
                     PlanExecutionManager(std::move(imc), nullptr, nullptr) {}
@@ -95,14 +124,50 @@ namespace SAOP {
                                  std::function<void(UAVStateReport usr)> uav_report_cb)
                     : imc_comm(std::move(imc)),
                       plan_report_handler(std::move(plan_report_cb)),
-                      uav_report_handler(std::move(uav_report_cb)) {}
+                      uav_report_handler(std::move(uav_report_cb)) {
 
-            /* Setup, and run inmediately, a SAOP plan
-             * (Not blocking) */
-            void execute(const Plan& plan);
+                // FIXME Test calls
+                plan_report_handler(PlanExecutionReport());
+                uav_report_handler(UAVStateReport());
+
+                // Bind to IMC messages
+                imc_comm->bind<IMC::EstimatedState>(
+                        std::bind(&PlanExecutionManager::estimated_state_handler, this, placeholders::_1));
+                imc_comm->bind<IMC::PlanControlState>(
+                        std::bind(&PlanExecutionManager::plan_control_state_handler, this, placeholders::_1));
+                imc_comm->bind<IMC::PlanControl>(
+                        std::bind(&PlanExecutionManager::plan_control_handler, this, placeholders::_1));
+            }
+
+            ~PlanExecutionManager() {
+                imc_comm->unbind<IMC::PlanControl>();
+                imc_comm->unbind<IMC::PlanControlState>();
+                imc_comm->unbind<IMC::EstimatedState>();
+            }
+
+            PlanExecutionManager(const PlanExecutionManager&) = delete;
+
+            PlanExecutionManager(PlanExecutionManager&&) = delete;
+
+            PlanExecutionManager& operator=(const PlanExecutionManager&) = delete;
+
+            PlanExecutionManager& operator=(PlanExecutionManager&&) = delete;
+
+//            /* Setup, and run inmediately, a SAOP plan.
+//             * (Not blocking) */
+//            void execute(const Plan& plan);
+
+            /* Send a request to Neptus to load a converted version of SAOP::Plan. */
+            bool load(const Plan& p);
+
+            /* Load and start a SAOP::Plan. */
+            bool start(const Plan& p);
+
+            /* Start the last loaded PlanSpecification */
+            bool start();
 
             /* Stop the plan currently being executed. */
-            void stop();
+            bool stop();
 
             /* Return true if this PlanExecutionManager is not active. */
             bool is_active() {
@@ -113,6 +178,9 @@ namespace SAOP {
             std::shared_ptr<IMCCommManager> imc_comm;
             std::thread exec_thread;
 
+            mutable std::mutex pc_answer_mutex;
+            mutable std::condition_variable pc_answer_cv;
+
             /* Function to be called periodically during execution, carrying plan execution reports */
             std::function<void(PlanExecutionReport per)> plan_report_handler;
             /* Function to be called periodically with UAV state information*/
@@ -121,12 +189,28 @@ namespace SAOP {
             std::vector<std::tuple<uint16_t, std::string>> available_uavs = {{0x0c0c, "x8-02"},
                                                                              {0x0c10, "x8-06"}};
 
-            std::string plan_id = "saop_plan"; // TODO: make customizable?
-            const static uint16_t req_id_stop = 0x570D;
+            std::string plan_id = "plan"; // TODO: make customizable?
+            uint16_t req_id_stop = 0x570D;
+            uint16_t req_id_load = 0x10AD;
+            uint16_t req_id_start = 0x57A7;
+            uint16_t req_id = 0;
+            opt<IMC::PlanControl::TypeEnum> req_answer = {}; // Wether a PlanControl request has been answered
+
+            /* Send the PlanControl load request for a PlanSpecification */
+            bool load(IMC::PlanSpecification ps);
+
+            /* Load and start a PlanSpecification*/
+            bool start(IMC::PlanSpecification ps);
 
             IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory);
 
-            void plan_execution_loop(IMC::PlanSpecification imc_plan);
+//            void plan_execution_loop(IMC::PlanSpecification imc_plan);
+
+            void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);
+
+            void plan_control_state_handler(std::unique_ptr<IMC::PlanControlState> m);
+
+            void plan_control_handler(std::unique_ptr<IMC::PlanControl> m);
         };
 
     }

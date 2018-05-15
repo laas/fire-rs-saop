@@ -25,7 +25,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_PYTHON_NEPTUS_H
 #define PLANNING_CPP_PYTHON_NEPTUS_H
 
+#include <iomanip>
+
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h> // for std::function conversion
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
 
@@ -65,10 +68,57 @@ PYBIND11_MODULE(neptus_interface, m) {
     py::class_<neptus::PlanExecutionManager,
             std::shared_ptr<neptus::PlanExecutionManager>>(m, "PlanExecutionManager")
             .def(py::init<std::shared_ptr<neptus::IMCCommManager>>(), py::arg("imc"))
-            .def("execute", &neptus::PlanExecutionManager::execute, py::arg("plan"))
+            .def(py::init<std::shared_ptr<neptus::IMCCommManager>,
+                         const std::function<void(neptus::PlanExecutionReport)>,
+                         const std::function<void(neptus::UAVStateReport)>>(),
+                 py::arg("imc"), py::arg("per_cb"), py::arg("usr_cb"))
+            .def("start", (bool (neptus::PlanExecutionManager::*)(const Plan&)) &neptus::PlanExecutionManager::start,
+                 py::arg("plan"))
+            .def("start", (bool (neptus::PlanExecutionManager::*)()) &neptus::PlanExecutionManager::start)
+            .def("load", (bool (neptus::PlanExecutionManager::*)(const Plan&)) &neptus::PlanExecutionManager::load,
+                 py::arg("plan"))
             .def("stop", &neptus::PlanExecutionManager::stop);
 
+    py::class_<neptus::PlanExecutionReport>(m, "PlanExecutionReport")
+            .def("__repr__", [](neptus::PlanExecutionReport& self) -> std::string {
+                std::stringstream ss;
+                ss << "PlanExecutionReport(" << self.timestamp << ", "
+                   << self.plan_id << ", "
+                   << static_cast<uint8_t>(self.state) << ")";
+                return ss.str();
+            })
+            .def_readonly("timestamp", &neptus::PlanExecutionReport::timestamp)
+            .def_readonly("plan_id", &neptus::PlanExecutionReport::plan_id)
+//            .def_readonly("state", &neptus::PlanExecutionReport::state)
+            .def_readonly("vehicles", &neptus::PlanExecutionReport::vehicles);
 
+    py::class_<neptus::UAVStateReport>(m, "UAVStateReport")
+            .def("__repr__", [](neptus::UAVStateReport& self) -> std::string {
+                std::stringstream ss;
+                ss << "UAVStateReport(t="
+                   << self.timestamp << ", u="
+                   << self.uav_id << ", ("
+                   << self.lat << ", "
+                   << self.lon << ", "
+                   << self.height << "), ("
+                   << self.phi << ", "
+                   << self.theta << ", "
+                   << self.psi << "), ("
+                   << self.vx << ", "
+                   << self.vy << ", "
+                   << self.vz << "))";
+                return ss.str();
+            })
+            .def_readonly("uav_id", &neptus::UAVStateReport::uav_id)
+            .def_readonly("lat", &neptus::UAVStateReport::lat)
+            .def_readonly("lon", &neptus::UAVStateReport::lon)
+            .def_readonly("height", &neptus::UAVStateReport::height)
+            .def_readonly("phi", &neptus::UAVStateReport::phi)
+            .def_readonly("theta", &neptus::UAVStateReport::theta)
+            .def_readonly("psi", &neptus::UAVStateReport::psi)
+            .def_readonly("vx", &neptus::UAVStateReport::vx)
+            .def_readonly("vy", &neptus::UAVStateReport::vy)
+            .def_readonly("vz", &neptus::UAVStateReport::vz);
 }
 
 #endif //PLANNING_CPP_PYTHON_NEPTUS_H
