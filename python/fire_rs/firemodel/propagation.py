@@ -31,6 +31,8 @@ import logging
 
 from typing import List, Tuple, Union
 
+from collections import Sequence
+
 import numpy as np
 
 from fire_rs.geodata.clustering import cluster_multi_layer
@@ -294,7 +296,8 @@ def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, 
     :return: 
     """
     fp = FirePropagation(env)
-    if isinstance(ignitions_points, list):
+    # If ignitions_points is a sequence of sequences, then it is a list of points
+    if isinstance(ignitions_points[0], Sequence):
         for tp in ignitions_points:
             fp.set_ignition_point(tp)
     else:
