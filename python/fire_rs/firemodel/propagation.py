@@ -31,6 +31,8 @@ import logging
 
 from typing import List, Tuple, Union
 
+from collections import Sequence
+
 import numpy as np
 
 from fire_rs.geodata.clustering import cluster_multi_layer
@@ -285,80 +287,6 @@ class FirePropagation:
         else:
             return cluster_of(x, y), propagation_angle(x, y), np.nan, np.nan
 
-    @deprecated("Use new API fire_rs.geodata.display.GeoDataDisplay")
-    def plot(self, axes=None, blocking=False, display=True):
-        import matplotlib
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import LightSource
-        from matplotlib import cm
-
-        world = self.environment.raster
-
-        x = np.arange(world.max_x)
-        x = (x * world.cell_width) + world.x_offset
-
-        y = np.arange(world.max_y)
-        y = (y * world.cell_height) + world.y_offset
-
-        X, Y = np.meshgrid(x, y)
-        Z = world['elevation']
-
-        def plot_elevation_shade(ax, x, y, z):
-            cbar_lim = (z.min(), z.max())
-
-            image_scale = (x[0][0], x[0][-1], y[0][0], y[-1][0])
-
-            ls = LightSource(azdeg=315, altdeg=45)
-            ax.imshow(ls.hillshade(z, vert_exag=5, dx=world.cell_width, dy=world.cell_width),
-                      extent=image_scale, cmap='gray')
-
-            return ax.imshow(ls.shade(z, cmap=cm.terrain, blend_mode='overlay', vert_exag=1,
-                                      dx=world.cell_width, dy=world.cell_width,
-                                      vmin=cbar_lim[0], vmax=cbar_lim[1]),
-                             extent=image_scale, vmin=cbar_lim[0], vmax=cbar_lim[1], cmap=cm.terrain)
-
-        def plot_wind_arrows(ax, x, y, wx, wy):
-            ax.quiver(x, y, wx, wy, pivot='middle', color='dimgrey')
-
-        if axes:
-            fire_ax = axes
-            fire_fig = None
-        else:
-            fire_fig = plt.figure()
-            fire_ax = fire_fig.gca(aspect='equal', xlabel="X position [m]", ylabel="Y position [m]")
-
-        ax_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
-        fire_ax.yaxis.set_major_formatter(ax_formatter)
-        fire_ax.xaxis.set_major_formatter(ax_formatter)
-        shade = plot_elevation_shade(fire_ax, X, Y, Z.T[::-1, ...])
-        if fire_fig:
-            cbar = fire_fig.colorbar(shade, shrink=0.5, aspect=2)
-            cbar.set_label("Height [m]")
-
-        wind_vel = world['wind_velocity']
-        wind_ang = world['wind_angle']
-        WX = wind_vel * np.cos(wind_ang)
-        WY = wind_vel * np.sin(wind_ang)
-
-        plot_wind_arrows(fire_ax, *np.meshgrid(x[::10], y[::10]), WX[::10, ::10], WY[::10, ::10])
-
-        # mask all cells whose ignition has not been computed
-        igni = np.array(self.ignitions().data['ignition'])
-        igni[igni >= np.finfo(np.float64).max] = np.nan
-
-        # plot fire front with contour lines in minutes
-        fronts = fire_ax.contour(x, y, igni.T / 60, 10, cmap=cm.Set1)
-        fire_ax.clabel(fronts, inline=True, fontsize='smaller', inline_spacing=1, linewidth=2, fmt='%.0f')
-
-        for ignition_point in self._ignition_points:
-            coords = self.prop_data.coordinates(ignition_point)
-            fire_ax.plot(*coords, 'or', linewidth=5)
-
-        if display:
-            plt.show(block=blocking)
-        return fire_ax
-
-
 def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, List[TimedPoint]], horizon: float=np.inf) -> FirePropagation:
     """Simulate a fire from all ignition points until the 
     
@@ -368,7 +296,8 @@ def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, 
     :return: 
     """
     fp = FirePropagation(env)
-    if isinstance(ignitions_points, list):
+    # If ignitions_points is a sequence of sequences, then it is a list of points
+    if isinstance(ignitions_points[0], Sequence):
         for tp in ignitions_points:
             fp.set_ignition_point(tp)
     else:

@@ -85,7 +85,7 @@ namespace SAOP {
         /* Replace plan firedata */
         void firedata(shared_ptr<FireData> fdata) {
             fire_data = std::move(fdata);
-            utility_recomp_request = true;
+            utility_cache_invalid = true;
         }
 
         /** Sum of all trajectory durations. */
@@ -94,11 +94,12 @@ namespace SAOP {
         }
 
         /* Utility of the plan */
-        double utility() {
-            if (utility_recomp_request) {
+        double utility() const {
+            if (utility_cache_invalid) {
                 GenRaster<double> utility = utility_map();
                 auto accumulate_ignoring_nan = [](double a, double b) { return isnan(b) ? a : a + b; };
                 utility_cache = std::accumulate(utility.begin(), utility.end(), 0., accumulate_ignoring_nan);
+                utility_cache_invalid = false;
             }
             return utility_cache;
         }
@@ -149,7 +150,7 @@ namespace SAOP {
         void post_process() {
             project_on_fire_front();
             smooth_trajectory();
-            utility_recomp_request = true;
+            utility_cache_invalid = true;
         }
 
         /** Make sure every segment makes an observation, i.e., that the picture will be taken when the fire in traversing the main cell.
@@ -186,8 +187,8 @@ namespace SAOP {
         double MAX_UTILITY = 1.;
         double MIN_UTILITY = 0.;
 
-        bool utility_recomp_request = true;
-        double utility_cache = 0.;
+        mutable bool utility_cache_invalid = true;
+        mutable double utility_cache = 0.;
 
         /** Utility map of the plan.
          * The key idea is to sum the distance of all ignited points in the time window to their closest observation.

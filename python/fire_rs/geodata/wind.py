@@ -196,7 +196,7 @@ class WindNinjaCLI():
         self.args = {}  # dict(arg, value)
         num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2
         self.add_arguments(num_threads=num_threads,
-                           output_speed_units='kph',
+                           output_speed_units='mps',
                            mesh_resolution=25,  # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
                            write_ascii_output='true')
@@ -280,7 +280,7 @@ class WindNinjaCLI():
         assert -np.pi <= input_direction <= 2*np.pi, "Input direction should be in radians. Received: {}".format(input_direction)
         args = {'initialization_method': 'domainAverageInitialization',
                 'input_speed': input_speed,
-                'input_speed_units': 'kph',
+                'input_speed_units': 'mps',
                 'input_direction': trigo_angle_to_geo_angle(input_direction),
                 'input_wind_height': '10.0',
                 'units_input_wind_height': 'm',
