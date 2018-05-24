@@ -81,7 +81,6 @@ if __name__ == '__main__':
     anim_fire_figure = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(fire.prop_data,
                                                                             frame=(0, 0))
 
-
     # animation function
     # i: frame number
     # 1 frame = 1 minute
@@ -99,18 +98,20 @@ if __name__ == '__main__':
 
 
     anim = animation.FuncAnimation(anim_fire_figure.figure, animate, frames=120)
-    anim.save('fire_animation.mp4', fps=12)
+    anim.save('fire_animation.mp4', fps=12, dpi=200)
     anim_fire_figure.figure.show()
     print()
 
+    # CREATE VNS PLAN
+
     # Configure some flight
     base_wp_1 = Waypoint(area[0][1] - 150., area[1][1] - 100., 0., 0.)
-    base_wp_2 = Waypoint(area[0][1] - 150., area[1][1] - 100., 0., 0.)
+    # base_wp_2 = Waypoint(area[0][1] - 150., area[1][1] - 100., 0., 0.)
     start_t = 60 * 60  # 30 minutes after the ignition
     uavconf = UAVConf.X8()
     uavconf.max_flight_time = 30 * 60
     fgconf_1 = FlightConf(uavconf, start_t, base_wp_1)
-    fgconf_2 = FlightConf(uavconf, start_t, base_wp_2)
+    # fgconf_2 = FlightConf(uavconf, start_t, base_wp_2)
 
     # Write down the desired VNS configuration
     conf_vns = {
@@ -145,7 +146,8 @@ if __name__ == '__main__':
     ####################################
     # 1st PLAN
     fire1 = fire.ignitions()
-    pl = Planner(env, fire1, [fgconf_1, fgconf_2], conf)
+    # pl = Planner(env, fire1, [fgconf_1, fgconf_2], conf)
+    pl = Planner(env, fire1, [fgconf_1], conf)
     pl.compute_plan()
     sr_1 = pl.search_result
 
@@ -160,28 +162,28 @@ if __name__ == '__main__':
     gdd.figure.show()
 
     import os
-    #
-    # for i in range(len(sr_1.intermediate_plans)):
-    #     int_gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(
-    #         env.raster.combine(fire1), frame=(0, 0))
-    #     int_gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
-    #     # int_gdd.draw_elevation_shade()
-    #     int_gdd.draw_ignition_contour()
-    #     plot_plan_trajectories(sr_1.intermediate_plans[i], int_gdd, trajectories=slice(None),
-    #                            colors=["blue", "darkgreen"],
-    #                            layers=["bases", "arrows", "trajectory_solid"])
-    #
-    #     i_plan_dir = "./intermediateplans"
-    #     if not os.path.exists(i_plan_dir):
-    #         os.makedirs(i_plan_dir)
-    #
-    #     print("saving as: " + str(
-    #         os.path.join(i_plan_dir, str(i) + "." + "svg|png")))
-    #     # int_gdd.axes.get_figure().savefig(str(
-    #     #     os.path.join(i_plan_dir, str(i) + "." + "svg")), bbox_inches='tight')
-    #     int_gdd.axes.get_figure().savefig(str(
-    #         os.path.join(i_plan_dir, str(i) + "." + "png")), bbox_inches='tight')
-    #     matplotlib.pyplot.close(int_gdd.axes.get_figure())
+
+    for i in range(len(sr_1.intermediate_plans)):
+        int_gdd = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(
+            env.raster.combine(fire1), frame=(0, 0))
+        int_gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
+        # int_gdd.draw_elevation_shade()
+        int_gdd.draw_ignition_contour()
+        plot_plan_trajectories(sr_1.intermediate_plans[i], int_gdd, trajectories=slice(None),
+                               colors=["blue", "darkgreen"],
+                               layers=["bases", "arrows", "trajectory_solid"])
+
+        i_plan_dir = "./intermediateplans"
+        if not os.path.exists(i_plan_dir):
+            os.makedirs(i_plan_dir)
+
+        print("saving as: " + str(
+            os.path.join(i_plan_dir, str(i) + "." + "svg|png")))
+        # int_gdd.axes.get_figure().savefig(str(
+        #     os.path.join(i_plan_dir, str(i) + "." + "svg")), bbox_inches='tight')
+        int_gdd.axes.get_figure().savefig(str(
+            os.path.join(i_plan_dir, str(i) + "." + "png")), bbox_inches='tight', dpi=150)
+        matplotlib.pyplot.close(int_gdd.axes.get_figure())
 
     print(
         "TO CREATE A VIDEO: ffmpeg -framerate 12 -f image2 -i %d.png -c:v h264 -crf 1 plan_animation.mp4")
@@ -195,7 +197,7 @@ if __name__ == '__main__':
                                                                                frame=(0, 0))
     observedfire_figure.draw_elevation_shade()
     observedfire_figure.draw_ignition_shade(geodata=fmapper_1.firemap, cmap=matplotlib.cm.Greens)
-    if len(sr_1.final_plan().trajectories()) > 0:
+    if len(sr_1.final_plan().trajectories()) > 1:
         executed_path = sr_1.final_plan().trajectories()[1].sampled_with_time()
         fmapper_2 = FireMapper(env, fire1)
         fmapper_2.observe(executed_path, pl.flights[1].uav)
@@ -203,4 +205,20 @@ if __name__ == '__main__':
 
     observedfire_figure.figure.show()
     print()
-    print()
+
+    # EXECUTION!
+    import threading
+    import fire_rs.neptus_interface as nifc
+
+    f1 = lambda x: print(x)
+    f2 = lambda x: None
+
+    a_comm = nifc.IMCCommManager()
+    a_th = threading.Thread(target=a_comm.run, daemon=True)
+    a_th.run()
+    print("IMCCommManager esta funcionando")
+    a_pem = nifc.PlanExecutionManager(a_comm, f1, f2)
+    print("PlanExecutionManager esta funcionando")
+    a_pem.start(pl.search_result.final_plan())
+    print("wait for it :)")
+    print("bye bye")
