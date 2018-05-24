@@ -17,6 +17,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CORE_SOURCE_FILES
         src/ext/json.hpp
         src/ext/optional.hpp
+        src/ext/ThreadPool.hpp
         src/cpp_py_utils.hpp
         src/utils.cpp
         src/utils.hpp

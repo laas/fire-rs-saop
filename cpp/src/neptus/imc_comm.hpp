@@ -51,6 +51,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "../vns/plan.hpp"
 
+#include "../ext/ThreadPool.hpp"
+
 #include "imc_message_factories.hpp"
 
 namespace SAOP {
@@ -71,7 +73,9 @@ namespace SAOP {
 
         // Defaults are not thread-safe
         SharedQueue& operator=(const SharedQueue& other) = delete;
+
         SharedQueue(SharedQueue&& other) = delete;
+
         SharedQueue& operator=(const SharedQueue&& other) = delete; // Default is not thread-safe
 
         /* Retrieve the first element
@@ -153,10 +157,13 @@ namespace SAOP {
 
             std::unique_ptr<std::mutex> binding_mtx = std::unique_ptr<std::mutex>(new std::mutex());
 
+            ThreadPool thp;
+
         public:
             IMCCommManager() :
                     tcp_server(IMCTransportTCP(8888)),
-                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
+                    thp(5) {}
 
 //            explicit IMCCommManager(IMCTransportTCP tcp_server) :
 //                    tcp_server(std::move(tcp_server)),

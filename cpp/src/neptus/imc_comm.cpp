@@ -141,7 +141,13 @@ namespace SAOP {
 //                                      << "to(" << m->getDestination() << ", "
 //                                      << static_cast<uint>(m->getDestinationEntity()) << ")"
 //                                      << std::endl;
-                            hnld_fun(std::move(m));
+                            auto m_raw = m.get();
+                            m.release();
+                            // variables can be moved into lambdas only in C++14 onwards, not C++11
+                            thp.enqueue([hnld_fun, m_raw] {
+                                std::unique_ptr<IMC::Message> mm = std::unique_ptr<IMC::Message>(m_raw);
+                                hnld_fun(std::move(mm));
+                            });
                         } catch (const std::out_of_range& e) {
                             std::cerr << "UNHANDLED " << m->getName()
                                       << "(" << static_cast<uint>(m->getId()) << "): "
