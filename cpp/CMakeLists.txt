@@ -70,6 +70,9 @@ set(MAPPING_SOURCE_FILES
 
 add_library(saopcore SHARED ${CORE_SOURCE_FILES} ${PLANNING_SOURCE_FILES} ${MAPPING_SOURCE_FILES})
 
+find_package(GDAL REQUIRED)
+target_link_libraries(saopcore ${GDAL_LIBRARY})
+
 pybind11_add_module(uav_planning src/planning_py.cpp)
 target_link_libraries(uav_planning PUBLIC saopcore)
 
