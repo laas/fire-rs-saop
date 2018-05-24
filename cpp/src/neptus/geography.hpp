@@ -26,6 +26,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <vector>
 
+#include <gdal/ogr_spatialref.h>
+
 #include "../core/waypoint.hpp"
 #include "../ext/coordinates.hpp"
 
@@ -47,6 +49,42 @@ namespace SAOP {
                 wgs84_wp.emplace_back(Waypoint3d(lon, lat, wp.z, wp.dir));
             }
 
+            return wgs84_wp;
+        }
+
+        /*Convert Lambert93 (EPSG:2154) points to WGS84 (lat, lon) coordinates*/
+        static std::vector<Waypoint3d> lambert93_to_wgs84(std::vector<Waypoint3d> lambert93_wp) {
+            OGRSpatialReference wgs84_gcs;
+            OGRSpatialReference lambert93_pcs;
+            wgs84_gcs.importFromEPSG(4171); // RGF93 (EPSG:4171) is in practice equal to WGS84 (EPSG:4326)
+            lambert93_pcs.importFromEPSG(2154);
+
+            auto poCT = OGRCreateCoordinateTransformation(&lambert93_pcs, &wgs84_gcs);
+            ASSERT(poCT); // If the conversion cannot take place, poCT is null
+
+            double xx;
+            double yy;
+
+            auto wgs84_wp = std::vector<Waypoint3d>();
+
+            for (auto it = lambert93_wp.begin(); it < lambert93_wp.end();++it) {
+                xx = it->x;
+                yy = it->y;
+//                std::cout << it->x << " " << it->y << std::endl;
+//                std::cout << xx << " " << yy << std::endl;
+
+                poCT->Transform(1, &xx, &yy); // Again Transform must succed
+
+                std::cout << xx << " " << yy << std::endl;
+
+                wgs84_wp.emplace_back(Waypoint3d(xx/180*M_PI, yy/180*M_PI, it->z, it->dir));
+                xx = 0;
+                yy = 0;
+            }
+
+            std::cout << wgs84_wp[0].x << " " << wgs84_wp[0].y << std::endl;
+
+            OGRCoordinateTransformation::DestroyCT(poCT);
             return wgs84_wp;
         }
     }

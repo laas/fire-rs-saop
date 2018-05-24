@@ -160,8 +160,7 @@ namespace SAOP {
                 r_end--;
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
-
-            auto wp_wgs84 = WGS84_waypoints(wp_filtered, Position(690487, 4636304));
+            auto wp_wgs84 = lambert93_to_wgs84(wp_filtered);
 
             return PlanSpecificationFactory::make_message(plan_id, wp_wgs84);
         }
