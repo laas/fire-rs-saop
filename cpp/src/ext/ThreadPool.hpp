@@ -71,7 +71,7 @@ inline ThreadPool::ThreadPool(size_t threads)
                             task = std::move(this->tasks.front());
                             this->tasks.pop();
                         }
-                        std::cout << "Running in worker #" << i << std::endl;
+
                         task();
                     }
                 }

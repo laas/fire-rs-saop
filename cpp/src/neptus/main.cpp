@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "imc_comm.hpp"
 #include "saop_server.hpp"
 
-void user_input_loop(std::shared_ptr<SAOP::neptus::IMCCommManager> imc_comm) {
+void user_input_loop(std::shared_ptr<SAOP::neptus::IMCComm> imc_comm) {
     bool exit = false;
     auto plan_spec_message = SAOP::neptus::PlanSpecificationFactory::make_message();
 
@@ -72,10 +72,10 @@ int main() {
         std::cout << std::endl;
     };
 
-    std::shared_ptr<SAOP::neptus::IMCCommManager> imc_comm = std::make_shared<SAOP::neptus::IMCCommManager>();
+    std::shared_ptr<SAOP::neptus::IMCComm> imc_comm = std::make_shared<SAOP::neptus::IMCComm>();
 
-    // Start IMCCommManager in a different thread
-    auto t = std::thread(std::bind(&SAOP::neptus::IMCCommManager::loop, std::ref(imc_comm)));
+    // Start IMCComm in a different thread
+    auto t = std::thread(std::bind(&SAOP::neptus::IMCComm::loop, std::ref(imc_comm)));
 
     // Demo EstimatedState handler
     imc_comm->bind<IMC::EstimatedState>(recv_estimatedstate);

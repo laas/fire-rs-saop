@@ -55,6 +55,75 @@ namespace SAOP {
 
     namespace neptus {
 
+        template<typename Payload>
+        class Requests {
+            uint16_t last_req_id = 0;
+            std::unordered_map<uint16_t, opt<Payload>> unanswered = std::unordered_map<uint16_t, opt<Payload>>();
+            std::unique_ptr<std::mutex> req_id_mutex = std::unique_ptr<std::mutex>(new std::mutex());
+
+        public:
+            Requests() = default;
+
+            Requests(const Requests& r) = delete;
+
+            Requests& operator=(const Requests& other) = delete;
+
+            /* Obtain a request id and keep it until the answer is retrieved */
+            uint16_t request_id() {
+                std::lock_guard<std::mutex> lock_m(*req_id_mutex);
+
+                //FIXME: This will loop inf if there are max uint16_t requests unanswered (unlikely)
+                while (unanswered.find(last_req_id) != unanswered.end()) {
+                    last_req_id += 1;
+                }
+
+                unanswered[last_req_id] = opt<Payload>();
+                return last_req_id++;
+            }
+
+            /* Set a request as answered.
+             * Returns false if the req_id is not tracked as unanswered */
+            bool set_answer(uint16_t req_id, Payload p) {
+                std::lock_guard<std::mutex> lock_m(*req_id_mutex);
+                // req_id must exist in the unanswered set
+                auto req_id_it = unanswered.find(req_id);
+                if (req_id_it == unanswered.end()) {
+                    return false;
+                } else {
+                    unanswered[req_id] = p;
+                    return true;
+                }
+            }
+
+            /* Retrieve the answer of a request if it exists */
+            opt<Payload> get_answer(uint16_t req_id) {
+                std::lock_guard<std::mutex> lock_m(*req_id_mutex);
+                // req_id must exist in the unanswered set
+                auto req_id_it = unanswered.find(req_id);
+                if (req_id_it != unanswered.end()) {
+                    if (unanswered[req_id].has_value()) {
+                        auto p = unanswered[req_id];
+                        unanswered.erase(req_id_it);
+                        return p;
+                    }
+                }
+                return opt<Payload>();
+            }
+
+            /* Get wether the answer exists */
+            bool has_answer(uint16_t req_id) {
+                std::lock_guard<std::mutex> lock_m(*req_id_mutex);
+                // req_id must exist in the unanswered set
+                auto req_id_it = unanswered.find(req_id);
+                if (req_id_it != unanswered.end()) {
+                    if (unanswered[req_id].has_value()) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+
         enum class PlanExecutionState : uint8_t {
             None,
             Ready,
@@ -113,18 +182,25 @@ namespace SAOP {
             }
         };
 
-        /* Command and supervise plan execution */
-        class PlanExecutionManager final {
-        public:
-            explicit PlanExecutionManager(std::shared_ptr<IMCCommManager> imc) :
-                    PlanExecutionManager(std::move(imc), nullptr, nullptr) {}
+        enum class GCSCommandOutcome {
+            Unknown = 2,
+            Success = 1,
+            Failure = 0,
+        };
 
-            PlanExecutionManager(std::shared_ptr<IMCCommManager> imc,
-                                 std::function<void(PlanExecutionReport per)> plan_report_cb,
-                                 std::function<void(UAVStateReport usr)> uav_report_cb)
+        /* Command and supervise plan execution */
+        class GCS final {
+        public:
+            explicit GCS(std::shared_ptr<IMCComm> imc) :
+                    GCS(std::move(imc), nullptr, nullptr) {}
+
+            GCS(std::shared_ptr<IMCComm> imc,
+                std::function<void(PlanExecutionReport per)> plan_report_cb,
+                std::function<void(UAVStateReport usr)> uav_report_cb)
                     : imc_comm(std::move(imc)),
                       plan_report_handler(std::move(plan_report_cb)),
-                      uav_report_handler(std::move(uav_report_cb)) {
+                      uav_report_handler(std::move(uav_report_cb)),
+                      req() {
 
                 // FIXME Test calls
                 plan_report_handler(PlanExecutionReport());
@@ -132,57 +208,68 @@ namespace SAOP {
 
                 // Bind to IMC messages
                 imc_comm->bind<IMC::EstimatedState>(
-                        std::bind(&PlanExecutionManager::estimated_state_handler, this, placeholders::_1));
+                        std::bind(&GCS::estimated_state_handler, this, placeholders::_1));
                 imc_comm->bind<IMC::PlanControlState>(
-                        std::bind(&PlanExecutionManager::plan_control_state_handler, this, placeholders::_1));
+                        std::bind(&GCS::plan_control_state_handler, this, placeholders::_1));
                 imc_comm->bind<IMC::PlanControl>(
-                        std::bind(&PlanExecutionManager::plan_control_handler, this, placeholders::_1));
+                        std::bind(&GCS::plan_control_handler, this, placeholders::_1));
             }
 
-            ~PlanExecutionManager() {
+            ~GCS() {
                 imc_comm->unbind<IMC::PlanControl>();
                 imc_comm->unbind<IMC::PlanControlState>();
                 imc_comm->unbind<IMC::EstimatedState>();
             }
 
-            PlanExecutionManager(const PlanExecutionManager&) = delete;
+            GCS(const GCS&) = delete;
 
-            PlanExecutionManager(PlanExecutionManager&&) = delete;
+            GCS(GCS&&) = delete;
 
-            PlanExecutionManager& operator=(const PlanExecutionManager&) = delete;
+            GCS& operator=(const GCS&) = delete;
 
-            PlanExecutionManager& operator=(PlanExecutionManager&&) = delete;
+            GCS& operator=(GCS&&) = delete;
 
 //            /* Setup, and run inmediately, a SAOP plan.
 //             * (Not blocking) */
 //            void execute(const Plan& plan);
 
             /* Send a request to Neptus to load a converted version of SAOP::Plan. */
-            bool load(const Plan& p);
+            GCSCommandOutcome load(const Plan& p);
 
             /* Load and start a SAOP::Plan. */
-            bool start(const Plan& p);
+            GCSCommandOutcome start(const Plan& p);
 
             /* Start the last loaded PlanSpecification */
-            bool start();
+            GCSCommandOutcome start();
 
             /* Stop the plan currently being executed. */
-            bool stop();
+            GCSCommandOutcome stop();
 
-            /* Return true if this PlanExecutionManager is not active. */
+            /* Return true if this GCS is not active. */
             bool is_active() {
-                return exec_thread.joinable();
+                //FIXME use timestamp from last message to determine if it is running or not
+                return true;
             }
 
+            std::vector<std::string> available_vehicles() {
+                auto v = std::vector<std::string>();
+                for (const auto& t : available_uavs) {
+                    v.emplace_back(std::get<1>(t));
+                }
+                return v;
+            }
+
+
         private:
-            std::shared_ptr<IMCCommManager> imc_comm;
+            std::shared_ptr<IMCComm> imc_comm;
             std::thread exec_thread;
 
             mutable std::mutex pc_answer_mutex;
             mutable std::condition_variable pc_answer_cv;
 
             /* Function to be called periodically during execution, carrying plan execution reports */
-            std::function<void(PlanExecutionReport per)> plan_report_handler;
+            std::function<void(PlanExecutionReport per)>
+                    plan_report_handler;
             /* Function to be called periodically with UAV state information*/
             std::function<void(UAVStateReport usr)> uav_report_handler;
 
@@ -190,17 +277,13 @@ namespace SAOP {
                                                                              {0x0c10, "x8-06"}};
 
             std::string plan_id = "plan"; // TODO: make customizable?
-            uint16_t req_id_stop = 0x570D;
-            uint16_t req_id_load = 0x10AD;
-            uint16_t req_id_start = 0x57A7;
-            uint16_t req_id = 0;
-            opt<IMC::PlanControl::TypeEnum> req_answer = {}; // Wether a PlanControl request has been answered
+            Requests<IMC::PlanControl::TypeEnum> req;
 
             /* Send the PlanControl load request for a PlanSpecification */
-            bool load(IMC::PlanSpecification ps);
+            GCSCommandOutcome load(IMC::PlanSpecification ps);
 
             /* Load and start a PlanSpecification*/
-            bool start(IMC::PlanSpecification ps);
+            GCSCommandOutcome start(IMC::PlanSpecification ps);
 
             IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory);
 

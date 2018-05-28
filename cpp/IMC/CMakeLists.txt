@@ -322,5 +322,5 @@ set(SPEC_SOURCES Spec/Abort.hpp
         Spec/YoYo.hpp)
 
 find_package(Threads)
-add_library(libimc SHARED ${BASE_SOURCES} ${SPEC_SOURCES})
-target_link_libraries(libimc ${CMAKE_THREAD_LIBS_INIT})
+add_library(imc SHARED ${BASE_SOURCES} ${SPEC_SOURCES})
+target_link_libraries(imc ${CMAKE_THREAD_LIBS_INIT})

@@ -49,67 +49,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/PlanControl.hpp"
 #include "../../IMC/Spec/PlanControlState.hpp"
 
-#include "../vns/plan.hpp"
-
+#include "../core/SharedQueue.hpp"
 #include "../ext/ThreadPool.hpp"
+#include "../vns/plan.hpp"
 
 #include "imc_message_factories.hpp"
 
 namespace SAOP {
-
-    template<typename T>
-    class SharedQueue {
-        std::queue<T> q;
-        mutable std::mutex mutex;
-        mutable std::condition_variable q_avail;
-
-    public:
-        SharedQueue() = default;
-
-        SharedQueue(const SharedQueue& other) {
-            std::lock_guard<std::mutex> lock(other.mutex);
-            q = other.q;
-        }
-
-        // Defaults are not thread-safe
-        SharedQueue& operator=(const SharedQueue& other) = delete;
-
-        SharedQueue(SharedQueue&& other) = delete;
-
-        SharedQueue& operator=(const SharedQueue&& other) = delete; // Default is not thread-safe
-
-        /* Retrieve the first element
-         * returns true if the queue wasn't empty and false otherwise.*/
-        bool pop(T& x) {
-            std::lock_guard<std::mutex> lock(mutex);
-            if (q.empty()) {
-                return false;
-            }
-            x = std::move(q.front());
-            q.pop();
-            return true;
-        }
-
-        /* Retrieve the first element
-         * returns true if the queue wasn't empty and false otherwise.*/
-        bool wait_pop(T& x) {
-            std::unique_lock<std::mutex> lock(mutex);
-            q_avail.wait(lock, [this] { return !q.empty(); });
-            // To wait with a timeout:
-            // if (!q_avail.wait_for(lock, dur, [this] { return q.empty(); })) { return false; }
-            x = std::move(q.front());
-            q.pop();
-            return true;
-        }
-
-        /*Put an element at the end of the queue*/
-        void push(T x) {
-            std::lock_guard<std::mutex> lock(mutex);
-            q.push(std::move(x));
-            q_avail.notify_one();
-        }
-    };
-
     namespace neptus {
 
         typedef SharedQueue<std::unique_ptr<IMC::Message>> IMCMessageQueue;
@@ -150,7 +96,7 @@ namespace SAOP {
         };
 
         /* TODO: Enable shared_from_this ? */
-        class IMCCommManager {
+        class IMCComm {
             IMCTransportTCP tcp_server;
             std::shared_ptr<IMCMessageQueue> recv_q;
             std::unordered_map<size_t, std::function<void(std::unique_ptr<IMC::Message>)>> message_bindings;
@@ -160,12 +106,12 @@ namespace SAOP {
             ThreadPool thp;
 
         public:
-            IMCCommManager() :
+            IMCComm() :
                     tcp_server(IMCTransportTCP(8888)),
                     recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
-                    thp(5) {}
+                    thp(1) {}
 
-//            explicit IMCCommManager(IMCTransportTCP tcp_server) :
+//            explicit IMCComm(IMCTransportTCP tcp_server) :
 //                    tcp_server(std::move(tcp_server)),
 //                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
 

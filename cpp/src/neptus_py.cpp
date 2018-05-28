@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <iomanip>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/attr.h> // For py::arithmetic()
 #include <pybind11/functional.h> // for std::function conversion
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
@@ -60,24 +61,30 @@ PYBIND11_MODULE(neptus_interface, m) {
     py::class_<neptus::DuneLink>(m, "DuneLink")
             .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
 
-    py::class_<neptus::IMCCommManager,
-            std::shared_ptr<neptus::IMCCommManager>>(m, "IMCCommManager")
+    py::class_<neptus::IMCComm,
+            std::shared_ptr<neptus::IMCComm>>(m, "IMCComm")
             .def(py::init())
-            .def("run", &neptus::IMCCommManager::run, py::call_guard<py::gil_scoped_release>());
+            .def("run", &neptus::IMCComm::run, py::call_guard<py::gil_scoped_release>());
 
-    py::class_<neptus::PlanExecutionManager,
-            std::shared_ptr<neptus::PlanExecutionManager>>(m, "PlanExecutionManager")
-            .def(py::init<std::shared_ptr<neptus::IMCCommManager>>(), py::arg("imc"))
-            .def(py::init<std::shared_ptr<neptus::IMCCommManager>,
+    py::enum_<neptus::GCSCommandOutcome>(m, "GCSCommandOutcome", py::arithmetic())
+            .value("Unknown", neptus::GCSCommandOutcome::Unknown)
+            .value("Success", neptus::GCSCommandOutcome::Success)
+            .value("Failure", neptus::GCSCommandOutcome::Failure);
+
+    py::class_<neptus::GCS,
+            std::shared_ptr<neptus::GCS>>(m, "GCS")
+            .def(py::init<std::shared_ptr<neptus::IMCComm>>(), py::arg("imc"))
+            .def(py::init<std::shared_ptr<neptus::IMCComm>,
                          const std::function<void(neptus::PlanExecutionReport)>,
                          const std::function<void(neptus::UAVStateReport)>>(),
-                 py::arg("imc"), py::arg("per_cb"), py::arg("usr_cb"))
-            .def("start", (bool (neptus::PlanExecutionManager::*)(const Plan&)) &neptus::PlanExecutionManager::start,
-                 py::arg("plan"))
-            .def("start", (bool (neptus::PlanExecutionManager::*)()) &neptus::PlanExecutionManager::start)
-            .def("load", (bool (neptus::PlanExecutionManager::*)(const Plan&)) &neptus::PlanExecutionManager::load,
-                 py::arg("plan"))
-            .def("stop", &neptus::PlanExecutionManager::stop);
+                 py::arg("imc"), py::arg("per_cb"), py::arg("usr_cb"), py::call_guard<py::gil_scoped_release>())
+            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&)) &neptus::GCS::start,
+                 py::arg("plan"), py::call_guard<py::gil_scoped_release>())
+            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)()) &neptus::GCS::start, py::call_guard<py::gil_scoped_release>())
+            .def("load", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&)) &neptus::GCS::load,
+                 py::arg("plan"), py::call_guard<py::gil_scoped_release>())
+            .def("stop", &neptus::GCS::stop, py::call_guard<py::gil_scoped_release>())
+            .def_property_readonly("available_vehicles", &neptus::GCS::available_vehicles);
 
     py::class_<neptus::PlanExecutionReport>(m, "PlanExecutionReport")
             .def("__repr__", [](neptus::PlanExecutionReport& self) -> std::string {

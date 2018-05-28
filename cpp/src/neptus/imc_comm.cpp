@@ -99,14 +99,15 @@ namespace SAOP {
                         boost::asio::write(*sock, boost::asio::buffer(serl_b.getBuffer(), n_bytes));
                     }
                 }
+
             }
             catch (std::exception& e) {
                 std::cerr << "Exception in thread: " << e.what() << "\n";
             }
         }
 
-        void IMCCommManager::loop() {
-            tcp_server.set_recv_handler(std::bind(&IMCCommManager::message_inbox, this, std::placeholders::_1));
+        void IMCComm::loop() {
+            tcp_server.set_recv_handler(std::bind(&IMCComm::message_inbox, this, std::placeholders::_1));
 
             // Demo HeartBeat handler
             bind<IMC::Heartbeat>([this](std::unique_ptr<IMC::Heartbeat> m) {
@@ -123,11 +124,11 @@ namespace SAOP {
             message_dispatching_loop();
         }
 
-        void IMCCommManager::run() {
-            message_thread = std::thread(std::bind(&IMCCommManager::loop, this));
+        void IMCComm::run() {
+            message_thread = std::thread(std::bind(&IMCComm::loop, this));
         }
 
-        void IMCCommManager::message_dispatching_loop() {
+        void IMCComm::message_dispatching_loop() {
             try {
                 for (;;) {
                     std::unique_ptr<IMC::Message> m = nullptr;

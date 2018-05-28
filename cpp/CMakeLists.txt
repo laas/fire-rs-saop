@@ -38,7 +38,7 @@ set(CORE_SOURCE_FILES
         src/core/updates/updates.cpp
         src/core/updates/updates.hpp
         src/core/waypoint.hpp
-        )
+        src/core/SharedQueue.hpp)
 
 set(PLANNING_SOURCE_FILES
         src/vns/factory.cpp
@@ -69,20 +69,48 @@ set(MAPPING_SOURCE_FILES
         src/firemapping/ghostmapper.hpp
         )
 
-add_library(saopcore SHARED ${CORE_SOURCE_FILES} ${PLANNING_SOURCE_FILES} ${MAPPING_SOURCE_FILES})
+add_subdirectory("IMC")
+
+add_library(saop SHARED
+        ${CORE_SOURCE_FILES}
+        ${PLANNING_SOURCE_FILES}
+        ${MAPPING_SOURCE_FILES}
+        ${NEPTUSINTERFACE_SOURCE_FILES}
+        )
 
 find_package(GDAL REQUIRED)
-target_link_libraries(saopcore ${GDAL_LIBRARY})
+find_package(Boost REQUIRED COMPONENTS system)
 
+target_link_libraries(saop
+        imc
+        ${GDAL_LIBRARY}
+        ${Boost_LIBRARIES}
+        )
+
+# Pybind modules
 pybind11_add_module(uav_planning src/planning_py.cpp)
-target_link_libraries(uav_planning PUBLIC saopcore)
+target_link_libraries(uav_planning PUBLIC saop)
 
 pybind11_add_module(firemapping src/firemapping_py.cpp)
-target_link_libraries(firemapping PUBLIC saopcore)
+target_link_libraries(firemapping PUBLIC saop)
 
-IF (WITH_IMC_INTERFACE)
-    add_subdirectory("IMC")
-    find_package(Boost COMPONENTS system REQUIRED)
+pybind11_add_module(neptus_interface src/neptus_py.cpp)
+target_link_libraries(neptus_interface PUBLIC saop)
+
+IF (BUILD_TESTING)
+    find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+    add_executable(tests
+            src/test/core/test_reversible_updates.hpp
+            src/test/test_dubins.hpp
+            src/test/test_dubinswind.hpp
+            src/test/test_position_manipulation.hpp
+            src/test/main_tests.cpp
+            )
+    target_link_libraries(tests
+            saopcore
+            ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
+            )
+    add_test(tests tests)
 
     add_executable(imc_server
             src/test/main_imc_server.cpp
@@ -108,41 +136,4 @@ IF (WITH_IMC_INTERFACE)
             libimc
             ${Boost_LIBRARIES}
             )
-
-
-    add_executable(saop_neptus_server
-            ${NEPTUSINTERFACE_SOURCE_FILES}
-            src/neptus/main.cpp
-            )
-    target_link_libraries(saop_neptus_server
-            libimc
-            saopcore
-            ${Boost_LIBRARIES}
-            )
-
-    pybind11_add_module(neptus_interface
-            ${NEPTUSINTERFACE_SOURCE_FILES}
-            src/neptus_py.cpp
-            )
-    target_link_libraries(neptus_interface PUBLIC
-            libimc
-            saopcore
-            ${Boost_LIBRARIES}
-            )
-ENDIF (WITH_IMC_INTERFACE)
-
-IF (BUILD_TESTING)
-    find_package(Boost COMPONENTS unit_test_framework REQUIRED)
-    add_executable(tests
-            src/test/core/test_reversible_updates.hpp
-            src/test/test_dubins.hpp
-            src/test/test_dubinswind.hpp
-            src/test/test_position_manipulation.hpp
-            src/test/main_tests.cpp
-            )
-    target_link_libraries(tests
-            saopcore
-            ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
-            )
-    add_test(tests tests)
 ENDIF (BUILD_TESTING)
