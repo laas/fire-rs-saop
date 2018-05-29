@@ -7,12 +7,12 @@ build: build-release
 # Builds all python extensions 
 build-release: FORCE
 	mkdir -p $(BUILD_FOLDER)
-	cd $(BUILD_FOLDER) && cmake -DCMAKE_BUILD_TYPE=Release  ..
+	cd $(BUILD_FOLDER) && cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IMC_INTERFACE=ON ..
 	cd $(BUILD_FOLDER) && make
 
 build-debug: FORCE
 	mkdir -p $(BUILD_DEBUG_FOLDER)
-	cd $(BUILD_DEBUG_FOLDER) && cmake -DCMAKE_BUILD_TYPE=Debug ..
+	cd $(BUILD_DEBUG_FOLDER) && cmake -DCMAKE_BUILD_TYPE=Debug -DWITH_IMC_INTERFACE=ON ..
 	cd $(BUILD_DEBUG_FOLDER) && make
 	
 build-testing: FORCE

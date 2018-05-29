@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../neptus/imc_message_factories.hpp"
 #include "../vns/plan.hpp"
 
+#include "geography.hpp"
+
 using boost::asio::ip::udp;
 
 namespace SAOP {
@@ -41,23 +43,6 @@ namespace SAOP {
     namespace neptus {
 
         static uint16_t request_counter = 0; // FIXME: Not thread-safe!!
-
-        static std::vector<Waypoint3d> WGS84_waypoints(std::vector<Waypoint3d> waypoints,
-                                                       Position origin, int utm_zone = 29,
-                                                       bool northern_hemisphere = true) {
-            auto wgs84_wp = std::vector<Waypoint3d>();
-            auto wp0 = waypoints[0];
-
-            for (auto &wp: waypoints) {
-                double lat;
-                double lon;
-                SAOP::ext::toWGS84(wp.y - wp0.y + origin.y, wp.x - wp0.x + origin.x,
-                                   utm_zone, northern_hemisphere, &lat, &lon);
-                wgs84_wp.emplace_back(Waypoint3d(lon, lat, wp.z, wp.dir));
-            }
-
-            return wgs84_wp;
-        }
 
         class DuneLink {
         private:

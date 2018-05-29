@@ -17,6 +17,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CORE_SOURCE_FILES
         src/ext/json.hpp
         src/ext/optional.hpp
+        src/ext/ThreadPool.hpp
         src/cpp_py_utils.hpp
         src/utils.cpp
         src/utils.hpp
@@ -37,7 +38,7 @@ set(CORE_SOURCE_FILES
         src/core/updates/updates.cpp
         src/core/updates/updates.hpp
         src/core/waypoint.hpp
-        )
+        src/core/SharedQueue.hpp)
 
 set(PLANNING_SOURCE_FILES
         src/vns/factory.cpp
@@ -55,64 +56,46 @@ set(PLANNING_SOURCE_FILES
 
 set(NEPTUSINTERFACE_SOURCE_FILES
         src/ext/coordinates.hpp
+        src/neptus/imc_comm.cpp
+        src/neptus/imc_comm.hpp
         src/neptus/imc_message_factories.hpp
-        src/neptus/saop_neptus.hpp
+        src/neptus/geography.hpp
+        src/neptus/saop_to_dune.hpp
+        src/neptus/saop_server.cpp
+        src/neptus/saop_server.hpp
         )
 
 set(MAPPING_SOURCE_FILES
         src/firemapping/ghostmapper.hpp
         )
 
-add_library(saopcore SHARED ${CORE_SOURCE_FILES} ${PLANNING_SOURCE_FILES} ${MAPPING_SOURCE_FILES})
+add_subdirectory("IMC")
 
+add_library(saop SHARED
+        ${CORE_SOURCE_FILES}
+        ${PLANNING_SOURCE_FILES}
+        ${MAPPING_SOURCE_FILES}
+        ${NEPTUSINTERFACE_SOURCE_FILES}
+        )
+
+find_package(GDAL REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+
+target_link_libraries(saop
+        imc
+        ${GDAL_LIBRARY}
+        ${Boost_LIBRARIES}
+        )
+
+# Pybind modules
 pybind11_add_module(uav_planning src/planning_py.cpp)
-target_link_libraries(uav_planning PUBLIC saopcore)
+target_link_libraries(uav_planning PUBLIC saop)
 
 pybind11_add_module(firemapping src/firemapping_py.cpp)
-target_link_libraries(firemapping PUBLIC saopcore)
+target_link_libraries(firemapping PUBLIC saop)
 
-IF (WITH_IMC_INTERFACE)
-    add_subdirectory("IMC")
-    find_package(Boost COMPONENTS system thread REQUIRED)
-
-    add_executable(imc_server
-            src/test/main_imc_server.cpp
-            )
-    target_link_libraries(imc_server
-            libimc
-            ${Boost_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
-            )
-
-    add_executable(saop_to_dune
-            src/test/main_saop_to_dune.cpp
-            src/neptus/imc_message_factories.hpp
-            )
-    target_link_libraries(saop_to_dune
-            libimc
-            ${Boost_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
-            )
-
-    add_executable(imc_client
-            src/test/main_imc_client.cpp
-            )
-    target_link_libraries(imc_client
-            libimc
-            ${Boost_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
-            )
-
-    pybind11_add_module(neptus_interface
-            ${NEPTUSINTERFACE_SOURCE_FILES}
-            src/neptus_py.cpp
-            )
-    target_link_libraries(neptus_interface PUBLIC
-            libimc
-            saopcore
-            ${Boost_LIBRARIES}
-            )
-ENDIF (WITH_IMC_INTERFACE)
+pybind11_add_module(neptus_interface src/neptus_py.cpp)
+target_link_libraries(neptus_interface PUBLIC saop)
 
 IF (BUILD_TESTING)
     find_package(Boost COMPONENTS unit_test_framework REQUIRED)
@@ -128,4 +111,29 @@ IF (BUILD_TESTING)
             ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
             )
     add_test(tests tests)
+
+    add_executable(imc_server
+            src/test/main_imc_server.cpp
+            )
+    target_link_libraries(imc_server
+            libimc
+            ${Boost_LIBRARIES}
+            )
+
+    add_executable(saop_to_dune
+            src/test/main_saop_to_dune.cpp
+            src/neptus/imc_message_factories.hpp
+            )
+    target_link_libraries(saop_to_dune
+            libimc
+            ${Boost_LIBRARIES}
+            )
+
+    add_executable(imc_client
+            src/test/main_imc_client.cpp
+            )
+    target_link_libraries(imc_client
+            libimc
+            ${Boost_LIBRARIES}
+            )
 ENDIF (BUILD_TESTING)

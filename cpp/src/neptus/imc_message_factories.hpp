@@ -47,7 +47,18 @@ namespace SAOP {
 
     namespace neptus {
 
-        class StartActionsFactory{
+        template<typename M>
+        std::unique_ptr<M> produce_unique(uint16_t src, uint8_t src_ent, uint16_t dst, uint8_t dst_ent) {
+            auto m = std::unique_ptr<M>(new M());
+            m->setTimeStamp();
+            m->setSource(src);
+            m->setSourceEntity(src_ent);
+            m->setDestination(dst);
+            m->setDestinationEntity(dst_ent);
+            return m;
+        }
+
+        class StartActionsFactory {
         public:
             static IMC::MessageList<IMC::Message> make_message() {
                 auto h_ctrl_set_entity_parameters = IMC::SetEntityParameters();
@@ -76,8 +87,8 @@ namespace SAOP {
 
         class PlanManeuverFactory {
         public:
-            static IMC::PlanManeuver make_message(const std::string &maneuver_id,
-                                                  const IMC::Maneuver &maneuver_message) {
+            static IMC::PlanManeuver make_message(const std::string& maneuver_id,
+                                                  const IMC::Maneuver& maneuver_message) {
                 auto pm = IMC::PlanManeuver();
                 pm.maneuver_id = maneuver_id;
                 pm.data = IMC::InlineMessage<IMC::Maneuver>();
@@ -90,9 +101,9 @@ namespace SAOP {
 
         class GotoFactory {
         public:
-            static IMC::Goto make_message(uint16_t timeout, double lat, double lon,  float z, uint8_t z_units,
+            static IMC::Goto make_message(uint16_t timeout, double lat, double lon, float z, uint8_t z_units,
                                           float speed, uint8_t speed_units, double roll, double pitch, double yaw,
-                                          const std::string &custom) {
+                                          const std::string& custom) {
                 auto maneuver_goto = IMC::Goto();
                 maneuver_goto.timeout = timeout;
                 maneuver_goto.lat = lat;
@@ -118,9 +129,9 @@ namespace SAOP {
         class LoiterFactory {
         public:
             static IMC::Loiter make_message(uint16_t timeout, double lat, double lon, float z, uint8_t z_units,
-                                            uint16_t duration, float speed, uint8_t speed_units,  uint8_t type,
+                                            uint16_t duration, float speed, uint8_t speed_units, uint8_t type,
                                             float radius, float length, double bearing, uint8_t direction,
-                                            const std::string &custom) {
+                                            const std::string& custom) {
                 auto maneuver_loiter = IMC::Loiter();
                 maneuver_loiter.timeout = timeout;
                 maneuver_loiter.lat = lat;
@@ -149,13 +160,13 @@ namespace SAOP {
 
         class SequentialPlanTransitionListFactory {
         public:
-            static IMC::MessageList<IMC::PlanTransition> make_message(const std::vector<IMC::PlanManeuver> &maneuvers) {
+            static IMC::MessageList<IMC::PlanTransition> make_message(const std::vector<IMC::PlanManeuver>& maneuvers) {
                 auto transitions = IMC::MessageList<IMC::PlanTransition>();
 
-                for(size_t i = 0; i < maneuvers.size()-1; ++i) {
+                for (size_t i = 0; i < maneuvers.size() - 1; ++i) {
                     auto pt = IMC::PlanTransition();
                     pt.source_man = maneuvers[i].maneuver_id;
-                    pt.dest_man = maneuvers[i+1].maneuver_id;
+                    pt.dest_man = maneuvers[i + 1].maneuver_id;
                     pt.conditions = "ManeuverIsDone";
                     transitions.push_back(pt);
                 }
@@ -163,13 +174,14 @@ namespace SAOP {
 
             }
 
-            static IMC::MessageList<IMC::PlanTransition> make_message(const IMC::MessageList<IMC::PlanManeuver> &maneuvers){
+            static IMC::MessageList<IMC::PlanTransition>
+            make_message(const IMC::MessageList<IMC::PlanManeuver>& maneuvers) {
                 auto transitions = IMC::MessageList<IMC::PlanTransition>();
 
-                for(auto it = maneuvers.begin(); it != maneuvers.end()-1; ++it) {
+                for (auto it = maneuvers.begin(); it != maneuvers.end() - 1; ++it) {
                     auto pt = IMC::PlanTransition();
                     pt.source_man = (*it)->maneuver_id;
-                    pt.dest_man = (*(it+1))->maneuver_id;
+                    pt.dest_man = (*(it + 1))->maneuver_id;
                     pt.conditions = "ManeuverIsDone";
                     transitions.push_back(pt);
                 }
@@ -203,7 +215,7 @@ namespace SAOP {
                 return plan_spec;
             }
 
-            static IMC::PlanSpecification make_message(const std::string &name, std::vector<Waypoint3d> wgs_waypoints) {
+            static IMC::PlanSpecification make_message(const std::string& name, std::vector<Waypoint3d> wgs_waypoints) {
 
                 auto pmx = IMC::MessageList<IMC::PlanManeuver>();
 
@@ -246,7 +258,7 @@ namespace SAOP {
                 return pdb;
             }
 
-            static IMC::PlanDB make_message(const std::string &name, std::vector<Waypoint3d> wgs84_waypoints) {
+            static IMC::PlanDB make_message(const std::string& name, std::vector<Waypoint3d> wgs84_waypoints) {
                 auto plan_spec = SAOP::neptus::PlanSpecificationFactory::make_message(name, wgs84_waypoints);
                 auto pdb = IMC::PlanDB();
                 pdb.type = IMC::PlanDB::TypeEnum::DBT_REQUEST;
@@ -263,14 +275,28 @@ namespace SAOP {
 
         class PlanControlFactory {
         public:
-            static IMC::PlanControl make_start_plan_message(const std::string &plan_id,
-                                                            uint16_t request_id=0) {
+            static IMC::PlanControl make_start_plan_message(const std::string& plan_id,
+                                                            uint16_t request_id = 0) {
                 auto pc = IMC::PlanControl();
                 pc.type = IMC::PlanControl::TypeEnum::PC_REQUEST;
                 pc.op = IMC::PlanControl::OperationEnum::PC_START;
                 pc.request_id = request_id;
                 pc.plan_id = plan_id;
                 pc.flags = 0;
+
+                return pc;
+            }
+
+            static IMC::PlanControl make_load_plan_message(const IMC::PlanSpecification& plan_spec,
+                                                           uint16_t request_id = 0) {
+                IMC::PlanControl pc = IMC::PlanControl();
+                pc.type = IMC::PlanControl::TypeEnum::PC_REQUEST;
+                pc.op = IMC::PlanControl::OperationEnum::PC_LOAD;
+                pc.request_id = request_id;
+                pc.plan_id = plan_spec.plan_id;
+                pc.flags = 0;
+                pc.arg = IMC::InlineMessage<IMC::Message>();
+                pc.arg.set(plan_spec);
 
                 return pc;
             }
