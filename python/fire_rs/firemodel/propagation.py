@@ -68,6 +68,10 @@ class Environment:
         self._clustering = None
 
     @property
+    def area(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        return self._area
+
+    @property
     @deprecated
     def clustering(self):
         if self._clustering is None:
