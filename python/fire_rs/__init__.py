@@ -1,1 +1,1 @@
-__all__ = ['firemodel', 'geodata']
+__all__ = ['firemodel', 'geodata', 'planning']

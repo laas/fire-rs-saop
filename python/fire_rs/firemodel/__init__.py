@@ -1,1 +1,1 @@
-__all__ = ['environment', 'fireshapes', 'propagation', 'rothermel']
+__all__ = ['propagation']
