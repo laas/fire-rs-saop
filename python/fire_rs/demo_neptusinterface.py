@@ -23,11 +23,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-
-
 if __name__ == "__main__":
     import threading
     import fire_rs.neptus_interface as nifc
+
 
     def give_me_a_plan():
         import numpy as np
@@ -91,15 +90,18 @@ if __name__ == "__main__":
         pl.compute_plan()
         return pl.search_result.final_plan()
 
+
     f1 = lambda x: None
     f2 = lambda x: None
 
     imccomm = nifc.IMCComm()
     gcs = None
 
+
     def gcs_run():
         global gcs
         gcs = nifc.GCS(imccomm, f1, f2)
+
 
     t_imc = threading.Thread(target=imccomm.run, daemon=True)
     t_gcs = threading.Thread(target=gcs_run, daemon=True)
@@ -126,5 +128,3 @@ if __name__ == "__main__":
         lll = input("e for exit")
         if lll == "e":
             break
-
-
