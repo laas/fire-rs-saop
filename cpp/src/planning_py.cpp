@@ -35,6 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "cpp_py_utils.hpp"
 #include "vns/factory.hpp"
 
+#include "PythonLoggerSink.hpp"
+
 namespace py = pybind11;
 
 namespace SAOP {
@@ -141,6 +143,18 @@ PYBIND11_MODULE(uav_planning, m) {
 #ifdef DEBUG
     std::cerr << "Warning: Planning module compiled in debug mode. Expect slowness ;)\n";
 #endif
+    m.def("set_logger", [](py::object logger) {
+        boost::shared_ptr<logging::core> core = logging::core::get();
+
+        // Create a backend and initialize it with a stream
+        boost::shared_ptr<PythonLoggerSink> backend = boost::make_shared<PythonLoggerSink>(logger);
+        typedef sinks::synchronous_sink<PythonLoggerSink> sink_t;
+        boost::shared_ptr<sink_t> sink(new sink_t(backend));
+
+        core->add_sink(sink);
+
+        BOOST_LOG_TRIVIAL(info) << "Logger set";
+    }, py::arg("logger").none(false));
 
     py::class_<DRaster>(m, "DRaster")
             .def(py::init([](py::array_t<double, py::array::c_style | py::array::forcecast> arr,

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(planning_cpp)
 
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
 
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pybind11")
     add_subdirectory("pybind11")
@@ -38,7 +40,9 @@ set(CORE_SOURCE_FILES
         src/core/updates/updates.cpp
         src/core/updates/updates.hpp
         src/core/waypoint.hpp
-        src/core/SharedQueue.hpp)
+        src/core/SharedQueue.hpp
+        src/PythonLoggerSink.cpp
+        src/PythonLoggerSink.hpp)
 
 set(PLANNING_SOURCE_FILES
         src/vns/factory.cpp
@@ -79,10 +83,14 @@ add_library(saop SHARED
         )
 
 find_package(GDAL REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system)
+
+set(Boost_USE_MULTITHREADED ON)
+add_definitions(-DBOOST_LOG_DYN_LINK)
+find_package(Boost COMPONENTS log log_setup thread date_time filesystem system REQUIRED)
 
 target_link_libraries(saop
         imc
+        ${CMAKE_THREAD_LIBS_INIT}
         ${GDAL_LIBRARY}
         ${Boost_LIBRARIES}
         )
