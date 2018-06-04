@@ -43,6 +43,7 @@ namespace py = pybind11;
 #include <boost/log/attributes/current_process_name.hpp>
 #include <boost/log/sinks/sync_frontend.hpp>
 #include <boost/log/sinks/basic_sink_backend.hpp>
+#include <boost/log/sources/global_logger_storage.hpp>
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/utility/value_ref.hpp>
 #include <boost/log/utility/formatting_ostream.hpp>
@@ -58,8 +59,7 @@ namespace keywords = boost::log::keywords;
 
 namespace SAOP {
 
-    BOOST_LOG_ATTRIBUTE_KEYWORD(process_name, "ProcessName", std::string)
-    BOOST_LOG_ATTRIBUTE_KEYWORD(caption, "Caption", std::string)
+//    BOOST_LOG_GLOBAL_LOGGER(the_logger, src::severity_logger_mt)
 
     enum class PythonLoggingLevels {
         critical = 50,
@@ -70,17 +70,19 @@ namespace SAOP {
         notset = 0
     };
 
-    class PythonLoggerSink :
+    class  :
             public sinks::basic_sink_backend<sinks::synchronized_feeding> {
         //TODO: Try concurrent feeding later
     private:
         py::object logger;
+        py::str module_name;
 
     public:
-        explicit PythonLoggerSink(py::object a_logger) : logger(std::move(a_logger)) {}
+        (py::object a_logger, py::str modulename) : logger(std::move(a_logger)),
+                                                                    module_name(std::move(modulename)) {}
 
         // The function consumes the log records that come from the frontend
-        void consume(logging::record_view const& rec);
+        void consume(::record_view const& rec);
     };
 }
 

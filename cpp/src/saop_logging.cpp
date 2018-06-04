@@ -21,16 +21,27 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
-#include "PythonLoggerSink.hpp"
-#include <ostream>
+#include "logging.hpp"
+//
+//BOOST_LOG_GLOBAL_LOGGER_INIT(the_logger, src::severity_logger_mt)
+//{
+//    src::severity_logger_mt< > lg;
+//    lg.add_attribute("StopWatch", boost::make_shared< attrs::timer >());
+//    return lg;
+//}
+//BOOST_LOG_GLOBAL_LOGGER_INIT(the_logger, src::severity_logger_mt)
+//{
+//    src::severity_logger_mt< > lg;
+//    lg.add_attribute("StopWatch", boost::make_shared< attrs::timer >());
+//    return lg;
+//}
 
-void SAOP::PythonLoggerSink::consume(logging::record_view const& rec) {
+void SAOP::logging::consume(logging::record_view const& rec) {
     /*
      * a_rec = logger.makeRecord(logger.name, logging.CRITICAL, "module", 123, "msg %s", (logger.name,), ())
      * logger.handle(a_rec)
+     * Logger.makeRecord(name, lvl, fn, lno, msg, args, exc_info, func=None, extra=None, sinfo=None)
      */
-//    py::object py_record = logger.attr("makeRecord")(logger.attr("name"), 50, "uav_planning", 0, rec[expr::smessage], py::make_tuple(), py::make_tuple()); // Logger.makeRecord(name, lvl, fn, lno, msg, args, exc_info, func=None, extra=None, sinfo=None)
-//    logger.attr("handle")(py_record);
     logging::trivial::severity_level boost_severity = static_cast<logging::trivial::severity_level>(rec[logging::trivial::severity].get());
     PythonLoggingLevels py_severity = PythonLoggingLevels::notset;
     switch (boost_severity) {
@@ -55,5 +66,8 @@ void SAOP::PythonLoggerSink::consume(logging::record_view const& rec) {
         default:
             break;
     }
-    logger.attr("log")(static_cast<int>(py_severity), py::str(rec[expr::smessage].get()));
+    // TODO: Register current line with boost::log so the record can be complete
+    auto py_record = logger.attr("makeRecord")(module_name, static_cast<int>(py_severity), module_name, 0, py::str(rec[expr::smessage].get()), py::none(), py::none());
+    logger.attr("handle")(py_record);
+//    logger.attr("log")(static_cast<int>(py_severity), py::str(rec[expr::smessage].get()));
 }
