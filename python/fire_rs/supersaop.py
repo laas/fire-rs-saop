@@ -66,7 +66,8 @@ def poll_alarm() -> Alarm:
     return datetime.datetime.now(), ignitions
 
 
-def get_area_wind(position_time: ty.Tuple[tuple, tuple, datetime]) -> ty.Tuple[float, float]:
+def get_area_wind(position_time: ty.Tuple[float, float, datetime.datetime]) \
+        -> ty.Tuple[float, float]:
     return 10., np.pi / 4
 
 
@@ -76,18 +77,16 @@ def compute_area(igntions: ty.Sequence[geo_data.TimedPoint],
     bounds for a PlanningEnvironment around them"""
 
     def extend_area(area: Area2D, point, clearance):
-        max_px, min_px, max_py, min_py = area[0][1], area[0][0], area[0][1], area[0][0]
-
-        min_px = min(area[0][0], point[0] - clearance)
-        max_px = max(area[0][1], point[0] + clearance)
-        min_py = min(area[1][0], point[1] - clearance)
-        max_py = max(area[1][1], point[1] + clearance)
+        min_px = min(area[0][0], point[0] - clearance[0])
+        max_px = max(area[0][1], point[0] + clearance[0])
+        min_py = min(area[1][0], point[1] - clearance[1])
+        max_py = max(area[1][1], point[1] + clearance[1])
 
         return (min_px, max_px), (min_py, max_py)
 
     ignition_clear = (2500.0, 2500.0)
 
-    area = ((igntions[0], igntions[0]), (igntions[1], igntions[1]))
+    area = ((igntions[0][0], igntions[0][0]), (igntions[0][1], igntions[0][1]))
     for ig in igntions:
         area = extend_area(area, ig, ignition_clear)
     if bases is not None:
@@ -101,7 +100,7 @@ def compute_area(igntions: ty.Sequence[geo_data.TimedPoint],
 def get_environment(alarm: Alarm) -> planning.PlanningEnvironment:
     """Get a PlanningEnvironment around an alarm"""
     wind = get_area_wind(alarm[1][0])
-    area = compute_area(alarm, bases)
+    area = compute_area(alarm[1], bases())
 
     return planning.PlanningEnvironment(area, wind_speed=wind[0], wind_dir=wind[1],
                                         planning_elevation_mode='flat', flat_altitude=0)
@@ -110,17 +109,40 @@ def get_environment(alarm: Alarm) -> planning.PlanningEnvironment:
 def compute_fire_propagation(env: planning.PlanningEnvironment,
                              alarm: Alarm,
                              until: datetime.datetime) -> propagation.FirePropagation:
-    return propagation.propagate_from_points(env, alarm[1], until.timestamp())
+    logger.info("Start fire propagation from %s until %s", alarma[1], until)
+    pt_float = [(x, y, time.timestamp()) for x, y, time in alarm[1]]
+    prop = propagation.propagate_from_points(env, pt_float, until.timestamp())
+    logger.info("Propagation ended")
+    return prop
 
 
 if __name__ == "__main__":
+    import logging
+
+    FORMAT = '%(asctime)-23s %(levelname)-8s [%(name)s]: %(message)s'
+    logging.basicConfig(format=FORMAT)
+
+    logger = logging.getLogger("__main__")
+    logger.setLevel(logging.DEBUG)
+
+    logger_up = logger.getChild("uav_planning")
+    planning.up.set_logger(logger_up)
+
     alarma = poll_alarm()
+    logger.info("Alarm raised: %s", alarma)
+
     p_env = get_environment(alarma)
+    logger.info("Got environment: %s", p_env)
+
     fire_prop = compute_fire_propagation(p_env, alarma, alarma[0] + datetime.timedelta(minutes=60))
 
     takeoff_delay = datetime.timedelta(minutes=10)
     f_conf = planning.FlightConf(uav_confs_planning()["x8-06"],
                                  (alarma[0] + takeoff_delay).timestamp(), bases()[0])
     fl_window = (f_conf.start_time, f_conf.start_time + f_conf.max_flight_time)
-    saop_conf = planning.SAOPPlannerConf(fl_window, planning.VNSConfDB.demo_db(), 10.0, False, 0)
-    planner = planning.Planner(p_env, fire_prop.prop_data, f_conf, saop_conf)
+    saop_conf = planning.SAOPPlannerConf(fl_window, planning.VNSConfDB.demo_db()["demo"], 10.0,
+                                         False, 0)
+    planner = planning.Planner(p_env, fire_prop.prop_data, [f_conf], saop_conf)
+    sr = planner.compute_plan()
+    print(sr)
+
