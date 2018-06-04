@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "cpp_py_utils.hpp"
 #include "vns/factory.hpp"
 
-#include "PythonLoggerSink.hpp"
+#include "saop_logging.hpp"
 
 namespace py = pybind11;
 
@@ -60,23 +60,24 @@ namespace SAOP {
         SAOP::check_field_is_present(conf["vns"], "max_time");
         const size_t max_planning_time = conf["vns"]["max_time"];
 
-        std::cout << "Processing firedata data" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Pre-process firedata" << std::endl;
         double preprocessing_start = time();
         shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
         double preprocessing_end = time();
 
-        std::cout << "Building initial plan" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Build initial plan";
         Plan p(configs, fire_data, TimeWindow{min_time, max_time});
 
-        std::cout << "Planning" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Using VNS search "<< std::endl << conf["vns"].dump();
         auto vns = build_from_config(conf["vns"].dump());
+        BOOST_LOG_TRIVIAL(info) << "Start planning";
         const double planning_start = time();
         auto res = vns->search(p, max_planning_time, save_every, save_improvements);
         const double planning_end = time();
 
-        std::cout << "Plan found in " << planning_end - planning_start << " seconds" << std::endl;
-        std::cout << "Best plan: utility: " << res.final().utility()
-                  << " -- duration:" << res.final().duration() << std::endl;
+        BOOST_LOG_TRIVIAL(info) << "Plan found in " << planning_end - planning_start << " seconds";
+        BOOST_LOG_TRIVIAL(info) << "Best plan utility: " << res.final().utility();
+        BOOST_LOG_TRIVIAL(info) << "Best plan duration: " << res.final().duration();
         res.metadata["planning_time"] = planning_end - planning_start;
         res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
         res.metadata["configuration"] = conf;
@@ -139,21 +140,25 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
 PYBIND11_MODULE(uav_planning, m) {
     m.doc() = "Python module for UAV trajectory planning";
 
-    srand(0);
 #ifdef DEBUG
+    srand(0);
     std::cerr << "Warning: Planning module compiled in debug mode. Expect slowness ;)\n";
+#else
+    srand(time(0));
 #endif
-    m.def("set_logger", [](py::object logger) {
+
+    m.def("set_logger", [&m](py::object& logger) {
         boost::shared_ptr<logging::core> core = logging::core::get();
-
-        // Create a backend and initialize it with a stream
-        boost::shared_ptr<PythonLoggerSink> backend = boost::make_shared<PythonLoggerSink>(logger);
+        py::gil_scoped_acquire acquire;
+        boost::shared_ptr<PythonLoggerSink> backend = boost::make_shared<PythonLoggerSink>(std::move(py::object(logger)), "saop_cpp");
         typedef sinks::synchronous_sink<PythonLoggerSink> sink_t;
-        boost::shared_ptr<sink_t> sink(new sink_t(backend));
-
+        boost::shared_ptr<sink_t> sink = boost::shared_ptr<sink_t>(new sink_t(backend), boost::null_deleter());
         core->add_sink(sink);
 
-        BOOST_LOG_TRIVIAL(info) << "Logger set";
+        BOOST_LOG_TRIVIAL(debug) << "uav_planning logger set";
+        #ifdef DEBUG
+        BOOST_LOG_TRIVIAL(warning) << "Planning module compiled in debug mode";
+        #endif
     }, py::arg("logger").none(false));
 
     py::class_<DRaster>(m, "DRaster")

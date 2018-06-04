@@ -31,14 +31,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace py = pybind11;
 
+#include <iomanip>
 #include <cstdlib>
 #include <string>
 #include <utility>
 #include <stdexcept>
+#include <memory>
 #include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/phoenix.hpp>
-#include <boost/log/trivial.hpp>
 #include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/attributes/current_process_name.hpp>
 #include <boost/log/sinks/sync_frontend.hpp>
@@ -48,7 +50,9 @@ namespace py = pybind11;
 #include <boost/log/utility/value_ref.hpp>
 #include <boost/log/utility/formatting_ostream.hpp>
 #include <boost/log/utility/manipulators/add_value.hpp>
+#include <boost/core/null_deleter.hpp>
 
+namespace src = boost::log::sources;
 namespace logging = boost::log;
 namespace attrs = boost::log::attributes;
 namespace src = boost::log::sources;
@@ -70,7 +74,7 @@ namespace SAOP {
         notset = 0
     };
 
-    class  :
+    class PythonLoggerSink :
             public sinks::basic_sink_backend<sinks::synchronized_feeding> {
         //TODO: Try concurrent feeding later
     private:
@@ -78,13 +82,12 @@ namespace SAOP {
         py::str module_name;
 
     public:
-        (py::object a_logger, py::str modulename) : logger(std::move(a_logger)),
+        PythonLoggerSink(py::object a_logger, py::str modulename) : logger(std::move(a_logger)),
                                                                     module_name(std::move(modulename)) {}
 
         // The function consumes the log records that come from the frontend
-        void consume(::record_view const& rec);
+        void consume(logging::record_view const& rec);
     };
 }
-
 
 #endif //PLANNING_CPP_PYTHONLOGSINK_HPP

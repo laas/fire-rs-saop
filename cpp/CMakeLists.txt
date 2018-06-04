@@ -16,6 +16,8 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wdelete-non-virtual-dt
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
+#set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+
 set(CORE_SOURCE_FILES
         src/ext/json.hpp
         src/ext/optional.hpp
@@ -41,8 +43,8 @@ set(CORE_SOURCE_FILES
         src/core/updates/updates.hpp
         src/core/waypoint.hpp
         src/core/SharedQueue.hpp
-        src/PythonLoggerSink.cpp
-        src/PythonLoggerSink.hpp)
+        src/saop_logging.cpp
+        src/saop_logging.hpp)
 
 set(PLANNING_SOURCE_FILES
         src/vns/factory.cpp
