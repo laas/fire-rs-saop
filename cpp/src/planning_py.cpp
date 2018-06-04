@@ -60,7 +60,7 @@ namespace SAOP {
         SAOP::check_field_is_present(conf["vns"], "max_time");
         const size_t max_planning_time = conf["vns"]["max_time"];
 
-        BOOST_LOG_TRIVIAL(debug) << "Pre-process firedata" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Pre-process fire data" << std::endl;
         double preprocessing_start = time();
         shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
         double preprocessing_end = time();
@@ -68,8 +68,10 @@ namespace SAOP {
         BOOST_LOG_TRIVIAL(debug) << "Build initial plan";
         Plan p(configs, fire_data, TimeWindow{min_time, max_time});
 
-        BOOST_LOG_TRIVIAL(debug) << "Using VNS search "<< std::endl << conf["vns"].dump();
-        auto vns = build_from_config(conf["vns"].dump());
+        auto vns_dump = conf["vns"].dump();
+        BOOST_LOG_TRIVIAL(debug) << "Using VNS search "<< std::endl << vns_dump;
+        auto vns = build_from_config(vns_dump);
+
         BOOST_LOG_TRIVIAL(info) << "Start planning";
         const double planning_start = time();
         auto res = vns->search(p, max_planning_time, save_every, save_improvements);
@@ -105,30 +107,32 @@ namespace SAOP {
         SAOP::check_field_is_present(conf["vns"], "max_time");
         const size_t max_planning_time = conf["vns"]["max_time"];
 
-        std::cout << "Processing updated fire data" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Pre-process fire data" << std::endl;
         double preprocessing_start = time();
         shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
         double preprocessing_end = time();
 
-        std::cout << "Building initial plan from last final plan" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Build and set a new plan from last search result ";
         Plan p = last_search.final();
         p.firedata(fire_data);
         p.freeze_before(after_time);
         p.project_on_fire_front();
 
-        std::cout << "Planning" << std::endl;
-        auto vns = build_from_config(conf["vns"].dump());
+        auto vns_dump = conf["vns"].dump();
+        BOOST_LOG_TRIVIAL(debug) << "Using VNS search "<< std::endl << vns_dump;
+        auto vns = build_from_config(vns_dump);
+
+        BOOST_LOG_TRIVIAL(info) << "Start planning";
         const double planning_start = time();
         auto res = vns->search(p, max_planning_time, save_every, save_improvements);
         const double planning_end = time();
 
+        BOOST_LOG_TRIVIAL(info) << "Plan found in " << planning_end - planning_start << " seconds";
+        BOOST_LOG_TRIVIAL(info) << "Best plan utility: " << res.final().utility();
+        BOOST_LOG_TRIVIAL(info) << "Best plan duration: " << res.final().duration();
         res.metadata["planning_time"] = planning_end - planning_start;
         res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
         res.metadata["configuration"] = conf;
-
-        std::cout << "Plan found in " << planning_end - planning_start << " seconds" << std::endl;
-        std::cout << "Best plan: utility: " << res.final().utility()
-                  << " -- duration:" << res.final().duration() << std::endl;
 
         return res;
     }

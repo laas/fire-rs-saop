@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "plan.hpp"
 
 #include "../ext/json.hpp"
+#include "../saop_logging.hpp"
 
 using json = nlohmann::json;
 
@@ -174,7 +175,7 @@ namespace SAOP {
                 // choose first neighborhood
                 size_t current_neighborhood = 0;
                 if (num_restarts > 0) {
-                    std::cout << "Shuffle no. " << num_restarts << std::endl;
+                    BOOST_LOG_TRIVIAL(info) << "Shuffle no. " << num_restarts << std::endl;
                     best_plan_for_restart = std::make_shared<Plan>(Plan(*best_plan));
                     shuffler->shuffle(best_plan_for_restart);
                     if (save_improvements) {
@@ -205,8 +206,11 @@ namespace SAOP {
                                     std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                         }
 
-                        printf("Improvement (lvl: %d): utility: %f -- duration: %f\n", (int) current_neighborhood,
-                               best_plan_for_restart->utility(), best_plan_for_restart->duration());
+                        BOOST_LOG_TRIVIAL(info) << "Improvement (nbhd " << static_cast<int> (current_neighborhood)
+                                                << " ): { utility: "
+                                                << std::fixed << std::setw(11) << std::setprecision(6)
+                                                << best_plan_for_restart->utility()
+                                                << ", duration: " << best_plan_for_restart->duration() << " }";
 
                         if (save_improvements) {
                             result.intermediate_plans.push_back(*best_plan_for_restart);
