@@ -45,6 +45,8 @@ import fire_rs.firemodel.environment as env
 
 from fire_rs.deprecation import deprecated
 
+logger = logging.getLogger(__name__)
+
 
 class Environment:
     def __init__(self, area, wind_speed, wind_dir):
@@ -61,7 +63,8 @@ class Environment:
         elevation = self._world.get_elevation(area)
         slope = self._world.get_slope(area)
         wind = self._world.get_wind(area, domain_average=(wind_speed, wind_dir))
-        moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'), dtype=[('moisture', 'int32')])
+        moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'),
+                               dtype=[('moisture', 'int32')])
         fuel = self._world.get_fuel_type(area)
         # type: GeoData
         self.raster = slope.combine(wind).combine(moisture).combine(fuel).combine(elevation)
@@ -75,9 +78,11 @@ class Environment:
     @deprecated
     def clustering(self):
         if self._clustering is None:
-            base_for_clustering = self.raster.slice(['wind_angle', 'wind_velocity', 'fuel', 'moisture'])
+            base_for_clustering = self.raster.slice(
+                ['wind_angle', 'wind_velocity', 'fuel', 'moisture'])
             self._clustering = cluster_multi_layer(base_for_clustering,
-                                                   err_by_layer={'wind_angle': 0.2, 'wind_velocity': 2},
+                                                   err_by_layer={'wind_angle': 0.2,
+                                                                 'wind_velocity': 2},
                                                    already_clustered=['fuel', 'moisture'])
         return self._clustering
 
@@ -118,13 +123,14 @@ class Environment:
         summary = rothermel.ros(fuel_type, moisture, wind_speed, slope_percent)
         ros = summary.ros
         if np.isnan(ros):
-            print("WARNING: RoS is NaN from fuel_type:{} moisture:{} slope:{} wind_speed:{} wind_dir:{}",
-                  fuel_type, moisture, slope_percent, wind_speed, wind_dir)
+            logger.warning(
+                "RoS is NaN from fuel_type:%s moisture:%s slope:%s wind_speed:%s wind_dir:%s",
+                fuel_type, moisture, slope_percent, wind_speed, wind_dir)
         slope_equivalent = summary.equivalent_slope
         x_w_eff = wind_speed * np.cos(wind_dir) + slope_equivalent * np.cos(slope_dir)
         y_w_eff = wind_speed * np.sin(wind_dir) + slope_equivalent * np.sin(slope_dir)
         angle_w_eff = np.arctan2(y_w_eff, x_w_eff)
-        speed_w_eff = np.sqrt(x_w_eff**2 + y_w_eff**2)
+        speed_w_eff = np.sqrt(x_w_eff ** 2 + y_w_eff ** 2)
         return ros, angle_w_eff, speed_w_eff
 
     def get_propagation_shape(self, x, y):
@@ -133,8 +139,8 @@ class Environment:
 
 
 # graph connectivity: each element is a (delta-x, delta-y)
-neighborhood = [(1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1), (0,-1), (1,-1),
-    (2,1), (2,-1), (-2,1), (-2,-1), (1,2), (1,-2), (-1,2), (-1,-2)]
+neighborhood = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1),
+                (2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]
 
 
 class FirePropagation:
@@ -199,7 +205,9 @@ class FirePropagation:
         t, (x, y) = self._pick_from_propagation_queue()
         igni_point_fuel_type = self.environment.get_fuel_type(x, y)
         if igni_point_fuel_type[:2] == "NB":
-            logging.warning("Ignition point %s is set in a nonburnable cell (%s). Fire won't propagate.", str((x, y)), str(igni_point_fuel_type))
+            logger.warning(
+                "Ignition point %s is set in a nonburnable cell (%s). Fire won't propagate.",
+                str((x, y)), str(igni_point_fuel_type))
 
         # Dijkstra propagation of fire
         while not len(self._propagation_queue) == 0:
@@ -231,8 +239,10 @@ class FirePropagation:
 
     @deprecated
     def information_matrix(self):
-        d = self.prop_data.clone(fill_value=0, dtype=[('env_cluster', 'int32'), ('propagation_angle', 'float64'),
-                                                      ('propagation_speed', 'float64'), ('error_on_speed', 'float64')])
+        d = self.prop_data.clone(fill_value=0,
+                                 dtype=[('env_cluster', 'int32'), ('propagation_angle', 'float64'),
+                                        ('propagation_speed', 'float64'),
+                                        ('error_on_speed', 'float64')])
         for x in range(0, d.max_x):
             for y in range(0, d.max_y):
                 dxy = d.data[x, y]
@@ -243,7 +253,8 @@ class FirePropagation:
                 dxy[3] = error
 
         c = d.slice(['env_cluster', 'propagation_angle'])
-        cc = cluster_multi_layer(c, {'propagation_angle': 0.1}, already_clustered=['env_cluster'], cluster_layer_name='information_clustering')
+        cc = cluster_multi_layer(c, {'propagation_angle': 0.1}, already_clustered=['env_cluster'],
+                                 cluster_layer_name='information_clustering')
         return d.combine(cc)
 
     @deprecated
@@ -252,7 +263,8 @@ class FirePropagation:
             return self.prop_data.data[x, y][1], self.prop_data.data[x, y][2]
 
         def has_pred(x, y):
-            return pred(x, y) != (x, y) and pred(x, y) != (-1, -1) and cluster_of(x, y) == cluster_of(*pred(x, y))
+            return pred(x, y) != (x, y) and pred(x, y) != (-1, -1) and \
+                   cluster_of(x, y) == cluster_of(*pred(x, y))
 
         def propagation_angle(x, y):
             if pred(x, y) != (x, y) and pred(x, y) != (-1, -1):
@@ -271,14 +283,14 @@ class FirePropagation:
             if not has_pred(x, y) or cluster_of(x, y) != cluster_of(*pred(x, y)):
                 return -1, -1
             px, py = pred(x, y)
-            while has_pred(px, py) and propagation_angle(px, py) == propagation_angle(x, y)\
+            while has_pred(px, py) and propagation_angle(px, py) == propagation_angle(x, y) \
                     and cluster_of(x, y) == cluster_of(*pred(px, py)):
                 px, py = pred(px, py)
             return px, py
 
         if has_pred(x, y):
             px, py = oldest_straight_line_pred(x, y)
-            dist = np.sqrt((x-px)**2 + (y-py)**2) * self.prop_data.cell_height
+            dist = np.sqrt((x - px) ** 2 + (y - py) ** 2) * self.prop_data.cell_height
             ts = ignition_time(*pred(x, y))
             te = ignition_time(x, y)
             speed = dist / (te - ts)
@@ -291,7 +303,9 @@ class FirePropagation:
         else:
             return cluster_of(x, y), propagation_angle(x, y), np.nan, np.nan
 
-def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, List[TimedPoint]], horizon: float=np.inf) -> FirePropagation:
+
+def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, List[TimedPoint]],
+                          horizon: float = np.inf) -> FirePropagation:
     """Simulate a fire from all ignition points until the 
     
     :param env: Environment model.
