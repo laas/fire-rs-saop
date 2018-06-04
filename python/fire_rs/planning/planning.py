@@ -207,6 +207,8 @@ class PlanningEnvironment(Environment):
         self.planning_elevation_mode = planning_elevation_mode
         self.discrete_elevation_interval = discrete_elevation_interval
 
+        self._flat_altitude = flat_altitude
+
         elev_planning = None
 
         if self.planning_elevation_mode == 'flat':
@@ -227,6 +229,14 @@ class PlanningEnvironment(Environment):
                                       self.planning_elevation_mode, "'"]))
 
         self.raster = self.raster.combine(elev_planning)
+
+    def __repr__(self):
+        return "".join(("PlanningEnvironment(area=", repr(self.area),
+                        ", wind_speed=", repr(self._wind_speed),
+                        ", wind_dir=", repr(self._wind_dir),
+                        ", planning_elevation_mode=", repr(self.planning_elevation_mode),
+                        ", discrete_elevation_interval=", repr(self.discrete_elevation_interval),
+                        ", flat_altitude=", repr(self._flat_altitude), ")"))
 
 
 class Planner:
