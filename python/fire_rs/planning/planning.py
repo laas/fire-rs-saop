@@ -255,12 +255,12 @@ class Planner:
 
         self._obs_fire_raster = None  # type: 'GeoData'
 
-    def compute_plan(self) -> 'up.SearchResult':
+    def compute_plan(self, name: str="unnamed") -> 'up.SearchResult':
         # Retrieve trajectory configurations as C++ objects
         cpp_flights = [f.as_cpp() for f in self._flights]
 
         # Call the C++ library that calculates the plan
-        res = up.plan_vns(cpp_flights,
+        res = up.plan_vns(name, cpp_flights,
                           self._firemap.as_cpp_raster('ignition'),
                           self._env.raster.as_cpp_raster('elevation_planning'),
                           json.dumps(self._planning_conf))

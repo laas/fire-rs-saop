@@ -131,7 +131,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     pl = Planner(env, ignitions, scenario.flights, SAOPPlannerConf((scenario.time_window_start,
                                                                     scenario.time_window_end),
                                                                    vns_configurations[vns_name]))
-    res = pl.compute_plan()
+    res = pl.compute_plan(instance_name)
     plan = res.final_plan()
 
     # Representation of unburned cells using max double is not suitable for display,

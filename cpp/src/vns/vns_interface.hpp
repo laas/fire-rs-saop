@@ -30,7 +30,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "plan.hpp"
 
 #include "../ext/json.hpp"
-#include "../saop_logging.hpp"
+
+#include <boost/log/trivial.hpp>
+
 
 using json = nlohmann::json;
 
@@ -206,11 +208,12 @@ namespace SAOP {
                                     std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                         }
 
-                        BOOST_LOG_TRIVIAL(debug) << "Improvement (nbhd " << static_cast<int> (current_neighborhood)
-                                                << " ): { utility: "
-                                                << std::fixed << std::setw(11) << std::setprecision(6)
-                                                << best_plan_for_restart->utility()
-                                                << ", duration: " << best_plan_for_restart->duration() << " }";
+                        BOOST_LOG_TRIVIAL(debug) << "Plan \"" << best_plan_for_restart->name() << "\" improvement (nbhd "
+                                                 << static_cast<int> (current_neighborhood)
+                                                 << " ): { utility: "
+                                                 << std::fixed << std::setw(11) << std::setprecision(6)
+                                                 << best_plan_for_restart->utility()
+                                                 << ", duration: " << best_plan_for_restart->duration() << " }";
 
                         if (save_improvements) {
                             result.intermediate_plans.push_back(*best_plan_for_restart);

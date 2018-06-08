@@ -26,9 +26,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace SAOP {
 
-    Plan::Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fdata, TimeWindow tw,
+
+    Plan::Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+               vector<PositionTime> observed_previously) : Plan("unnamed", traj_confs, fire_data, tw,
+                                                                observed_previously) {}
+
+    Plan::Plan(std::string name_id, vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fdata, TimeWindow tw,
                vector<PositionTime> observed_previously)
-            : time_window(tw), observed_previously(observed_previously),
+            : plan_name(name_id), time_window(tw), observed_previously(observed_previously),
               trajs(traj_confs), fire_data(std::move(fdata)) {
         for (auto& conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
@@ -62,6 +67,7 @@ namespace SAOP {
 
     json Plan::metadata() {
         json j;
+        j["name"] = name();
         j["duration"] = duration();
         j["utility"] = utility();
         j["num_segments"] = num_segments();
@@ -346,4 +352,5 @@ namespace SAOP {
     void Plan::freeze_before(double time) {
         trajs.freeze_before(time);
     }
+
 }

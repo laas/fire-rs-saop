@@ -53,6 +53,9 @@ namespace SAOP {
         Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
              vector<PositionTime> observed_previously = {});
 
+        Plan(std::string name_id, vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+             vector<PositionTime> observed_previously = {});
+
         ~Plan() = default;
 
         // copy constructor
@@ -68,6 +71,8 @@ namespace SAOP {
         Plan& operator=(Plan&& plan) = default;
 
         json metadata();
+
+        std::string name() {return plan_name;}
 
         /** A plan is valid iff all trajectories are valid (match their configuration. */
         bool is_valid() const {
@@ -171,6 +176,7 @@ namespace SAOP {
         }
 
     private:
+        std::string plan_name = "unnamed";
         Trajectories trajs;
         shared_ptr<FireData> fire_data;
 

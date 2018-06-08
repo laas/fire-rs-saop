@@ -40,8 +40,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 namespace py = pybind11;
 
 namespace SAOP {
+
     SearchResult
-    plan_vns(vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
+    plan_vns(std::string name, vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -65,25 +66,30 @@ namespace SAOP {
         shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
         double preprocessing_end = time();
 
-        BOOST_LOG_TRIVIAL(debug) << "Build initial plan";
-        Plan p(configs, fire_data, TimeWindow{min_time, max_time});
+        BOOST_LOG_TRIVIAL(debug) << "Build initial plan \"" << name << "\"";
+        Plan p(name, configs, fire_data, TimeWindow{min_time, max_time});
 
         auto vns_dump = conf["vns"].dump();
         BOOST_LOG_TRIVIAL(debug) << "Using VNS search conf: " << vns_dump;
         auto vns = build_from_config(vns_dump);
 
-        BOOST_LOG_TRIVIAL(info) << "Start planning";
+        BOOST_LOG_TRIVIAL(info) << "Start planning \"" << p.name() << "\"";
         const double planning_start = time();
         auto res = vns->search(p, max_planning_time, save_every, save_improvements);
         const double planning_end = time();
 
-        BOOST_LOG_TRIVIAL(info) << "Plan found in " << planning_end - planning_start << " seconds";
-        BOOST_LOG_TRIVIAL(info) << "Best plan utility: " << res.final().utility();
-        BOOST_LOG_TRIVIAL(info) << "Best plan duration: " << res.final().duration();
+        BOOST_LOG_TRIVIAL(info) << "Plan \"" << p.name() << "\" found in " << planning_end - planning_start << " seconds";
+        BOOST_LOG_TRIVIAL(info) << "Plan \"" << p.name() << "\" utility: " << res.final().utility();
+        BOOST_LOG_TRIVIAL(info) << "Plan \"" << p.name() << "\" duration: " << res.final().duration();
         res.metadata["planning_time"] = planning_end - planning_start;
         res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
         res.metadata["configuration"] = conf;
         return res;
+    }
+
+    SearchResult
+    plan_vns(vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
+       return plan_vns("unnamed", configs, ignitions, elevation, json_conf);
     }
 
     SearchResult
@@ -152,17 +158,7 @@ PYBIND11_MODULE(uav_planning, m) {
 #endif
 
     m.def("set_logger", [&m](py::object& logger) {
-        boost::shared_ptr<logging::core> core = logging::core::get();
-        py::gil_scoped_acquire acquire;
-        boost::shared_ptr<PythonLoggerSink> backend = boost::make_shared<PythonLoggerSink>(std::move(py::object(logger)), "saop_cpp");
-        typedef sinks::synchronous_sink<PythonLoggerSink> sink_t;
-        boost::shared_ptr<sink_t> sink = boost::shared_ptr<sink_t>(new sink_t(backend), boost::null_deleter());
-        core->add_sink(sink);
-
-        BOOST_LOG_TRIVIAL(debug) << "uav_planning logger set";
-        #ifdef DEBUG
-        BOOST_LOG_TRIVIAL(warning) << "Planning module compiled in debug mode";
-        #endif
+        SAOP::set_python_sink(logger);
     }, py::arg("logger").none(false), "Use a python logger as Boost::Log sink");
 
     py::class_<DRaster>(m, "DRaster")
@@ -420,6 +416,7 @@ PYBIND11_MODULE(uav_planning, m) {
     py::class_<Plan>(m, "Plan")
             /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
             .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories()); })
+            .def("name", &Plan::name)
             .def("utility", &Plan::utility)
             .def("utility_map", &Plan::utility_map)
             .def("duration", &Plan::duration)
@@ -460,7 +457,10 @@ PYBIND11_MODULE(uav_planning, m) {
           py::arg("elevation_update"), py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
 
 
-    m.def("plan_vns", SAOP::plan_vns, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"),
+    m.def("plan_vns", (SearchResult (*)(vector<TrajectoryConfig>, DRaster, DRaster, const std::string&)) SAOP::plan_vns, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"),
+          py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
+
+    m.def("plan_vns", (SearchResult (*)(std::string, vector<TrajectoryConfig>, DRaster, DRaster, const std::string&)) SAOP::plan_vns, py::arg("plan_name"), py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"),
           py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
 }
 
