@@ -53,6 +53,9 @@ from fire_rs.planning.planning import FlightConf, Planner, PlanningEnvironment, 
 _DBL_MAX = np.finfo(np.float64).max
 DISCRETE_ELEVATION_INTERVAL = 100
 
+_logger = logging.getLogger(__name__)
+_logger.setLevel(logging.DEBUG)
+
 
 class Scenario:
 
@@ -86,6 +89,8 @@ class Scenario:
 def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict,
                   output_options_planning: dict,
                   snapshots, vns_name, plot=False):
+    _logger.info("Starting benchmark instance %s", instance_name)
+
     # Fetch scenario environment data with additional elevation mode for planning
     env = PlanningEnvironment(scenario.area, wind_speed=scenario.wind_speed,
                               wind_dir=scenario.wind_direction,
@@ -144,16 +149,16 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
                               output_options_plot)
 
     # Save the picture
-    print("saving as: " + str(os.path.join(
-        save_directory, instance_name + "." + str(output_options_plot.get('format', 'png')))))
+    filepath = os.path.join(save_directory,
+                            instance_name + "." + str(output_options_plot.get('format', 'png')))
+    _logger.info("Saving as figure as: %s", str(filepath))
     geodatadisplay.axes.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
-    geodatadisplay.axes.get_figure().savefig(os.path.join(
-        save_directory, instance_name + "." + str(output_options_plot.get('format', 'png'))),
-        dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
+    geodatadisplay.axes.get_figure().savefig(filepath, dpi=output_options_plot.get('dpi', 150),
+                                             bbox_inches='tight')
 
     # Log planned trajectories metadata
     for i, t in enumerate(plan.trajectories()):
-        logging.info("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
+        _logger.debug("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
 
     # save metadata to file
     with open(os.path.join(save_directory, instance_name + ".json"), "w") as metadata_file:
@@ -161,7 +166,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         parsed = json.loads(res.metadata())
         parsed["benchmark_id"] = instance_name
         parsed["date"] = time.strftime("%Y-%m-%d--%H:%M:%S")
-        print(json.dumps(parsed, indent=4), file=metadata_file)
+        metadata_file.write(json.dumps(parsed, indent=4))
 
     matplotlib.pyplot.close(geodatadisplay.axes.get_figure())
 
@@ -176,12 +181,13 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         if not os.path.exists(i_plan_dir):
             os.makedirs(i_plan_dir)
 
-        print("saving as: " + str(
-            os.path.join(i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png')))))
+        filepath = os.path.join(i_plan_dir,
+                                str(i) + "." + str(output_options_plot.get('format', 'png')))
+
+        _logger.info("Saving intermediate plan as: %s", str(filepath))
         geodatadisplay.axes.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
-        geodatadisplay.axes.get_figure().savefig(os.path.join(
-            i_plan_dir, str(i) + "." + str(output_options_plot.get('format', 'png'))),
-            dpi=output_options_plot.get('dpi', 150), bbox_inches='tight')
+        geodatadisplay.axes.get_figure().savefig(filepath, dpi=output_options_plot.get('dpi', 150),
+                                                 bbox_inches='tight')
         matplotlib.pyplot.close(geodatadisplay.axes.get_figure())
 
     del res
@@ -331,7 +337,7 @@ def generate_windy_scenario():
         Waypoint(area.xmin + 100, area.ymin + 100, 0, 0)
     ]
 
-    wind_speed = 5. # in m/s
+    wind_speed = 5.  # in m/s
     wind_dir = 0.  # random.random() * 2 * np.pi
     num_ignitions = random.randint(1, 4)
     ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax),
@@ -345,7 +351,7 @@ def generate_windy_scenario():
     num_flights = random.randint(1, 4)
     flights = []
     for i in range(num_flights):
-        uav_start = random.uniform(start+3000, start + 3001.)
+        uav_start = random.uniform(start + 3000, start + 3001.)
         uav = UAVConf.X8()
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
                                   (wind_speed * np.cos(wind_dir), wind_speed * np.sin(wind_dir))))
@@ -365,7 +371,7 @@ def generate_nowind_scenario():
         Waypoint(area.xmin + 100, area.ymin + 100, 0, 0)
     ]
 
-    wind_speed = 5. # in m/s
+    wind_speed = 5.  # in m/s
     wind_dir = 0.  # random.random() * 2 * np.pi
     num_ignitions = random.randint(1, 4)
     ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax),
@@ -379,9 +385,9 @@ def generate_nowind_scenario():
     num_flights = random.randint(1, 4)
     flights = []
     for i in range(num_flights):
-        uav_start = random.uniform(start+6000, start + 6001.)
+        uav_start = random.uniform(start + 6000, start + 6001.)
         uav = UAVConf.X8()
-        uav.max_flight_time/=6;
+        uav.max_flight_time /= 6;
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
                                   (0., 0.)))
 
@@ -445,6 +451,7 @@ def main():
     import argparse
     import joblib
     import json
+    import sys
 
     from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
 
@@ -565,11 +572,6 @@ def main():
     else:
         scenarios = pickle.load(open(scenarios_file, "rb"))
 
-    if benchmark_name:
-        logging.info("Running benchmark %s from '%s'", benchmark_name, benchmark_dir)
-    else:
-        logging.info("Running default benchmark from '%s'", benchmark_dir)
-
     # Current date and time string
     run_id = time.strftime("%Y-%m-%d--%H:%M:%S")
 
@@ -577,6 +579,30 @@ def main():
     run_dir = os.path.join(benchmark_dir, run_id)
     if not os.path.exists(run_dir):
         os.makedirs(run_dir)
+
+    # Setup logging for this benchmark run
+    log_formatter = logging.Formatter(
+        '%(asctime)-23s %(levelname)s [0x%(thread)x:%(name)s]: %(message)s')
+
+    # Print INFO level messages
+    log_stdout_hldr = logging.StreamHandler(sys.stdout)
+    log_stdout_hldr.setLevel(logging.INFO)
+    log_stdout_hldr.setFormatter(log_formatter)
+    _logger.addHandler(log_stdout_hldr)
+
+    # Log everithing to file
+    log_file_hldr = logging.FileHandler(os.path.join(run_dir, ".".join((run_id, "log"))))
+    log_file_hldr.setFormatter(log_formatter)
+    log_file_hldr.setLevel(logging.NOTSET)
+    _logger.addHandler(log_file_hldr)
+
+    # Use a child logger in SAOP c++ library
+    up.set_logger(_logger.getChild("uav_planning"))
+
+    if benchmark_name:
+        _logger.info("Using benchmark scenario %s in %s", benchmark_name, benchmark_dir)
+    else:
+        _logger.info("Using default benchmark scenario in %s", benchmark_dir)
 
     if args.wait:
         input("Press enter to continue...")

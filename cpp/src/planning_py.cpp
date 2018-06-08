@@ -60,7 +60,7 @@ namespace SAOP {
         SAOP::check_field_is_present(conf["vns"], "max_time");
         const size_t max_planning_time = conf["vns"]["max_time"];
 
-        BOOST_LOG_TRIVIAL(debug) << "Pre-process fire data" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Pre-process fire data";
         double preprocessing_start = time();
         shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
         double preprocessing_end = time();
@@ -69,7 +69,7 @@ namespace SAOP {
         Plan p(configs, fire_data, TimeWindow{min_time, max_time});
 
         auto vns_dump = conf["vns"].dump();
-        BOOST_LOG_TRIVIAL(debug) << "Using VNS search "<< std::endl << vns_dump;
+        BOOST_LOG_TRIVIAL(debug) << "Using VNS search conf: " << vns_dump;
         auto vns = build_from_config(vns_dump);
 
         BOOST_LOG_TRIVIAL(info) << "Start planning";
@@ -107,7 +107,7 @@ namespace SAOP {
         SAOP::check_field_is_present(conf["vns"], "max_time");
         const size_t max_planning_time = conf["vns"]["max_time"];
 
-        BOOST_LOG_TRIVIAL(debug) << "Pre-process fire data" << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "Pre-process fire data";
         double preprocessing_start = time();
         shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
         double preprocessing_end = time();
@@ -119,7 +119,7 @@ namespace SAOP {
         p.project_on_fire_front();
 
         auto vns_dump = conf["vns"].dump();
-        BOOST_LOG_TRIVIAL(debug) << "Using VNS search "<< std::endl << vns_dump;
+        BOOST_LOG_TRIVIAL(debug) << "Using VNS search conf: " << vns_dump;
         auto vns = build_from_config(vns_dump);
 
         BOOST_LOG_TRIVIAL(info) << "Start planning";
@@ -163,7 +163,7 @@ PYBIND11_MODULE(uav_planning, m) {
         #ifdef DEBUG
         BOOST_LOG_TRIVIAL(warning) << "Planning module compiled in debug mode";
         #endif
-    }, py::arg("logger").none(false));
+    }, py::arg("logger").none(false), "Use a python logger as Boost::Log sink");
 
     py::class_<DRaster>(m, "DRaster")
             .def(py::init([](py::array_t<double, py::array::c_style | py::array::forcecast> arr,

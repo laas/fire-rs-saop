@@ -32,6 +32,8 @@ from osgeo import gdal
 
 from fire_rs.geodata.geo_data import GeoData, join_structured_arrays
 
+logger = logging.getLogger(__name__)
+
 
 # There are 3 sets of coordinates (spaces) for every location. A position in the geographic space,
 # expressed in GPS coordinates (WGS84 system); a position in the projected space, expressed in
@@ -85,7 +87,7 @@ class DigitalMap:
         for xtiles in self._tiles:
             for tile in xtiles:
                 if (tile.border_x_max > x_min and tile.border_x_min < x_max) and (
-                                tile.border_y_max > y_min and tile.border_y_min < y_max):
+                        tile.border_y_max > y_min and tile.border_y_min < y_max):
                     tiles.append(tile)
         local_tilemap = DigitalMap._arrange_tiles(tiles)
 
@@ -178,14 +180,17 @@ class RasterTile:
         bottomright_projection_corner = self.direct_transform * (self.raster_size)
 
         # border min/max location bounds
-        self.border_x_min, self.border_y_min = topleft_projection_corner[0], bottomright_projection_corner[1]
-        self.border_x_max, self.border_y_max = bottomright_projection_corner[0], topleft_projection_corner[1]
+        self.border_x_min, self.border_y_min = topleft_projection_corner[0], \
+                                               bottomright_projection_corner[1]
+        self.border_x_max, self.border_y_max = bottomright_projection_corner[0], \
+                                               topleft_projection_corner[1]
 
         # min/max values of the the projected cell centers
-        self.x_min, self.y_min = self.nearest_projected_point((topleft_projection_corner[0]+1,
-                                                               bottomright_projection_corner[1]+1))
-        self.x_max, self.y_max = self.nearest_projected_point((bottomright_projection_corner[0]-1,
-                                                               topleft_projection_corner[1]-1))
+        self.x_min, self.y_min = self.nearest_projected_point((topleft_projection_corner[0] + 1,
+                                                               bottomright_projection_corner[
+                                                                   1] + 1))
+        self.x_max, self.y_max = self.nearest_projected_point((bottomright_projection_corner[0] - 1,
+                                                               topleft_projection_corner[1] - 1))
 
         n_bands += handle.RasterCount
         for i in range(handle.RasterCount):  # Bands start at 1
@@ -195,14 +200,14 @@ class RasterTile:
         for f in self.filenames[1:]:
             handle = gdal.Open(f)
             if handle.GetProjection() == self.geoprojection and \
-               handle.GetGeoTransform() == self.geotransform:
+                    handle.GetGeoTransform() == self.geotransform:
                 n_bands += handle.RasterCount
                 for i in range(handle.RasterCount):  # Bands start at 1
                     nodata_values.append(handle.GetRasterBand(i + 1).GetNoDataValue())
             else:
                 raise ValueError("Only bands with the same projection can be added.")
 
-        assert n_bands == len(bands_names_types),\
+        assert n_bands == len(bands_names_types), \
             "Number of bands in files ({}) did not match the declared ones: {}".format(
                 n_bands, bands_names_types)
 
@@ -263,13 +268,13 @@ class RasterTile:
         if nd.any():
             if not self.nodata_fill:
                 # No replacement for NODATA
-                logging.warning("Location %s in %s has NODATA but no fill has been defined",
-                                (p[0], p[1]), self)
+                logger.warning("Location %s in %s has NODATA but no fill has been defined",
+                               (p[0], p[1]), self)
             else:
                 for i in range(len(nd)):
                     if nd:
-                        logging.warning("Location %s of band %s in %s with %s",
-                                        (p[0], p[1]), i, self, self.nodata_fill[i])
+                        logger.warning("Location %s of band %s in %s with %s",
+                                       (p[0], p[1]), i, self, self.nodata_fill[i])
                         value[i] = self.nodata_fill[i]
         if len(value) == 1:
             return value[0]  # Extract if there is a single value
@@ -292,7 +297,7 @@ class RasterTile:
             xi_min, yi_min = self.projected_to_raster((x_min, y_min))
             xi_max, yi_max = self.projected_to_raster((x_max, y_max))
             # returns the subarray
-            subarray = self.data[xi_min:xi_max+1, yi_min:yi_max+1]
+            subarray = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1]
             return GeoData(subarray, *self.raster_to_projected((xi_min, yi_min)),
                            self.x_delta, self.y_delta)
         else:  # our internal data structure is inversed on y-axis
@@ -300,7 +305,7 @@ class RasterTile:
             xi_min, yi_min = self.projected_to_raster((x_min, y_max))
             xi_max, yi_max = self.projected_to_raster((x_max, y_min))
             # returns the sub-array, inversed on the y-axis
-            subarray = self.data[xi_min:xi_max+1, yi_min:yi_max+1][..., ::-1]
+            subarray = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1][..., ::-1]
             return GeoData(subarray, *self.raster_to_projected((xi_min, yi_max)),
                            self.x_delta, -self.y_delta)
 

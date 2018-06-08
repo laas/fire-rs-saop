@@ -38,6 +38,8 @@ from fire_rs.geodata.geo_data import GeoData
 from fire_rs.planning.planning import Planner
 import fire_rs.uav_planning as up
 
+logger = logging.getLogger(__name__)
+
 
 class TrajectoryDisplayExtension(gdd.DisplayExtension):
     """Extension to GeoDataDisplay that an observation trajectories."""
@@ -411,7 +413,7 @@ def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, ou
             try:
                 geodatadisplay.draw_ignition_contour(with_labels=True)
             except ValueError as e:
-                logging.warning(e)
+                logger.exception("ValueError while drawing ignition contour")
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
         elif layer == 'utilitymap':

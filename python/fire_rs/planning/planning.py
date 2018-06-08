@@ -38,6 +38,8 @@ import fire_rs.firemapping as fmapping
 from fire_rs.firemodel.propagation import Environment, FirePropagation
 from fire_rs.geodata.geo_data import GeoData
 
+logger = logging.getLogger(__name__)
+
 
 class VNSConfDB(Mapping):
     """VNS configuration DB for SAOP Planner.
@@ -267,7 +269,7 @@ class Planner:
 
     def _replan(self, after_time) -> 'up.SearchResult':
         if not self.search_result:
-            logging.warning("Computing an initial plan before replanning")
+            logger.warning("Computing an initial plan before replanning")
             self.compute_plan()
         # Call the C++ library that calculates the plan
         res = up.replan_vns(self.search_result, after_time,

@@ -22,6 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import os
 import subprocess
 import itertools
@@ -29,6 +30,8 @@ import itertools
 import numpy as np
 
 from fire_rs.geodata.basemap import DigitalMap, RasterTile
+
+logger = logging.getLogger(__name__)
 
 # DEM tiles are to big to allow computing the wind on the whole tile.
 # the following factor is used to split the tile on both axis to build
@@ -46,12 +49,13 @@ def geo_angle_to_trigo_angle(angles):
     where 0 is East to West and rotation is trigonometric
     """
     angles = angles - 90.  # rotate to center on X axis
-    angles = angles * (2*np.pi) / 360.  # to radians
+    angles = angles * (2 * np.pi) / 360.  # to radians
     return angles % (np.pi * 2)
+
 
 def trigo_angle_to_geo_angle(angles):
     """Converts a trigonometric angle to a geographic one (as used by windninja)"""
-    angles = angles * 360. / (2*np.pi)
+    angles = angles * 360. / (2 * np.pi)
     angles = angles + 90
     return angles % 360.
 
@@ -77,7 +81,7 @@ class WindMap(DigitalMap):
             sce_list.append(str(int(float(self.scenario['input_direction']))))
             sce_list.append(str(int(float(self.scenario['input_speed']))))
             if self.scenario.get('diurnal_winds') is not None and \
-               bool(self.scenario['diurnal_winds']) is True:
+                    bool(self.scenario['diurnal_winds']) is True:
                 sce_list.append('-'.join([self.scenario['month'],
                                           self.scenario['day'],
                                           self.scenario['year']]))
@@ -100,14 +104,14 @@ class WindMap(DigitalMap):
 
         # find in which subpart of the elevation tile this location is
         xi = int((x - base_tile.border_x_min) / (
-            base_tile.border_x_max - base_tile.border_x_min) * _DEM_TILE_SPLIT)
+                base_tile.border_x_max - base_tile.border_x_min) * _DEM_TILE_SPLIT)
         yi = int((y - base_tile.border_y_min) / (
-            base_tile.border_y_max - base_tile.border_y_min) * _DEM_TILE_SPLIT)
+                base_tile.border_y_max - base_tile.border_y_min) * _DEM_TILE_SPLIT)
 
         # build tile names of this wind scenario and subpart of the DEM tile
         tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0] + \
-            '[{0}%{2},{1}%{2}]'.format(xi, yi, _DEM_TILE_SPLIT)
-        dem_file_name = os.path.join(self.scenario['output_path'], tile_name+'.tif')
+                    '[{0}%{2},{1}%{2}]'.format(xi, yi, _DEM_TILE_SPLIT)
+        dem_file_name = os.path.join(self.scenario['output_path'], tile_name + '.tif')
 
         # save smaller DEM tile if it does not exists yet
         if not os.path.exists(dem_file_name):
@@ -125,7 +129,7 @@ class WindMap(DigitalMap):
                                                  self.scenario_str,
                                                  'ang.asc']))]
 
-        if not(os.path.exists(windfile_paths[0]) and os.path.exists(windfile_paths[1])):
+        if not (os.path.exists(windfile_paths[0]) and os.path.exists(windfile_paths[1])):
             self._run_windninja(dem_file_name)
 
         return WindTile(windfile_paths)
@@ -151,14 +155,18 @@ class WindMap(DigitalMap):
 
     def get_values(self, positions_intervals):
         ((x_min, x_max), (y_min, y_max)) = positions_intervals
-        assert all([p in self.elevation_map for p in itertools.product((x_min,x_max), (y_min, y_max))]),\
-               'The requested rectangle is not contained in the known DEM tiles'
+        assert all(
+            [p in self.elevation_map for p in itertools.product((x_min, x_max), (y_min, y_max))]), \
+            'The requested rectangle is not contained in the known DEM tiles'
         sample_tile = self.elevation_map.tile_of_location((x_min, y_min))
-        subtile_width = (sample_tile.x_max - sample_tile.x_min + sample_tile.x_delta) / _DEM_TILE_SPLIT
+        subtile_width = (
+                                    sample_tile.x_max - sample_tile.x_min + sample_tile.x_delta) / _DEM_TILE_SPLIT
 
         # round x/y to cell centers
-        (x_min, y_min) = self.elevation_map.tile_of_location((x_min, y_min)).nearest_projected_point((x_min, y_min))
-        (x_max, y_max) = self.elevation_map.tile_of_location((x_max, y_max)).nearest_projected_point((x_max, y_max))
+        (x_min, y_min) = self.elevation_map.tile_of_location(
+            (x_min, y_min)).nearest_projected_point((x_min, y_min))
+        (x_max, y_max) = self.elevation_map.tile_of_location(
+            (x_max, y_max)).nearest_projected_point((x_max, y_max))
 
         # sample xs and ys so we have one in each subcell
         xs = list(range(int(x_min), int(x_max), int(subtile_width))) + [int(x_max)]
@@ -188,6 +196,7 @@ class WindTile(RasterTile):
 
     def get_wind(self, location):
         return self.get_value(location)
+
 
 class WindNinjaCLI():
 
@@ -263,7 +272,7 @@ class WindNinjaCLI():
         # Working directory must be the one in which WindNinja_cli is located
         # because it searchs locally the date_time_zonespec.csv.
         # In my opinion this is a bug in WindNinja_cli.
-        print(" ".join((cli, *arguments)))
+        logger.info("%s", "".join((cli, *arguments)))
         completed = subprocess.run((cli, *arguments), cwd=self.windninja_path)
         return completed
 
@@ -277,7 +286,8 @@ class WindNinjaCLI():
         :return: arguments for WindNinja
         :rtype: dict
         """
-        assert -np.pi <= input_direction <= 2*np.pi, "Input direction should be in radians. Received: {}".format(input_direction)
+        assert -np.pi <= input_direction <= 2 * np.pi, "Input direction should be in radians. Received: {}".format(
+            input_direction)
         args = {'initialization_method': 'domainAverageInitialization',
                 'input_speed': input_speed,
                 'input_speed_units': 'mps',
