@@ -584,20 +584,24 @@ def main():
     log_formatter = logging.Formatter(
         '%(asctime)-23s %(levelname)s [0x%(thread)x:%(name)s]: %(message)s')
 
+    # Set configuration for the default logger (inherited by others)
+    root_logger = logging.getLogger()
     # Print INFO level messages
     log_stdout_hldr = logging.StreamHandler(sys.stdout)
     log_stdout_hldr.setLevel(logging.INFO)
     log_stdout_hldr.setFormatter(log_formatter)
-    _logger.addHandler(log_stdout_hldr)
-
+    root_logger.addHandler(log_stdout_hldr)
     # Log everithing to file
     log_file_hldr = logging.FileHandler(os.path.join(run_dir, ".".join((run_id, "log"))))
     log_file_hldr.setFormatter(log_formatter)
     log_file_hldr.setLevel(logging.NOTSET)
-    _logger.addHandler(log_file_hldr)
+    root_logger.addHandler(log_file_hldr)
 
     # Use a child logger in SAOP c++ library
     up.set_logger(_logger.getChild("uav_planning"))
+
+    # Log command line arguments
+    _logger.info(' '.join(sys.argv))
 
     if benchmark_name:
         _logger.info("Using benchmark scenario %s in %s", benchmark_name, benchmark_dir)
