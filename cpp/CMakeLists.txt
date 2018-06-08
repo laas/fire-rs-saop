@@ -42,9 +42,7 @@ set(CORE_SOURCE_FILES
         src/core/updates/updates.cpp
         src/core/updates/updates.hpp
         src/core/waypoint.hpp
-        src/core/SharedQueue.hpp
-        src/saop_logging.cpp
-        src/saop_logging.hpp)
+        src/core/SharedQueue.hpp)
 
 set(PLANNING_SOURCE_FILES
         src/vns/factory.cpp
@@ -98,13 +96,22 @@ target_link_libraries(saop
         )
 
 # Pybind modules
-pybind11_add_module(uav_planning src/planning_py.cpp)
+pybind11_add_module(uav_planning
+        src/planning_py.cpp
+        src/saop_logging.cpp
+        src/saop_logging.hpp)
 target_link_libraries(uav_planning PUBLIC saop)
 
-pybind11_add_module(firemapping src/firemapping_py.cpp)
+pybind11_add_module(firemapping
+        src/firemapping_py.cpp
+        src/saop_logging.cpp
+        src/saop_logging.hpp)
 target_link_libraries(firemapping PUBLIC saop)
 
-pybind11_add_module(neptus_interface src/neptus_py.cpp)
+pybind11_add_module(neptus_interface
+        src/neptus_py.cpp
+        src/saop_logging.cpp
+        src/saop_logging.hpp)
 target_link_libraries(neptus_interface PUBLIC saop)
 
 IF (BUILD_TESTING)

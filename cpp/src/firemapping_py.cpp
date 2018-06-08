@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "firemapping/ghostmapper.hpp"
 #include "cpp_py_utils.hpp"
 
+#include "saop_logging.hpp"
+
 namespace py = pybind11;
 
 
@@ -39,6 +41,10 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
 
 PYBIND11_MODULE(firemapping, m) {
     m.doc() = "Fire mapping algorithms";
+
+    m.def("set_logger", [&m](py::object& logger) {
+        SAOP::set_python_sink(logger);
+    }, py::arg("logger").none(false), "Use a python logger as Boost::Log sink");
 
     py::class_<GhostFireMapper<double>>(m, "GhostFireMapper")
             .def(py::init<std::shared_ptr<FireData>>(), py::arg("environment_gt"))

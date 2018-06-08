@@ -63,3 +63,19 @@ void SAOP::PythonLoggerSink::consume(logging::record_view const& rec) {
         //logger.attr("log")(static_cast<int>(py_severity), py::str(rec[expr::smessage].get()));
     }
 }
+
+void SAOP::set_python_sink(py::object logger) {
+    boost::shared_ptr<logging::core> core = logging::core::get();
+    py::gil_scoped_acquire acquire;
+    boost::shared_ptr<PythonLoggerSink> backend = boost::make_shared<PythonLoggerSink>(
+            std::move(py::object(logger)), logger_name);
+    typedef sinks::synchronous_sink<PythonLoggerSink> sink_t;
+    boost::shared_ptr<sink_t> sink = boost::shared_ptr<sink_t>(new sink_t(backend), boost::null_deleter());
+    core->add_sink(sink);
+
+    BOOST_LOG_TRIVIAL(debug) << logger_name << " logger set";
+#ifdef DEBUG
+    BOOST_LOG_TRIVIAL(warning) << "Planning module compiled in debug mode";
+#endif
+
+}

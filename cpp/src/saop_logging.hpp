@@ -65,6 +65,8 @@ namespace SAOP {
 
 //    BOOST_LOG_GLOBAL_LOGGER(the_logger, src::severity_logger_mt)
 
+    static std::string logger_name = "saop_cpp";
+
     enum class PythonLoggingLevels {
         critical = 50,
         error = 40,
@@ -88,6 +90,9 @@ namespace SAOP {
         // The function consumes the log records that come from the frontend
         void consume(logging::record_view const& rec);
     };
+
+    void set_python_sink(py::object logger);
+
 }
 
 #endif //PLANNING_CPP_PYTHONLOGSINK_HPP

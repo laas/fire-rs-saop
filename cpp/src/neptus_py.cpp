@@ -37,6 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "neptus/imc_comm.hpp"
 #include "neptus/saop_server.hpp"
 
+#include "saop_logging.hpp"
+
 namespace py = pybind11;
 
 
@@ -44,6 +46,10 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
 
 PYBIND11_MODULE(neptus_interface, m) {
     m.doc() = "Python module for interfacing with neptus/dune software";
+
+    m.def("set_logger", [&m](py::object& logger) {
+        SAOP::set_python_sink(logger);
+    }, py::arg("logger").none(false), "Use a python logger as Boost::Log sink");
 
     m.def("upload_plan", neptus::send_plan_to_dune, py::arg("ip"), py::arg("port"),
           py::arg("plan"), py::arg("plan_id"), py::arg("segment_extension"), py::arg("sampled"));
