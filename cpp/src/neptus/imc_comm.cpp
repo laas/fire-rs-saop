@@ -35,10 +35,10 @@ namespace SAOP {
                     boost::asio::io_service io_service;
                     tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), port));
                     std::shared_ptr<tcp::socket> sock(new tcp::socket(io_service));
-                    std::cout << "Waiting for an incoming connection" << std::endl;
+                    BOOST_LOG_TRIVIAL(info) << "Waiting for an incoming connection on port " << port;
                     tcp::endpoint client_endpoint;
                     a.accept(*sock, client_endpoint);
-                    std::cout << "Accepting connection from " << client_endpoint << std::endl;
+                    BOOST_LOG_TRIVIAL(info) << "Accepting connection from " << client_endpoint;
                     session(std::move(sock));
                 }
             } catch (...) {
@@ -53,7 +53,7 @@ namespace SAOP {
 
         void IMCTransportTCP::session(std::shared_ptr<tcp::socket> sock) {
             try {
-                std::cout << "Connected" << std::endl;
+                BOOST_LOG_TRIVIAL(info) << "Socket " << (sock.get()) << " connected";
                 IMC::Parser parser = IMC::Parser();
                 IMC::ByteBuffer bb;
 
@@ -63,11 +63,14 @@ namespace SAOP {
                     bb.setSize(65535);
                     boost::system::error_code error;
                     size_t length = sock->read_some(boost::asio::buffer(bb.getBuffer(), bb.getSize()), error);
-                    if (error == boost::asio::error::eof)
+                    if (error == boost::asio::error::eof) {
+                        BOOST_LOG_TRIVIAL(info) << error.message();
                         break; // Connection closed cleanly by peer.
-                    else if (error)
+                    }
+                    else if (error) {
+                        BOOST_LOG_TRIVIAL(error) << error.message();
                         throw boost::system::system_error(error); // Some other error.
-
+                    }
                     // IMC message parsing
                     size_t delta = 0;
                     while (delta < length) {
@@ -78,8 +81,7 @@ namespace SAOP {
                             if (recv_handler) {
                                 recv_handler(std::move(std::unique_ptr<IMC::Message>(hb)));
                             } else {
-                                std::cerr << "recv_handler not set. Received messages are being discarded."
-                                          << std::endl;
+                                BOOST_LOG_TRIVIAL(error) << "recv_handler not set. Received messages are being discarded.";
                             }
                             // Advance buffer cursor past the end of serialized hb.
                             delta += ser_size;
@@ -92,17 +94,17 @@ namespace SAOP {
                     while (send_q->pop(m)) {
                         IMC::ByteBuffer serl_b = IMC::ByteBuffer(65535);
                         size_t n_bytes = IMC::Packet::serialize(m.get(), serl_b);
-                        std::cout << "send " << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
-                                  << "from(" << m->getSource() << ", " << static_cast<uint>(m->getSourceEntity())
-                                  << ") " << "to(" << m->getDestination() << ", "
-                                  << static_cast<uint>(m->getDestinationEntity()) << ")" << std::endl;
+                        BOOST_LOG_TRIVIAL(info) << "Send " << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
+                                  << "from (" << m->getSource() << ", " << static_cast<uint>(m->getSourceEntity())
+                                  << ") " << "to (" << m->getDestination() << ", "
+                                  << static_cast<uint>(m->getDestinationEntity()) << ")";
                         boost::asio::write(*sock, boost::asio::buffer(serl_b.getBuffer(), n_bytes));
                     }
                 }
 
             }
             catch (std::exception& e) {
-                std::cerr << "Exception in thread: " << e.what() << "\n";
+                BOOST_LOG_TRIVIAL(error) << "Exception raised in IMCTransportTCP: " << e.what() << "\n";
             }
         }
 
@@ -135,13 +137,13 @@ namespace SAOP {
                     while (recv_q->wait_pop(m)) {
                         try {
                             auto hnld_fun = message_bindings.at(m->getId());
-//                            std::cout << m->getName()
-//                                      << "(" << static_cast<uint>(m->getId()) << "): "
-//                                      << "from(" << m->getSource() << ", "
-//                                      << static_cast<uint>(m->getSourceEntity()) << ") "
-//                                      << "to(" << m->getDestination() << ", "
-//                                      << static_cast<uint>(m->getDestinationEntity()) << ")"
-//                                      << std::endl;
+                            BOOST_LOG_TRIVIAL(debug) << "Process IMC message " << m->getName()
+                                      << "(" << static_cast<uint>(m->getId()) << "): "
+                                      << "from(" << m->getSource() << ", "
+                                      << static_cast<uint>(m->getSourceEntity()) << ") "
+                                      << "to(" << m->getDestination() << ", "
+                                      << static_cast<uint>(m->getDestinationEntity()) << ")"
+                                      << std::endl;
                             auto m_raw = m.get();
                             m.release();
                             // variables can be moved into lambdas only in C++14 onwards, not C++11
@@ -150,13 +152,12 @@ namespace SAOP {
                                 hnld_fun(std::move(mm));
                             });
                         } catch (const std::out_of_range& e) {
-                            std::cerr << "UNHANDLED " << m->getName()
+                            BOOST_LOG_TRIVIAL(warning) << "Unhandled IMC message " << m->getName()
                                       << "(" << static_cast<uint>(m->getId()) << "): "
                                       << "from(" << m->getSource() << ", "
                                       << static_cast<uint>(m->getSourceEntity()) << ") "
                                       << "to(" << m->getDestination() << ", "
-                                      << static_cast<uint>(m->getDestinationEntity()) << ")"
-                                      << std::endl;
+                                      << static_cast<uint>(m->getDestinationEntity()) << ")";
                         }
                     }
                 }

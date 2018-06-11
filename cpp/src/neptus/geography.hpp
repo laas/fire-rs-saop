@@ -75,14 +75,10 @@ namespace SAOP {
 
                 poCT->Transform(1, &xx, &yy); // Again Transform must succed
 
-                std::cout << xx << " " << yy << std::endl;
-
                 wgs84_wp.emplace_back(Waypoint3d(xx/180*M_PI, yy/180*M_PI, it->z, it->dir));
                 xx = 0;
                 yy = 0;
             }
-
-            std::cout << wgs84_wp[0].x << " " << wgs84_wp[0].y << std::endl;
 
             OGRCoordinateTransformation::DestroyCT(poCT);
             return wgs84_wp;

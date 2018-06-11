@@ -240,10 +240,10 @@ namespace SAOP {
             GCSCommandOutcome start(const Plan& p);
 
             /* Start the last loaded PlanSpecification */
-            GCSCommandOutcome start();
+            GCSCommandOutcome start(std::string plan_id);
 
             /* Stop the plan currently being executed. */
-            GCSCommandOutcome stop();
+            GCSCommandOutcome stop(std::string plan_id);
 
             /* Return true if this GCS is not active. */
             bool is_active() {
@@ -276,7 +276,7 @@ namespace SAOP {
             std::vector<std::tuple<uint16_t, std::string>> available_uavs = {{0x0c0c, "x8-02"},
                                                                              {0x0c10, "x8-06"}};
 
-            std::string plan_id = "plan"; // TODO: make customizable?
+//            std::string plan_id = "plan"; // TODO: make customizable?
             Requests<IMC::PlanControl::TypeEnum> req;
 
             /* Send the PlanControl load request for a PlanSpecification */

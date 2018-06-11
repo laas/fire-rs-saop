@@ -32,7 +32,7 @@ namespace SAOP {
 
     namespace neptus {
 
-        GCSCommandOutcome GCS::stop() {
+        GCSCommandOutcome GCS::stop(std::string plan_id) {
             auto pc_stop = produce_unique<IMC::PlanControl>(0, 0, 0x0c10, 0xFF);
 
             auto req_id = req.request_id();
@@ -41,6 +41,8 @@ namespace SAOP {
             pc_stop->op = IMC::PlanControl::OperationEnum::PC_STOP;
             pc_stop->request_id = req_id;
             pc_stop->plan_id = plan_id;
+
+            BOOST_LOG_TRIVIAL(debug) << "Send " << pc_stop->toString();
 
             this->imc_comm->send(std::move(pc_stop));
 
@@ -70,9 +72,11 @@ namespace SAOP {
             pc_load->type = IMC::PlanControl::TypeEnum::PC_REQUEST;
             pc_load->op = IMC::PlanControl::OperationEnum::PC_LOAD;
             pc_load->request_id = req_id;
-            pc_load->plan_id = plan_id;
+            pc_load->plan_id = ps.plan_id;
             pc_load->arg = IMC::InlineMessage<IMC::Message>();
             pc_load->arg.set(ps);
+
+            BOOST_LOG_TRIVIAL(debug) << "Send " << pc_load->toString();
 
             imc_comm->send(std::move(pc_load));
 
@@ -94,7 +98,7 @@ namespace SAOP {
             }
         }
 
-        GCSCommandOutcome GCS::start() {
+        GCSCommandOutcome GCS::start(std::string plan_id) {
 //            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, 0x0c10, 0xFF);
             auto pc_start = produce_unique<IMC::PlanControl>(0, 0, 0x0c0c, 0xFF);
 
@@ -103,7 +107,9 @@ namespace SAOP {
             pc_start->type = IMC::PlanControl::TypeEnum::PC_REQUEST;
             pc_start->op = IMC::PlanControl::OperationEnum::PC_START;
             pc_start->request_id = req_id;
-            pc_start->plan_id = "plan";
+            pc_start->plan_id = plan_id;
+
+            BOOST_LOG_TRIVIAL(debug) << "Send " << pc_start->toString();
 
             imc_comm->send(std::move(pc_start));
 
@@ -134,9 +140,11 @@ namespace SAOP {
             pc_start->type = IMC::PlanControl::TypeEnum::PC_REQUEST;
             pc_start->op = IMC::PlanControl::OperationEnum::PC_START;
             pc_start->request_id = req_id;
-            pc_start->plan_id = plan_id;
+            pc_start->plan_id = ps.plan_id;
             pc_start->arg = IMC::InlineMessage<IMC::Message>();
             pc_start->arg.set(ps);
+
+            BOOST_LOG_TRIVIAL(debug) << "Send " << pc_start->toString();
 
             imc_comm->send(std::move(pc_start));
 
@@ -177,7 +185,7 @@ namespace SAOP {
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
             auto wp_wgs84 = lambert93_to_wgs84(wp_filtered);
 
-            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84);
+            return PlanSpecificationFactory::make_message(saop_plan.name(), wp_wgs84);
         }
 
         void GCS::estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m) {
@@ -194,7 +202,8 @@ namespace SAOP {
         }
 
         void GCS::plan_control_handler(std::unique_ptr<IMC::PlanControl> m) {
-            //std::cout << "req: " << m->request_id << "type:" <<static_cast<uint16_t>(m->type) << std::endl;
+            BOOST_LOG_TRIVIAL(debug) << "Handling PlanControl answer to request: " << m->request_id << " (type "
+                                     << static_cast<uint16_t>(m->type) << ")";
             auto t = static_cast<IMC::PlanControl::TypeEnum>(m->type);
             if ((t == IMC::PlanControl::TypeEnum::PC_SUCCESS) || (t == IMC::PlanControl::TypeEnum::PC_FAILURE)) {
                 // Notify Plan control success or failure
@@ -202,19 +211,21 @@ namespace SAOP {
                 if (req.set_answer(m->request_id, t)) {
                     pc_answer_cv.notify_all();
                 } else {
-                    std::cerr << "Unexpected answer for PC req: " << m->request_id << " type:" << static_cast<uint16_t>(m->type)
-                              << std::endl;
+                    BOOST_LOG_TRIVIAL(warning) << "Received outcome of unexpected PlanControl request: "
+                                               << m->request_id
+                                               << " (type " << static_cast<uint16_t>(m->type) << ")";
                 }
             } else {
                 //Keep waiting for the final answer
-                std::cout << "Keep waiting for the final answer" << std::endl;
+                BOOST_LOG_TRIVIAL(debug) << "Keep waiting for the final outcome of request: " << m->request_id;
             }
         }
 
         GCSCommandOutcome GCS::load(const Plan& p) {
             if (p.trajectories().size() > 1) {
                 // TODO FIXME
-                std::cerr << "Plans for fleets of UAV are not supported yet";
+                BOOST_LOG_TRIVIAL(error) << "Plans for fleets of UAV are not supported yet";
+                BOOST_LOG_TRIVIAL(warning) << "Using the first trajectory and ignoring the others";
             }
             return load(plan_specification(p, 0));
         }
@@ -222,7 +233,8 @@ namespace SAOP {
         GCSCommandOutcome GCS::start(const Plan& p) {
             if (p.trajectories().size() > 1) {
                 // TODO FIXME
-                std::cerr << "Plans for fleets of UAV are not supported yet";
+                BOOST_LOG_TRIVIAL(error) << "Plans for fleets of UAV are not supported yet";
+                BOOST_LOG_TRIVIAL(warning) << "Using the first trajectory and ignoring the others";
             }
             return start(plan_specification(p, 0));
         }

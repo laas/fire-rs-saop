@@ -72,7 +72,7 @@ namespace SAOP {
 
         json metadata();
 
-        std::string name() {return plan_name;}
+        std::string name() const {return plan_name;}
 
         /** A plan is valid iff all trajectories are valid (match their configuration. */
         bool is_valid() const {

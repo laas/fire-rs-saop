@@ -33,7 +33,7 @@ namespace SAOP {
 
     Plan::Plan(std::string name_id, vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fdata, TimeWindow tw,
                vector<PositionTime> observed_previously)
-            : plan_name(name_id), time_window(tw), observed_previously(observed_previously),
+            : time_window(tw), observed_previously(observed_previously), plan_name(name_id),
               trajs(traj_confs), fire_data(std::move(fdata)) {
         for (auto& conf : traj_confs) {
             ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
@@ -294,8 +294,6 @@ namespace SAOP {
         for (const PositionTime& obs : observations_full()) {
             Cell obs_cell = u_map.as_cell(obs.pt);
             prop_q.push(obs_cell);
-
-            auto a = u_of_cell(obs_cell, MAX_UTILITY, MIN_UTILITY);
 
             u_map.set(obs_cell, MIN_UTILITY);
         }

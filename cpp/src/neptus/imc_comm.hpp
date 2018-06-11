@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <vector>
 
 #include <boost/asio.hpp>
+#include <boost/log/trivial.hpp>
 
 #include "../../IMC/Base/ByteBuffer.hpp"
 #include "../../IMC/Base/Message.hpp"

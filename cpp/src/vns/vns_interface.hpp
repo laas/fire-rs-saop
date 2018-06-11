@@ -177,7 +177,8 @@ namespace SAOP {
                 // choose first neighborhood
                 size_t current_neighborhood = 0;
                 if (num_restarts > 0) {
-                    BOOST_LOG_TRIVIAL(debug) << "Shuffle no. " << num_restarts;
+                    BOOST_LOG_TRIVIAL(debug) << "Plan \"" << best_plan_for_restart->name() << "\" shuffle no. "
+                                             << num_restarts;
                     best_plan_for_restart = std::make_shared<Plan>(Plan(*best_plan));
                     shuffler->shuffle(best_plan_for_restart);
                     if (save_improvements) {
@@ -208,7 +209,8 @@ namespace SAOP {
                                     std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                         }
 
-                        BOOST_LOG_TRIVIAL(debug) << "Plan \"" << best_plan_for_restart->name() << "\" improvement (nbhd "
+                        BOOST_LOG_TRIVIAL(debug) << "Plan \"" << best_plan_for_restart->name()
+                                                 << "\" improvement (nbhd "
                                                  << static_cast<int> (current_neighborhood)
                                                  << " ): { utility: "
                                                  << std::fixed << std::setw(11) << std::setprecision(6)

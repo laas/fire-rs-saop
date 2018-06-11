@@ -86,7 +86,8 @@ PYBIND11_MODULE(neptus_interface, m) {
                  py::arg("imc"), py::arg("per_cb"), py::arg("usr_cb"), py::call_guard<py::gil_scoped_release>())
             .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&)) &neptus::GCS::start,
                  py::arg("plan"), py::call_guard<py::gil_scoped_release>())
-            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)()) &neptus::GCS::start, py::call_guard<py::gil_scoped_release>())
+            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(std::string)) &neptus::GCS::start,
+                 py::arg("plan_id"), py::call_guard<py::gil_scoped_release>())
             .def("load", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&)) &neptus::GCS::load,
                  py::arg("plan"), py::call_guard<py::gil_scoped_release>())
             .def("stop", &neptus::GCS::stop, py::call_guard<py::gil_scoped_release>())
