@@ -11,7 +11,7 @@ before_install:
 - rm clone_data_id
 - ssh-keyscan "redmine.laas.fr" >> ~/.ssh/known_hosts
 - git clone ssh://git@redmine.laas.fr/laas/users/simon/fire-rs/fire-rs-data.git data/ &>/dev/null
-- docker pull rafael1193/firers-saop
+- docker pull rafael1193/fire-rs-saop
 - docker run -d -it --user=${USER_ID}:${GROUP_ID} --name saop -v `pwd`:/home/saop/code:z
   -v `pwd`/data:/home/saop/data:z abitmonn/firers-saop-dev
 - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/sh -c "mkdir build-debug &&
