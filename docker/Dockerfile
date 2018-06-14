@@ -5,8 +5,7 @@ FROM abitmonn/windninja-cli:latest
 
 # install SAOP dependencies
 RUN apt-get update && apt-get install -y gdb python3 cython3 python3-gdal python3-setuptools python3-affine\
- python3-tz python3-pandas python3-matplotlib python3-pip ffmpeg clang libboost-system-dev\
- libboost-thread-dev
+ python3-tz python3-pandas python3-matplotlib python3-pip ffmpeg clang libboost-all-dev
 
 RUN pip3 install pybind11==2.2.1
 RUN pip3 install joblib
