@@ -319,10 +319,6 @@ namespace SAOP {
                       uav_report_handler(std::move(uav_report_cb)),
                       req() {
 
-                // FIXME Test calls
-                plan_report_handler(TrajectoryExecutionReport());
-                uav_report_handler(UAVStateReport());
-
                 // Bind to IMC messages
                 imc_comm->bind<IMC::EstimatedState>(
                         std::bind(&GCS::estimated_state_handler, this, placeholders::_1));
