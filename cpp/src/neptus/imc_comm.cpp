@@ -64,11 +64,11 @@ namespace SAOP {
                     boost::system::error_code error;
                     size_t length = sock->read_some(boost::asio::buffer(bb.getBuffer(), bb.getSize()), error);
                     if (error == boost::asio::error::eof) {
-                        BOOST_LOG_TRIVIAL(info) << error.message();
+                        BOOST_LOG_TRIVIAL(info) << "Socket: " <<  error.message();
                         break; // Connection closed cleanly by peer.
                     }
                     else if (error) {
-                        BOOST_LOG_TRIVIAL(error) << error.message();
+                        BOOST_LOG_TRIVIAL(error) << "Socket: " << error.message();
                         throw boost::system::system_error(error); // Some other error.
                     }
                     // IMC message parsing
@@ -146,7 +146,7 @@ namespace SAOP {
                                       << std::endl;
                             auto m_raw = m.get();
                             m.release();
-                            // variables can be moved into lambdas only in C++14 onwards, not C++11
+                            // variables can be moved into lambdas only from C++14 onwards, not C++11
                             thp.enqueue([hnld_fun, m_raw] {
                                 std::unique_ptr<IMC::Message> mm = std::unique_ptr<IMC::Message>(m_raw);
                                 hnld_fun(std::move(mm));
