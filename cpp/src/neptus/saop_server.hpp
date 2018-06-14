@@ -51,6 +51,81 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "imc_message_factories.hpp"
 #include "geography.hpp"
 
+namespace IMC {
+
+    [[maybe_unused]]
+    static std::ostream& operator<<(std::ostream& stream, const IMC::PlanControlState::StateEnum& pcs) {
+        switch (pcs) {
+            case IMC::PlanControlState::StateEnum::PCS_READY:
+                stream << "READY";
+                break;
+            case IMC::PlanControlState::StateEnum::PCS_INITIALIZING:
+                stream << "INITIALIZING";
+                break;
+            case IMC::PlanControlState::StateEnum::PCS_EXECUTING:
+                stream << "EXECUTING";
+                break;
+            case IMC::PlanControlState::StateEnum::PCS_BLOCKED:
+                stream << "BLOCKED";
+                break;
+        }
+        return stream;
+    }
+
+    [[maybe_unused]]
+    static std::ostream& operator<<(std::ostream& stream, const IMC::PlanControlState::LastPlanOutcomeEnum& lpo) {
+        switch (lpo) {
+            case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_NONE:
+                stream << "NONE";
+                break;
+            case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_SUCCESS:
+                stream << "SUCCESS";
+                break;
+            case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_FAILURE:
+                stream << "FAILURE";
+                break;
+        }
+        return stream;
+    }
+
+    static std::ostream& operator<<(std::ostream& stream, const IMC::PlanControl::TypeEnum& pc) {
+        switch (pc) {
+            case IMC::PlanControl::TypeEnum::PC_REQUEST:
+                stream << "REQUEST";
+                break;
+            case IMC::PlanControl::TypeEnum::PC_SUCCESS:
+                stream << "SUCCESS";
+                break;
+            case IMC::PlanControl::TypeEnum::PC_FAILURE:
+                stream << "FAILURE";
+                break;
+            case IMC::PlanControl::TypeEnum::PC_IN_PROGRESS:
+                stream << "IN PROGRESS";
+                break;
+        }
+        return stream;
+    }
+
+    static std::ostream& operator<<(std::ostream& stream, const IMC::PlanControl::OperationEnum& lpo) {
+        switch (lpo) {
+            case IMC::PlanControl::OperationEnum::PC_START:
+                stream << "START";
+                break;
+            case IMC::PlanControl::OperationEnum::PC_STOP:
+                stream << "STOP";
+                break;
+            case IMC::PlanControl::OperationEnum::PC_LOAD:
+                stream << "LOAD";
+                break;
+            case IMC::PlanControl::OperationEnum::PC_GET:
+                stream << "GET";
+                break;
+        }
+        return stream;
+    }
+}
+
+
 namespace SAOP {
 
     namespace neptus {
@@ -124,28 +199,70 @@ namespace SAOP {
             }
         };
 
-        enum class PlanExecutionState : uint8_t {
-            None,
-            Ready,
-            Executing, // Plan is still running
-            Failure, // Plan execution failed
-            Success, // Plan successfully executed
+        enum class TrajectoryExecutionState : uint8_t {
+            Blocked, // Plan execution is blocked due to a vehicle failure
+            Ready, // Plan not running
+            Executing, // Plan is running
         };
 
-        struct PlanExecutionReport {
-            // Summary of IMC::PlanControlState
-            double timestamp;
-            std::string plan_id;
-            PlanExecutionState state;
-            std::vector<std::string> vehicles;
-            // TODO: current maneuver
-            // TODO: ETA
+        static std::ostream& operator<<(std::ostream& stream, const TrajectoryExecutionState& tes) {
+            switch (tes) {
+                case TrajectoryExecutionState::Blocked:
+                    stream << "Blocked";
+                    break;
+                case TrajectoryExecutionState::Ready:
+                    stream << "Ready";
+                    break;
+                case TrajectoryExecutionState::Executing:
+                    stream << "Executing";
+                    break;
+            }
+            return stream;
+        }
 
-            friend std::ostream& operator<<(std::ostream& stream, const PlanExecutionReport& per) {
-                stream << "PlanExecutionReport("
-                       << per.timestamp << ", "
-                       << per.plan_id << ", "
-                       << static_cast<uint8_t>(per.state) << ")";
+        enum class TrajectoryExecutionOutcome : uint8_t {
+            None, // No plan has been completed yet
+            Success, // If excution state is Ready or Blocked, the last plan was completed successfully
+            Failure, // If excution state is Ready or Blocked, the last plan failed
+        };
+
+        static std::ostream& operator<<(std::ostream& stream, const TrajectoryExecutionOutcome& teo) {
+            switch (teo) {
+                case TrajectoryExecutionOutcome::None:
+                    stream << "None";
+                    break;
+                case TrajectoryExecutionOutcome::Success:
+                    stream << "Success";
+                    break;
+                case TrajectoryExecutionOutcome::Failure:
+                    stream << "Failure";
+                    break;
+            }
+            return stream;
+        }
+
+
+        // Neptus plans correspond to SAOP Plan trajectories
+        // A SAOP Plan can be seen as set of Neptus plans
+
+        struct TrajectoryExecutionReport {
+            double timestamp;
+            std::string plan_id; // Neptus plan name
+            std::string vehicle; // Neptus vehicle performing the trajectory
+            std::string maneuver; // Current maneuver being executed
+            int32_t maneuver_eta; // Estimated time until completion of the manuever
+            TrajectoryExecutionState state; // Execution status
+            TrajectoryExecutionOutcome last_outcome; // Execution status
+
+            friend std::ostream& operator<<(std::ostream& stream, const TrajectoryExecutionReport& ter) {
+                stream << "TrajectoryExecutionReport("
+                       << ter.timestamp << ", "
+                       << ter.plan_id << ", "
+                       << ter.vehicle << ", "
+                       << ter.maneuver << ", "
+                       << ter.maneuver_eta << ", "
+                       << ter.state << ", "
+                       << ter.last_outcome << ")";
                 // TODO Add vehicle list
                 return stream;
             }
@@ -154,21 +271,21 @@ namespace SAOP {
         struct UAVStateReport {
             // Summary of IMC::EstimatedState
             double timestamp;
-            uint16_t uav_id; // UAV id
+            std::string uav; // UAV id
             double lat; // WGS84 latitude (rad)
             double lon; // WGS84 longitude (rad)
-            float height; // WGS84 altitude asl (m)
-            float phi; // Roll (rad)
-            float theta; // Pitch (rad)
-            float psi; // Yaw (rad)
-            float vx; // North (x) ground speed (m/s)
-            float vy; // East (y) ground speed (m/s)
-            float vz; // Down (z) ground speed (m/s)
+            double height; // WGS84 altitude asl (m)
+            double phi; // Roll (rad)
+            double theta; // Pitch (rad)
+            double psi; // Yaw (rad)
+            double vx; // North (x) ground speed (m/s)
+            double vy; // East (y) ground speed (m/s)
+            double vz; // Down (z) ground speed (m/s)
 
             friend std::ostream& operator<<(std::ostream& stream, const UAVStateReport& usr) {
                 stream << "UAVStateReport("
                        << usr.timestamp << ", "
-                       << usr.uav_id << ", "
+                       << usr.uav << ", "
                        << usr.lat << ", "
                        << usr.lon << ", "
                        << usr.height << ", "
@@ -195,7 +312,7 @@ namespace SAOP {
                     GCS(std::move(imc), nullptr, nullptr) {}
 
             GCS(std::shared_ptr<IMCComm> imc,
-                std::function<void(PlanExecutionReport per)> plan_report_cb,
+                std::function<void(TrajectoryExecutionReport per)> plan_report_cb,
                 std::function<void(UAVStateReport usr)> uav_report_cb)
                     : imc_comm(std::move(imc)),
                       plan_report_handler(std::move(plan_report_cb)),
@@ -203,7 +320,7 @@ namespace SAOP {
                       req() {
 
                 // FIXME Test calls
-                plan_report_handler(PlanExecutionReport());
+                plan_report_handler(TrajectoryExecutionReport());
                 uav_report_handler(UAVStateReport());
 
                 // Bind to IMC messages
@@ -215,7 +332,7 @@ namespace SAOP {
                         std::bind(&GCS::plan_control_handler, this, placeholders::_1));
             }
 
-            ~GCS() {
+            virtual ~GCS() {
                 imc_comm->unbind<IMC::PlanControl>();
                 imc_comm->unbind<IMC::PlanControlState>();
                 imc_comm->unbind<IMC::EstimatedState>();
@@ -229,21 +346,17 @@ namespace SAOP {
 
             GCS& operator=(GCS&&) = delete;
 
-//            /* Setup, and run inmediately, a SAOP plan.
-//             * (Not blocking) */
-//            void execute(const Plan& plan);
-
             /* Send a request to Neptus to load a converted version of SAOP::Plan. */
-            GCSCommandOutcome load(const Plan& p);
+            GCSCommandOutcome load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
             /* Load and start a SAOP::Plan. */
-            GCSCommandOutcome start(const Plan& p);
+            GCSCommandOutcome start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
             /* Start the last loaded PlanSpecification */
-            GCSCommandOutcome start(std::string plan_id);
+            GCSCommandOutcome start(std::string plan_id, std::string uav);
 
             /* Stop the plan currently being executed. */
-            GCSCommandOutcome stop(std::string plan_id);
+            GCSCommandOutcome stop(std::string plan_id, std::string uav);
 
             /* Return true if this GCS is not active. */
             bool is_active() {
@@ -259,7 +372,6 @@ namespace SAOP {
                 return v;
             }
 
-
         private:
             std::shared_ptr<IMCComm> imc_comm;
             std::thread exec_thread;
@@ -268,26 +380,33 @@ namespace SAOP {
             mutable std::condition_variable pc_answer_cv;
 
             /* Function to be called periodically during execution, carrying plan execution reports */
-            std::function<void(PlanExecutionReport per)>
+            std::function<void(TrajectoryExecutionReport per)>
                     plan_report_handler;
             /* Function to be called periodically with UAV state information*/
             std::function<void(UAVStateReport usr)> uav_report_handler;
 
+            std::unordered_map<uint16_t, std::string> uav_name_of = {{0x0c0c, "x8-02"},
+                                                                     {0x0c10, "x8-06"}};
+
+            std::unordered_map<std::string, uint16_t> uav_addr_of = {{"x8-02", 0x0c0c},
+                                                                     {"x8-06", 0x0c10}};
+
             std::vector<std::tuple<uint16_t, std::string>> available_uavs = {{0x0c0c, "x8-02"},
                                                                              {0x0c10, "x8-06"}};
-
-//            std::string plan_id = "plan"; // TODO: make customizable?
             Requests<IMC::PlanControl::TypeEnum> req;
 
             /* Send the PlanControl load request for a PlanSpecification */
-            GCSCommandOutcome load(IMC::PlanSpecification ps);
+            GCSCommandOutcome load(IMC::PlanSpecification ps, uint16_t uav_addr);
 
             /* Load and start a PlanSpecification*/
-            GCSCommandOutcome start(IMC::PlanSpecification ps);
+            GCSCommandOutcome start(IMC::PlanSpecification ps, uint16_t uav_addr);
 
-            IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory);
+            GCSCommandOutcome start(std::string plan_id, uint16_t uav_addr);
 
-//            void plan_execution_loop(IMC::PlanSpecification imc_plan);
+            /* Send a stop command for plan_id to uav_addr*/
+            GCSCommandOutcome stop(std::string plan_id, uint16_t uav_addr);
+
+            IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id);
 
             void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);
 

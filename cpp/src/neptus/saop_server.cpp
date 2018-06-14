@@ -32,8 +32,8 @@ namespace SAOP {
 
     namespace neptus {
 
-        GCSCommandOutcome GCS::stop(std::string plan_id) {
-            auto pc_stop = produce_unique<IMC::PlanControl>(0, 0, 0x0c10, 0xFF);
+        GCSCommandOutcome GCS::stop(std::string plan_id, uint16_t uav_addr) {
+            auto pc_stop = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
             auto req_id = req.request_id();
 
@@ -64,8 +64,8 @@ namespace SAOP {
             }
         }
 
-        GCSCommandOutcome GCS::load(IMC::PlanSpecification ps) {
-            auto pc_load = produce_unique<IMC::PlanControl>(0, 0, 0x0c10, 0xFF);
+        GCSCommandOutcome GCS::load(IMC::PlanSpecification ps, uint16_t uav_addr) {
+            auto pc_load = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
             auto req_id = req.request_id();
 
@@ -98,9 +98,9 @@ namespace SAOP {
             }
         }
 
-        GCSCommandOutcome GCS::start(std::string plan_id) {
+        GCSCommandOutcome GCS::start(std::string plan_id, uint16_t uav_addr) {
 //            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, 0x0c10, 0xFF);
-            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, 0x0c0c, 0xFF);
+            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
             auto req_id = req.request_id();
 
@@ -131,9 +131,8 @@ namespace SAOP {
             }
         }
 
-
-        GCSCommandOutcome GCS::start(IMC::PlanSpecification ps) {
-            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, 0x0c10, 0xFF);
+        GCSCommandOutcome GCS::start(IMC::PlanSpecification ps, uint16_t uav_addr) {
+            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
             auto req_id = req.request_id();
 
@@ -167,7 +166,7 @@ namespace SAOP {
         }
 
         IMC::PlanSpecification
-        GCS::plan_specification(const Plan& saop_plan, size_t trajectory) {
+        GCS::plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id) {
 
             const auto& t = saop_plan.trajectories()[trajectory];
 
@@ -175,21 +174,31 @@ namespace SAOP {
 
             // Remove bases
             auto r_start = wp.begin();
+            size_t n_start = 0;
             auto r_end = wp.end();
+            size_t n_end = t.size();
             if (t.conf().start_position && wp.front() == *t.conf().start_position) {
                 r_start++;
+                n_start++;
             }
             if (t.conf().end_position && wp.back() == *t.conf().end_position) {
                 r_end--;
+                n_end--;
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
             auto wp_wgs84 = lambert93_to_wgs84(wp_filtered);
 
-            return PlanSpecificationFactory::make_message(saop_plan.name(), wp_wgs84);
+            std::vector<std::string> maneuver_names = {};
+
+            for (size_t man_id = n_start; man_id < n_end; ++man_id) {
+                maneuver_names.emplace_back(std::to_string(man_id));
+            }
+
+            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_names);
         }
 
         void GCS::estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m) {
-            UAVStateReport report{m->getTimeStamp(), m->getSource(),
+            UAVStateReport report{m->getTimeStamp(), uav_name_of[m->getSource()],
                                   m->lat, m->lon, m->height,
                                   m->phi, m->theta, m->psi,
                                   m->vx, m->vy, m->vz};
@@ -197,46 +206,124 @@ namespace SAOP {
         }
 
         void GCS::plan_control_state_handler(std::unique_ptr<IMC::PlanControlState> m) {
-            PlanExecutionReport report = PlanExecutionReport();
+            TrajectoryExecutionState state = TrajectoryExecutionState::Blocked;
+            switch (static_cast<IMC::PlanControlState::StateEnum>(m->state)) {
+                case IMC::PlanControlState::StateEnum::PCS_BLOCKED:
+                    state = TrajectoryExecutionState::Blocked;
+                    break;
+                case IMC::PlanControlState::StateEnum::PCS_EXECUTING:
+                    state = TrajectoryExecutionState::Executing;
+                    break;
+                case IMC::PlanControlState::StateEnum::PCS_INITIALIZING:
+                    state = TrajectoryExecutionState::Executing;
+                    break;
+                case IMC::PlanControlState::StateEnum::PCS_READY:
+                    state = TrajectoryExecutionState::Ready;
+                    break;
+                default:
+                    break;
+            }
+
+            TrajectoryExecutionOutcome outcome = TrajectoryExecutionOutcome::None;
+            switch (static_cast<IMC::PlanControlState::LastPlanOutcomeEnum>(m->last_outcome)) {
+                case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_NONE:
+                    outcome = TrajectoryExecutionOutcome::None;
+                    break;
+                case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_SUCCESS :
+                    outcome = TrajectoryExecutionOutcome::Success;
+                    break;
+                case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_FAILURE :
+                    outcome = TrajectoryExecutionOutcome::Failure;
+                    break;
+                default:
+                    break;
+            }
+
+            // See pt.lsts.neptus.console.plugins.planning.PlanControlStatePanel for "state" and "last outcome" interpretation
+
+            TrajectoryExecutionReport report{m->getTimeStamp(), m->plan_id, uav_name_of[m->getSource()], m->man_id,
+                                             m->man_eta, state, outcome};
+            m->last_outcome;
             plan_report_handler(report);
         }
 
         void GCS::plan_control_handler(std::unique_ptr<IMC::PlanControl> m) {
-            BOOST_LOG_TRIVIAL(debug) << "Handling PlanControl answer to request: " << m->request_id << " (type "
-                                     << static_cast<uint16_t>(m->type) << ")";
+            BOOST_LOG_TRIVIAL(debug) << "Handling PlanControl answer to request " << m->request_id <<
+                                     " (op " << static_cast<IMC::PlanControl::OperationEnum>(m->op) <<
+                                     " type " << static_cast<IMC::PlanControl::TypeEnum>(m->type) <<
+                                     ": " << m->info << ")";
             auto t = static_cast<IMC::PlanControl::TypeEnum>(m->type);
             if ((t == IMC::PlanControl::TypeEnum::PC_SUCCESS) || (t == IMC::PlanControl::TypeEnum::PC_FAILURE)) {
                 // Notify Plan control success or failure
                 std::unique_lock<std::mutex> lock(pc_answer_mutex);
                 if (req.set_answer(m->request_id, t)) {
+                    BOOST_LOG_TRIVIAL(info) << "PlanControl request " << m->request_id <<
+                                            " op " << static_cast<IMC::PlanControl::OperationEnum>(m->op) <<
+                                            " replied " << static_cast<IMC::PlanControl::TypeEnum>(m->type) <<
+                                            " : " << m->info << ")";
                     pc_answer_cv.notify_all();
                 } else {
-                    BOOST_LOG_TRIVIAL(warning) << "Received outcome of unexpected PlanControl request: "
+                    BOOST_LOG_TRIVIAL(warning) << "Received reply for unexpected PlanControl request: "
                                                << m->request_id
-                                               << " (type " << static_cast<uint16_t>(m->type) << ")";
+                                               << " (op " << static_cast<IMC::PlanControl::OperationEnum>(m->op) <<
+                                               " type " << static_cast<IMC::PlanControl::TypeEnum>(m->type) << ")";
                 }
             } else {
-                //Keep waiting for the final answer
+                // IMC::PlanControl::TypeEnum::PC_IN_PROGRESS
+                // Keep waiting for the final answer
                 BOOST_LOG_TRIVIAL(debug) << "Keep waiting for the final outcome of request: " << m->request_id;
             }
         }
 
-        GCSCommandOutcome GCS::load(const Plan& p) {
-            if (p.trajectories().size() > 1) {
-                // TODO FIXME
-                BOOST_LOG_TRIVIAL(error) << "Plans for fleets of UAV are not supported yet";
-                BOOST_LOG_TRIVIAL(warning) << "Using the first trajectory and ignoring the others";
+        GCSCommandOutcome GCS::load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return GCSCommandOutcome::Failure;
             }
-            return load(plan_specification(p, 0));
+
+            return load(plan_specification(p, trajectory, plan_id), uav_addr);
         }
 
-        GCSCommandOutcome GCS::start(const Plan& p) {
-            if (p.trajectories().size() > 1) {
-                // TODO FIXME
-                BOOST_LOG_TRIVIAL(error) << "Plans for fleets of UAV are not supported yet";
-                BOOST_LOG_TRIVIAL(warning) << "Using the first trajectory and ignoring the others";
+        GCSCommandOutcome GCS::start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return GCSCommandOutcome::Failure;
             }
-            return start(plan_specification(p, 0));
+
+            return start(plan_specification(p, trajectory, plan_id), uav_addr);
+        }
+
+        GCSCommandOutcome GCS::start(std::string plan_id, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return GCSCommandOutcome::Failure;
+            }
+            return start(plan_id, uav_addr);
+
+        }
+
+        GCSCommandOutcome GCS::stop(std::string plan_id, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return GCSCommandOutcome::Failure;
+            }
+            return stop(plan_id, uav_addr);
         }
     }
 }

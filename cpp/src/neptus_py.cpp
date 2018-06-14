@@ -51,6 +51,8 @@ PYBIND11_MODULE(neptus_interface, m) {
         SAOP::set_python_sink(logger);
     }, py::arg("logger").none(false), "Use a python logger as Boost::Log sink");
 
+    // Direct Dune interface
+
     m.def("upload_plan", neptus::send_plan_to_dune, py::arg("ip"), py::arg("port"),
           py::arg("plan"), py::arg("plan_id"), py::arg("segment_extension"), py::arg("sampled"));
 
@@ -67,6 +69,9 @@ PYBIND11_MODULE(neptus_interface, m) {
     py::class_<neptus::DuneLink>(m, "DuneLink")
             .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
 
+    // Neptus interface
+
+
     py::class_<neptus::IMCComm,
             std::shared_ptr<neptus::IMCComm>>(m, "IMCComm")
             .def(py::init())
@@ -81,49 +86,54 @@ PYBIND11_MODULE(neptus_interface, m) {
             std::shared_ptr<neptus::GCS>>(m, "GCS")
             .def(py::init<std::shared_ptr<neptus::IMCComm>>(), py::arg("imc"))
             .def(py::init<std::shared_ptr<neptus::IMCComm>,
-                         const std::function<void(neptus::PlanExecutionReport)>,
+                         const std::function<void(neptus::TrajectoryExecutionReport)>,
                          const std::function<void(neptus::UAVStateReport)>>(),
-                 py::arg("imc"), py::arg("per_cb"), py::arg("usr_cb"), py::call_guard<py::gil_scoped_release>())
-            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&)) &neptus::GCS::start,
-                 py::arg("plan"), py::call_guard<py::gil_scoped_release>())
-            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(std::string)) &neptus::GCS::start,
-                 py::arg("plan_id"), py::call_guard<py::gil_scoped_release>())
-            .def("load", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&)) &neptus::GCS::load,
-                 py::arg("plan"), py::call_guard<py::gil_scoped_release>())
-            .def("stop", &neptus::GCS::stop, py::call_guard<py::gil_scoped_release>())
+                 py::arg("imc"), py::arg("ter_cb"), py::arg("usr_cb"), py::call_guard<py::gil_scoped_release>())
+            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&, size_t, std::string,
+                                                                      std::string)) &neptus::GCS::start,
+                 py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
+                 py::call_guard<py::gil_scoped_release>())
+            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::start,
+                 py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
+            .def("load", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&, size_t, std::string,
+                                                                     std::string)) &neptus::GCS::load,
+                 py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
+                 py::call_guard<py::gil_scoped_release>())
+            .def("stop", (neptus::GCSCommandOutcome (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::stop,
+                 py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
             .def_property_readonly("available_vehicles", &neptus::GCS::available_vehicles);
 
-    py::class_<neptus::PlanExecutionReport>(m, "PlanExecutionReport")
-            .def("__repr__", [](neptus::PlanExecutionReport& self) -> std::string {
+    py::enum_<neptus::TrajectoryExecutionState>(m, "TrajectoryExecutionState", py::arithmetic())
+            .value("Blocked", neptus::TrajectoryExecutionState::Blocked)
+            .value("Ready", neptus::TrajectoryExecutionState::Ready)
+            .value("Executing", neptus::TrajectoryExecutionState::Executing);
+
+    py::enum_<neptus::TrajectoryExecutionOutcome>(m, "TrajectoryExecutionOutcome", py::arithmetic())
+            .value("None", neptus::TrajectoryExecutionOutcome::None)
+            .value("Success", neptus::TrajectoryExecutionOutcome::Success)
+            .value("Failure", neptus::TrajectoryExecutionOutcome::Failure);
+
+    py::class_<neptus::TrajectoryExecutionReport>(m, "TrajectoryExecutionReport")
+            .def("__repr__", [](neptus::TrajectoryExecutionReport& self) -> std::string {
                 std::stringstream ss;
-                ss << "PlanExecutionReport(" << self.timestamp << ", "
-                   << self.plan_id << ", "
-                   << static_cast<uint8_t>(self.state) << ")";
+                ss << self;
                 return ss.str();
             })
-            .def_readonly("timestamp", &neptus::PlanExecutionReport::timestamp)
-            .def_readonly("plan_id", &neptus::PlanExecutionReport::plan_id)
-//            .def_readonly("state", &neptus::PlanExecutionReport::state)
-            .def_readonly("vehicles", &neptus::PlanExecutionReport::vehicles);
+            .def_readonly("timestamp", &neptus::TrajectoryExecutionReport::timestamp)
+            .def_readonly("plan_id", &neptus::TrajectoryExecutionReport::plan_id)
+            .def_readonly("vehicle", &neptus::TrajectoryExecutionReport::vehicle)
+            .def_readonly("maneuver", &neptus::TrajectoryExecutionReport::maneuver)
+            .def_readonly("maneuver_eta", &neptus::TrajectoryExecutionReport::maneuver_eta)
+            .def_readonly("state", &neptus::TrajectoryExecutionReport::state);
 
     py::class_<neptus::UAVStateReport>(m, "UAVStateReport")
             .def("__repr__", [](neptus::UAVStateReport& self) -> std::string {
                 std::stringstream ss;
-                ss << "UAVStateReport(t="
-                   << self.timestamp << ", u="
-                   << self.uav_id << ", ("
-                   << self.lat << ", "
-                   << self.lon << ", "
-                   << self.height << "), ("
-                   << self.phi << ", "
-                   << self.theta << ", "
-                   << self.psi << "), ("
-                   << self.vx << ", "
-                   << self.vy << ", "
-                   << self.vz << "))";
+                ss << self;
                 return ss.str();
             })
-            .def_readonly("uav_id", &neptus::UAVStateReport::uav_id)
+            .def_readonly("timestamp", &neptus::UAVStateReport::timestamp)
+            .def_readonly("uav", &neptus::UAVStateReport::uav)
             .def_readonly("lat", &neptus::UAVStateReport::lat)
             .def_readonly("lon", &neptus::UAVStateReport::lon)
             .def_readonly("height", &neptus::UAVStateReport::height)

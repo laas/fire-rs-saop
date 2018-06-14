@@ -91,7 +91,7 @@ if __name__ == "__main__":
         return pl.search_result.final_plan()
 
 
-    f1 = lambda x: None
+    f1 = lambda x: print(x)
     f2 = lambda x: None
 
     imccomm = nifc.IMCComm()
@@ -111,14 +111,16 @@ if __name__ == "__main__":
 
     a_plan = give_me_a_plan()
     k = nifc.GCSCommandOutcome.Unknown
-    while k != nifc.GCSCommandOutcome.Success:
-        k = gcs.load(a_plan)
+    retries = 2
+    while retries > 0 and k != nifc.GCSCommandOutcome.Success:
+        k = gcs.load(a_plan, 0, a_plan.name(), "x8-02")
         if k != nifc.GCSCommandOutcome.Success:
             print("Load plan failed")
             print("Retrying")
+            retries -= 1
         else:
             print("Plan loaded")
-    k = gcs.start(a_plan)
+    k = gcs.start("saop_" + a_plan.name(), "x8-02")
     if k != nifc.GCSCommandOutcome.Success:
         print("Start plan failed")
     else:
