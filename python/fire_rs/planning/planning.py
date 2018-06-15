@@ -232,6 +232,10 @@ class PlanningEnvironment(Environment):
 
         self.raster = self.raster.combine(elev_planning)
 
+    @property
+    def area_wind(self) -> Tuple[float, float]:
+        return self._wind_speed, self._wind_dir
+
     def __repr__(self):
         return "".join(("PlanningEnvironment(area=", repr(self.area),
                         ", wind_speed=", repr(self._wind_speed),
