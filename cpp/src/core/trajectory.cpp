@@ -81,7 +81,7 @@ namespace SAOP {
 
         if (size() == 0) {
             // If the trajectory is void, a subtrajectory is the trajectory
-            std::cerr << "Slicing an empty trajectory" << std::endl;
+            BOOST_LOG_TRIVIAL(debug)  << "Slicing an empty trajectory" << std::endl;
             return Trajectory(*this);
         }
 
@@ -279,8 +279,8 @@ namespace SAOP {
         }
 
         if (delta_time < 0) {
-            std::cerr << "Trajectory::insert_segment(" << segment << ", " << insert_loc
-                      << ") . Added delay is negative " << delta_time << std::endl;
+            BOOST_LOG_TRIVIAL(warning) << "Trajectory::insert_segment(" << segment << ", " << insert_loc
+                      << ") . Added delay is negative " << delta_time;
         }
 
         return delta_time;
@@ -354,7 +354,7 @@ namespace SAOP {
 
         const double added_delay = insertion_duration_cost(at_index, seg);
         if (!ALMOST_GREATER_EQUAL(added_delay, 0)) {
-            std::cerr << "Trajectory::insert_segment(" << seg << ", " << at_index
+            BOOST_LOG_TRIVIAL(warning)  << "Trajectory::insert_segment(" << seg << ", " << at_index
                       << ") . Added delay is negative " << added_delay << std::endl;
 //                insertion_duration_cost(at_index, seg);
         }

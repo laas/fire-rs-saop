@@ -33,6 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <string>
 #include <vector>
 
+#include <boost/log/trivial.hpp>
+
 #include "../ext/dubins.h"
 #include "../ext/json.hpp"
 #include "../ext/optional.hpp"
