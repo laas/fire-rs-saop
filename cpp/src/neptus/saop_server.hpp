@@ -387,8 +387,8 @@ namespace SAOP {
             std::unordered_map<std::string, uint16_t> uav_addr_of = {{"x8-02", 0x0c0c},
                                                                      {"x8-06", 0x0c10}};
 
-            std::vector<std::tuple<uint16_t, std::string>> available_uavs = {{0x0c0c, "x8-02"},
-                                                                             {0x0c10, "x8-06"}};
+            std::vector<std::tuple<uint16_t, std::string>> available_uavs = {std::make_tuple(0x0c0c, "x8-02"),
+                                                                             std::make_tuple(0x0c10, "x8-06")};
             Requests<IMC::PlanControl::TypeEnum> req;
 
             /* Send the PlanControl load request for a PlanSpecification */
