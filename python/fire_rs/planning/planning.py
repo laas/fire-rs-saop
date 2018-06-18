@@ -132,6 +132,11 @@ class SAOPPlannerConf(Mapping):
 class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
     __slots__ = ()
 
+    @property
+    def dtype(self):
+        """numpy's dtype of a Waypoint"""
+        return [(f, type(v)) for f, v in self._asdict().items()]
+
     def as_cpp(self):
         return up.Waypoint(self.x, self.y, self.z, self.dir)
 
