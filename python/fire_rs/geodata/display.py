@@ -42,9 +42,21 @@ import numpy as np
 from matplotlib.colors import LightSource
 from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.path import Path
 
 from fire_rs.geodata.geo_data import GeoData
 from fire_rs.deprecation import deprecated
+
+house_marker = Path(np.array([[0., 0.],
+                              [1., 0.],
+                              [1., 1.],
+                              [2., 1.],
+                              [2., 0.],
+                              [3., 0.],
+                              [3., 2.],
+                              [1.5, 3.],
+                              [0., 2.],
+                              [0., 0.]]) - np.array([1.5, 1.5]), closed=True)
 
 
 class EngOffsetFormatter(matplotlib.ticker.EngFormatter):
@@ -341,6 +353,14 @@ class GeoDataDisplay(GeoDataDisplayBase):
         cb = self._figure.colorbar(shade, ax=self.axes, shrink=0.65, aspect=20, format="%d min")
         cb.set_label(label)
         self._colorbars.append(cb)
+
+    def draw_base(self, bases: 'Union[[(float, float)], (float, float)]',
+                  **kwargs):
+        """Draw a point marked as bases in a GeoDataDisplay figure."""
+        if 's' not in kwargs:
+            kwargs['s'] = 200
+
+        return self.draw_ignition_points(bases, marker=house_marker, **kwargs)
 
     def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]',
                              **kwargs):
