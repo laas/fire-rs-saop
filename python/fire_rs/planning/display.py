@@ -40,6 +40,7 @@ import fire_rs.uav_planning as up
 
 logger = logging.getLogger(__name__)
 
+TRAJECTORY_COLORS = ["darkred", "darkgreen", "darkblue", "darkorange", "darkmagenta"]
 
 class TrajectoryDisplayExtension(gdd.DisplayExtension):
     """Extension to GeoDataDisplay that an observation trajectories."""
@@ -372,7 +373,7 @@ def plot_plan_trajectories(plan, geodatadisplay, layers: 'List[str]',
                            colors: 'Optional[List]' = None, labels: 'Optional[List[str]]' = None):
     """Plot the trajectories of a plan."""
     if not colors:
-        colors = ["darkred", "darkgreen", "darkblue", "darkorange", "darkmagenta"]
+        colors = TRAJECTORY_COLORS
     colors = cycle(colors)
     if not labels:
         labels = [None, ]
