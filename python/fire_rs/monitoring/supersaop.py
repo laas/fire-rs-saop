@@ -111,7 +111,8 @@ class ObservationPlanning:
 
     def respond_to_alarm(self, alarm: Alarm,
                          takeoff_delay: datetime.timedelta = datetime.timedelta(minutes=10),
-                         horizon: datetime.timedelta = datetime.timedelta(minutes=60)):
+                         horizon: datetime.timedelta = datetime.timedelta(minutes=60)) \
+            -> AlarmResponse:
         """Get a Plan that responds to an alarm"""
         # Get the area including the alarm ignition points and the UAV bases
         p_env = self._get_environment(alarm, self.hangar.bases.values())
@@ -357,8 +358,7 @@ class ExecutionMonitor:
 
 if __name__ == "__main__":
     import logging
-
-    # import fire_rs.neptus_interface as nifc
+    import fire_rs.geodata.display as gdisplay
 
     # Set up logging
     FORMAT = '%(asctime)-23s %(levelname)-8s [%(name)s]: %(message)s'
@@ -376,6 +376,18 @@ if __name__ == "__main__":
 
     observation_planning = ObservationPlanning(Hangar(), logger.getChild("ObservationPlanning"))
     response = observation_planning.respond_to_alarm(alarma)
+
+    alarm_figure = gdisplay.get_pyplot_figure_and_axis()
+    alarm_gdd = gdisplay.GeoDataDisplay(*gdisplay.get_pyplot_figure_and_axis(),
+                                        response.planning_env.raster,
+                                        frame=(0., 0.))
+
+    alarm_gdd.draw_elevation_shade()
+    alarm_gdd.draw_ignition_contour(geodata=response.fire_prop.prop_data, layer='ignition')
+    alarm_gdd.draw_base(observation_planning.hangar.bases[response.uav_allocation[0]], color='b', s=50)
+    alarm_gdd.draw_ignition_points(response.alarm[1], zorder=1000)
+    alarm_gdd.figure.show()
+
     execution_monitor = ExecutionMonitor(logger.getChild("ExecutionMonitor"))
     if execution_monitor.start_response(response) or True:
         for report in execution_monitor.monitor(response):
