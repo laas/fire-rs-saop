@@ -27,7 +27,7 @@
 __all__ = ['GeoDataDisplay', 'GeoDataDisplayBase', 'DisplayExtension', 'UAVDisplayExtension']
 
 from collections import Sequence
-from typing import Optional, Tuple, Type, Union
+from typing import Optional, Tuple, Type, Union, Dict
 
 import matplotlib
 import matplotlib.axis
@@ -354,25 +354,35 @@ class GeoDataDisplay(GeoDataDisplayBase):
         cb.set_label(label)
         self._colorbars.append(cb)
 
-    def draw_base(self, bases: 'Union[[(float, float)], (float, float)]',
-                  **kwargs):
+    def draw_base(self, bases: 'Union[[(float, float)], (float, float)]', **kwargs):
         """Draw a point marked as bases in a GeoDataDisplay figure."""
         if 's' not in kwargs:
             kwargs['s'] = 200
 
-        return self.draw_ignition_points(bases, marker=house_marker, **kwargs)
+        return self._draw_scatter(bases, marker=house_marker, **kwargs)
+
+    def draw_base_tagged(self, bases: 'Dict[str, Tuple[float, float]]', **kwargs):
+        """Draw a point marked as bases in a GeoDataDisplay figure."""
+        if 's' not in kwargs:
+            kwargs['s'] = 200
+
+        return self._draw_scatter(bases, marker=house_marker, **kwargs)
 
     def draw_ignition_points(self, ignition_points: 'Union[[(float, float)], (float, float)]',
                              **kwargs):
         """Draw one or multiple ignition points in a GeoDataDisplay figure."""
-        ip_arr = np.array(ignition_points)
-
         if 'color' not in kwargs:
             kwargs['color'] = 'red'
         if 'edgecolor' not in kwargs:
             kwargs['edgecolor'] = 'black'
         if 'marker' not in kwargs:
             kwargs['marker'] = 'o'
+
+        return self._draw_scatter(ignition_points, **kwargs)
+
+    def _draw_scatter(self, points: 'Union[[(float, float)], (float, float)]', **kwargs):
+        """Draw one or multiple points in a GeoDataDisplay figure."""
+        ip_arr = np.array(points)
 
         scattered = self.axes.scatter(ip_arr[..., 0], ip_arr[..., 1], **kwargs)
         self._drawings.append(scattered)
