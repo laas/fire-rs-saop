@@ -22,6 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import itertools
 import logging
 import queue
 import threading
@@ -29,15 +30,19 @@ import typing as ty
 import datetime
 import numpy as np
 import fire_rs.geodata.geo_data as geo_data
+import fire_rs.geodata.display as gdisplay
 import fire_rs.planning.planning as planning
 import fire_rs.firemodel.propagation as propagation
 import fire_rs.neptus_interface as nifc
+import fire_rs.planning.display as pdisplay
 
 supersaop_start_time = datetime.datetime.now()
 
 Alarm = ty.Tuple[datetime.datetime, ty.Sequence[geo_data.TimedPoint]]
 
 Area2D = ty.Tuple[ty.Tuple[float, float], ty.Tuple[float, float]]
+
+DEFAULT_HORIZON = datetime.timedelta(minutes=60)
 
 
 class Hangar:
@@ -48,10 +53,12 @@ class Hangar:
         self._uav_keys = ['x8-02', 'x8-06']
         self._bases = {}
         self._uavconfs = {}
+        self._colors = {}
 
-        for uav_k in self._uav_keys:
+        for uav_k, color in zip(self._uav_keys, itertools.cycle(pdisplay.TRAJECTORY_COLORS)):
             self._bases[uav_k] = base_default
             self._uavconfs[uav_k] = uav_x8
+            self._colors[uav_k] = color
 
     def uavconfs(self) -> ty.Dict[str, planning.UAVConf]:
         """Get planning UAVConf objects for every available UAV."""
@@ -69,6 +76,32 @@ class Hangar:
     def bases(self) -> ty.Dict[str, planning.Waypoint]:
         """Get UAV bases"""
         return self._bases
+
+    @property
+    def colors(self) -> ty.Dict[str, str]:
+        """Mapping of UAVs and associated color """
+        return self._colors
+
+
+def show_situation(gdd: gdisplay.GeoDataDisplay,
+                   alarm: Alarm,
+                   environment: planning.Environment,
+                   firepropagation: propagation.FirePropagation,
+                   hangar: Hangar, ):
+    # Show wildfire Situation Assessment
+    alarm_figure = gdisplay.get_pyplot_figure_and_axis()
+    alarm_gdd = gdisplay.GeoDataDisplay(*gdisplay.get_pyplot_figure_and_axis(),
+                                        environment.raster, frame=(0., 0.))
+    gdd.draw_elevation_shade()
+    gdd.draw_ignition_contour(geodata=firepropagation.prop_data, layer='ignition')
+    for uav, base, color in zip(hangar.bases.keys(), hangar.bases.values(), hangar.colors.values()):
+        alarm_gdd.draw_base(base, color=color, label=uav,
+                            s=50)
+    gdd.draw_ignition_points(alarm[1], zorder=1000)
+    gdd.figure.legend()
+    gdd.figure.suptitle(
+        "Situation assessment of wildfire alarm.\n Valid from " + str(alarm[0]) + " to " + str(
+            alarm[0] + datetime.timedelta(seconds=firepropagation.until_time)))
 
 
 def poll_alarm() -> Alarm:
@@ -103,57 +136,11 @@ class AlarmResponse:
         return self.search_result.final_plan()
 
 
-class ObservationPlanning:
+class SituationAssessment:
+
     def __init__(self, hangar: Hangar, logger: logging.Logger):
-        self.hangar = hangar
-        self._registered_alarms = {}
         self.logger = logger
-
-    def respond_to_alarm(self, alarm: Alarm,
-                         takeoff_delay: datetime.timedelta = datetime.timedelta(minutes=10),
-                         horizon: datetime.timedelta = datetime.timedelta(minutes=60)) \
-            -> AlarmResponse:
-        """Get a Plan that responds to an alarm"""
-        # Get the area including the alarm ignition points and the UAV bases
-        p_env = self._get_environment(alarm, self.hangar.bases.values())
-        self.logger.info("Got environment: %s", p_env)
-
-        fire_prop = self._compute_fire_propagation(p_env, alarma, alarma[0] + horizon)
-
-        # Do vehicle allocation before planning
-        # Assign 1 vehicle per ignition point in the alarm
-        # More inteligent resource allocation can be done in the future
-        # For instance measure fire area and precalculate how many UAVs we would need to cover it
-        f_confs = []
-        uav_allocation = {}
-        v = self.hangar.vehicles
-        fl_window = (np.inf, -np.inf)
-
-        for ignition, (traj_i, vehicle) in zip(alarm[1], enumerate(v)):
-            f_conf = planning.FlightConf(uav=self.hangar.uavconfs()[vehicle],
-                                         start_time=(alarma[0] + takeoff_delay).timestamp(),
-                                         base_waypoint=self.hangar.bases[vehicle],
-                                         wind=p_env.area_wind)
-            fl_window = (min(fl_window[0], f_conf.start_time),
-                         max(fl_window[1], f_conf.start_time + f_conf.max_flight_time))
-            uav_allocation[traj_i] = vehicle
-            f_confs.append(f_conf)
-
-        # The VNS planning strategy is fixed
-        # Planning time is proportional to the number of UAV trajectories to be planned
-        # Do not save intermediate plans
-        saop_conf = planning.SAOPPlannerConf(fl_window, planning.VNSConfDB.demo_db()["demo"],
-                                             max_planning_time=10.0 * len(alarm[1]),
-                                             save_improvements=False, save_every=0)
-
-        # Plan considering all the previous configuration and data
-        planner = planning.Planner(p_env, fire_prop.prop_data, f_confs, saop_conf)
-        sr = planner.compute_plan()
-
-        self._registered_alarms[str(alarm[0])] = AlarmResponse(alarm, p_env, fire_prop,
-                                                               uav_allocation, f_confs,
-                                                               saop_conf, sr)
-        return self._registered_alarms[str(alarm[0])]
+        self.hangar = hangar
 
     @staticmethod
     def _get_area_wind(position_time: ty.Tuple[float, float, datetime.datetime]) \
@@ -186,11 +173,20 @@ class ObservationPlanning:
 
         return area
 
+    def expected_situation(self, alarm: Alarm,
+                           horizon: datetime.timedelta = DEFAULT_HORIZON) -> \
+            ty.Tuple[planning.PlanningEnvironment, propagation.FirePropagation]:
+        """Precompute an expected wildfire simulation in the future since a fire alarm.
+        The result can be passed to the alarm response planning method"""
+
+        planning_env = SituationAssessment._get_environment(alarm, self.hangar.bases.values())
+        return planning_env, self._compute_fire_propagation(planning_env, alarm, alarm[0] + horizon)
+
     @staticmethod
     def _get_environment(alarm: Alarm, bases) -> planning.PlanningEnvironment:
         """Get a PlanningEnvironment around an alarm"""
-        wind = ObservationPlanning._get_area_wind(alarm[1][0])
-        area = ObservationPlanning._compute_area(alarm[1], bases)
+        wind = SituationAssessment._get_area_wind(alarm[1][0])
+        area = SituationAssessment._compute_area(alarm[1], bases)
 
         return planning.PlanningEnvironment(area, wind_speed=wind[0], wind_dir=wind[1],
                                             planning_elevation_mode='flat', flat_altitude=0)
@@ -198,11 +194,73 @@ class ObservationPlanning:
     def _compute_fire_propagation(self, env: planning.PlanningEnvironment,
                                   alarm: Alarm,
                                   until: datetime.datetime) -> propagation.FirePropagation:
-        self.logger.info("Start fire propagation from %s until %s", alarma[1], until)
+        self.logger.info("Start fire propagation from %s until %s", alarm[1], until)
         pt_float = [(x, y, time.timestamp()) for x, y, time in alarm[1]]
         prop = propagation.propagate_from_points(env, pt_float, until.timestamp())
         self.logger.info("Propagation ended")
         return prop
+
+
+class ObservationPlanning:
+
+    def __init__(self, hangar: Hangar, logger: logging.Logger):
+        self.hangar = hangar
+        self._registered_alarms = {}
+        self.logger = logger
+
+    def respond_to_alarm(self, alarm: Alarm,
+                         expected_situation: ty.Optional[ty.Tuple[
+                             planning.PlanningEnvironment, propagation.FirePropagation]] = None,
+                         takeoff_delay: datetime.timedelta = datetime.timedelta(minutes=10),
+                         horizon: datetime.timedelta = DEFAULT_HORIZON) \
+            -> AlarmResponse:
+        """Compute an AlarmResponse to an alarm.
+
+        Arguments:
+            alarm: wildfire alarm
+            expected_situation: A precomputed pair of PlanningEnvironment and FirePropagation
+                of the alarm.
+            takeoff_delay: time when the UAVs are expected to take off
+            horizon: duration of the monitoring mission
+        """
+        # Get the area including the alarm ignition points and the UAV bases
+        planning_env = expected_situation[0]
+        fire_prop = expected_situation[1]
+
+        # Do vehicle allocation before planning
+        # Assign 1 vehicle per ignition point in the alarm
+        # More inteligent resource allocation can be done in the future
+        # For instance measure fire area and precalculate how many UAVs we would need to cover it
+        f_confs = []
+        uav_allocation = {}
+        v = self.hangar.vehicles
+        fl_window = (np.inf, -np.inf)
+
+        for ignition, (traj_i, vehicle) in zip(alarm[1], enumerate(v)):
+            f_conf = planning.FlightConf(uav=self.hangar.uavconfs()[vehicle],
+                                         start_time=(alarm[0] + takeoff_delay).timestamp(),
+                                         base_waypoint=self.hangar.bases[vehicle],
+                                         wind=planning_env.area_wind)
+            fl_window = (min(fl_window[0], f_conf.start_time),
+                         max(fl_window[1], f_conf.start_time + f_conf.max_flight_time))
+            uav_allocation[traj_i] = vehicle
+            f_confs.append(f_conf)
+
+        # The VNS planning strategy is fixed
+        # Planning time is proportional to the number of UAV trajectories to be planned
+        # Do not save intermediate plans
+        saop_conf = planning.SAOPPlannerConf(fl_window, planning.VNSConfDB.demo_db()["demo"],
+                                             max_planning_time=10.0 * len(alarm[1]),
+                                             save_improvements=False, save_every=0)
+
+        # Plan considering all the previous configuration and data
+        planner = planning.Planner(planning_env, fire_prop.prop_data, f_confs, saop_conf)
+        sr = planner.compute_plan()
+
+        self._registered_alarms[str(alarm[0])] = AlarmResponse(alarm, planning_env, fire_prop,
+                                                               uav_allocation, f_confs,
+                                                               saop_conf, sr)
+        return self._registered_alarms[str(alarm[0])]
 
 
 class SuperSAOP:
@@ -263,23 +321,23 @@ class ExecutionMonitor:
             while retries < max_retries and results[traj_i] != nifc.GCSCommandOutcome.Success:
                 results[traj_i] = self.gcs.load(response.plan, traj_i, plan_name, uav)
                 if results[traj_i] != nifc.GCSCommandOutcome.Success:
-                    logger.warning("Loading of trajectory %s failed. Retrying...", plan_name)
+                    self.logger.warning("Loading of trajectory %s failed. Retrying...", plan_name)
                     retries -= 1
                 else:
-                    logger.info("Trajectory %s loaded", plan_name)
+                    self.logger.info("Trajectory %s loaded", plan_name)
 
             if results[traj_i] != nifc.GCSCommandOutcome.Success:
-                logger.error("Loading of trajectory %s failed. Giving up after %d trials",
-                             plan_name, max_retries)
+                self.logger.error("Loading of trajectory %s failed. Giving up after %d trials",
+                                  plan_name, max_retries)
                 return False
 
             # Start the mission
             results[traj_i] = self.gcs.start("saop_" + plan_name, uav)
             if results[traj_i] != nifc.GCSCommandOutcome.Success:
-                logger.error("Start of trajectory %s failed", plan_name)
+                self.logger.error("Start of trajectory %s failed", plan_name)
                 return False
             else:
-                logger.error("Start trajectory %s", plan_name)
+                self.logger.error("Start trajectory %s", plan_name)
 
         # return [True if r is nifc.GCSCommandOutcome.Success else False for r in results]
         return True
@@ -304,7 +362,7 @@ class ExecutionMonitor:
             try:
                 report = self.traj_report_q.get(block=True, timeout=5)
             except queue.Empty:
-                logger.warning("Nothing is being reported")
+                self.logger.warning("Nothing is being reported")
 
             if report is None:
                 continue
@@ -345,7 +403,7 @@ class ExecutionMonitor:
             try:
                 self.traj_report_q.put(ter, block=True, timeout=1)
             except queue.Full:
-                logger.exception("report queue is full")
+                self.logger.exception("report queue is full")
 
     def on_uav_state_report(self, usr: nifc.UAVStateReport):
         """Method called by the GCS to report about the state of the UAVs"""
@@ -353,44 +411,4 @@ class ExecutionMonitor:
             try:
                 self.traj_report_q.put(usr, block=True, timeout=1)
             except queue.Full:
-                logger.exception("report queue is full")
-
-
-if __name__ == "__main__":
-    import logging
-    import fire_rs.geodata.display as gdisplay
-
-    # Set up logging
-    FORMAT = '%(asctime)-23s %(levelname)-8s [%(name)s]: %(message)s'
-    logging.basicConfig(format=FORMAT)
-
-    logger = logging.getLogger("__main__")
-    logger.setLevel(logging.DEBUG)
-
-    logger_up = logger.getChild("uav_planning")
-    planning.up.set_logger(logger_up)
-
-    # Start Situation Assessment
-    alarma = poll_alarm()
-    logger.info("Alarm raised: %s", alarma)
-
-    observation_planning = ObservationPlanning(Hangar(), logger.getChild("ObservationPlanning"))
-    response = observation_planning.respond_to_alarm(alarma)
-
-    alarm_figure = gdisplay.get_pyplot_figure_and_axis()
-    alarm_gdd = gdisplay.GeoDataDisplay(*gdisplay.get_pyplot_figure_and_axis(),
-                                        response.planning_env.raster,
-                                        frame=(0., 0.))
-
-    alarm_gdd.draw_elevation_shade()
-    alarm_gdd.draw_ignition_contour(geodata=response.fire_prop.prop_data, layer='ignition')
-    alarm_gdd.draw_base(observation_planning.hangar.bases[response.uav_allocation[0]], color='b', s=50)
-    alarm_gdd.draw_ignition_points(response.alarm[1], zorder=1000)
-    alarm_gdd.figure.show()
-
-    execution_monitor = ExecutionMonitor(logger.getChild("ExecutionMonitor"))
-    if execution_monitor.start_response(response) or True:
-        for report in execution_monitor.monitor(response):
-            print(str(report))
-    else:
-        logger.error("Execution of plan failed")
+                self.logger.exception("report queue is full")
