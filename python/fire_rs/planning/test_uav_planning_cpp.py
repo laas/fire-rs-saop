@@ -81,7 +81,7 @@ class TestUAV(unittest.TestCase):
 
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 481060.0], [6210074.0, 6211074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate_from_points(env, TimedPoint(480460, 6210374, 0), horizon=3000)
+        prop = propagation.propagate_from_points(env, TimedPoint(480460, 6210374, 0), until=3000)
 
         ignitions = prop.ignitions()
 
@@ -117,7 +117,7 @@ class TestUAV(unittest.TestCase):
 
         from fire_rs.firemodel import propagation
         env = propagation.Environment([[480060.0, 485060.0], [6210074.0, 6214074.0]], wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate_from_points(env, TimedPoint(482060, 6211074, 0), horizon=14000)
+        prop = propagation.propagate_from_points(env, TimedPoint(482060, 6211074, 0), until=14000)
 
         ignitions = prop.ignitions()
         # ax = ignitions.plot(blocking=False)

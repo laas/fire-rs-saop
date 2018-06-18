@@ -73,7 +73,7 @@ if __name__ == "__main__":
     some_vns_conf = get_some_vns_conf(scene)
     flight_confs_cpp = [f.as_cpp() for f in scene.flights]
     prop = wildfire.propagate_from_points(pl_env, scene.ignitions,
-                                          horizon=scene.time_window_end + 60 * 10)
+                                          until=scene.time_window_end + 60 * 10)
     ignitions = prop.ignitions()
 
     observation_planner = planning.Planner(pl_env, ignitions, scene.flights, some_vns_conf, )

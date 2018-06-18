@@ -55,7 +55,7 @@ if __name__ == '__main__':
         env = propagation.Environment(area_bounds, wind_speed=wind[0], wind_dir=wind[1])
         f_propagation = propagation.propagate_from_points(
             env, (ignition_point[0], ignition_point[1], 0),
-            horizon=120 * 60)
+            until=120 * 60)
         return f_propagation.ignitions()
 
 

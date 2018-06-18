@@ -99,7 +99,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
 
     # Propagate fires in the environment
     prop = propagation.propagate_from_points(env, scenario.ignitions,
-                                             horizon=scenario.time_window_end + 60 * 10)
+                                             until=scenario.time_window_end + 60 * 10)
     ignitions = prop.ignitions()
 
     # Propagation was running more time than desired in order to reduce edge effect.

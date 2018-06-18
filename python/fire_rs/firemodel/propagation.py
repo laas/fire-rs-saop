@@ -161,6 +161,9 @@ class FirePropagation:
         (self.max_x, self.max_y) = self.prop_data.data.shape
         self._ignition_cells = []  # type: List[Tuple[int, int]]
 
+        self.from_time = np.inf
+        self.until_time = -np.inf
+
     def set_ignition_point(self, ignition_point: Union[TimedPoint, Tuple[float, float, float]]):
         """Sets the given (x, y) point as on fire at the given time.
         Multiple ignition points can be provided.
@@ -176,6 +179,7 @@ class FirePropagation:
         self.prop_data.data[ign_cell[0], ign_cell[1]]['y_pred'] = ign_cell[1]
         self._push_to_propagation_queue(ign_cell[0], ign_cell[1], ign_cell[2])
         self._ignition_cells.append((ign_cell[0], ign_cell[1]))
+        self.from_time = min(self.from_time, ign_cell[2])
 
     def ignitions(self) -> GeoData:
         return self.prop_data.slice([self._ignition_layer])
@@ -195,8 +199,11 @@ class FirePropagation:
     def propagation_finished(self):
         return len(self._propagation_queue) == 0
 
-    def propagate(self, horizon: float):
+    def propagate(self, until: float):
         assert self.prop_data.cell_width == self.prop_data.cell_height
+
+        self.until_time = max(self.until_time, until)
+
         cell_size = self.prop_data.cell_height
 
         d = self.prop_data.data
@@ -213,7 +220,7 @@ class FirePropagation:
         while not len(self._propagation_queue) == 0:
             # peek top value
             t, __ = self._pick_from_propagation_queue()
-            if t >= horizon:
+            if t >= until:
                 break
             # select current point
             (t, (x, y)) = self._pop_from_propagation_queue()
@@ -305,12 +312,12 @@ class FirePropagation:
 
 
 def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, List[TimedPoint]],
-                          horizon: float = np.inf) -> FirePropagation:
+                          until: float = np.inf) -> FirePropagation:
     """Simulate a fire from all ignition points until the 
     
     :param env: Environment model.
     :param ignitions_points: Fire start points, giving for each one (x,y) coordinates and fire start time.
-    :param horizon: Absolute time at which the propagation stops.
+    :param until: Absolute time at which the propagation stops.
     :return: 
     """
     fp = FirePropagation(env)
@@ -320,22 +327,22 @@ def propagate_from_points(env: Environment, ignitions_points: Union[TimedPoint, 
             fp.set_ignition_point(tp)
     else:
         fp.set_ignition_point(ignitions_points)
-    fp.propagate(horizon=horizon)
+    fp.propagate(until=until)
     return fp
 
 
-def propagate_from_cell(env: Environment, cell: Cell, horizon=np.inf) -> 'FirePropagation':
+def propagate_from_cell(env: Environment, cell: Cell, until=np.inf) -> 'FirePropagation':
     """Set the environment on fire in (x, y) at time 0 and returns the ignition times of other points of the environment.
 
     :param env: Environment model
     :param cell: (x,y) coordinates of the ignition point (as array index)
-    :param horizon: Wall-clock time at which to stop the propagation
+    :param until: Wall-clock time at which to stop the propagation
     :return: A matrix of ignition time. The size of the matrix is given by the size of the environment
     """
     fp = FirePropagation(env)
     pt = env.raster.coordinates(cell)
     fp.set_ignition_point(TimedPoint(pt.x, pt.y, 0))
-    fp.propagate(horizon=horizon)
+    fp.propagate(until=until)
     return fp
 
 

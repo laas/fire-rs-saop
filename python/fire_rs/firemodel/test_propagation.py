@@ -35,7 +35,7 @@ class TestPropagation(unittest.TestCase):
 
     def test_propagate(self):
         env = propagation.Environment(self.test_area, wind_speed=4.11, wind_dir=0)
-        prop = propagation.propagate_from_points(env, [self.ignition_point], horizon=3 * 3600)
+        prop = propagation.propagate_from_points(env, [self.ignition_point], until=3 * 3600)
         # prop.plot(blocking=True)
 
     def test_propagate_full(self):
