@@ -221,14 +221,14 @@ namespace SAOP {
         }
 
         enum class TrajectoryExecutionOutcome : uint8_t {
-            None, // No plan has been completed yet
+            Nothing, // No plan has been completed yet
             Success, // If excution state is Ready or Blocked, the last plan was completed successfully
             Failure, // If excution state is Ready or Blocked, the last plan failed
         };
 
         static std::ostream& operator<<(std::ostream& stream, const TrajectoryExecutionOutcome& teo) {
             switch (teo) {
-                case TrajectoryExecutionOutcome::None:
+                case TrajectoryExecutionOutcome::Nothing:
                     stream << "None";
                     break;
                 case TrajectoryExecutionOutcome::Success:

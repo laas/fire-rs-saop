@@ -224,10 +224,10 @@ namespace SAOP {
                     break;
             }
 
-            TrajectoryExecutionOutcome outcome = TrajectoryExecutionOutcome::None;
+            TrajectoryExecutionOutcome outcome = TrajectoryExecutionOutcome::Nothing;
             switch (static_cast<IMC::PlanControlState::LastPlanOutcomeEnum>(m->last_outcome)) {
                 case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_NONE:
-                    outcome = TrajectoryExecutionOutcome::None;
+                    outcome = TrajectoryExecutionOutcome::Nothing;
                     break;
                 case IMC::PlanControlState::LastPlanOutcomeEnum::LPO_SUCCESS :
                     outcome = TrajectoryExecutionOutcome::Success;

@@ -110,7 +110,7 @@ PYBIND11_MODULE(neptus_interface, m) {
             .value("Executing", neptus::TrajectoryExecutionState::Executing);
 
     py::enum_<neptus::TrajectoryExecutionOutcome>(m, "TrajectoryExecutionOutcome", py::arithmetic())
-            .value("None", neptus::TrajectoryExecutionOutcome::None)
+            .value("Nothing", neptus::TrajectoryExecutionOutcome::Nothing)
             .value("Success", neptus::TrajectoryExecutionOutcome::Success)
             .value("Failure", neptus::TrajectoryExecutionOutcome::Failure);
 
