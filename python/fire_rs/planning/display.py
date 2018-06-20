@@ -40,7 +40,8 @@ import fire_rs.uav_planning as up
 
 logger = logging.getLogger(__name__)
 
-TRAJECTORY_COLORS = ["darkred", "darkgreen", "darkblue", "darkorange", "darkmagenta"]
+TRAJECTORY_COLORS = ["darkgreen", "darkblue", "darkorange", "darkmagenta", "darkred"]
+
 
 class TrajectoryDisplayExtension(gdd.DisplayExtension):
     """Extension to GeoDataDisplay that an observation trajectories."""
