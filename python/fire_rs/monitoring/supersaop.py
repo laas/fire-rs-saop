@@ -355,26 +355,30 @@ class SuperSAOP:
         # FIXME: monitor all the trajectories not just one
         plan_name, traj = response.plan.name(), 0
         trajectory_monitor = execution_monitor.monitor_trajectory(plan_name, traj)
+        uav_state_monitor = execution_monitor.monitor_uav_state(response.uav_allocation.values())
 
-        for state_vector in trajectory_monitor:
-            state, decision = self.plan_state_and_action(state_vector)
-            if decision == SuperSAOP.MonitoringAction.EXIT:
-                return decision
-            elif decision == SuperSAOP.MonitoringAction.REPLAN:
-                return decision
-            elif decision == SuperSAOP.MonitoringAction.UNDECIDED:
-                if state == SuperSAOP.MissionState.FAILED:
-                    self.logger.warning(
-                        "Monitoring mission failed. User interaction needed")
-                    if self.ui.question_dialog("Monitoring mission failed. Recover?"):
-                        return SuperSAOP.MonitoringAction.REPLAN
-                    else:
+        while True:
+            traj_state_vector = next(trajectory_monitor)
+            if traj_state_vector is not None:
+                state, decision = self.plan_state_and_action(traj_state_vector)
+                if decision == SuperSAOP.MonitoringAction.EXIT:
+                    return decision
+                elif decision == SuperSAOP.MonitoringAction.REPLAN:
+                    return decision
+                elif decision == SuperSAOP.MonitoringAction.UNDECIDED:
+                    if state == SuperSAOP.MissionState.FAILED:
+                        self.logger.warning(
+                            "Monitoring mission failed. User interaction needed")
+                        if self.ui.question_dialog("Monitoring mission failed. Recover?"):
+                            return SuperSAOP.MonitoringAction.REPLAN
+                        else:
+                            return SuperSAOP.MonitoringAction.EXIT
+                    elif state == SuperSAOP.MissionState.EXECUTING:
+                        pass  # SuperSAOP.MonitoringAction.UNDECIDED
+                    elif state == SuperSAOP.MissionState.ENDED:
+                        # TODO: If execution ended, REPLAN or EXIT?
                         return SuperSAOP.MonitoringAction.EXIT
-                elif state == SuperSAOP.MissionState.EXECUTING:
-                    pass  # SuperSAOP.MonitoringAction.UNDECIDED
-                elif state == SuperSAOP.MissionState.ENDED:
-                    # TODO: If execution ended, REPLAN or EXIT?
-                    return SuperSAOP.MonitoringAction.EXIT
+
 
     def plan_state_and_action(self, state_dict: ty.Dict[
         ty.Tuple[str, int], nifc.TrajectoryExecutionReport]) \
@@ -505,7 +509,7 @@ class ExecutionMonitor:
                 report = q.get(block=True, timeout=timeout)
             except queue.Empty:
                 self.logger.warning("Nothing is being reported")
-                return
+                yield None
 
             if report is None:
                 continue
