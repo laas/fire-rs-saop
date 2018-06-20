@@ -1,10 +1,14 @@
-fire_rs Documentation
+FireRS SAOP Documentation
 ============================
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
+   
+   firemodel
+   
+   geodata
   
    uav_planning
    
