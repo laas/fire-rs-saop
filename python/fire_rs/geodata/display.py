@@ -358,6 +358,8 @@ class GeoDataDisplay(GeoDataDisplayBase):
         """Draw a point marked as bases in a GeoDataDisplay figure."""
         if 's' not in kwargs:
             kwargs['s'] = 200
+        if 'edgecolor' not in kwargs:
+            kwargs['edgecolor'] = 'black'
 
         return self._draw_scatter(bases, marker=house_marker, **kwargs)
 
@@ -365,6 +367,8 @@ class GeoDataDisplay(GeoDataDisplayBase):
         """Draw a point marked as bases in a GeoDataDisplay figure."""
         if 's' not in kwargs:
             kwargs['s'] = 200
+        if 'edgecolor' not in kwargs:
+            kwargs['edgecolor'] = 'black'
 
         return self._draw_scatter(bases, marker=house_marker, **kwargs)
 
