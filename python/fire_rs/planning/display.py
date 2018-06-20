@@ -344,16 +344,19 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
         # define the colors
         cmap = matplotlib.colors.ListedColormap([color])
 
-        shade = self._base_display.draw_ignition_shade(self._base_display.axes,
-                                                       self._base_display.x_mesh,
-                                                       self._base_display.y_mesh,
-                                                       np.around(o_map.T[::-1, ...] / 60., 1),
-                                                       dx=self._base_display.geodata.cell_width,
-                                                       dy=self._base_display.geodata.cell_height,
-                                                       image_scale=self._base_display.image_scale,
-                                                       cmap=cmap,
-                                                       **kwargs)
-        self._base_display.drawings.append(shade)
+        o_map = np.around(o_map.T[::-1, ...] / 60., 1)
+
+        if 'vmin' not in kwargs:
+            kwargs['vmin'] = np.nanmin(o_map)
+        if 'vmax' not in kwargs:
+            kwargs['vmax'] = np.nanmax(o_map)
+        if 'interpolation' not in kwargs:
+            kwargs['interpolation'] = 'none'
+        if 'extent' not in kwargs:
+            kwargs['extent'] = self._base_display._image_scale
+
+        shade = self._base_display.axes.imshow(o_map, cmap=cmap, **kwargs)
+        self._base_display._drawings.append(shade)
 
 
 def plot_trajectory(geodatadisplay, trajectory, layers: 'List[str]',
