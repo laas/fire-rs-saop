@@ -23,18 +23,25 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import itertools
+import functools
 import logging
 import queue
 import threading
 import typing as ty
 import datetime
+
+from enum import Enum
+
 import numpy as np
+import matplotlib.pyplot as plt
+
 import fire_rs.geodata.geo_data as geo_data
 import fire_rs.geodata.display as gdisplay
 import fire_rs.planning.planning as planning
 import fire_rs.firemodel.propagation as propagation
 import fire_rs.neptus_interface as nifc
 import fire_rs.planning.display as pdisplay
+import fire_rs.monitoring.ui as ui
 
 supersaop_start_time = datetime.datetime.now()
 
@@ -46,11 +53,21 @@ DEFAULT_HORIZON = datetime.timedelta(minutes=60)
 
 
 class Hangar:
-    def __init__(self):
+    """Store UAV related information"""
+
+    def __init__(self, available: ty.Optional[ty.Sequence[str]] = None):
+        """Init a UAV Hangar
+
+        :param available: Optional sequence of available UAVs.
+            If None, all uavs are available.
+        """
+
         base_default = planning.Waypoint(483500.0 - 150., 6215000.0 - 150., 0., 0.)
         uav_x8 = planning.UAVConf.X8()
 
         self._uav_keys = ['x8-02', 'x8-06']
+        if available is not None:
+            self._uav_keys = list(filter(lambda x: x in available, self._uav_keys))
         self._bases = {}
         self._uavconfs = {}
         self._colors = {}
@@ -70,6 +87,7 @@ class Hangar:
 
     @property
     def vehicles(self) -> ty.Sequence[str]:
+        """Get a sequence of all available vehicles"""
         return self._uav_keys
 
     @property
@@ -79,24 +97,20 @@ class Hangar:
 
     @property
     def colors(self) -> ty.Dict[str, str]:
-        """Mapping of UAVs and associated color """
+        """Mapping of UAVs and associated color"""
         return self._colors
 
 
-def show_situation(gdd: gdisplay.GeoDataDisplay,
+def draw_situation(gdd: gdisplay.GeoDataDisplay,
                    alarm: Alarm,
                    environment: planning.Environment,
                    firepropagation: propagation.FirePropagation,
                    hangar: Hangar, ):
     # Show wildfire Situation Assessment
-    alarm_figure = gdisplay.get_pyplot_figure_and_axis()
-    alarm_gdd = gdisplay.GeoDataDisplay(*gdisplay.get_pyplot_figure_and_axis(),
-                                        environment.raster, frame=(0., 0.))
     gdd.draw_elevation_shade()
     gdd.draw_ignition_contour(geodata=firepropagation.prop_data, layer='ignition')
     for uav, base, color in zip(hangar.bases.keys(), hangar.bases.values(), hangar.colors.values()):
-        alarm_gdd.draw_base(base, color=color, label=uav,
-                            s=50)
+        gdd.draw_base(base, color=color, label=uav, s=50)
     gdd.draw_ignition_points(alarm[1], zorder=1000)
     gdd.figure.legend()
     gdd.figure.suptitle(
@@ -119,6 +133,8 @@ def poll_alarm() -> Alarm:
 
 
 class AlarmResponse:
+    """All the information regarding a wildfire alarm monitoring mission"""
+
     def __init__(self, alarm: Alarm, p_env: planning.PlanningEnvironment,
                  fire_prop: propagation.FirePropagation, uav_allocation: ty.Dict[int, str],
                  f_conf, saop_conf, search_result):
@@ -137,6 +153,7 @@ class AlarmResponse:
 
 
 class SituationAssessment:
+    """Evaluate the current state of a wildifre and provide fire perimeter forecasts"""
 
     def __init__(self, hangar: Hangar, logger: logging.Logger):
         self.logger = logger
@@ -202,6 +219,7 @@ class SituationAssessment:
 
 
 class ObservationPlanning:
+    """Create monitoring plans for a wildfire alarm"""
 
     def __init__(self, hangar: Hangar, logger: logging.Logger):
         self.hangar = hangar
@@ -264,17 +282,144 @@ class ObservationPlanning:
 
 
 class SuperSAOP:
-    pass
+    """Supervise a wildifre monitoring mission"""
 
+    class MissionState(Enum):
+        EXECUTING = 0,
+        ENDED = 1,
+        FAILED = 2
 
-class MonitoringReport:
-    """Report of the monitoring mission including the observed firemap"""
+    class MonitoringAction(Enum):
+        """Decision about the future of the mission"""
+        REPLAN = 0,  # No decision has been made
+        UNDECIDED = 1,  # trigger a replan
+        EXIT = 2  # Stop the mission
 
-    def __init__(self, response: AlarmResponse, firemap):
-        pass
+    def __init__(self, hangar: Hangar, logger: logging.Logger, saop_ui=ui.NoUI()):
+        """"""
+        self.logger = logger
+        self.ui = saop_ui
+        self.hangar = hangar
+
+        self.monitoring = True
+
+    def main(self, alarm: Alarm):
+        execution_monitor = ExecutionMonitor(self.logger.getChild("ExecutionMonitor"))
+        while self.monitoring:
+            situation_assessment = SituationAssessment(self.hangar,
+                                                       self.logger.getChild("SituationAssessment"))
+
+            observation_planning = ObservationPlanning(self.hangar,
+                                                       self.logger.getChild("ObservationPlanning"))
+
+            environment, firepropagation = situation_assessment.expected_situation(alarm)
+
+            # Show wildfire Situation Assessment
+            alarm_gdd = gdisplay.GeoDataDisplay(*gdisplay.get_pyplot_figure_and_axis(),
+                                                environment.raster, frame=(0., 0.))
+            alarm_gdd.add_extension(pdisplay.TrajectoryDisplayExtension, (None,))
+            draw_situation(alarm_gdd, alarm, environment, firepropagation, self.hangar)
+            alarm_gdd.figure.show()
+            plt.pause(0.001)  # Needed to let matplotlib a chance of showing figures
+
+            # Observation Planning
+            response = observation_planning.respond_to_alarm(
+                alarm, expected_situation=(environment, firepropagation))
+
+            draw_response(alarm_gdd, response)
+            plt.pause(0.001)  # Needed to let matplotlib a chance of showing figures
+
+            while not execution_monitor.gcs.is_ready():
+                plt.pause(0.1)  # Use the matplotlib pause. So at least figures remain responsive
+
+            command_outcome = execution_monitor.start_response(response.plan,
+                                                               response.uav_allocation)
+
+            if functools.reduce(lambda a, b: a and b, command_outcome) or True:
+                # state_monitor = execution_monitor.monitor_uav_state(self.hangar.vehicles)
+                res = self.do_monitoring(response, execution_monitor)
+                if res == SuperSAOP.MonitoringAction.UNDECIDED:
+                    self.monitoring = True
+                elif res == SuperSAOP.MonitoringAction.REPLAN:
+                    self.logger.info("Replan triggered")
+                elif res == SuperSAOP.MonitoringAction.EXIT:
+                    self.logger.info("SuperSAOP exit")
+                    self.monitoring = False
+            else:
+                if not self.ui.question_dialog("The plan couldn't be started. Restart?"):
+                    self.monitoring = False
+
+        self.logger.info("End of monitoring mission for alarm %s", str(alarm))
+
+    def do_monitoring(self, response, execution_monitor) -> MonitoringAction:
+        # FIXME: monitor all the trajectories not just one
+        plan_name, traj = response.plan.name(), 0
+        trajectory_monitor = execution_monitor.monitor_trajectory(plan_name, traj)
+
+        for state_vector in trajectory_monitor:
+            state, decision = self.plan_state_and_action(state_vector)
+            if decision == SuperSAOP.MonitoringAction.EXIT:
+                return decision
+            elif decision == SuperSAOP.MonitoringAction.REPLAN:
+                return decision
+            elif decision == SuperSAOP.MonitoringAction.UNDECIDED:
+                if state == SuperSAOP.MissionState.FAILED:
+                    self.logger.warning(
+                        "Monitoring mission failed. User interaction needed")
+                    if self.ui.question_dialog("Monitoring mission failed. Recover?"):
+                        return SuperSAOP.MonitoringAction.REPLAN
+                    else:
+                        return SuperSAOP.MonitoringAction.EXIT
+                elif state == SuperSAOP.MissionState.EXECUTING:
+                    pass  # SuperSAOP.MonitoringAction.UNDECIDED
+                elif state == SuperSAOP.MissionState.ENDED:
+                    # TODO: If execution ended, REPLAN or EXIT?
+                    return SuperSAOP.MonitoringAction.EXIT
+
+    def plan_state_and_action(self, state_dict: ty.Dict[
+        ty.Tuple[str, int], nifc.TrajectoryExecutionReport]) \
+            -> ty.Tuple[MissionState, MonitoringAction]:
+        """Determine the state of the mission and decide wether a mission should continue.
+
+        A mission is considered
+            - FAILED if any trajectory state is Blocked or its outcome is Failure
+            - ENDED: if all trajectory outcomes are Success
+            - EXECUTING: if all trajectory states are Executing
+
+        The next action should be
+            - UNDECIDED: No decision has been made
+            - REPLAN: trigger a replan
+            - EXIT: Stop the mission
+        """
+
+        mission_s_v = {}
+        for plan_id, ter in state_dict.items():
+            if ter.state == nifc.TrajectoryExecutionState.Executing:
+                mission_s_v[plan_id] = SuperSAOP.MissionState.EXECUTING
+            elif ter.state == nifc.TrajectoryExecutionState.Ready:
+                if ter.last_outcome == nifc.TrajectoryExecutionOutcome.Failure or \
+                        ter.last_outcome == nifc.TrajectoryExecutionOutcome.Nothing:
+                    mission_s_v[plan_id] = SuperSAOP.MissionState.FAILED
+                if ter.last_outcome == nifc.TrajectoryExecutionOutcome.Success:
+                    mission_s_v[plan_id] = SuperSAOP.MissionState.ENDED
+            else:  # nifc.TrajectoryExecutionState.Blocked
+                self.logger.critical("UAV %s is blocked. This is a failure")
+                return SuperSAOP.MissionState.FAILED, SuperSAOP.MonitoringAction.EXIT
+
+        for m_s in mission_s_v.values():
+            if m_s == SuperSAOP.MissionState.FAILED:
+                # If one trajectory failed, the plan is a failure. Leave action undecided
+                return SuperSAOP.MissionState.FAILED, SuperSAOP.MonitoringAction.UNDECIDED
+            elif m_s == SuperSAOP.MissionState.EXECUTING:
+                # If one trajectory is still running then the plan is not over yet
+                return SuperSAOP.MissionState.EXECUTING, SuperSAOP.MonitoringAction.UNDECIDED
+        else:
+            # All the trajectories are over
+            return SuperSAOP.MissionState.ENDED, SuperSAOP.MonitoringAction.UNDECIDED
 
 
 class ExecutionMonitor:
+    """Communicate with the UAV ground control software"""
 
     def __init__(self, logger: logging.Logger):
 
@@ -283,13 +428,16 @@ class ExecutionMonitor:
         self.imccomm = nifc.IMCComm()
         self.gcs = None
 
-        self.t_imc = threading.Thread(target=self.imccomm.run, daemon=True)
-        self.t_gcs = threading.Thread(target=self._create_gcs, daemon=True)
+        self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
+        self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
         self.t_imc.run()
         self.t_gcs.run()
 
         self.monitoring = False  # Determine if we're doing monitoring of a plan or not
         self.traj_report_q = queue.Queue()
+
+        self.message_q = {'TrajectoryExecutionReport': queue.Queue(),
+                          'UAVStateReport': queue.Queue()}
 
     def _create_gcs(self):
         """Create GCS object of this class.
@@ -306,109 +454,107 @@ class ExecutionMonitor:
     def neptus_plan_id(plan_name: str, traj_id: int) -> str:
         return ".".join((plan_name, str(traj_id)))
 
-    def start_response(self, response: AlarmResponse) -> bool:
+    def send_home(self, uav):
+        """ Tell a UAV to go home"""
+        raise NotImplementedError
+
+    def start_response(self, plan, uav_allocation: ty.Dict[int, str]) -> ty.Sequence[bool]:
         """Execute a SAOP Plan 'a_plan' with the AUV to trajectory allocation of 'uav_allocation'"""
         # Store results (success/failure) trajectory starts
-        results = [nifc.GCSCommandOutcome.Unknown for _ in range(len(response.uav_allocation))]
+        results = {t: True for t in uav_allocation.keys()}
 
-        for traj_i, uav in response.uav_allocation.items():
-            plan_name = ExecutionMonitor.neptus_plan_id(response.plan.name(), traj_i)
+        for traj_i, uav in uav_allocation.items():
+            plan_name = ExecutionMonitor.neptus_plan_id(plan.name(), traj_i)
 
             # Load the trajectory
-            results[traj_i] = nifc.GCSCommandOutcome.Unknown
+            command_r = nifc.GCSCommandOutcome.Unknown
             retries = 0
             max_retries = 2
-            while retries < max_retries and results[traj_i] != nifc.GCSCommandOutcome.Success:
-                results[traj_i] = self.gcs.load(response.plan, traj_i, plan_name, uav)
-                if results[traj_i] != nifc.GCSCommandOutcome.Success:
+            while retries < max_retries and command_r != nifc.GCSCommandOutcome.Success:
+                command_r = self.gcs.load(plan, traj_i, plan_name, uav)
+                if command_r != nifc.GCSCommandOutcome.Success:
                     self.logger.warning("Loading of trajectory %s failed. Retrying...", plan_name)
-                    retries -= 1
+                    retries += 1
                 else:
                     self.logger.info("Trajectory %s loaded", plan_name)
 
-            if results[traj_i] != nifc.GCSCommandOutcome.Success:
+            if command_r != nifc.GCSCommandOutcome.Success:
                 self.logger.error("Loading of trajectory %s failed. Giving up after %d trials",
                                   plan_name, max_retries)
-                return False
+                results[traj_i] = False
 
             # Start the mission
-            results[traj_i] = self.gcs.start("saop_" + plan_name, uav)
-            if results[traj_i] != nifc.GCSCommandOutcome.Success:
+            # FIXME: Mission start seems to fail always
+            command_r = self.gcs.start("saop_" + plan_name, uav)
+            if command_r != nifc.GCSCommandOutcome.Success:
                 self.logger.error("Start of trajectory %s failed", plan_name)
-                return False
+                results[traj_i] = False
             else:
                 self.logger.error("Start trajectory %s", plan_name)
 
-        # return [True if r is nifc.GCSCommandOutcome.Success else False for r in results]
-        return True
+        return results
 
-    def monitor(self, response: AlarmResponse):
-        last_yield_report = datetime.datetime.now()  # Time of the last TER that triggered a PlanReport
-        last_recv_report = datetime.datetime.now()  # time of the last received TER
+    def _monitor_queue(self, q, id_field: str, monitored_ids: ty.Sequence[str],
+                       discard_older: bool = False, timeout: int = 5):
+        state_vector = {}
+        yield_start = datetime.datetime.now()
 
-        last_yield_uav = datetime.datetime.now()
-        last_recv_uav = datetime.datetime.now()
-
-        self.monitoring = True
-        monitored_planids = [ExecutionMonitor.neptus_plan_id(response.plan.name(), i) for i in
-                             range(len(response.plan.trajectories()))]
-
-        # Store recent trajectory reports to join them
-        last_tr = {}
-        last_uav = {}
-
-        while self.monitoring:
+        while True:
             report = None
             try:
-                report = self.traj_report_q.get(block=True, timeout=5)
+                report = q.get(block=True, timeout=timeout)
             except queue.Empty:
                 self.logger.warning("Nothing is being reported")
+                return
 
             if report is None:
                 continue
 
-            if isinstance(report, nifc.TrajectoryExecutionReport):
-                # Discard old messages
-                if report.timestamp < last_yield_report.timestamp():
-                    continue
-                if report.plan_id in monitored_planids:
-                    last_tr[report.plan_id] = report
-                    last_recv_report = datetime.datetime.fromtimestamp(report.timestamp)
-                if len(last_tr) == len(monitored_planids):
-                    # When all the trajectory reports are gathered, report the state of the plan
-                    plan_report = last_tr.copy()
-                    last_tr = {}
-                    last_yield_report = last_recv_report
-                    yield plan_report
-            elif isinstance(report, nifc.UAVStateReport):
-                # Discard old messages
-                if report.timestamp < last_yield_uav.timestamp():
-                    continue
-                if report.uav in response.uav_allocation.values():
-                    last_uav[report.uav] = report
-                    last_recv_uav = datetime.datetime.fromtimestamp(report.timestamp)
-                if len(last_uav) == len(monitored_planids):
-                    # When all the trajectory reports are gathered, report the state of the plan
-                    all_uav_report = last_uav.copy()
-                    last_uav = {}
-                    last_yield_uav = last_recv_uav
-                    yield all_uav_report
-            else:
-                raise TypeError("Wrong report type")
+            # Discard messages created before monitoring started
+            if discard_older and report.timestamp < yield_start.timestamp():
+                continue
+
+            if getattr(report, id_field) in monitored_ids:
+                state_vector[report.plan_id] = report
+            if len(state_vector) == len(monitored_ids):
+                # When all the reports are gathered, yield a state vector
+                new_state = state_vector.copy()
+                state_vector = {}
+                yield new_state
+
+    def monitor_uav_state(self, uavs: ty.Sequence[str]):
+        for m in self._monitor_queue(self.message_q['UAVStateReport'], "uav", uavs, True, 3):
+            yield m
+
+    def monitor_trajectory(self, saop_plan_name: str, saop_trajectory: int):
+        for m in self._monitor_queue(self.message_q['TrajectoryExecutionReport'], "plan_id",
+                                     [ExecutionMonitor.neptus_plan_id(saop_plan_name,
+                                                                      saop_trajectory)],
+                                     False, 10):
+            # Replace neptus plan_id keys by (plan.name, traj) pairs
+            yield {ExecutionMonitor.saop_plan_and_traj(k): v for k, v in m.items()}
 
     def on_trajectory_execution_report(self, ter: nifc.TrajectoryExecutionReport):
         """Method called by the GCS to report about the state of the missions"""
         # FIXME: Do something if the queue is full
-        if self.monitoring:
-            try:
-                self.traj_report_q.put(ter, block=True, timeout=1)
-            except queue.Full:
-                self.logger.exception("report queue is full")
+        try:
+            self.message_q['TrajectoryExecutionReport'].put(ter, block=True, timeout=1)
+        except queue.Full:
+            self.logger.exception("TrajectoryExecutionReport queue timeout reached")
 
     def on_uav_state_report(self, usr: nifc.UAVStateReport):
         """Method called by the GCS to report about the state of the UAVs"""
-        if self.monitoring:
-            try:
-                self.traj_report_q.put(usr, block=True, timeout=1)
-            except queue.Full:
-                self.logger.exception("report queue is full")
+        try:
+            self.message_q['UAVStateReport'].put(usr, block=True, timeout=1)
+        except queue.Full:
+            self.logger.exception("UAVStateReport queue timeout reached")
+
+
+def draw_response(gdd: gdisplay.GeoDataDisplay,
+                  response: AlarmResponse):
+    gdd.draw_ignition_contour(response.fire_prop.prop_data, with_labels=True)
+    pdisplay.plot_plan_trajectories(response.plan, gdd, layers=['trajectory_solid', 'arrows'])
+    gdd.figure.legend()
+    gdd.figure.suptitle(
+        "Observation Plan of wildfire alarm.\n Valid from " + str(response.alarm[0]) + " to " + str(
+            response.alarm[0] + datetime.timedelta(seconds=response.fire_prop.until_time)))

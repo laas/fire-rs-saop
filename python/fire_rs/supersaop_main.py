@@ -24,12 +24,12 @@
 
 
 if __name__ == "__main__":
-
     import logging
     import fire_rs.geodata.geo_data as geo_data
     import fire_rs.planning.planning as cpp_planning
     import fire_rs.geodata.display as gdisplay
     import fire_rs.monitoring.supersaop as supersaop
+    import fire_rs.monitoring.ui as ui
 
     # Set up logging
     FORMAT = '%(asctime)-23s %(levelname)-8s [%(name)s]: %(message)s'
@@ -39,36 +39,13 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
 
     logger_up = logger.getChild("saop_cpp")
+    logger_up.setLevel(logging.WARNING)
     cpp_planning.up.set_logger(logger_up)
 
     # Start Situation Assessment
     an_alarm = supersaop.poll_alarm()
     logger.info("Alarm raised: %s", an_alarm)
 
-    the_hangar = supersaop.Hangar()
-
-    situation_assessment = supersaop.SituationAssessment(the_hangar,
-                                                         logger.getChild("SituationAssessment"))
-
-    observation_planning = supersaop.ObservationPlanning(the_hangar,
-                                                         logger.getChild("ObservationPlanning"))
-
-    environment, firepropagation = situation_assessment.expected_situation(an_alarm)
-
-    # Show wildfire Situation Assessment
-    alarm_figure = gdisplay.get_pyplot_figure_and_axis()
-    alarm_gdd = gdisplay.GeoDataDisplay(*gdisplay.get_pyplot_figure_and_axis(),
-                                        environment.raster, frame=(0., 0.))
-    supersaop.show_situation(alarm_gdd, an_alarm, environment, firepropagation, the_hangar)
-    alarm_gdd.figure.show()
-
-    # Observation Planning
-    response = observation_planning.respond_to_alarm(
-        an_alarm, expected_situation=(environment, firepropagation))
-
-    execution_monitor = supersaop.ExecutionMonitor(logger.getChild("ExecutionMonitor"))
-    if execution_monitor.start_response(response) or True:
-        for report in execution_monitor.monitor(response):
-            print(str(report))
-    else:
-        logger.error("Execution of plan failed")
+    a_supersaop = supersaop.SuperSAOP(supersaop.Hangar(available=["x8-06"]),
+                                      logger.getChild("SuperSAOP"), saop_ui=ui.ZenityUI())
+    a_supersaop.main(an_alarm)
