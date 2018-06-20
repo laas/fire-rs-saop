@@ -126,7 +126,7 @@ PYBIND11_MODULE(neptus_interface, m) {
             .def_readonly("maneuver", &neptus::TrajectoryExecutionReport::maneuver)
             .def_readonly("maneuver_eta", &neptus::TrajectoryExecutionReport::maneuver_eta)
             .def_readonly("state", &neptus::TrajectoryExecutionReport::state)
-            .def_readonly("last_outcome", &neptus::TrajectoryExecutionReport::last_outcome)
+            .def_readonly("last_outcome", &neptus::TrajectoryExecutionReport::last_outcome);
 
     py::class_<neptus::UAVStateReport>(m, "UAVStateReport")
             .def("__repr__", [](neptus::UAVStateReport& self) -> std::string {
