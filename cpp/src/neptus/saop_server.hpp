@@ -354,10 +354,9 @@ namespace SAOP {
             /* Stop the plan currently being executed. */
             GCSCommandOutcome stop(std::string plan_id, std::string uav);
 
-            /* Return true if this GCS is not active. */
-            bool is_active() {
-                //FIXME use timestamp from last message to determine if it is running or not
-                return true;
+            /* Return true if the connection with the GCS is available */
+            bool is_ready() {
+                return imc_comm->is_ready();
             }
 
             std::vector<std::string> available_vehicles() {

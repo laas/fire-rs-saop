@@ -71,6 +71,8 @@ namespace SAOP {
 
             std::thread session_thread;
 
+            bool socket_connected;
+
         public:
             explicit IMCTransportTCP(unsigned short port)
                     : port(port), recv_handler(nullptr), send_q(std::make_shared<IMCMessageQueue>()) {}
@@ -93,6 +95,10 @@ namespace SAOP {
             /* Enqueue message to be sent */
             void send(std::unique_ptr<IMC::Message> message) {
                 send_q->push(std::move(message));
+            }
+
+            bool is_ready() {
+                return socket_connected;
             }
         };
 
@@ -119,6 +125,10 @@ namespace SAOP {
             void loop();
 
             void run();
+
+            bool is_ready() {
+                return ready & tcp_server.is_ready();
+            }
 
             /* Enqueue message to be sent */
             void send(std::unique_ptr<IMC::Message> message) {
@@ -152,6 +162,7 @@ namespace SAOP {
 
         private:
             std::thread message_thread;
+            bool ready = false;
 
             /* Bind a message id to a handler function */
             void bind(size_t id, std::function<void(std::unique_ptr<IMC::Message>)> message_handler) {

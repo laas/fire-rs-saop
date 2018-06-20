@@ -101,7 +101,8 @@ PYBIND11_MODULE(neptus_interface, m) {
                  py::call_guard<py::gil_scoped_release>())
             .def("stop", (neptus::GCSCommandOutcome (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::stop,
                  py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
-            .def_property_readonly("available_vehicles", &neptus::GCS::available_vehicles);
+            .def_property_readonly("available_vehicles", &neptus::GCS::available_vehicles)
+            .def("is_ready", &neptus::GCS::is_ready);
 
     py::enum_<neptus::TrajectoryExecutionState>(m, "TrajectoryExecutionState", py::arithmetic())
             .value("Blocked", neptus::TrajectoryExecutionState::Blocked)

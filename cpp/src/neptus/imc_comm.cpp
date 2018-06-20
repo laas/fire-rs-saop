@@ -58,6 +58,7 @@ namespace SAOP {
                 IMC::ByteBuffer bb;
 
                 for (;;) {
+                    socket_connected = true;
                     // TCP stream reception
                     bb = IMC::ByteBuffer(65535);
                     bb.setSize(65535);
@@ -101,11 +102,12 @@ namespace SAOP {
                         boost::asio::write(*sock, boost::asio::buffer(serl_b.getBuffer(), n_bytes));
                     }
                 }
-
             }
             catch (std::exception& e) {
                 BOOST_LOG_TRIVIAL(error) << "Exception raised in IMCTransportTCP: " << e.what() << "\n";
+                socket_connected = false;
             }
+            socket_connected = false;
         }
 
         void IMCComm::loop() {
@@ -132,6 +134,7 @@ namespace SAOP {
 
         void IMCComm::message_dispatching_loop() {
             try {
+                ready = true;
                 for (;;) {
                     std::unique_ptr<IMC::Message> m = nullptr;
                     while (recv_q->wait_pop(m)) {
@@ -162,8 +165,10 @@ namespace SAOP {
                     }
                 }
             } catch (...) {
+                ready = false;
 
             }
+            ready = false;
         }
 
     }
