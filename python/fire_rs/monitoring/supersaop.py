@@ -226,11 +226,21 @@ class ObservationPlanning:
         self._registered_alarms = {}
         self.logger = logger
 
+    def replan_response(self, alarm: Alarm,
+                        uav_fleet_location: ty.Dict[str, planning.Waypoint],
+                        expected_situation: ty.Optional[ty.Tuple[
+                            planning.PlanningEnvironment, propagation.FirePropagation]] = None,
+                        horizon: datetime.timedelta = DEFAULT_HORIZON) \
+            -> AlarmResponse:
+        return self.respond_to_alarm(alarm, expected_situation, datetime.timedelta(seconds=30),
+                                     horizon, uav_fleet_location)
+
     def respond_to_alarm(self, alarm: Alarm,
                          expected_situation: ty.Optional[ty.Tuple[
                              planning.PlanningEnvironment, propagation.FirePropagation]] = None,
-                         takeoff_delay: datetime.timedelta = datetime.timedelta(minutes=10),
-                         horizon: datetime.timedelta = DEFAULT_HORIZON) \
+                         takeoff_delay: datetime.timedelta = datetime.timedelta(minutes=1),
+                         horizon: datetime.timedelta = DEFAULT_HORIZON,
+                         uav_fleet_initial_base: ty.Dict[str, planning.Waypoint] = None) \
             -> AlarmResponse:
         """Compute an AlarmResponse to an alarm.
 
@@ -255,9 +265,13 @@ class ObservationPlanning:
         fl_window = (np.inf, -np.inf)
 
         for ignition, (traj_i, vehicle) in zip(alarm[1], enumerate(v)):
+            base_waypoint = self.hangar.bases[vehicle]
+            if uav_fleet_initial_base is not None:
+                base_waypoint = uav_fleet_initial_base[vehicle]
             f_conf = planning.FlightConf(uav=self.hangar.uavconfs()[vehicle],
                                          start_time=(alarm[0] + takeoff_delay).timestamp(),
-                                         base_waypoint=self.hangar.bases[vehicle],
+                                         base_waypoint=base_waypoint,
+                                         finalbase_waypoint=self.hangar.bases[vehicle],
                                          wind=planning_env.area_wind)
             fl_window = (min(fl_window[0], f_conf.start_time),
                          max(fl_window[1], f_conf.start_time + f_conf.max_flight_time))
@@ -337,11 +351,13 @@ class SuperSAOP:
 
             if functools.reduce(lambda a, b: a and b, command_outcome) or True:
                 # state_monitor = execution_monitor.monitor_uav_state(self.hangar.vehicles)
-                res = self.do_monitoring(response, execution_monitor)
+                traj_vec, state_vec, res = self.do_monitoring(response, execution_monitor)
                 if res == SuperSAOP.MonitoringAction.UNDECIDED:
                     self.monitoring = True
                 elif res == SuperSAOP.MonitoringAction.REPLAN:
                     self.logger.info("Replan triggered")
+                    self.logger.info("TODO: Change bases of UAVs to their actual position")
+                    # TODO: Change base of UAV
                 elif res == SuperSAOP.MonitoringAction.EXIT:
                     self.logger.info("SuperSAOP exit")
                     self.monitoring = False
@@ -351,34 +367,100 @@ class SuperSAOP:
 
         self.logger.info("End of monitoring mission for alarm %s", str(alarm))
 
-    def do_monitoring(self, response, execution_monitor) -> MonitoringAction:
+    def do_monitoring(self, response, execution_monitor) -> ty.Tuple[
+        ty.Tuple[str, nifc.TrajectoryExecutionReport],
+        ty.Tuple[ty.Tuple[str, int], nifc.UAVStateReport], MonitoringAction]:
         # FIXME: monitor all the trajectories not just one
         plan_name, traj = response.plan.name(), 0
         trajectory_monitor = execution_monitor.monitor_trajectory(plan_name, traj)
         uav_state_monitor = execution_monitor.monitor_uav_state(response.uav_allocation.values())
 
         while True:
-            traj_state_vector = next(trajectory_monitor)
+            traj_state_vector = next(trajectory_monitor, None)
+            uav_state_vector = next(uav_state_monitor, None)
             if traj_state_vector is not None:
                 state, decision = self.plan_state_and_action(traj_state_vector)
                 if decision == SuperSAOP.MonitoringAction.EXIT:
-                    return decision
+                    return traj_state_vector, uav_state_vector, decision
                 elif decision == SuperSAOP.MonitoringAction.REPLAN:
-                    return decision
+                    return traj_state_vector, uav_state_vector, decision
                 elif decision == SuperSAOP.MonitoringAction.UNDECIDED:
                     if state == SuperSAOP.MissionState.FAILED:
                         self.logger.warning(
                             "Monitoring mission failed. User interaction needed")
                         if self.ui.question_dialog("Monitoring mission failed. Recover?"):
-                            return SuperSAOP.MonitoringAction.REPLAN
+                            return traj_state_vector, uav_state_vector, SuperSAOP.MonitoringAction.REPLAN
                         else:
-                            return SuperSAOP.MonitoringAction.EXIT
+                            return traj_state_vector, uav_state_vector, SuperSAOP.MonitoringAction.EXIT
                     elif state == SuperSAOP.MissionState.EXECUTING:
                         pass  # SuperSAOP.MonitoringAction.UNDECIDED
                     elif state == SuperSAOP.MissionState.ENDED:
                         # TODO: If execution ended, REPLAN or EXIT?
-                        return SuperSAOP.MonitoringAction.EXIT
+                        return traj_state_vector, uav_state_vector, SuperSAOP.MonitoringAction.EXIT
+                current_mans, decision = self.meneuver_state_and_action(traj_state_vector,
+                                                                        response.plan)
+                if decision != SuperSAOP.MonitoringAction.UNDECIDED:
+                    return traj_state_vector, uav_state_vector, decision
 
+    def meneuver_state_and_action(self, state_dict: ty.Dict[
+        ty.Tuple[str, int], nifc.TrajectoryExecutionReport], saop_plan) \
+            -> ty.Tuple[ty.Dict[ty.Tuple[str, int], int], MonitoringAction]:
+        """Determine the execution state of trajectory maneuvers regarding the original plan
+
+        If the execution is lagging with respect to the plan, the mission should be replanned.
+
+        Let `m` and `n` two consecutive maneuvers in a trajectory `T`.
+        Then `t_m` is the start time of maneuver `m` and `t_n` the start time of maneuver `n`.
+        A UAV is reporting the execution of maneuver `n` at time `t_x`
+
+        The plan is being followed if `t_m` < `t_x` <= `t_n` with a 3-minute tolerance
+
+        :returns A mapping of the current maneuvers being executed,
+            and a MonitoringAction.
+        """
+        slack = datetime.timedelta(minutes=3)
+        current_maneuvers = {}
+        actions = {}
+
+        # TODO: Tolerance to be defined
+        for plan_id, ter in state_dict.items():
+
+            if ter.timestamp < datetime.datetime.now().timestamp() - datetime.timedelta(
+                    seconds=30).seconds:
+                # Ignore old TER messages
+                continue
+
+            action = SuperSAOP.MonitoringAction.UNDECIDED
+            T = saop_plan.trajectories()[plan_id[1]]
+            n = int(ter.maneuver)
+            m = int(ter.maneuver) - 1
+            t_x = ter.timestamp
+            t_n = T.start_time(n) if n < len(T) else None
+            t_m = T.start_time(m) if m >= 0 else None
+
+            if t_n is not None and t_x > t_n + slack.seconds:
+                # Going slower than expected
+                action = SuperSAOP.MonitoringAction.REPLAN
+                self.logger.info(
+                    "Trajectory %s is running slower than expected man(%s) t(%s) > t_%s(%s)",
+                    str(plan_id), str(n), datetime.datetime.fromtimestamp(t_x), str(n),
+                    datetime.datetime.fromtimestamp(t_n) + slack)
+            if t_m is not None and t_x < t_m - slack.seconds:
+                # Going faster than expected
+                action = SuperSAOP.MonitoringAction.REPLAN
+                self.logger.info(
+                    "Trajectory %s is running faster than expected man(%s) t_x(%s) < t_%s(%s)",
+                    str(plan_id), str(n), datetime.datetime.fromtimestamp(t_x), str(m),
+                    datetime.datetime.fromtimestamp(t_m) - slack)
+
+            current_maneuvers[plan_id] = n
+            actions[plan_id] = action
+
+        if next(filter(lambda a: a == SuperSAOP.MonitoringAction.REPLAN, actions.values()),
+                None) is None:
+            return current_maneuvers, SuperSAOP.MonitoringAction.UNDECIDED
+        else:
+            return current_maneuvers, SuperSAOP.MonitoringAction.REPLAN
 
     def plan_state_and_action(self, state_dict: ty.Dict[
         ty.Tuple[str, int], nifc.TrajectoryExecutionReport]) \
@@ -468,6 +550,15 @@ class ExecutionMonitor:
         results = {t: True for t in uav_allocation.keys()}
 
         for traj_i, uav in uav_allocation.items():
+
+            # Stop previous trajectory (if any)
+            command_r = self.gcs.stop("", uav)
+            if command_r != nifc.GCSCommandOutcome.Success:
+                self.logger.warning("Stop failed")
+                results[traj_i] = True
+            else:
+                self.logger.info("Previous trajectory stopped")
+
             plan_name = ExecutionMonitor.neptus_plan_id(plan.name(), traj_i)
 
             # Load the trajectory
@@ -475,7 +566,7 @@ class ExecutionMonitor:
             retries = 0
             max_retries = 2
             while retries < max_retries and command_r != nifc.GCSCommandOutcome.Success:
-                command_r = self.gcs.load(plan, traj_i, plan_name, uav)
+                command_r = self.gcs.start(plan, traj_i, plan_name, uav)
                 if command_r != nifc.GCSCommandOutcome.Success:
                     self.logger.warning("Loading of trajectory %s failed. Retrying...", plan_name)
                     retries += 1
@@ -486,15 +577,15 @@ class ExecutionMonitor:
                 self.logger.error("Loading of trajectory %s failed. Giving up after %d trials",
                                   plan_name, max_retries)
                 results[traj_i] = False
-
-            # Start the mission
-            # FIXME: Mission start seems to fail always
-            command_r = self.gcs.start("saop_" + plan_name, uav)
-            if command_r != nifc.GCSCommandOutcome.Success:
-                self.logger.error("Start of trajectory %s failed", plan_name)
-                results[traj_i] = False
-            else:
-                self.logger.error("Start trajectory %s", plan_name)
+            #
+            # # Start the mission
+            # # FIXME: Mission start seems to fail always
+            # command_r = self.gcs.start("saop_" + plan_name, uav)
+            # if command_r != nifc.GCSCommandOutcome.Success:
+            #     self.logger.error("Start of trajectory %s failed", plan_name)
+            #     results[traj_i] = False
+            # else:
+            #     self.logger.error("Start trajectory %s", plan_name)
 
         return results
 
@@ -519,7 +610,7 @@ class ExecutionMonitor:
                 continue
 
             if getattr(report, id_field) in monitored_ids:
-                state_vector[report.plan_id] = report
+                state_vector[getattr(report, id_field)] = report
             if len(state_vector) == len(monitored_ids):
                 # When all the reports are gathered, yield a state vector
                 new_state = state_vector.copy()
@@ -527,8 +618,7 @@ class ExecutionMonitor:
                 yield new_state
 
     def monitor_uav_state(self, uavs: ty.Sequence[str]):
-        for m in self._monitor_queue(self.message_q['UAVStateReport'], "uav", uavs, True, 3):
-            yield m
+        yield from self._monitor_queue(self.message_q['UAVStateReport'], "uav", uavs, True, 3)
 
     def monitor_trajectory(self, saop_plan_name: str, saop_trajectory: int):
         for m in self._monitor_queue(self.message_q['TrajectoryExecutionReport'], "plan_id",

@@ -31,16 +31,18 @@ if __name__ == "__main__":
     import fire_rs.monitoring.supersaop as supersaop
     import fire_rs.monitoring.ui as ui
 
+    input()
+
     # Set up logging
     FORMAT = '%(asctime)-23s %(levelname)-8s [%(name)s]: %(message)s'
-    logging.basicConfig(format=FORMAT)
+    logging.basicConfig(format=FORMAT, level=logging.INFO)
 
     logger = logging.getLogger("__main__")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     logger_up = logger.getChild("saop_cpp")
-    logger_up.setLevel(logging.WARNING)
-    cpp_planning.up.set_logger(logger_up)
+    logger_up.setLevel(logging.INFO)
+    #cpp_planning.up.set_logger(logger_up)
 
     # Start Situation Assessment
     an_alarm = supersaop.poll_alarm()
