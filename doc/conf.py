@@ -120,7 +120,7 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'github_user': 'fire-rs-laas',
+    'github_user': 'laas',
     'github_repo': 'fire-rs-saop',
     'fixed_sidebar': True,
 }

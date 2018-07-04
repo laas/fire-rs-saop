@@ -1,5 +1,5 @@
-firemapping
-===========
+``fire_rs.firemapping`` module
+==============================
 
 .. automodule:: fire_rs.firemapping
     :members:
