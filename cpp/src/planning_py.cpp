@@ -366,6 +366,7 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("end_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
             .def_property_readonly("segments", &Trajectory::maneuvers)
             .def("segment", &Trajectory::maneuver, py::arg("index"))
+            .def_property_readonly("maneuver_names", &Trajectory::maneuver_names)
 //            .def_property_readonly("base_start", &Trajectory::base_start)
 //            .def_property_readonly("base_end", &Trajectory::base_end)
             .def_property_readonly("start_times", &Trajectory::start_times)

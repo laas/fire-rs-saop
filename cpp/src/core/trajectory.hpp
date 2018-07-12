@@ -46,12 +46,14 @@ namespace SAOP {
 
     using json = nlohmann::json;
 
-    struct TimedManeuver {
+    struct TrajectoryManeuver {
         Segment3d maneuver;
         double time;
+        std::string name;
     };
 
     static size_t UNIQUE_TRAJ_N = 0;
+    static size_t UNIQUE_MAN_N = 0;
 
     struct TrajectoryConfig {
         std::string id_unique;
@@ -230,7 +232,9 @@ namespace SAOP {
         }
 
         /* Accesses the index-th segment of the trajectory */
-        TimedManeuver operator[](size_t index) const { return TimedManeuver{_maneuvers[index], _start_times[index]}; }
+        TrajectoryManeuver operator[](size_t index) const {
+            return TrajectoryManeuver{_maneuvers[index], _start_times[index], _man_names[index]};
+        }
 
         /* Accesses the index-th segment of the trajectory */
         Segment3d maneuver(size_t index) const { return _maneuvers[index]; }
@@ -240,6 +244,8 @@ namespace SAOP {
         opt<Segment3d> base_start() const { return config.start_position ? _maneuvers.front() : opt<Segment3d>{}; }
 
         opt<Segment3d> base_end() const { return config.end_position ? _maneuvers.back() : opt<Segment3d>{}; }
+
+        std::vector<std::string> maneuver_names() const { return _man_names; }
 
         /* Only for python interface */
         std::vector<Segment3d> maneuvers() const { return _maneuvers; };
@@ -409,6 +415,7 @@ namespace SAOP {
 
         std::vector<Segment3d> _maneuvers;
         std::vector<double> _start_times;
+        std::vector<std::string> _man_names;
 
         /* Boolean flag that is set to true once the trajectory is initialized.
          * Validity checks are only performed when this flag is true. */
@@ -428,11 +435,18 @@ namespace SAOP {
 
         /* Computes the cost of a sub-trajectory composed of the given segments. */
         double segments_duration(const std::vector<Segment3d>& segments, size_t start, size_t length) const;
+
+        /* Adds segment to the end of the trajectory with custom name*/
+        void append_segment(const Segment3d& seg, std::string name);
+
+        /* Inserts the given segment at the given index with a custom name */
+        void insert_segment(const Segment3d& seg, size_t at_index, std::string name);
     };
 
     [[maybe_unused]]
     static void to_json(json& j, const Trajectory& traj) {
         j = json{{"name", traj.name()},
+                 {"maneuver_names", traj.maneuver_names()},
                  {"duration", traj.duration()},
                  {"num_segments", traj.size()},
                  {"start_time", traj.start_time()},

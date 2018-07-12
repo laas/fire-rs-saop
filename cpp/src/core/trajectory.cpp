@@ -28,12 +28,16 @@ namespace SAOP {
     Trajectory::Trajectory(const TrajectoryConfig& config)
             : config(config) {
         if (config.start_position) {
-            append_segment(Segment3d(*config.start_position));
+            std::string takeoff_name = "takeoff" + std::to_string(UNIQUE_MAN_N);
+            UNIQUE_MAN_N++;
+            append_segment(Segment3d(*config.start_position), takeoff_name);
             insertion_range = IndexRange::end_unbounded(1);
         }
 
         if (config.end_position) {
-            append_segment(Segment3d(*config.end_position));
+            std::string land_name = "land" + std::to_string(UNIQUE_MAN_N);
+            UNIQUE_MAN_N++;
+            append_segment(Segment3d(*config.end_position), land_name);
             insertion_range = insertion_range.intersection_with(IndexRange::start_unbounded(size() - 1));
         }
         is_set_up = true;
@@ -81,7 +85,7 @@ namespace SAOP {
 
         if (size() == 0) {
             // If the trajectory is void, a subtrajectory is the trajectory
-            BOOST_LOG_TRIVIAL(debug)  << "Slicing an empty trajectory" << std::endl;
+            BOOST_LOG_TRIVIAL(debug) << "Slicing an empty trajectory" << std::endl;
             return Trajectory(*this);
         }
 
@@ -280,7 +284,7 @@ namespace SAOP {
 
         if (delta_time < 0) {
             BOOST_LOG_TRIVIAL(warning) << "Trajectory::insert_segment(" << segment << ", " << insert_loc
-                      << ") . Added delay is negative " << delta_time;
+                                       << ") . Added delay is negative " << delta_time;
         }
 
         return delta_time;
@@ -345,7 +349,20 @@ namespace SAOP {
         check_validity();
     }
 
+    void Trajectory::append_segment(const Segment3d& seg, std::string name) {
+        ASSERT(insertion_range.end > size());
+        insert_segment(seg, size(), name);
+
+        check_validity();
+    }
+
     void Trajectory::insert_segment(const Segment3d& seg, size_t at_index) {
+        std::string name = "wp" + std::to_string(UNIQUE_MAN_N);
+        UNIQUE_MAN_N++;
+        insert_segment(seg, at_index,name);
+    }
+
+    void Trajectory::insert_segment(const Segment3d& seg, size_t at_index, std::string name) {
         ASSERT(at_index <= size());
         ASSERT(insertion_range_start() <= at_index && at_index <= insertion_range_end());
         const double start = at_index == 0 ? config.start_time :
@@ -354,14 +371,14 @@ namespace SAOP {
 
         const double added_delay = insertion_duration_cost(at_index, seg);
         if (!ALMOST_GREATER_EQUAL(added_delay, 0)) {
-            BOOST_LOG_TRIVIAL(warning)  << "Trajectory::insert_segment(" << seg << ", " << at_index
-                      << ") . Added delay is negative " << added_delay << std::endl;
+            BOOST_LOG_TRIVIAL(warning) << "Trajectory::insert_segment(" << seg << ", " << at_index
+                                       << ") . Added delay is negative " << added_delay << std::endl;
 //                insertion_duration_cost(at_index, seg);
         }
         ASSERT(added_delay < std::numeric_limits<double>::infinity());
         _maneuvers.insert(_maneuvers.begin() + at_index, seg);
         _start_times.insert(_start_times.begin() + at_index, start);
-
+        _man_names.insert(_man_names.begin() + at_index, name);
         for (size_t i = at_index + 1; i < size(); i++) {
             _start_times[i] += added_delay;
         }
@@ -388,6 +405,7 @@ namespace SAOP {
         const double gained_delay = removal_duration_gain(at_index);
         _maneuvers.erase(_maneuvers.begin() + at_index);
         _start_times.erase(_start_times.begin() + at_index);
+        _man_names.erase(_man_names.begin() + at_index);
         for (size_t i = at_index; i < size(); i++) {
             _start_times[i] -= gained_delay;
         }
@@ -397,18 +415,21 @@ namespace SAOP {
 
     void Trajectory::replace_segment(size_t at_index, const Segment3d& by_segment) {
         ASSERT(at_index < size());
+        std::string keep_name = _man_names[at_index];
         erase_segment(at_index);
-        insert_segment(by_segment, at_index);
+        insert_segment(by_segment, at_index, keep_name);
         check_validity();
     }
 
     void Trajectory::replace_section(size_t index, const std::vector<Segment3d>& segments) {
         ASSERT(index + segments.size() - 1 < size());
+        std::vector<std::string> keep_names = {};
         for (size_t i = 0; i < segments.size(); i++) {
+            keep_names.emplace_back(_man_names[i]);
             erase_segment(index);
         }
         for (size_t i = 0; i < segments.size(); i++) {
-            insert_segment(segments[i], index + i);
+            insert_segment(segments[i], index + i, _man_names[i]);
         }
         check_validity();
     }
