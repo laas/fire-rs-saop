@@ -46,161 +46,15 @@ namespace SAOP {
 
     using json = nlohmann::json;
 
-//    class Maneuver {
-//    public:
-//        Maneuver(const Waypoint3d& start_wp, const Waypoint3d& end_wp, double start_t,
-//                 const WindVector& wind_v = {0, 0})
-//                : start_wp(start_wp), end_wp(end_wp), start_t(start_t), wind_v(wind_v) {}
-//
-//        double duration() {
-//            if (!duration_cache) { duration_cache = compute_duration(); }
-//            return *duration_cache;
-//        }
-//
-//        double length() {
-//            if (!length_cache) { length_cache = compute_length(); }
-//            return *length_cache;
-//        }
-//
-//        std::vector<std::pair<double, Waypoint3d>> sampled_with_time(double step_size) {
-//            if (sample_cache.empty() || std::get<0>(sample_cache[0]) != start_t) {
-//                sample_cache = sampling(start_t, step_size);
-//            }
-//            return sample_cache;
-//        };
-//
-//        Waypoint3d start() const {
-//            return start_wp;
-//        }
-//
-//        Waypoint3d end() const {
-//            return end_wp;
-//        }
-//
-//        double start_time() const {
-//            return start_t;
-//        }
-//
-//        void start_time(double t) {
-//            start_t = t;
-//        }
-//
-//        WindVector wind() const {
-//            return wind_v;
-//        }
-//
-//        std::string name() const {
-//            return get_name();
-//        }
-//
-//        bool is_valid() const {
-//            return validity_check();
-//        }
-//
-//    private:
-//        Waypoint3d start_wp = {};
-//        Waypoint3d end_wp = {};
-//        double start_t = 0.;
-//        WindVector wind_v = {};
-//
-//        opt<double> duration_cache = {};
-//        opt<double> length_cache = {};
-//        std::vector<std::pair<double, Waypoint3d>> sample_cache = {};
-//
-//        // Templates of maneuver-specific computations
-//        virtual std::string get_name() const = 0;
-//
-//        virtual double compute_duration() const = 0;
-//
-//        virtual double compute_length() const = 0;
-//
-//        virtual std::vector<std::pair<double, Waypoint3d>> sampling(double start_time, double step_size) const = 0;
-//
-//        virtual bool validity_check() const = 0;
-//
-//    };
-//
-//    class Segment3dManeuver : public Maneuver {
-//
-//    public:
-//        Segment3dManeuver(const Segment3d seg, double start_time, WindVector wind) : Maneuver(seg.start, seg.end,
-//                                                                                              start_time, wind),
-//                                                                                     segment(seg) {}
-//
-//        Segment3d segment;
-//
-//    private:
-//        std::string get_name() const override {
-//            return "Segment3dManeuver";
-//        };
-//
-//        double compute_duration() const override {
-//            return 0;
-//        };
-//
-//        double compute_length() const override {
-//            return 0;
-//        };
-//
-//        std::vector<std::pair<double, Waypoint3d>> sampling(double start_time, double step_size) const override {
-//
-//        };
-//    };
-//
-//    class WaypointManeuver : public Maneuver {
-//
-//    public:
-//        WaypointManeuver(const Waypoint3d& location, double start_time, WindVector wind) :
-//                Maneuver(location, location, start_time, wind) {}
-//
-//    private:
-//        std::string get_name() const override {
-//            return "WaypointManeuver";
-//        };
-//
-//        double compute_duration() const override {
-//            return 0;
-//        };
-//
-//        double compute_length() const override {
-//            return 0;
-//        };
-//
-//        std::vector<std::pair<double, Waypoint3d>> sampling(double start_time, double step_size) const override {
-//            return {};
-//        };
-//    };
-//
-//    class DubinsManeuver : public Maneuver {
-//
-//    public:
-//        DubinsManeuver(const Waypoint3d& start_wp, const Waypoint3d& end_wp, double start_time, WindVector wind) :
-//                Maneuver(start_wp, end_wp, start_time, wind) {}
-//
-//    private:
-//        std::string get_name() const override {
-//            return "DubinsManeuver";
-//        };
-//
-//        double compute_duration() const override {
-//            return 0;
-//        };
-//
-//        double compute_length() const override {
-//            return 0;
-//        };
-//
-//        std::vector<std::pair<double, Waypoint3d>> sampling(double start_time, double step_size) const override {
-//            return {};
-//        };
-//    };
-
     struct TimedManeuver {
         Segment3d maneuver;
         double time;
     };
 
+    static size_t UNIQUE_TRAJ_N = 0;
+
     struct TrajectoryConfig {
+        std::string id_unique;
         UAV uav;
         double start_time;
         opt<Waypoint3d> start_position;
@@ -214,10 +68,13 @@ namespace SAOP {
                          WindVector wind = WindVector(0., 0.))
                 : uav(uav),
                   start_time(start_time),
-                  start_position(opt<Waypoint3d> {}),
-                  end_position(opt<Waypoint3d> {}),
+                  start_position(opt<Waypoint3d>{}),
+                  end_position(opt<Waypoint3d>{}),
                   max_flight_time(max_flight_time),
-                  wind(wind) {}
+                  wind(wind) {
+            id_unique = "traj" + std::to_string(UNIQUE_TRAJ_N);
+            UNIQUE_TRAJ_N++;
+        }
 
         TrajectoryConfig(const UAV& uav,
                          const Waypoint3d& start_position,
@@ -229,7 +86,10 @@ namespace SAOP {
                   start_position(start_position),
                   end_position(opt<Waypoint3d>()),
                   max_flight_time(max_flight_time),
-                  wind(wind) {}
+                  wind(wind) {
+            id_unique = "traj" + std::to_string(UNIQUE_TRAJ_N);
+            UNIQUE_TRAJ_N++;
+        }
 
         TrajectoryConfig(const UAV& uav,
                          const Waypoint3d& start_position,
@@ -242,7 +102,10 @@ namespace SAOP {
                   start_position(start_position),
                   end_position(end_position),
                   max_flight_time(max_flight_time),
-                  wind(wind) {}
+                  wind(wind) {
+            id_unique = "traj" + std::to_string(UNIQUE_TRAJ_N);
+            UNIQUE_TRAJ_N++;
+        }
     };
 
     class Trajectory {
@@ -260,6 +123,10 @@ namespace SAOP {
 
         const TrajectoryConfig& conf() const {
             return config;
+        }
+
+        std::string name() const {
+            return config.id_unique;
         }
 
         /* Number of segments in the trajectory. */
@@ -565,12 +432,13 @@ namespace SAOP {
 
     [[maybe_unused]]
     static void to_json(json& j, const Trajectory& traj) {
-        j = json{{"duration",     traj.duration()},
+        j = json{{"name", traj.name()},
+                 {"duration", traj.duration()},
                  {"num_segments", traj.size()},
-                 {"start_time",   traj.start_time()},
-                 {"start_times",  traj.start_times()},
-                 {"end_time",     traj.end_time()},
-                 {"maneuvers",    traj.maneuvers()}};
+                 {"start_time", traj.start_time()},
+                 {"start_times", traj.start_times()},
+                 {"end_time", traj.end_time()},
+                 {"maneuvers", traj.maneuvers()}};
     }
 
 }

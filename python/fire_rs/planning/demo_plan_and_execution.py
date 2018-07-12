@@ -49,7 +49,7 @@ if __name__ == '__main__':
     # Configure some flight
     base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., flat_altitude + 100., 0.)
     start_t = 120 * 60  # 30 minutes after the ignition
-    fgconf = FlightConf(UAVConf.X8(), start_t, base_wp)
+    fgconf = FlightConf(UAVConf.x8(), start_t, base_wp)
 
     # Write down the desired VNS configuration
     conf_vns = {

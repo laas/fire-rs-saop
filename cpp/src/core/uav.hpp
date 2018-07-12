@@ -40,11 +40,16 @@ namespace SAOP {
 
         UAV(const UAV& uav) = default;
 
-        UAV(const double max_air_speed, const double max_angular_velocity, const double max_pitch_angle) :
+        UAV(std::string name, const double max_air_speed, const double max_angular_velocity, const double max_pitch_angle) :
+                name_unique(std::move(name)),
                 _max_angular_velocity(max_angular_velocity),
                 _max_air_speed(max_air_speed),
                 _min_turn_radius(max_air_speed / max_angular_velocity),
                 _max_pitch_angle(max_pitch_angle) {}
+
+        std::string name() const {
+            return name_unique;
+        }
 
         double max_angular_velocity() const {
             return _max_angular_velocity;
@@ -150,7 +155,7 @@ namespace SAOP {
         Waypoint3d visibility_center(const Segment3d& segment) const;
 
     private:
-
+        std::string name_unique;
         double _max_angular_velocity;
         double _max_air_speed;
         double _min_turn_radius;

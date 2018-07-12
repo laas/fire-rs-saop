@@ -219,7 +219,7 @@ def generate_scenario_newsletter():
     for i in range(num_flights):
         uav_start = start + 3000
         max_flight_time = 450
-        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
@@ -253,7 +253,7 @@ def generate_scenario_singlefire_singleuav_3d():
     for i in range(num_flights):
         uav_start = random.uniform(start + 2500, start + 7500.)
         max_flight_time = random.uniform(1000, 1500)
-        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
@@ -287,7 +287,7 @@ def generate_scenario_singlefire_singleuav_shortrange():
     for i in range(num_flights):
         uav_start = random.uniform(start + 5000, start + 7000.)
         max_flight_time = random.uniform(500, 1000)
-        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
@@ -319,7 +319,7 @@ def generate_scenario_singlefire_singleuav():
     for i in range(num_flights):
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(1000, 1500)
-        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
@@ -352,7 +352,7 @@ def generate_windy_scenario():
     flights = []
     for i in range(num_flights):
         uav_start = random.uniform(start + 3000, start + 3001.)
-        uav = UAVConf.X8()
+        uav = UAVConf.x8()
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
                                   (wind_speed * np.cos(wind_dir), wind_speed * np.sin(wind_dir))))
 
@@ -386,7 +386,7 @@ def generate_nowind_scenario():
     flights = []
     for i in range(num_flights):
         uav_start = random.uniform(start + 6000, start + 6001.)
-        uav = UAVConf.X8()
+        uav = UAVConf.x8()
         uav.max_flight_time /= 6;
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
                                   (0., 0.)))
@@ -425,7 +425,7 @@ def generate_scenario():
     for i in range(num_flights):
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(500, 1200)
-        uav = UAVConf(uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
         flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),

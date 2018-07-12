@@ -144,7 +144,7 @@ def detail_case_figure(wind_speed=5., wind_dir=0.) -> "fire_rs.geodata.display.G
     # Configure some flight
     base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.)
     start_t = 120 * 60
-    uav = UAVConf.X8()
+    uav = UAVConf.x8()
 
     f_confs = [
         FlightConf(uav, start_t, Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.), None,
@@ -215,7 +215,7 @@ def singleuav_case_figure(wind_speed=5., wind_dir=0.,
     # Configure some flight
     base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.)
     start_t = 120 * 60
-    uav = UAVConf.X8()
+    uav = UAVConf.x8()
 
     f_confs = [
         FlightConf(uav, start_t, Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.), None,
@@ -279,7 +279,7 @@ def generic_case_figure(wind_speed=5.,
 
     # Configure some flight
     start_t = 90 * 60
-    uav = UAVConf.X8()
+    uav = UAVConf.x8()
     uav.max_flight_time/=5
     f_confs = [
         FlightConf(uav, start_t, Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.), None,
@@ -348,7 +348,7 @@ def threefire_twouav_figure(wind_speed=5.,
 
     # Configure some flight
     start_t = 90 * 60
-    uav = UAVConf.X8()
+    uav = UAVConf.x8()
     uav.max_flight_time /= 3
     f_confs = [
         FlightConf(uav, start_t, Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.), None,

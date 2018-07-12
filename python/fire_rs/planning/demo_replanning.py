@@ -60,7 +60,7 @@ if __name__ == '__main__':
     # Configure some flight
     base_wp = Waypoint(area[0][0] + 100., area[1][0] + 100., 0., 0.)
     start_t = 180 * 60  # 30 minutes after the ignition
-    uavconf = UAVConf.X8()
+    uavconf = UAVConf.x8()
     uavconf.max_flight_time = 1000
     fgconf = FlightConf(uavconf, start_t, base_wp)
 

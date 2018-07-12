@@ -147,28 +147,31 @@ class Waypoint(namedtuple('Waypoint', 'x, y, z, dir')):
 
 class UAVConf:
 
-    def __init__(self, max_air_speed: float, max_angular_velocity: float, max_pitch_angle: float,
-                 max_flight_time: float):
+    def __init__(self, name: str, max_air_speed: float, max_angular_velocity: float,
+                 max_pitch_angle: float, max_flight_time: float):
+        self.name = name  # type: str
         self.max_air_speed = max_air_speed  # type: float
         self.max_angular_velocity = max_angular_velocity  # type: float
         self.max_pitch_angle = max_pitch_angle  # type: float
         self.max_flight_time = max_flight_time  # type: float
 
     @classmethod
-    def X8(cls):
-        return cls(max_air_speed=17., max_angular_velocity=32. / 180. * np.pi * .5,
+    def x8(cls, unit: str = "00"):
+        return cls("-".join(("x8", unit)), max_air_speed=17., max_angular_velocity=32. / 180. * np.pi * .5,
                    max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000.)
 
     @classmethod
-    def slow_X8(cls):
-        return cls(max_air_speed=17. / 10., max_angular_velocity=32. / 180. * np.pi * .5,
+    def slow_x8(cls):
+        return cls("x8-00", max_air_speed=17. / 10., max_angular_velocity=32. / 180. * np.pi * .5,
                    max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000. * 10.)
 
     def as_cpp(self):
-        return up.UAV(self.max_air_speed, self.max_angular_velocity, self.max_pitch_angle)
+        return up.UAV(self.name, self.max_air_speed, self.max_angular_velocity,
+                      self.max_pitch_angle)
 
     def __repr__(self):
-        return "".join(("UAVConf(max_air_speed=", repr(self.max_air_speed),
+        return "".join(("UAVConf(name=", repr(self.name),
+                        ", max_air_speed=", repr(self.max_air_speed),
                         ", max_angular_velocity=", repr(self.max_angular_velocity),
                         ", max_pitch_angle=", repr(self.max_pitch_angle),
                         ", max_flight_time=", repr(self.max_flight_time), ")"))
@@ -264,7 +267,7 @@ class Planner:
 
         self._obs_fire_raster = None  # type: 'GeoData'
 
-    def compute_plan(self, name: str="unnamed") -> 'up.SearchResult':
+    def compute_plan(self, name: str = "unnamed") -> 'up.SearchResult':
         # Retrieve trajectory configurations as C++ objects
         cpp_flights = [f.as_cpp() for f in self._flights]
 

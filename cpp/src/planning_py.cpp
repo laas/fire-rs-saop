@@ -328,7 +328,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("__repr__", &Segment3d::to_string);
 
     py::class_<UAV>(m, "UAV")
-            .def(py::init<const double, const double, const double>())
+            .def(py::init<std::string, const double, const double, const double>())
+            .def_property_readonly("name", &UAV::name)
             .def_property_readonly("min_turn_radius", &UAV::min_turn_radius)
             .def_property_readonly("max_air_speed", &UAV::max_air_speed)
             .def_property_readonly("max_pitch_angle", &UAV::max_pitch_angle)
@@ -358,6 +359,7 @@ PYBIND11_MODULE(uav_planning, m) {
     py::class_<Trajectory>(m, "Trajectory")
             .def(py::init<const TrajectoryConfig&>())
             .def_property_readonly("conf", &Trajectory::conf)
+            .def("name", &Trajectory::name)
             .def("start_time", (double (Trajectory::*)() const) &Trajectory::start_time)
             .def("start_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
             .def("end_time", (double (Trajectory::*)() const) &Trajectory::end_time)
