@@ -88,6 +88,7 @@ namespace IMC {
         return stream;
     }
 
+    [[maybe_unused]]
     static std::ostream& operator<<(std::ostream& stream, const IMC::PlanControl::TypeEnum& pc) {
         switch (pc) {
             case IMC::PlanControl::TypeEnum::PC_REQUEST:
@@ -106,6 +107,7 @@ namespace IMC {
         return stream;
     }
 
+    [[maybe_unused]]
     static std::ostream& operator<<(std::ostream& stream, const IMC::PlanControl::OperationEnum& lpo) {
         switch (lpo) {
             case IMC::PlanControl::OperationEnum::PC_START:

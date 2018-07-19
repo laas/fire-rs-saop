@@ -53,6 +53,7 @@ namespace SAOP {
     };
 
     static size_t UNIQUE_TRAJ_N = 0;
+    [[maybe_unused]]
     static size_t UNIQUE_MAN_N = 0;
 
     struct TrajectoryConfig {
