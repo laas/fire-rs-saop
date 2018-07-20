@@ -95,7 +95,7 @@ namespace SAOP {
                     while (send_q->pop(m)) {
                         IMC::ByteBuffer serl_b = IMC::ByteBuffer(65535);
                         size_t n_bytes = IMC::Packet::serialize(m.get(), serl_b);
-                        BOOST_LOG_TRIVIAL(info) << "Send " << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
+                        BOOST_LOG_TRIVIAL(debug) << "Send " << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
                                   << "from (" << m->getSource() << ", " << static_cast<uint>(m->getSourceEntity())
                                   << ") " << "to (" << m->getDestination() << ", "
                                   << static_cast<uint>(m->getDestinationEntity()) << ")";

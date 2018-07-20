@@ -77,11 +77,6 @@ PYBIND11_MODULE(neptus_interface, m) {
             .def(py::init())
             .def("run", &neptus::IMCComm::run, py::call_guard<py::gil_scoped_release>());
 
-    py::enum_<neptus::GCSCommandOutcome>(m, "GCSCommandOutcome", py::arithmetic())
-            .value("Unknown", neptus::GCSCommandOutcome::Unknown)
-            .value("Success", neptus::GCSCommandOutcome::Success)
-            .value("Failure", neptus::GCSCommandOutcome::Failure);
-
     py::class_<neptus::GCS,
             std::shared_ptr<neptus::GCS>>(m, "GCS")
             .def(py::init<std::shared_ptr<neptus::IMCComm>>(), py::arg("imc"))
@@ -89,17 +84,17 @@ PYBIND11_MODULE(neptus_interface, m) {
                          const std::function<void(neptus::TrajectoryExecutionReport)>,
                          const std::function<void(neptus::UAVStateReport)>>(),
                  py::arg("imc"), py::arg("ter_cb"), py::arg("usr_cb"), py::call_guard<py::gil_scoped_release>())
-            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&, size_t, std::string,
+            .def("start", (bool (neptus::GCS::*)(const Plan&, size_t, std::string,
                                                                       std::string)) &neptus::GCS::start,
                  py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
                  py::call_guard<py::gil_scoped_release>())
-            .def("start", (neptus::GCSCommandOutcome (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::start,
+            .def("start", (bool (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::start,
                  py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
-            .def("load", (neptus::GCSCommandOutcome (neptus::GCS::*)(const Plan&, size_t, std::string,
+            .def("load", (bool (neptus::GCS::*)(const Plan&, size_t, std::string,
                                                                      std::string)) &neptus::GCS::load,
                  py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
                  py::call_guard<py::gil_scoped_release>())
-            .def("stop", (neptus::GCSCommandOutcome (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::stop,
+            .def("stop", (bool (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::stop,
                  py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
             .def_property_readonly("available_vehicles", &neptus::GCS::available_vehicles)
             .def("is_ready", &neptus::GCS::is_ready);

@@ -32,7 +32,7 @@ namespace SAOP {
 
     namespace neptus {
 
-        GCSCommandOutcome GCS::stop(std::string plan_id, uint16_t uav_addr) {
+        bool GCS::stop(std::string plan_id, uint16_t uav_addr) {
             auto pc_stop = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
             auto req_id = req.request_id();
@@ -46,25 +46,10 @@ namespace SAOP {
 
             this->imc_comm->send(std::move(pc_stop));
 
-            // Wait for an answer from Neptus. If none is received, assume a failure
-            std::unique_lock<std::mutex> lock(pc_answer_mutex);
-            pc_answer_cv.wait_for(lock, std::chrono::seconds(10),
-                                  [this, req_id]() -> bool { return this->req.has_answer(req_id); });
-
-            auto answer = req.get_answer(req_id);
-
-            if (!answer) {
-                return GCSCommandOutcome::Unknown;
-            }
-
-            if (*answer == IMC::PlanControl::TypeEnum::PC_SUCCESS) {
-                return GCSCommandOutcome::Success;
-            } else {
-                return GCSCommandOutcome::Failure;
-            }
+            return wait_for_stop(req_id);
         }
 
-        GCSCommandOutcome GCS::load(IMC::PlanSpecification ps, uint16_t uav_addr) {
+        bool GCS::load(IMC::PlanSpecification ps, uint16_t uav_addr) {
             auto pc_load = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
             auto req_id = req.request_id();
@@ -80,25 +65,10 @@ namespace SAOP {
 
             imc_comm->send(std::move(pc_load));
 
-            // Wait for an answer from Neptus. If none is received, assume a failure
-            std::unique_lock<std::mutex> lock(pc_answer_mutex);
-            pc_answer_cv.wait_for(lock, std::chrono::seconds(10),
-                                  [this, req_id]() -> bool { return this->req.has_answer(req_id); });
-
-            auto answer = req.get_answer(req_id);
-
-            if (!answer) {
-                return GCSCommandOutcome::Unknown;
-            }
-
-            if (*answer == IMC::PlanControl::TypeEnum::PC_SUCCESS) {
-                return GCSCommandOutcome::Success;
-            } else {
-                return GCSCommandOutcome::Failure;
-            }
+            return wait_for_load(req_id);
         }
 
-        GCSCommandOutcome GCS::start(std::string plan_id, uint16_t uav_addr) {
+        bool GCS::start(std::string plan_id, uint16_t uav_addr) {
 //            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, 0x0c10, 0xFF);
             auto pc_start = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
@@ -113,25 +83,10 @@ namespace SAOP {
 
             imc_comm->send(std::move(pc_start));
 
-            // Wait for an answer from Neptus. If none is received, assume a failure
-            std::unique_lock<std::mutex> lock(pc_answer_mutex);
-            pc_answer_cv.wait_for(lock, std::chrono::seconds(10),
-                                  [this, req_id]() -> bool { return this->req.has_answer(req_id); });
-
-            auto answer = req.get_answer(req_id);
-
-            if (!answer) {
-                return GCSCommandOutcome::Unknown;
-            }
-
-            if (*answer == IMC::PlanControl::TypeEnum::PC_SUCCESS) {
-                return GCSCommandOutcome::Success;
-            } else {
-                return GCSCommandOutcome::Failure;
-            }
+            return wait_for_start(req_id);
         }
 
-        GCSCommandOutcome GCS::start(IMC::PlanSpecification ps, uint16_t uav_addr) {
+        bool GCS::start(IMC::PlanSpecification ps, uint16_t uav_addr) {
             auto pc_start = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
 
             auto req_id = req.request_id();
@@ -147,22 +102,7 @@ namespace SAOP {
 
             imc_comm->send(std::move(pc_start));
 
-            // Wait for an answer from Neptus. If none is received, assume a failure
-            std::unique_lock<std::mutex> lock(pc_answer_mutex);
-            pc_answer_cv.wait_for(lock, std::chrono::seconds(10),
-                                  [this, req_id]() -> bool { return this->req.has_answer(req_id); });
-
-            auto answer = req.get_answer(req_id);
-
-            if (!answer) {
-                return GCSCommandOutcome::Unknown;
-            }
-
-            if (*answer == IMC::PlanControl::TypeEnum::PC_SUCCESS) {
-                return GCSCommandOutcome::Success;
-            } else {
-                return GCSCommandOutcome::Failure;
-            }
+            return wait_for_load(req_id) && wait_for_start(req_id);
         }
 
         IMC::PlanSpecification
@@ -256,7 +196,7 @@ namespace SAOP {
             if ((t == IMC::PlanControl::TypeEnum::PC_SUCCESS) || (t == IMC::PlanControl::TypeEnum::PC_FAILURE)) {
                 // Notify Plan control success or failure
                 std::unique_lock<std::mutex> lock(pc_answer_mutex);
-                if (req.set_answer(m->request_id, t)) {
+                if (req.set_answer(m->request_id, IMC::PlanControl(*m))) {
                     BOOST_LOG_TRIVIAL(info) << "PlanControl request " << m->request_id <<
                                             " op " << static_cast<IMC::PlanControl::OperationEnum>(m->op) <<
                                             " replied " << static_cast<IMC::PlanControl::TypeEnum>(m->type) <<
@@ -275,55 +215,146 @@ namespace SAOP {
             }
         }
 
-        GCSCommandOutcome GCS::load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
+        bool GCS::load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
             uint16_t uav_addr = 0;
             auto uav_id_it = uav_addr_of.find(uav);
             if (uav_id_it != uav_addr_of.end()) {
                 uav_addr = uav_id_it->second;
             } else {
                 BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
-                return GCSCommandOutcome::Failure;
+                return false;
             }
 
             return load(plan_specification(p, trajectory, plan_id), uav_addr);
         }
 
-        GCSCommandOutcome GCS::start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
+        bool GCS::start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
             uint16_t uav_addr = 0;
             auto uav_id_it = uav_addr_of.find(uav);
             if (uav_id_it != uav_addr_of.end()) {
                 uav_addr = uav_id_it->second;
             } else {
                 BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
-                return GCSCommandOutcome::Failure;
+                return false;
             }
 
             return start(plan_specification(p, trajectory, plan_id), uav_addr);
         }
 
-        GCSCommandOutcome GCS::start(std::string plan_id, std::string uav) {
+        bool GCS::start(std::string plan_id, std::string uav) {
             uint16_t uav_addr = 0;
             auto uav_id_it = uav_addr_of.find(uav);
             if (uav_id_it != uav_addr_of.end()) {
                 uav_addr = uav_id_it->second;
             } else {
                 BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
-                return GCSCommandOutcome::Failure;
+                return false;
             }
             return start(plan_id, uav_addr);
 
         }
 
-        GCSCommandOutcome GCS::stop(std::string plan_id, std::string uav) {
+        bool GCS::stop(std::string plan_id, std::string uav) {
             uint16_t uav_addr = 0;
             auto uav_id_it = uav_addr_of.find(uav);
             if (uav_id_it != uav_addr_of.end()) {
                 uav_addr = uav_id_it->second;
             } else {
                 BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
-                return GCSCommandOutcome::Failure;
+                return false;
             }
             return stop(plan_id, uav_addr);
+        }
+
+        bool GCS::wait_for_load(uint16_t req_id) {
+            // Wait for an answer from Neptus. If none is received, assume a failure
+            std::unique_lock<std::mutex> lock(pc_answer_mutex);
+            pc_answer_cv.wait_for(lock, std::chrono::seconds(30),
+                                  [this, req_id]() -> bool { return this->req.has_answer(req_id); });
+
+            while (req.has_answer(req_id)) {
+                auto answer = req.get_answer(req_id);
+
+                if (!answer) {
+                    return false;
+                }
+
+                BOOST_LOG_TRIVIAL(debug) << (*answer).plan_id << " req " << (*answer).request_id << " "
+                                         << static_cast<IMC::PlanControl::OperationEnum>((*answer).op) << " "
+                                         << static_cast<IMC::PlanControl::TypeEnum>((*answer).type) << " "
+                                         << (*answer).info;
+
+                if ((*answer).info == "plan loaded") {
+                    if ((*answer).type == IMC::PlanControl::TypeEnum::PC_SUCCESS) {
+                        return true;
+                    } else { //(*answer).type == IMC::PlanControl::TypeEnum::PC_FAILURE
+
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+
+        bool GCS::wait_for_stop(uint16_t req_id) {
+            // Wait for an answer from Neptus. If none is received, assume a failure
+            std::unique_lock<std::mutex> lock(pc_answer_mutex);
+            pc_answer_cv.wait_for(lock, std::chrono::seconds(30),
+                                  [this, req_id]() -> bool { return this->req.has_answer(req_id); });
+
+            while (req.has_answer(req_id)) {
+                auto answer = req.get_answer(req_id);
+
+                if (!answer) {
+                    return false;
+                }
+
+                BOOST_LOG_TRIVIAL(debug) << (*answer).plan_id << " req " << (*answer).request_id << " "
+                                         << static_cast<IMC::PlanControl::OperationEnum>((*answer).op) << " "
+                                         << static_cast<IMC::PlanControl::TypeEnum>((*answer).type) << " "
+                                         << (*answer).info;
+
+                if ((*answer).type == IMC::PlanControl::TypeEnum::PC_SUCCESS) {
+                    return true;
+                } else {
+                    //(*answer).type == IMC::PlanControl::TypeEnum::PC_FAILURE
+                    // Neptus considers stopping nothing as a failure. For us this is a success.
+                    if ((*answer).info == "no plan is running, request ignored") {
+                        return true;
+                    }
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        bool GCS::wait_for_start(uint16_t req_id) {
+            // Wait for an answer from Neptus. If none is received, assume a failure
+            std::unique_lock<std::mutex> lock(pc_answer_mutex);
+            pc_answer_cv.wait_for(lock, std::chrono::seconds(30),
+                                  [this, req_id]() -> bool { return this->req.has_answer(req_id); });
+
+            while (req.has_answer(req_id)) {
+                auto answer = req.get_answer(req_id);
+
+                if (!answer) {
+                    return false;
+                }
+
+                BOOST_LOG_TRIVIAL(debug) << (*answer).plan_id << " req " << (*answer).request_id << " "
+                                         << static_cast<IMC::PlanControl::OperationEnum>((*answer).op) << " "
+                                         << static_cast<IMC::PlanControl::TypeEnum>((*answer).type) << " "
+                                         << (*answer).info;
+
+                if ((*answer).info.find("executing maneuver") != std::string::npos) {
+                    if ((*answer).type == IMC::PlanControl::TypeEnum::PC_SUCCESS) {
+                        return true;
+                    } else { //(*answer).type == IMC::PlanControl::TypeEnum::PC_FAILURE
+                        return false;
+                    }
+                }
+            }
+            return false;
         }
     }
 }

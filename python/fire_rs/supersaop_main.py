@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     logger_up = logger.getChild("saop_cpp")
     logger_up.setLevel(logging.INFO)
-    #cpp_planning.up.set_logger(logger_up)
+    cpp_planning.up.set_logger(logger_up)
 
     # Start Situation Assessment
     an_alarm = supersaop.poll_alarm()

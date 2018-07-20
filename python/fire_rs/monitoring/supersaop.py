@@ -63,7 +63,7 @@ class Hangar:
         """
 
         base_default = planning.Waypoint(483500.0 - 150., 6215000.0 - 150., 0., 0.)
-        uav_x8 = planning.UAVConf.X8()
+        uav_x8 = planning.UAVConf.x8()
 
         self._uav_keys = ['x8-02', 'x8-06']
         if available is not None:
@@ -552,40 +552,40 @@ class ExecutionMonitor:
         for traj_i, uav in uav_allocation.items():
 
             # Stop previous trajectory (if any)
-            command_r = self.gcs.stop("", uav)
-            if command_r != nifc.GCSCommandOutcome.Success:
-                self.logger.warning("Stop failed")
-                results[traj_i] = True
-            else:
-                self.logger.info("Previous trajectory stopped")
+            # command_r = self.gcs.stop("", uav)
+            # if not command_r:
+            #     self.logger.warning("Stop failed")
+            #     results[traj_i] = True
+            # else:
+            #     self.logger.info("Previous trajectory stopped")
 
             plan_name = ExecutionMonitor.neptus_plan_id(plan.name(), traj_i)
-
-            # Load the trajectory
-            command_r = nifc.GCSCommandOutcome.Unknown
-            retries = 0
-            max_retries = 2
-            while retries < max_retries and command_r != nifc.GCSCommandOutcome.Success:
-                command_r = self.gcs.start(plan, traj_i, plan_name, uav)
-                if command_r != nifc.GCSCommandOutcome.Success:
-                    self.logger.warning("Loading of trajectory %s failed. Retrying...", plan_name)
-                    retries += 1
-                else:
-                    self.logger.info("Trajectory %s loaded", plan_name)
-
-            if command_r != nifc.GCSCommandOutcome.Success:
-                self.logger.error("Loading of trajectory %s failed. Giving up after %d trials",
-                                  plan_name, max_retries)
-                results[traj_i] = False
             #
-            # # Start the mission
-            # # FIXME: Mission start seems to fail always
-            # command_r = self.gcs.start("saop_" + plan_name, uav)
-            # if command_r != nifc.GCSCommandOutcome.Success:
-            #     self.logger.error("Start of trajectory %s failed", plan_name)
+            # # Load the trajectory
+            # command_r = False
+            # retries = 0
+            # max_retries = 2
+            # while retries < max_retries and not command_r:
+            #     command_r = self.gcs.load(plan, traj_i, plan_name, uav)
+            #     if not command_r:
+            #         self.logger.warning("Loading of trajectory %s failed. Retrying...", plan_name)
+            #         retries += 1
+            #     else:
+            #         self.logger.info("Trajectory %s loaded", plan_name)
+            #
+            # if not command_r:
+            #     self.logger.error("Loading of trajectory %s failed. Giving up after %d trials",
+            #                       plan_name, max_retries)
             #     results[traj_i] = False
-            # else:
-            #     self.logger.error("Start trajectory %s", plan_name)
+
+            # Start the mission
+            # FIXME: Mission start seems to fail always
+            command_r = self.gcs.start(plan, traj_i, plan_name, uav)
+            if not command_r:
+                self.logger.error("Start of trajectory %s failed", plan_name)
+                results[traj_i] = False
+            else:
+                self.logger.error("Start trajectory %s", plan_name)
 
         return results
 

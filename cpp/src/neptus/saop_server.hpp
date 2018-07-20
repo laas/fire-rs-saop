@@ -134,8 +134,8 @@ namespace SAOP {
 
         template<typename Payload>
         class Requests {
-            uint16_t last_req_id = 0;
-            std::unordered_map<uint16_t, opt<Payload>> unanswered = std::unordered_map<uint16_t, opt<Payload>>();
+            uint16_t last_req_id = 1000;
+            std::unordered_map<uint16_t, std::queue<Payload>> answers = std::unordered_map<uint16_t, std::queue<Payload>>();
             std::unique_ptr<std::mutex> req_id_mutex = std::unique_ptr<std::mutex>(new std::mutex());
 
         public:
@@ -150,11 +150,11 @@ namespace SAOP {
                 std::lock_guard<std::mutex> lock_m(*req_id_mutex);
 
                 //FIXME: This will loop inf if there are max uint16_t requests unanswered (unlikely)
-                while (unanswered.find(last_req_id) != unanswered.end()) {
+                while (answers.find(last_req_id) != answers.end()) {
                     last_req_id += 1;
                 }
 
-                unanswered[last_req_id] = opt<Payload>();
+                answers[last_req_id] = std::queue<Payload>();
                 return last_req_id++;
             }
 
@@ -163,11 +163,11 @@ namespace SAOP {
             bool set_answer(uint16_t req_id, Payload p) {
                 std::lock_guard<std::mutex> lock_m(*req_id_mutex);
                 // req_id must exist in the unanswered set
-                auto req_id_it = unanswered.find(req_id);
-                if (req_id_it == unanswered.end()) {
+                auto req_id_it = answers.find(req_id);
+                if (req_id_it == answers.end()) {
                     return false;
                 } else {
-                    unanswered[req_id] = p;
+                    answers[req_id].push(p);
                     return true;
                 }
             }
@@ -176,11 +176,11 @@ namespace SAOP {
             opt<Payload> get_answer(uint16_t req_id) {
                 std::lock_guard<std::mutex> lock_m(*req_id_mutex);
                 // req_id must exist in the unanswered set
-                auto req_id_it = unanswered.find(req_id);
-                if (req_id_it != unanswered.end()) {
-                    if (unanswered[req_id].has_value()) {
-                        auto p = unanswered[req_id];
-                        unanswered.erase(req_id_it);
+                auto req_id_it = answers.find(req_id);
+                if (req_id_it != answers.end()) {
+                    if (!answers[req_id].empty()) {
+                        auto p = answers[req_id].front();
+                        answers[req_id].pop();
                         return p;
                     }
                 }
@@ -191,15 +191,25 @@ namespace SAOP {
             bool has_answer(uint16_t req_id) {
                 std::lock_guard<std::mutex> lock_m(*req_id_mutex);
                 // req_id must exist in the unanswered set
-                auto req_id_it = unanswered.find(req_id);
-                if (req_id_it != unanswered.end()) {
-                    if (unanswered[req_id].has_value()) {
-                        return true;
+                auto req_id_it = answers.find(req_id);
+                if (req_id_it != answers.end()) {
+                    if (answers[req_id].empty()) {
+                        return false;
                     }
                 }
-                return false;
+                return true;
+            }
+
+            void dismiss(uint16_t req_id) {
+                std::lock_guard<std::mutex> lock_m(*req_id_mutex);
+                // req_id must exist in the answers set
+                auto req_id_it = answers.find(req_id);
+                if (req_id_it != answers.end()) {
+                    answers.erase(req_id_it);
+                }
             }
         };
+
 
         enum class TrajectoryExecutionState : uint8_t {
             Blocked, // Plan execution is blocked due to a vehicle failure
@@ -301,12 +311,6 @@ namespace SAOP {
             }
         };
 
-        enum class GCSCommandOutcome {
-            Unknown = 2,
-            Success = 1,
-            Failure = 0,
-        };
-
         /* Command and supervise plan execution */
         class GCS final {
         public:
@@ -345,16 +349,16 @@ namespace SAOP {
             GCS& operator=(GCS&&) = delete;
 
             /* Send a request to Neptus to load a converted version of SAOP::Plan. */
-            GCSCommandOutcome load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
+            bool load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
             /* Load and start a SAOP::Plan. */
-            GCSCommandOutcome start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
+            bool start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
             /* Start the last loaded PlanSpecification */
-            GCSCommandOutcome start(std::string plan_id, std::string uav);
+            bool start(std::string plan_id, std::string uav);
 
             /* Stop the plan currently being executed. */
-            GCSCommandOutcome stop(std::string plan_id, std::string uav);
+            bool stop(std::string plan_id, std::string uav);
 
             /* Return true if the connection with the GCS is available */
             bool is_ready() {
@@ -390,18 +394,22 @@ namespace SAOP {
 
             std::vector<std::tuple<uint16_t, std::string>> available_uavs = {std::make_tuple(0x0c0c, "x8-02"),
                                                                              std::make_tuple(0x0c10, "x8-06")};
-            Requests<IMC::PlanControl::TypeEnum> req;
+            Requests<IMC::PlanControl> req;
 
             /* Send the PlanControl load request for a PlanSpecification */
-            GCSCommandOutcome load(IMC::PlanSpecification ps, uint16_t uav_addr);
+            bool load(IMC::PlanSpecification ps, uint16_t uav_addr);
 
             /* Load and start a PlanSpecification*/
-            GCSCommandOutcome start(IMC::PlanSpecification ps, uint16_t uav_addr);
+            bool start(IMC::PlanSpecification ps, uint16_t uav_addr);
 
-            GCSCommandOutcome start(std::string plan_id, uint16_t uav_addr);
+            bool start(std::string plan_id, uint16_t uav_addr);
 
             /* Send a stop command for plan_id to uav_addr*/
-            GCSCommandOutcome stop(std::string plan_id, uint16_t uav_addr);
+            bool stop(std::string plan_id, uint16_t uav_addr);
+
+            bool wait_for_load(uint16_t req_id);
+            bool wait_for_stop(uint16_t req_id);
+            bool wait_for_start(uint16_t req_id);
 
             IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id);
 
