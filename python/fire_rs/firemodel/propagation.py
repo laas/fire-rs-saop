@@ -75,6 +75,10 @@ class Environment:
         return self._area
 
     @property
+    def area_wind(self) -> Tuple[float, float]:
+        return self._wind_speed, self._wind_dir
+
+    @property
     @deprecated
     def clustering(self):
         if self._clustering is None:
