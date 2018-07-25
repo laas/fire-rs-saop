@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 class Environment:
-    def __init__(self, area, wind_speed, wind_dir):
+    def __init__(self, area, wind_speed, wind_dir, world=None):
         """Abstract class providing access to the main properties of the environment
 
         :param area: ((x_min, x_max), (y_min, y_max))
@@ -59,7 +59,9 @@ class Environment:
         self._wind_speed = wind_speed  # type: float
         self._wind_dir = wind_dir  # type: float
         self._area = area  # type: ((float, float), (float, float))
-        self._world = World()  # type: World
+        self._world = world  # type: World
+        if world is None:
+            self._world = World()
         elevation = self._world.get_elevation(area)
         slope = self._world.get_slope(area)
         wind = self._world.get_wind(area, domain_average=(wind_speed, wind_dir))
