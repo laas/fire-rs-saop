@@ -52,8 +52,8 @@ drone.append(pose)
 ircam = VideoCamera("ircam")
 ircam.properties(cam_width=640, cam_height=480,
                  cam_far=3000, cam_fov=44)
-ircam.frequency(1)
-ircam._n = -1
+ircam.frequency(0)
+ircam._n = 0
 ircam.add_service('socket')
 ircam.add_stream('socket', 'morse.middleware.sockets.video_camera.Video8uPublisher')
 drone.append(ircam)
