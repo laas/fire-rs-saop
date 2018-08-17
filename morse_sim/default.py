@@ -5,13 +5,17 @@
 Feel free to edit this template as you like!
 """
 
+
 import os
 import os.path
 
 import numpy as np
 
-# from morse.middleware.sockets.video_camera import VideoCameraPublisher
+os.chdir(os.path.dirname(__file__))
+
 from morse.builder import *
+from morse_sim.builder.actuators.absolute_teleport import AbsoluteTeleport
+
 
 # Add the MORSE mascott, MORSY.
 # Out-the-box available robots are listed here:
@@ -31,7 +35,7 @@ drone.rotate(0.0, 0.0, 0)
 #
 # 'morse add actuator <name> morse_sim' can help you with the creation of a custom
 # actuator.
-motion = Teleport("motion")
+motion = AbsoluteTeleport("teleport")
 motion.add_service('socket')
 drone.append(motion)
 
@@ -78,7 +82,6 @@ drone.add_default_interface('socket')
 
 # set 'fastmode' to True to switch to wireframe mode
 #env = Environment('land-1/trees', fastmode=False)
-os.chdir(os.path.dirname(__file__))
 workdir = os.getcwd()
 env = Environment(os.path.join(workdir, 'terrain.blend'), fastmode=False)
 env.set_camera_location([0, 0, 100])
