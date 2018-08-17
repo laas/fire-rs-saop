@@ -1,0 +1,106 @@
+import logging
+
+logger = logging.getLogger("morse." + __name__)
+import morse.core.actuator
+from morse.core.services import service
+from morse.core import mathutils
+from morse.helpers.components import add_data
+from morse.helpers.transformation import Transformation3d
+
+
+class AbsoluteTeleport(morse.core.actuator.Actuator):
+    """
+    This actuator teleports the robot to the absolute position and
+    orientation with respect to the origin of the Blender coordinate
+    reference. Angles are expected in radians.
+
+    .. note::
+        Coordinates are given with respect to the origin of
+        Blender's coordinate axis.
+    """
+
+    _name = "Teleport"
+    _short_desc = "Motion controller which changes instantly robot pose \
+                   (position and orientation)"
+
+    add_data('x', 'initial robot X position', "float",
+             "X coordinate of the destination, in meters")
+    add_data('y', 'initial robot Y position', "float",
+             "Y coordinate of the destination, in meters")
+    add_data('z', 'initial robot Z position', "float",
+             "Z coordinate of the destination, in meters")
+    add_data('yaw', 'Initial robot yaw', "float",
+             'Rotation of the robot around Z axis, in radians')
+    add_data('pitch', 'Initial robot pitch', "float",
+             'Rotation of the robot around Y axis, in radians')
+    add_data('roll', 'Initial robot roll', "float",
+             'Rotation of the robot around X axis, in radians')
+
+    def __init__(self, obj, parent=None):
+        logger.info('%s initialization' % obj.name)
+        # Call the constructor of the parent class
+        morse.core.actuator.Actuator.__init__(self, obj, parent)
+
+        pose3d = self.position_3d
+
+        self.local_data['x'] = pose3d.x
+        self.local_data['y'] = pose3d.y
+        self.local_data['z'] = pose3d.z
+        self.local_data['roll'] = pose3d.roll
+        self.local_data['pitch'] = pose3d.pitch
+        self.local_data['yaw'] = pose3d.yaw
+
+        self.actuator2robot = self.position_3d.transformation3d_with(self.robot_parent.position_3d)
+
+        logger.info('Component initialized')
+
+    @service
+    def translate(self, x, y=0.0, z=0.0):
+        """
+        Translate the actuator owner to the given (x,y,z) vector.
+
+        This is an **absolute** position.
+
+        :param x: X position, in meters
+        :param y: (default: 0.0) Y position, in meters
+        :param z: (default: 0.0) Z position, in meters
+        """
+        self.local_data['x'] = x
+        self.local_data['y'] = y
+        self.local_data['z'] = z
+
+    @service
+    def rotate(self, roll, pitch=0.0, yaw=0.0):
+        """
+        Rotates the actuator owner to the given (roll,pitch,yaw).
+
+        This is an **absolute** rotation.
+
+        :param roll: roll rotation, in radians
+        :param pitch: (default: 0.0) pitch rotation, in radians
+        :param yaw: (default: 0.0) yaw rotation, in radians
+        """
+        self.local_data['roll'] = roll
+        self.local_data['pitch'] = pitch
+        self.local_data['yaw'] = yaw
+
+    def default_action(self):
+        """ Change the parent robot pose. """
+
+        # New parent position
+        position = mathutils.Vector((self.local_data['x'],
+                                     self.local_data['y'],
+                                     self.local_data['z']))
+
+        # New parent orientation
+        orientation = mathutils.Euler([self.local_data['roll'],
+                                       self.local_data['pitch'],
+                                       self.local_data['yaw']])
+
+        world2actuator = Transformation3d(None)
+        world2actuator.translation = position
+        world2actuator.rotation = orientation
+
+        (loc, rot, _) = (world2actuator.matrix * self.actuator2robot.matrix).decompose()
+
+        self.robot_parent.force_pose(loc, rot)
