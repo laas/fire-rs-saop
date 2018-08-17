@@ -30,25 +30,27 @@ def done(a):
 with pymorse.Morse("localhost", 4000) as simu:
     try:
         # Get the 'Pose' sensor datastream
-        pose = simu.drone.pose
-        cam_image = simu.drone.ircam
-        cam_pose = simu.drone.ircam_pose
+        # pose = simu.drone.pose
+        # cam_image = simu.drone.ircam
+        # cam_pose = simu.drone.ircam_pose
 
         # Start the motion. It may take several seconds before finishing
         # The line below is however non-blocking
         for i in range(0, 20):
             goto_action = simu.drone.motion.translate(100, 0, 0)
-            image_printer(cam_image.get())
+            a = simu.drone.ircam.capture(1)
+            b = simu.drone.ircam.get()
+            image_printer(b)
         # Register a callback to know when the action is done
 
         # Blocks until something is available
         # print(cam_image.get())
-        print(cam_pose.get())
-
-        # Asynchronous read: the following line do not block.
-        cam_image.subscribe(image_printer)
-        cam_pose.subscribe(partial(pose_printer, "cam"))
-        pose.subscribe(partial(pose_printer, "drone"))
+        # print(cam_pose.get())
+        #
+        # # Asynchronous read: the following line do not block.
+        # cam_image.subscribe(image_printer)
+        # cam_pose.subscribe(partial(pose_printer, "cam"))
+        # pose.subscribe(partial(pose_printer, "drone"))
 
         # Read for 10 sec
         simu.sleep(30)
