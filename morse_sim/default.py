@@ -5,6 +5,9 @@
 Feel free to edit this template as you like!
 """
 
+import os
+import os.path
+
 import numpy as np
 
 # from morse.middleware.sockets.video_camera import VideoCameraPublisher
@@ -75,6 +78,8 @@ drone.add_default_interface('socket')
 
 # set 'fastmode' to True to switch to wireframe mode
 #env = Environment('land-1/trees', fastmode=False)
-env = Environment('/home/rbailonr/src/fire-rs-saop/morse_sim/terrain.blend', fastmode=False)
+os.chdir(os.path.dirname(__file__))
+workdir = os.getcwd()
+env = Environment(os.path.join(workdir, 'terrain.blend'), fastmode=False)
 env.set_camera_location([0, 0, 100])
 env.set_camera_rotation([0, 0, -np.pi])
