@@ -131,10 +131,12 @@ class World:
         self._wind_maps = {'domainAverageInitialization': {},
                            'pointInitialization': {},
                            'wxModelInitialization': {}}
+        self.dem_wind_tile_split = 4
+
         # Wind maps is a collection of wind scenarios, sorted by initialization method.
         # For domainAverageInitialization maps are sorted by (speed, direction)
-
-        domain_scenario = WindNinjaCLI()
+        pixel_res = self._elevation_map.pixel_size
+        domain_scenario = WindNinjaCLI(mesh_resolution=pixel_res)
         domain_scenario.add_arguments(**WindNinjaCLI.domain_average_args(0, 0))
         domain_scenario.add_arguments(**WindNinjaCLI.output_type_args())
         domain_scenario.set_output_path(self._wind_path)
@@ -264,7 +266,8 @@ class World:
             if wind_map is None:  # create a new wind map for this domain average
                 windninja = WindNinjaCLI(cli_arguments=self._windninja_domain.args)
                 windninja.add_arguments(**{'input_speed': dom_av[0], 'input_direction': dom_av[1]})
-                wind_map = WindMap([], self._elevation_map, windninja)
+                wind_map = WindMap([], self._elevation_map, windninja,
+                                   dem_tile_split=self.dem_wind_tile_split)
                 self._wind_maps['domainAverageInitialization'][dom_av] = wind_map
 
             if isinstance(position[0], numbers.Number) and isinstance(position[1],

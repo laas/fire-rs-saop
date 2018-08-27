@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # DEM tiles are to big to allow computing the wind on the whole tile.
 # the following factor is used to split the tile on both axis to build
 # smaller DEM tiles to feed windninja
-_DEM_TILE_SPLIT = 4
+_DEFAULT_DEM_TILE_SPLIT = 4
 
 WINDNINJA_CLI_PATH = os.environ['WINDNINJA_CLI_PATH'] \
     if 'WINDNINJA_CLI_PATH' in os.environ else '/home/rbailonr/bin/windninja_cli'
@@ -63,7 +63,7 @@ def trigo_angle_to_geo_angle(angles):
 class WindMap(DigitalMap):
     """Wind map associated to an elevation map."""
 
-    def __init__(self, tiles, elevation_map, windninja):
+    def __init__(self, tiles, elevation_map, windninja, dem_tile_split=_DEFAULT_DEM_TILE_SPLIT):
         """Initialise WindMap.
 
         :param tiles: Sequence of WindTiles
@@ -75,6 +75,8 @@ class WindMap(DigitalMap):
 
         self.scenario = windninja.args
         self.windninja_cli = windninja
+
+        self.dem_tile_split = dem_tile_split
 
         sce_list = []
         if self.scenario['initialization_method'] == 'domainAverageInitialization':
@@ -104,19 +106,19 @@ class WindMap(DigitalMap):
 
         # find in which subpart of the elevation tile this location is
         xi = int((x - base_tile.border_x_min) / (
-                base_tile.border_x_max - base_tile.border_x_min) * _DEM_TILE_SPLIT)
+                base_tile.border_x_max - base_tile.border_x_min) * self.dem_tile_split)
         yi = int((y - base_tile.border_y_min) / (
-                base_tile.border_y_max - base_tile.border_y_min) * _DEM_TILE_SPLIT)
+                base_tile.border_y_max - base_tile.border_y_min) * self.dem_tile_split)
 
         # build tile names of this wind scenario and subpart of the DEM tile
         tile_name = os.path.splitext(os.path.split(base_tile.filenames[0])[1])[0] + \
-                    '[{0}%{2},{1}%{2}]'.format(xi, yi, _DEM_TILE_SPLIT)
+                    '[{0}%{2},{1}%{2}]'.format(xi, yi, self.dem_tile_split)
         dem_file_name = os.path.join(self.scenario['output_path'], tile_name + '.tif')
 
         # save smaller DEM tile if it does not exists yet
         if not os.path.exists(dem_file_name):
-            dem = base_tile.as_geo_data().split(_DEM_TILE_SPLIT, 1)[xi].split(
-                1, _DEM_TILE_SPLIT)[yi]
+            dem = base_tile.as_geo_data().split(self.dem_tile_split, 1)[xi].split(
+                1, self.dem_tile_split)[yi]
             assert position in dem
             dem.write_to_file(dem_file_name)
 
@@ -159,8 +161,8 @@ class WindMap(DigitalMap):
             [p in self.elevation_map for p in itertools.product((x_min, x_max), (y_min, y_max))]), \
             'The requested rectangle is not contained in the known DEM tiles'
         sample_tile = self.elevation_map.tile_of_location((x_min, y_min))
-        subtile_width = (
-                                    sample_tile.x_max - sample_tile.x_min + sample_tile.x_delta) / _DEM_TILE_SPLIT
+        subtile_width = \
+            (sample_tile.x_max - sample_tile.x_min + sample_tile.x_delta) / self.dem_tile_split
 
         # round x/y to cell centers
         (x_min, y_min) = self.elevation_map.tile_of_location(
@@ -200,13 +202,13 @@ class WindTile(RasterTile):
 
 class WindNinjaCLI():
 
-    def __init__(self, path=WINDNINJA_CLI_PATH, cli_arguments=None):
+    def __init__(self, path=WINDNINJA_CLI_PATH, mesh_resolution=25, cli_arguments=None):
         self.windninja_path = path
         self.args = {}  # dict(arg, value)
         num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2
         self.add_arguments(num_threads=num_threads,
                            output_speed_units='mps',
-                           mesh_resolution=25,  # ¡! Conflicts with mesh_choice
+                           mesh_resolution=int(mesh_resolution),  # ¡! Conflicts with mesh_choice
                            units_mesh_resolution='m',
                            write_ascii_output='true')
         if cli_arguments is not None:
