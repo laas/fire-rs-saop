@@ -83,6 +83,6 @@ drone.add_default_interface('socket')
 # set 'fastmode' to True to switch to wireframe mode
 #env = Environment('land-1/trees', fastmode=False)
 workdir = os.getcwd()
-env = Environment(os.path.join(workdir, 'terrain.blend'), fastmode=False)
+env = Environment(os.path.join(workdir, 'environment', 'terrain_fire.blend'), fastmode=False)
 env.set_camera_location([0, 0, 100])
 env.set_camera_rotation([0, 0, -np.pi])
