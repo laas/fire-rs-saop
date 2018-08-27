@@ -72,6 +72,11 @@ class DigitalMap:
             prev_x_min = t.x_min
         return arranged_list
 
+    @property
+    def pixel_size(self):
+        """Get the pixel size of the underlying tiles (assuming square pixels)"""
+        return self._tiles[0][0].x_delta
+
     def get_value(self, position):
         """Get the value corresponding to a position."""
         for horizontal_tiles in self._tiles:
