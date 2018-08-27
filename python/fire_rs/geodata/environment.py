@@ -145,6 +145,8 @@ class World:
     def _load_elevation_tiles(self):
         for f in os.scandir(self._elevation_path):
             if f.is_file():
+                if f.name.endswith(".aux.xml"):
+                    continue
                 try:
                     tile = ElevationTile(f.path)
                     self._elevation_map.add_tile(tile)
@@ -156,6 +158,8 @@ class World:
     def _load_landcover_tiles(self):
         for f in os.scandir(self._landcover_path):
             if f.is_file():
+                if f.name.endswith(".aux.xml"):
+                    continue
                 try:
                     tile = LandCoverTile(f.path)
                     self._landcover_map.add_tile(tile)
