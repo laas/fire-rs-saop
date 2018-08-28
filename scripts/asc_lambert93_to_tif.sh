@@ -5,7 +5,7 @@ for FILE in $FILES; do
     if [ -f $OUTFILE ]; then
         echo "Skipping $FILE"
     else
-        gdal_translate -of GTiff -a_srs "EPSG:2154" $FILE $OUTFILE
+        gdal_translate -co compress=lzw -of GTiff -a_srs "EPSG:2154" $FILE $OUTFILE
     fi
 done
 
