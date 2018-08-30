@@ -86,13 +86,14 @@ class DigitalMap:
 
     def get_values(self, positions_intervals):
         ((x_min, x_max), (y_min, y_max)) = positions_intervals
-
+        assert x_min < x_max
+        assert y_min < y_max
         # gather concerned tiles
         tiles = []
         for xtiles in self._tiles:
             for tile in xtiles:
-                if (tile.border_x_max > x_min and tile.border_x_min < x_max) and (
-                        tile.border_y_max > y_min and tile.border_y_min < y_max):
+                if (tile.border_x_max >= x_min and tile.border_x_min <= x_max) and (
+                        tile.border_y_max >= y_min and tile.border_y_min <= y_max):
                     tiles.append(tile)
         local_tilemap = DigitalMap._arrange_tiles(tiles)
 
