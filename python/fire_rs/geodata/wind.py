@@ -90,8 +90,8 @@ class WindMap(DigitalMap):
                 sce_list.append(''.join([self.scenario['hour'],
                                          self.scenario['minute']]))
 
-            sce_list.append(''.join([str(self.scenario['mesh_resolution']),
-                                     self.scenario['units_mesh_resolution']]))
+            sce_list.append(''.join([str(self.scenario['ascii_out_resolution']),
+                                     self.scenario['units_ascii_out_resolution']]))
 
         self.scenario_str = '_'.join(sce_list)  # part of WindNinja output file(s)
 
@@ -202,16 +202,21 @@ class WindTile(RasterTile):
 
 class WindNinjaCLI():
 
-    def __init__(self, path=WINDNINJA_CLI_PATH, mesh_resolution=25, cli_arguments=None):
+    def __init__(self, path=WINDNINJA_CLI_PATH, ascii_out_resolution=25, cli_arguments=None):
         self.windninja_path = path
         self.args = {}  # dict(arg, value)
         num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2
         self.add_arguments(num_threads=num_threads,
                            output_speed_units='mps',
-                           mesh_resolution=int(mesh_resolution),  # ¡! Conflicts with mesh_choice
+                           ascii_out_resolution=int(ascii_out_resolution),
+                           units_ascii_out_resolution='m',
                            units_mesh_resolution='m',
                            write_ascii_output='true')
         if cli_arguments is not None:
+            if 'mesh_resolution' not in cli_arguments and 'mesh_choice' not in cli_arguments:
+                # mesh_choice
+                # ¡! mesh_resolution conflicts with mesh_choice
+                cli_arguments['mesh_resolution'] = int(ascii_out_resolution)
             self.add_arguments(**cli_arguments)
 
     def args_str(self):

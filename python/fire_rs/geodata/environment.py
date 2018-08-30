@@ -27,12 +27,12 @@ import os
 import numbers
 import numpy as np
 
+import fire_rs.firemodel.environment as fire_env
+
 from fire_rs.geodata.elevation import ElevationMap, ElevationTile
 from fire_rs.geodata.landcover import LandCoverMap, LandCoverTile
 from fire_rs.geodata.wind import WindMap, WindNinjaCLI
 from fire_rs.geodata.geo_data import GeoData, Area
-
-import fire_rs.firemodel.environment as fire_env
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class World:
 
     def __init__(self, elevation_path=DEFAULT_FIRERS_DEM_DATA, wind_path=DEFAULT_FIRERS_WIND_DATA,
                  landcover_path=DEFAULT_FIRERS_LANDCOVER_DATA,
-                 landcover_to_fuel_remap=CONSTANT_FUELMODEL_REMAP):
+                 landcover_to_fuel_remap=CONSTANT_FUELMODEL_REMAP, wind_mesh_resolution='fine'):
         self._elevation_path = os.path.abspath(elevation_path)
         self._elevation_map = ElevationMap([])
         self._load_elevation_tiles()
@@ -135,8 +135,20 @@ class World:
 
         # Wind maps is a collection of wind scenarios, sorted by initialization method.
         # For domainAverageInitialization maps are sorted by (speed, direction)
+
+        # Output resolution must be the same as the DEM resolution for this world.
+        # However, the mesh resolution for windninja has to be quite coarse in order to have
+        # simulations completed in reasonable time.
         pixel_res = self._elevation_map.pixel_size
-        domain_scenario = WindNinjaCLI(mesh_resolution=pixel_res)
+        mesh_resolution = pixel_res if not wind_mesh_resolution else wind_mesh_resolution
+        cli_arguments = {}
+        if isinstance(mesh_resolution, str):
+            cli_arguments['mesh_choice'] = mesh_resolution
+        elif isinstance(mesh_resolution, numbers.Number):
+            cli_arguments['mesh_resolution'] = mesh_resolution
+
+        domain_scenario = WindNinjaCLI(ascii_out_resolution=pixel_res,
+                                       cli_arguments=cli_arguments)
         domain_scenario.add_arguments(**WindNinjaCLI.domain_average_args(0, 0))
         domain_scenario.add_arguments(**WindNinjaCLI.output_type_args())
         domain_scenario.set_output_path(self._wind_path)
@@ -227,13 +239,11 @@ class World:
 
         # compute elevation change on x and y direction, cf:
         # http://desktop.arcgis.com/fr/arcmap/10.3/tools/spatial-analyst-toolbox/how-slope-works.htm
-        dzdx = rolled(-1, -1) + 2 * rolled(-1, 0) + rolled(-1, 1) - rolled(1, -1) - 2 * rolled(1,
-                                                                                               0) - rolled(
-            1, -1)
+        dzdx = rolled(-1, -1) + 2 * rolled(-1, 0) + rolled(-1, 1) - \
+               rolled(1, -1) - 2 * rolled(1, 0) - rolled(1, -1)
         dzdx /= (8 * dem.cell_width)
-        dzdy = rolled(1, 1) + 2 * rolled(0, 1) + rolled(-1, 1) - rolled(1, -1) - 2 * rolled(0,
-                                                                                            -1) - rolled(
-            -1, -1)
+        dzdy = rolled(1, 1) + 2 * rolled(0, 1) + rolled(-1, 1) - \
+               rolled(1, -1) - 2 * rolled(0, -1) - rolled(-1, -1)
         dzdy /= (8 * dem.cell_width)
 
         # get percentage of slope and the direction of raise and save them as GeoData
