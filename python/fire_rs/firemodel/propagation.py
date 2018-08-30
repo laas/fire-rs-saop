@@ -65,6 +65,9 @@ class Environment:
         elevation = self._world.get_elevation(area)
         slope = self._world.get_slope(area)
         wind = self._world.get_wind(area, domain_average=(wind_speed, wind_dir))
+        # When output resolution doesn't match the internal simulation res.
+        # then the final raster is a bit bigger than the initial one. Just crop it
+        wind.data = wind.data[:elevation.data.shape[0], :elevation.data.shape[1], ...]
         moisture = slope.clone(fill_value=env.get_moisture_scenario_id('D1L1'),
                                dtype=[('moisture', 'int32')])
         fuel = self._world.get_fuel_type(area)

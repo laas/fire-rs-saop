@@ -134,6 +134,9 @@ class WindMap(DigitalMap):
         if not (os.path.exists(windfile_paths[0]) and os.path.exists(windfile_paths[1])):
             self._run_windninja(dem_file_name)
 
+        # FIXME: Crop asc files to dem col and row count.
+        # WindNinja results are bigger than the input
+
         return WindTile(windfile_paths)
 
     def _run_windninja(self, elevation_file: str):
