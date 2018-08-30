@@ -289,8 +289,9 @@ class GeoData:
             origin_y = self.y_offset - self.cell_height / 2  # + array.shape[1] * pixelHeight
         else:
             # workaround a wind ninja bug that does not work with non-negative cell height
-            # hence, we invert our matrix on the y axis to have a negative cell_height
-            data = self.data.transpose()[..., ::-1]
+            # hence, we invert our matrix on the y axis (x axis after transpose)
+            # to have a negative cell_height
+            data = self.data.transpose()[::-1, ...]
             cell_height = - self.cell_height
             origin_y = self.y_offset + self.data.shape[1] * self.cell_height - self.cell_height / 2
 
