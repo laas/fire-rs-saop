@@ -131,7 +131,7 @@ class World:
         self._wind_maps = {'domainAverageInitialization': {},
                            'pointInitialization': {},
                            'wxModelInitialization': {}}
-        self.dem_wind_tile_split = 4
+        self.dem_wind_tile_split = 1
 
         # Wind maps is a collection of wind scenarios, sorted by initialization method.
         # For domainAverageInitialization maps are sorted by (speed, direction)
