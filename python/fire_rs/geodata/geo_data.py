@@ -309,6 +309,40 @@ class GeoData:
             outband.FlushCache()
         out_raster.SetProjection(self.projection.ExportToWkt())
 
+    def write_to_image_file(self, filename: str, layer_name):
+        """Writes to PNG file."""
+
+        layers = self.data.dtype.names if layer_name is None else [layer_name]
+
+        if self.cell_height < 0:
+            data = self.data.transpose()  # in "image" files, rows and columns are inverted
+            cell_height = self.cell_height
+            origin_y = self.y_offset - self.cell_height / 2  # + array.shape[1] * pixelHeight
+        else:
+            # workaround a wind ninja bug that does not work with non-negative cell height
+            # hence, we invert our matrix on the y axis to have a negative cell_height
+            data = self.data.transpose()[::-1, ...]
+            cell_height = - self.cell_height
+            origin_y = self.y_offset + self.data.shape[1] * self.cell_height - self.cell_height / 2
+
+        cols = data.shape[1]
+        rows = data.shape[0]
+        origin_x = self.x_offset - self.cell_width / 2
+
+        driver_mem = gdal.GetDriverByName('MEM')
+
+        mem_raster = driver_mem.Create(filename, cols, rows, len(layers), gdal.GDT_UInt16)
+        mem_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
+        for i, layer in enumerate(layers):
+            outband = mem_raster.GetRasterBand(i + 1)
+            outband.WriteArray(data[layer])
+            outband.SetDescription(layer)  # apparently not visible in QGIS, maybe there is a better alternative
+            outband.FlushCache()
+        mem_raster.SetProjection(self.projection.ExportToWkt())
+
+        driver_png = gdal.GetDriverByName('PNG')
+        driver_png.CreateCopy(filename, mem_raster, True, ["WORLDFILE=YES"])
+
     @classmethod
     def load_from_file(cls, filename: str):
         handle = gdal.Open(filename)
