@@ -229,7 +229,10 @@ class World:
         ((x_min, x_max), (y_min, y_max)) = area
 
         # extract DEM on a slightly large area to avoid border effects
-        dem = self.get_elevation([[x_min - 25, x_max + 25], [y_min - 25, y_max + 25]])
+        dem = self.get_elevation([[x_min - self._elevation_map.pixel_size,
+                                   x_max + self._elevation_map.pixel_size],
+                                  [y_min - self._elevation_map.pixel_size,
+                                   y_max + self._elevation_map.pixel_size]])
         z = dem.data.view(np.float64)
         assert dem.data.shape == z.shape, 'Apparently, the returned DEM is not an array of float'
 
