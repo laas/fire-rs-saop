@@ -139,14 +139,14 @@ class GeoData:
 
     def array_index(self, coordinates: Point) -> Union[Cell, Tuple[int, int]]:
         (x, y) = coordinates
-        xi = int(round((x - (self.x_offset - self.cell_width / 2)) / self.cell_width))
-        yi = int(round((y - (self.y_offset - self.cell_height / 2)) / self.cell_height))
+        xi = int(round((x - self.x_offset) / self.cell_width))
+        yi = int(round((y - self.y_offset) / self.cell_height))
         return Cell(xi, yi)
 
     def coordinates(self, indices: Cell) -> Point:
         (xi, yi) = indices
-        x = self.x_offset + self.cell_width / 2 + xi * self.cell_width
-        y = self.y_offset + self.cell_height / 2 + yi * self.cell_height
+        x = self.x_offset + xi * self.cell_width
+        y = self.y_offset + yi * self.cell_height
         return Point(x, y)
 
     def append_right(self, other: 'GeoData') -> 'GeoData':
