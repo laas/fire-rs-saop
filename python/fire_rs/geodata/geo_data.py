@@ -132,6 +132,8 @@ class GeoData:
             return reduce(lambda x, y: x.combine(y), unary_slices[1:], unary_slices[0])
 
     def subset(self, area: Area) -> 'GeoData':
+        # FIXME: This function does not crop correctly some geodata.
+        # 'area' seems not to be taken as an extent
         (xi_min, yi_min) = self.array_index(Point(area.xmin, area.ymin))
         (xi_max, yi_max) = self.array_index(Point(area.xmax, area.ymax))
         ary = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1]

@@ -256,7 +256,11 @@ class World:
         rd = dem.clone(np.array(raise_dir, dtype=[('raise_dir', 'float64')]))
 
         # combine slope and raise direction into one GeoData and fit it to the area originally asked
-        return sp.combine(rd).subset(Area(x_min, x_max, y_min, y_max))
+        result = sp.combine(rd)
+        result.data = result.data[1:dem.data.shape[0]-1, 1:dem.data.shape[1]-1, ...]
+        result.max_x -= 2
+        result.max_y -= 2
+        return result
 
     def get_wind(self, position, **kwargs) -> 'GeoData':
         """Get wind for a specific wind scenario.
