@@ -21,7 +21,9 @@ class MorseWildfire:
         self.fire_map = fire_gd
         self.layer = layer
 
-        self.fire_image = np.zeros(self.fire_map.data.shape, dtype=np.uint8)
+        self.color = (255, 255, 255)
+
+        self.fire_image = np.zeros((*self.fire_map.data.shape, 3), dtype=np.uint8)
 
         self.morse_conn = None  # type: Optional[pymorse.Morse]
 
@@ -32,7 +34,7 @@ class MorseWildfire:
             self.morse_conn.close(*args)
 
     def _update_fire_image(self, time: 'float'):
-        fire_image = np.zeros(self.fire_map.data.shape, dtype=np.uint8)
+        fire_image = np.zeros((*self.fire_map.data.shape, 3), dtype=np.uint8)
         # Create contour with scikit-image
         contours = skimage.measure.find_contours(self.fire_map.data[self.layer], time)
         # Print contour as binary image
@@ -40,7 +42,7 @@ class MorseWildfire:
             for pt_i in range(len(contour)):
                 rr, cc = skimage.draw.line(*np.asarray(contour[pt_i - 1], dtype=int),
                                            *np.asarray(contour[pt_i], dtype=int))
-                fire_image[rr, cc] = 255
+                fire_image[rr, cc] = self.color
 
         self.fire_image = fire_image
 
