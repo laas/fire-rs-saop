@@ -26,7 +26,7 @@ drone = RMax("drone")
 
 # The list of the main methods to manipulate your components
 # is here: http://www.openrobots.org/morse/doc/stable/user/builder_overview.html
-drone.translate(0, 0, 3000)
+drone.translate(0, 0, 2400)
 drone.rotate(0.0, 0.0, 0)
 
 # Add a motion controller
@@ -84,5 +84,7 @@ drone.add_default_interface('socket')
 #env = Environment('land-1/trees', fastmode=False)
 workdir = os.getcwd()
 env = Environment(os.path.join(workdir, 'environment', 'demo_wildfire.blend'), fastmode=False)
-env.set_camera_location([0, 0, 100])
+env.set_camera_location([0, 0, 2500])
+env.set_camera_clip(0.1, 3000)
+env.set_camera_speed(100)
 env.set_camera_rotation([0, 0, -np.pi])
