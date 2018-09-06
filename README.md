@@ -34,6 +34,7 @@ A GNU/Linux operating system with:
     * numpy
     * pybind11
     * pytz
+    * scikit-image
     * ...
 
 Optionally:

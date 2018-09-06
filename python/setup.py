@@ -47,7 +47,8 @@ setup(
                       'numpy',
                       'pandas',
                       'pybind11',
-                      'pytz'],
+                      'pytz',
+                      'scikit-image'],
     ext_modules=[
         Extension("fire_rs.firemodel.rothermel", sources=["fire_rs/firemodel/rothermel.pyx"]),
         Extension("fire_rs.firemodel.environment", sources=["fire_rs/firemodel/environment.pyx"]),
