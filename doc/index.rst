@@ -9,6 +9,8 @@ Contents:
    firemodel
    
    geodata
+   
+   simulation
   
 ``libsaop`` python interface:
 
