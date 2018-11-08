@@ -95,7 +95,7 @@ class VNSConfDB(Mapping):
 class SAOPPlannerConf(Mapping):
     """SAOP Planner configuration builder"""
 
-    def __init__(self, fligth_window: 'Tuple[float, float]', vnsconf: 'Dict',
+    def __init__(self, fligth_window: 'Tuple[float, float]', vnsconf: 't.Mapping',
                  max_planning_time: 'Optional[float]' = None, save_improvements: 'bool' = False,
                  save_every: 'int' = 0):
         self._conf = {
@@ -157,7 +157,8 @@ class UAVConf:
 
     @classmethod
     def x8(cls, unit: str = "00"):
-        return cls("-".join(("x8", unit)), max_air_speed=17., max_angular_velocity=32. / 180. * np.pi * .5,
+        return cls("-".join(("x8", unit)), max_air_speed=17.,
+                   max_angular_velocity=32. / 180. * np.pi * .5,
                    max_pitch_angle=6. / 180. * np.pi, max_flight_time=3000.)
 
     @classmethod
