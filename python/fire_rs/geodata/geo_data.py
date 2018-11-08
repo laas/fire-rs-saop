@@ -51,7 +51,7 @@ class GeoData:
 
     def __init__(self, array, x_offset, y_offset, cell_width, cell_height):
         assert cell_width > 0 and cell_height > 0, 'Origin must be on left-bottom'
-        self.data = array  # type: 'np.ndarray'
+        self.data = array  # type: 'np.array'
         self.x_offset = x_offset
         self.y_offset = y_offset
         self.cell_width = cell_width
