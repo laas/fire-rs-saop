@@ -59,8 +59,9 @@ class SituationAssessmentNode:
         self.sa_lock = threading.Lock()
 
         self.wildfire_id = str(uuid.uuid4())
+        self.last_elevation_id = ""
 
-        self.horizon = datetime.timedelta(hours=3)
+        self.horizon = rospy.Duration(4 * 60 * 60)
 
         self.pub_wildfire_pred = rospy.Publisher('wildfire_prediction',
                                                  PredictedWildfireMap,
@@ -81,7 +82,7 @@ class SituationAssessmentNode:
 
     def propagate(self):
         with self.sa_lock:
-            until = datetime.datetime.now() + self.horizon
+            until = datetime.datetime.fromtimestamp((rospy.Time.now() + self.horizon).to_sec())
             self.sa.assess_until(until)
             w = self.sa.wildfire
             w_uuid = self.wildfire_id
@@ -98,11 +99,23 @@ class SituationAssessmentNode:
                                     wildfire_id=w_id, prediction_id=p_id,
                                     last_valid=rospy.Time(secs=int(until.timestamp())),
                                     raster=serialization.raster_msg_from_geodata(p, 'ignition'))
-        elevation = ElevationMap(header=rospy.Header(stamp=rospy.Time.now()),
-                                 raster=serialization.raster_msg_from_geodata(self.sa.environment.raster, 'elevation'))
         self.pub_wildfire_pred.publish(pred)
         self.pub_wildfire_obs.publish(obs)
-        self.pub_elevation.publish(elevation)
+
+        if self.sa.elevation_id != self.last_elevation_id:
+            # pub_elevation is latching, don't bother other nodes with unnecessary elevation updates
+            elevation = ElevationMap(header=rospy.Header(stamp=rospy.Time.now()),
+                                     elevation_id=self.sa.elevation_id,
+                                     raster=serialization.raster_msg_from_geodata(
+                                         self.sa.elevation, 'elevation'))
+            self.pub_elevation.publish(elevation)
+            self.last_elevation_id = self.sa.elevation_id
+
+        g = GeoDataDisplay.pyplot_figure(p)
+        g.draw_ignition_shade()
+        g.figure.savefig("fuego.svg")
+
+        rospy.loginfo("Wildfire propagation publishing ended")
 
     def on_mean_wind(self, msg: MeanWindStamped):
         with self.sa_lock:
