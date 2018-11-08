@@ -365,103 +365,73 @@ class SituationAssessment:
         self._predicted_wildfire_id = str(uuid.uuid4())
         self.logger.info("Propagation ended")
 
-#
-# class ObservationPlanning:
-#     """Create monitoring plans for a wildfire alarm"""
-#
-#     def __init__(self, hangar: Hangar, logger: logging.Logger):
-#         self.hangar = hangar
-#         self._registered_alarms = {}
-#         self.logger = logger
-#
-#         self._planning_environment = None  # type: ty.Optional[planning.PlanningEnvironment]
-#
-#         self._planning_environment_changed = False
-#         self._fire_propagation_changed = False
-#
-#     @property
-#     def planning_environment(self):
-#         return self._planning_environment
-#
-#     def set_environment(self, value):
-#         self._planning_environment = planning.PlanningEnvironment(self.area,
-#                                                                   wind_speed=self.ground_wind[0],
-#                                                                   wind_dir=self.ground_wind[1],
-#                                                                   planning_elevation_mode='flat',
-#                                                                   flat_altitude=200)
-#
-#     def set_fire_propagation(self, value):
-#         self._planning_environment_changed = True
-#
-#     def replan_response(self, alarm: Alarm,
-#                         uav_fleet_location: ty.Dict[str, planning.Waypoint],
-#                         expected_situation: ty.Optional[ty.Tuple[
-#                             planning.PlanningEnvironment, propagation.FirePropagation]] = None,
-#                         horizon: datetime.timedelta = DEFAULT_HORIZON) \
-#             -> AlarmResponse:
-#         return self.respond_to_alarm(alarm, expected_situation, datetime.timedelta(seconds=30),
-#                                      horizon, uav_fleet_location)
-#
-#     def respond_to_alarm(self, alarm: Alarm,
-#                          expected_situation: ty.Optional[ty.Tuple[
-#                              planning.PlanningEnvironment, propagation.FirePropagation]] = None,
-#                          takeoff_delay: datetime.timedelta = datetime.timedelta(minutes=1),
-#                          horizon: datetime.timedelta = DEFAULT_HORIZON,
-#                          uav_fleet_initial_base: ty.Dict[str, planning.Waypoint] = None) \
-#             -> AlarmResponse:
-#         """Compute an AlarmResponse to an alarm.
-#
-#         Arguments:
-#             alarm: wildfire alarm
-#             expected_situation: A precomputed pair of PlanningEnvironment and FirePropagation
-#                 of the alarm.
-#             takeoff_delay: time when the UAVs are expected to take off
-#             horizon: duration of the monitoring mission
-#         """
-#         # Get the area including the alarm ignition points and the UAV bases
-#         planning_env = expected_situation[0]
-#         fire_prop = expected_situation[1]
-#
-#         # Do vehicle allocation before planning
-#         # Assign 1 vehicle per ignition point in the alarm
-#         # More inteligent resource allocation can be done in the future
-#         # For instance measure fire area and precalculate how many UAVs we would need to cover it
-#         f_confs = []
-#         uav_allocation = {}
-#         v = self.hangar.vehicles
-#         fl_window = (np.inf, -np.inf)
-#
-#         for ignition, (traj_i, vehicle) in zip(alarm[1], enumerate(v)):
-#             base_waypoint = self.hangar.bases[vehicle]
-#             if uav_fleet_initial_base is not None:
-#                 base_waypoint = uav_fleet_initial_base[vehicle]
-#             f_conf = planning.FlightConf(uav=self.hangar.uavconfs()[vehicle],
-#                                          start_time=(alarm[0] + takeoff_delay).timestamp(),
-#                                          base_waypoint=base_waypoint,
-#                                          finalbase_waypoint=self.hangar.bases[vehicle],
-#                                          wind=planning_env.area_wind)
-#             fl_window = (min(fl_window[0], f_conf.start_time),
-#                          max(fl_window[1], f_conf.start_time + f_conf.max_flight_time))
-#             uav_allocation[traj_i] = vehicle
-#             f_confs.append(f_conf)
-#
-#         # The VNS planning strategy is fixed
-#         # Planning time is proportional to the number of UAV trajectories to be planned
-#         # Do not save intermediate plans
-#         saop_conf = planning.SAOPPlannerConf(fl_window, planning.VNSConfDB.demo_db()["demo"],
-#                                              max_planning_time=10.0 * len(alarm[1]),
-#                                              save_improvements=False, save_every=0)
-#
-#         # Plan considering all the previous configuration and data
-#         planner = planning.Planner(planning_env, fire_prop.prop_data, f_confs, saop_conf)
-#         sr = planner.compute_plan()
-#
-#         self._registered_alarms[str(alarm[0])] = AlarmResponse(alarm, planning_env, fire_prop,
-#                                                                uav_allocation, f_confs,
-#                                                                saop_conf, sr)
-#         return self._registered_alarms[str(alarm[0])]
-#
-#
+
+class ObservationPlanning:
+    """Create and manage plans to observe wildfires"""
+
+    TrajectoryConf = namedtuple("TrajectoryConf", ["name", "uav_model", "start_wp", "end_wp",
+                                                   "start_time", "max_duration", "wind"])
+    DEFAULT_UAV_MODELS = {'x8-06': fire_rs.planning.planning.UAVConf.x8("06"),
+                          'x8-02': fire_rs.planning.planning.UAVConf.x8("02")}
+
+    DEFAULT_VNS_CONFS = fire_rs.planning.planning.VNSConfDB.demo_db()
+
+    def __init__(self, logger: logging.Logger,
+                 uav_models: ty.Mapping[str, fire_rs.planning.planning.UAVConf],
+                 vns_confs):
+        self.logger = logger
+        self.uav_models = uav_models
+
+        # TODO: Support more VNS confs
+        self._vns_conf_db = vns_confs
+
+        self._tagged_elevation = None  # type: ty.Tuple[str, fire_rs.geodata.geo_data.GeoData]
+        self._tagged_wildfire_map = None  # type: ty.Tuple[str, fire_rs.geodata.geo_data.GeoData]
+        self._current_planner = None  # type: fire_rs.planning.planning.SimplePlanner
+        self.current_plan = None
+
+    def set_elevation(self, id_hash: str, elevation: fire_rs.geodata.geo_data.GeoData):
+        """Replace the current elevation map by a new one"""
+        assert "elevation" in elevation.layers
+        self._tagged_elevation = (id_hash, elevation)
+
+    def set_wildfire_map(self, id_hash: str, wildfire_map: fire_rs.geodata.geo_data.GeoData):
+        """Replace the current wildfire map by a new one"""
+        assert "ignition" in wildfire_map.layers
+        self._tagged_wildfire_map = (id_hash, wildfire_map)
+
+    def initial_plan(self, name: str, wildfire_id: str, vns_conf_name: str,
+                     traj_conf: ty.Sequence[TrajectoryConf], flight_window: ty.Tuple[float, float]):
+        """Set up the planner for an initial plan"""
+        elevation_map = self._tagged_elevation[1]
+        wildfire_map = None
+        if self._tagged_wildfire_map[0] == wildfire_id:
+            wildfire_map = self._tagged_wildfire_map[1]
+        elif wildfire_id == "":
+            # When no id is requested, use the most recent wildfire map
+            wildfire_map = self._tagged_wildfire_map[1]
+
+        if wildfire_map is None:
+            raise ValueError(
+                "Wildfire id {} is not known by Observation Planning".format(wildfire_id))
+        vns_conf = self._vns_conf_db[vns_conf_name]
+
+        vns_planner_flight_confs = [fire_rs.planning.planning.FlightConf(
+            self.uav_models[c.uav_model], c.start_time,
+            fire_rs.planning.planning.Waypoint(*c.start_wp),
+            fire_rs.planning.planning.Waypoint(*c.end_wp), c.wind,
+            c.max_duration) for c in traj_conf]
+        self._current_planner = planning.SimplePlanner(name, self._tagged_elevation[1],
+                                                       self._tagged_wildfire_map[1],
+                                                       vns_planner_flight_confs, vns_conf,
+                                                       flight_window)
+
+    def compute_plan(self, planning_duration):
+        """Execute the current planner and return the final plan"""
+        self.current_plan = self._current_planner.compute_plan(planning_duration).final_plan()
+        return self.current_plan
+
+
 # class SuperSAOP:
 #     """Supervise a wildifre monitoring mission"""
 #
