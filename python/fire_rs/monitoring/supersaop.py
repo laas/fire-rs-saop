@@ -30,6 +30,7 @@ import queue
 import threading
 import typing as ty
 import datetime
+import uuid
 
 import collections
 
@@ -242,7 +243,7 @@ class AreaGenerator:
 
 
 class SituationAssessment:
-    """Evaluate the current state of a wildifre and provide fire perimeter forecasts"""
+    """Evaluate the current state of a wildfire and provide fire perimeter forecasts"""
 
     def __init__(self, area, logger: logging.Logger):
         super().__init__()
@@ -256,6 +257,9 @@ class SituationAssessment:
         self._environment = fire_rs.firemodel.propagation.Environment(
             self.area, wind_speed=self._surface_wind[0], wind_dir=self._surface_wind[
                 1])  # type: ty.Optional[fire_rs.firemodel.propagation.Environment]
+
+        self._elevation_id = str(uuid.uuid4())  # Id of the elevation map (inside self._environment)
+
         self._fire_propagation = fire_rs.firemodel.propagation.FirePropagation(
             self._environment)  # type: ty.Optional[fire_rs.firemodel.propagation.FirePropagation]
 
@@ -264,6 +268,7 @@ class SituationAssessment:
 
         self._predicted_wildfire = self._environment.raster.clone(
             fill_value=np.finfo(np.float64).max, dtype=[('ignition', 'float64')])
+        self._predicted_wildfire_id = str(uuid.uuid4())
 
         self._cells_on_fire = {}  # type: ty.MutableMapping[ty.Tuple[int, int],ty.Tuple[int, int, float]]
 
@@ -283,9 +288,9 @@ class SituationAssessment:
     def area(self):
         return self._area
 
-    @property
-    def environment(self):
-        return self._environment
+    # @property
+    # def environment(self):
+    #     return self._environment
 
     @property
     def wildfire(self):
@@ -296,6 +301,21 @@ class SituationAssessment:
     def predicted_wildfire(self):
         """Expected fire propagation"""
         return self._predicted_wildfire
+
+    @property
+    def predicted_wildfire_id(self):
+        """Expected wildfire map id"""
+        return self._predicted_wildfire_id
+
+    @property
+    def elevation(self):
+        """Elevation map"""
+        return self._environment.raster.slice("elevation")
+
+    @property
+    def elevation_id(self):
+        """Elevation map id"""
+        return self._elevation_id
 
     # def set_wildfire_map(self, to=None):
     #     """Replace or reset the observed wildfire map.
@@ -334,14 +354,15 @@ class SituationAssessment:
             del self._cells_on_fire[cell]
         self._wildfire['ignition'][cell] = np.inf
 
-    def assess_until(self, until):
+    def assess_until(self, until: datetime.datetime):
         """Compute an expected wildfire simulation from initial observations."""
         self.logger.info("Start fire propagation from until %s", until)
         self._fire_propagation = fire_rs.firemodel.propagation.FirePropagation(self._environment)
         for cf in self._cells_on_fire.values():
             self._fire_propagation.set_ignition_cell(cf)
         self._fire_propagation.propagate(until.timestamp())
-        self._predicted_wildfire = self._fire_propagation.ignitions().clone()
+        self._predicted_wildfire = self._fire_propagation.ignitions()
+        self._predicted_wildfire_id = str(uuid.uuid4())
         self.logger.info("Propagation ended")
 
 #
