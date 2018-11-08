@@ -252,6 +252,52 @@ class PlanningEnvironment(Environment):
                         ", flat_altitude=", repr(self._flat_altitude), ")"))
 
 
+class SimplePlanner:
+    """Newer (and simpler) planner interface for SuperSAOP
+
+    - Only just the necessary information is passed into
+    - Inputs are actual data
+    """
+
+    def __init__(self, name: str, elevation: GeoData,
+                 firemap: GeoData,
+                 flights: t.Sequence[FlightConf],
+                 vns_conf: t.Mapping,
+                 flight_window: t.Tuple[float, float]):
+        assert "ignition" in firemap.layers
+        assert "elevation" in elevation.layers
+        self._name = name
+        self._elevation = elevation  # type: GeoData
+        self._firemap = firemap  # type: GeoData
+        self._flight_conf_list = flights[:]  # type: t.List[FlightConf]
+        self._vns_conf = vns_conf
+        self._flight_window = flight_window
+
+        self.save_improvements = False
+        self.save_every = 0
+
+        self._search_result = None  # type: t.Optional[up.SearchResult]
+
+    @property
+    def search_result(self) -> t.Optional[up.SearchResult]:
+        return self._search_result
+
+    def compute_plan(self, planning_duration: float) -> up.SearchResult:
+        # Retrieve trajectory configurations as C++ objects
+        cpp_flights = [f.as_cpp() for f in self._flight_conf_list]
+
+        planning_conf = SAOPPlannerConf(self._flight_window, self._vns_conf, planning_duration,
+                                        self.save_improvements, self.save_every)
+
+        # Call the C++ library that calculates the plan
+        res = up.plan_vns(self._name, cpp_flights,
+                          self._firemap.as_cpp_raster('ignition'),
+                          self._elevation.as_cpp_raster('elevation'),
+                          json.dumps(dict(planning_conf)))
+        self._search_result = res
+        return res
+
+
 class Planner:
     def __init__(self, env: 'PlanningEnvironment', firemap: 'GeoData', flights: '[FlightConf]',
                  planning_conf: 'Union[Dict, SAOPPlannerConf]'):
