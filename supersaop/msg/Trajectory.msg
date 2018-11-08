@@ -1,0 +1,2 @@
+TrajectoryConf conf
+Maneuver[] maneuvers
