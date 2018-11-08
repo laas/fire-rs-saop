@@ -181,7 +181,8 @@ class FlightConf:
 
     def __init__(self, uav: UAVConf, start_time: float, base_waypoint: 'Waypoint',
                  finalbase_waypoint: 'Optional[Waypoint]' = None,
-                 wind: 'Tuple[float, float]' = (0., 0.)):
+                 wind: 'Tuple[float, float]' = (0., 0.), name: str = "unnamed_trajectory",
+                 max_flight_time: float = np.inf):
         assert start_time > 0
         self.uav = uav  # type: UAVConf
         self.base_waypoint = base_waypoint  # type: Waypoint
@@ -189,10 +190,12 @@ class FlightConf:
         self.finalbase_waypoint = finalbase_waypoint if finalbase_waypoint else base_waypoint
         self.start_time = start_time  # type: float
         self.wind = wind
+        self.name = name
+        self._max_flight_time = max_flight_time
 
     @property
     def max_flight_time(self):
-        return self.uav.max_flight_time
+        return min(self.uav.max_flight_time, self._max_flight_time)
 
     def as_cpp(self):
         return up.TrajectoryConfig(self.uav.as_cpp(), self.base_waypoint.as_cpp(),
