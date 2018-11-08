@@ -1,4 +1,29 @@
 #!/usr/bin/env python3
+
+# Copyright (c) 2018, CNRS-LAAS
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#  * Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+#  * Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import datetime
 import logging
 import threading
@@ -10,7 +35,6 @@ matplotlib.use('Gtk3Agg')
 
 import rospy
 from std_msgs.msg import String
-from geometry_msgs.msg import Pose2D
 
 from supersaop.msg import ElevationMap, PredictedWildfireMap, PropagateCmd, Raster, RasterMetaData, \
     WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped
@@ -26,6 +50,7 @@ TEST_AREA = ((480060.0, 489060.0), (6210074.0, 6217074.0))
 class SituationAssessmentNode:
 
     def __init__(self):
+        rospy.init_node('situation_assessment')
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
         self.sa = SituationAssessment(TEST_AREA, logging.getLogger(__name__))
@@ -54,15 +79,13 @@ class SituationAssessmentNode:
 
         self.assessment_th = None  # self.assessment_th = threading.Thread(None, self.propagate,                                                                   daemon=True)
 
-        rospy.init_node('situation_assessment')
-
     def propagate(self):
         with self.sa_lock:
             until = datetime.datetime.now() + self.horizon
             self.sa.assess_until(until)
             w = self.sa.wildfire
             w_uuid = self.wildfire_id
-            p_uuid = str(uuid.uuid4())
+            p_uuid = str(self.sa.predicted_wildfire_id)
             p = self.sa.predicted_wildfire.clone()
         self.emit_propagation(w, w_uuid, p, p_uuid, until)
 
@@ -87,6 +110,7 @@ class SituationAssessmentNode:
 
     def on_propagate_cmd(self, msg: PropagateCmd):
         if self.assessment_th is None:
+            rospy.loginfo("Doing wildfire propagation")
             self.propagate()
             # self.assessment_th = threading.Thread(None, self.propagate, daemon=True)
             # self.assessment_th.start()
@@ -97,7 +121,9 @@ class SituationAssessmentNode:
         # if SA is locked, new observations should be stored in a queue
         with self.sa_lock:
             # TODO: Catch IndexError
-            rospy.loginfo(msg)
+            rospy.loginfo("New fire location received (%s, %s) with time %s",
+                          str(msg.x), str(msg.y),
+                          str(datetime.datetime.fromtimestamp(msg.t.to_sec())))
             self.sa.set_point_onfire((msg.x, msg.y, msg.t.to_sec()))
             self.wildfire_id = str(uuid.uuid4())
 
@@ -119,8 +145,6 @@ def talker():
 
 if __name__ == '__main__':
     try:
-        # import ipdb
-        # ipdb.set_trace()
         sa = SituationAssessmentNode()
         rospy.spin()
     except rospy.ROSInterruptException:
