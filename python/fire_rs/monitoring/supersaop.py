@@ -636,90 +636,113 @@ class ObservationPlanning:
 #             return SuperSAOP.MissionState.ENDED, SuperSAOP.MonitoringAction.UNDECIDED
 #
 #
-# class ExecutionMonitor:
-#     """Communicate with the UAV ground control software"""
-#
-#     def __init__(self, logger: logging.Logger, hangar: Hangar):
-#
-#         self.logger = logger
-#
-#         self.imccomm = nifc.IMCComm()
-#         self.gcs = None
-#
-#         self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
-#         self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
-#         self.t_imc.run()
-#         self.t_gcs.run()
-#
-#         self.monitoring = True  # Determine wether we are monitoring
-#
-#         self.uav_state = {}
-#         self.traj_state = {}
-#
-#     def _create_gcs(self):
-#         """Create GCS object of this class.
-#         To be runned in a different thread."""
-#         self.gcs = nifc.GCS(self.imccomm, self.on_trajectory_execution_report,
-#                             self.on_uav_state_report)
-#
-#     @staticmethod
-#     def saop_plan_and_traj(neptus_plan_id: str) -> ty.Tuple[str, int]:
-#         splited = neptus_plan_id.split(sep=".")
-#         return ".".join(splited[:-1]), int(splited[-1])
-#
-#     @staticmethod
-#     def neptus_plan_id(plan_name: str, traj_id: int) -> str:
-#         return ".".join((plan_name, str(traj_id)))
-#
-#     def send_home(self, uav):
-#         """ Tell a UAV to go home"""
-#         raise NotImplementedError
-#
-#     def start_trajectory(self, plan, traj_i: int, uav: str) -> bool:
-#         """Execute a SAOP Plan 'a_plan' trajectory 'trajectory' with using the vehicle 'uav'"""
-#         # self.stop_uav(uav)
-#
-#         plan_name = ExecutionMonitor.neptus_plan_id(plan.name(), traj_i)
-#
-#         # Start the mission
-#         # FIXME: Mission start seems to fail always
-#         command_r = self.gcs.start(plan, traj_i, plan_name, uav)
-#         if command_r:
-#             self.logger.info("Mission %s for %s started", plan_name, uav)
-#             return True
-#         else:
-#             self.logger.error("Start of mission %s failed for %s failed", plan_name, uav)
-#             return False
-#
-#     def stop_uav(self, uav):
-#         # Stop previous trajectory (if any)
-#         command_r = self.gcs.stop("", uav)
-#         if command_r:
-#             self.logger.info("Mission of %s stopped", str(uav))
-#             return True
-#         else:
-#             self.logger.warning("Stop %s failed", str(uav))
-#             return False
-#
-#     def on_trajectory_execution_report(self, ter: nifc.TrajectoryExecutionReport):
-#         """Method called by the GCS to report about the state of the missions"""
-#         if self.monitoring:
-#             try:
-#                 if ter.plan_id not in self.traj_state:
-#                     self.traj_state[ter.plan_id] = queue.Queue()
-#                 self.traj_state[ter.plan_id].put(ter, block=True, timeout=1)
-#             except queue.Full:
-#                 self.logger.exception("TrajectoryExecutionReport queue timeout reached")
-#
-#     def on_uav_state_report(self, usr: nifc.UAVStateReport):
-#         """Method called by the GCS to report about the state of the UAVs"""
-#         if self.monitoring:
-#             try:
-#                 if usr.auv not in self.uav_state:
-#                     self.uav_state[usr.uav] = queue.Queue()
-#                 self.uav_state[usr.uav].put(usr, block=True, timeout=1)
-#             except queue.Full:
-#                 self.logger.exception("UAVStateReport queue timeout reached")
+class NeptusBridge:
+    """Communicate with the UAV ground control software"""
+
+    def __init__(self, logger: logging.Logger):
+
+        self.logger = logger
+
+        self.imccomm = nifc.IMCComm()
+        self.gcs = None
+
+        self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
+        self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
+        self.t_imc.run()
+        self.t_gcs.run()
+
+        self.monitoring = True  # Determine wether we are monitoring
+
+        self.uav_state = {}
+        self.traj_state = {}
+
+        self.uav_state_cb = None
+        self.traj_state_cb = None
+
+    def _create_gcs(self):
+        """Create GCS object of this class.
+        To be runned in a different thread."""
+        self.gcs = nifc.GCS(self.imccomm, self.on_trajectory_execution_report,
+                            self._on_uav_state_report)
+
+    @staticmethod
+    def saop_plan_and_traj(neptus_plan_id: str) -> ty.Tuple[str, int]:
+        splited = neptus_plan_id.split(sep=".")
+        return ".".join(splited[:-1]), int(splited[-1])
+
+    @staticmethod
+    def neptus_plan_id(plan_name: str, traj_id: int) -> str:
+        return ".".join((plan_name, str(traj_id)))
+
+    def send_home(self, uav):
+        """ Tell a UAV to go home"""
+        raise NotImplementedError
+
+    def start_trajectory(self, plan, traj_i: int, uav: str) -> bool:
+        """Execute a SAOP Plan 'a_plan' trajectory 'trajectory' with using the vehicle 'uav'"""
+        # self.stop_uav(uav)
+
+        plan_name = NeptusBridge.neptus_plan_id(plan.name(), traj_i)
+
+        # Start the mission
+        # FIXME: Mission start seems to fail always
+        command_r = self.gcs.start(plan, traj_i, plan_name, uav)
+        if command_r:
+            self.logger.info("Mission %s for %s started", plan_name, uav)
+            return True
+        else:
+            self.logger.error("Start of mission %s failed for %s failed", plan_name, uav)
+            return False
+
+    def stop_uav(self, uav):
+        # Stop previous trajectory (if any)
+        command_r = self.gcs.stop("", uav)
+        if command_r:
+            self.logger.info("Mission of %s stopped", str(uav))
+            return True
+        else:
+            self.logger.warning("Stop %s failed", str(uav))
+            return False
+
+    def set_trajectory_state_callback(self, fn):
+        """Function to be called each time a new Estimated State is received
+        :param fn: a Callable(**kwargs)
+        """
+        self.traj_state_cb = fn
+
+    def on_trajectory_execution_report(self, ter: nifc.TrajectoryExecutionReport):
+        """Method called by the GCS to report about the state of the missions"""
+        if self.traj_state_cb:
+            self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, vehicle=ter.vehicle,
+                               maneuver=ter.maneuver, manuever_eta=ter.manuever_eta,
+                               state=ter.state, last_outcome=ter.last_outcome)
+
+    def set_uav_state_callback(self, fn):
+        """Function to be called each time a new Estimated State is received
+        :param fn: a Callable(**kwargs) (time: float, uav: str,
+                                         x: float, y: float, z: float,
+                                         phi: float, theta: float, psi: float,
+                                         vx: float, vy: float, vz: float)
+        x, y and z in ENU frame"""
+        self.uav_state_cb = fn
+
+    def _on_uav_state_report(self, usr: nifc.UAVStateReport):
+        """Method called by the GCS to report about the state of the UAVs"""
+        self.uav_state[usr.uav] = usr
+        # TODO: Transform position from LatLonHeight to XYZ
+        if self.uav_state_cb:
+            self.uav_state_cb(time=usr.timestamp, uav=usr.uav,
+                              x=usr.lat, y=usr.lon, z=usr.height,
+                              phi=usr.phi, theta=usr.theta, psi=usr.psi,
+                              vx=usr.vx, vy=usr.vy, vz=usr.vz)
+
+        # if self.monitoring:
+        #     try:
+        #         if usr.uav not in self.uav_state:
+        #             self.uav_state[usr.uav] = queue.Queue()
+        #         self.uav_state[usr.uav].put(usr, block=True, timeout=1)
+        #     except queue.Full:
+        #         self.logger.exception("UAVStateReport queue timeout reached")
 #
 #
 # def draw_response(gdd: gdisplay.GeoDataDisplay,
