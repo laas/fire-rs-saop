@@ -39,7 +39,7 @@ from std_msgs.msg import String
 from supersaop.msg import ElevationMap, PredictedWildfireMap, PropagateCmd, Raster, RasterMetaData, \
     WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped
 
-from fire_rs.geodata.display import GeoDataDisplay
+from fire_rs.geodata.display import GeoData, GeoDataDisplay
 from fire_rs.monitoring.supersaop import SituationAssessment
 
 import serialization
@@ -58,8 +58,8 @@ class SituationAssessmentNode:
         # Lock from new observations while doing predictions
         self.sa_lock = threading.Lock()
 
-        self.wildfire_id = str(uuid.uuid4())
-        self.last_elevation_id = ""
+        self.last_wildfire_update = datetime.datetime.min
+        self.last_elevation_timestamp = datetime.datetime.min
 
         self.horizon = rospy.Duration(4 * 60 * 60)
 
@@ -78,38 +78,46 @@ class SituationAssessmentNode:
         self.sub_wildfire_point = rospy.Subscriber("wildfire_point", Timed2DPointStamped,
                                                    self.on_wildfire_obs_point)
 
-        self.assessment_th = None  # self.assessment_th = threading.Thread(None, self.propagate,                                                                   daemon=True)
+        self.assessment_th = None  # self.assessment_th = threading.Thread(None, self.propagate, daemon=True)
 
     def propagate(self):
         with self.sa_lock:
             until = datetime.datetime.fromtimestamp((rospy.Time.now() + self.horizon).to_sec())
             self.sa.assess_until(until)
-            w = self.sa.wildfire
-            w_uuid = self.wildfire_id
-            p_uuid = str(self.sa.predicted_wildfire_id)
-            p = self.sa.predicted_wildfire.clone()
-        self.emit_propagation(w, w_uuid, p, p_uuid, until)
 
-    def emit_propagation(self, w, w_id, p, p_id, until):
+            # Current wildfire situation
+            w = self.sa.wildfire
+            w_time = datetime.datetime.now()
+
+            # Future wildfire situation
+            p = self.sa.predicted_wildfire
+            p_time = self.sa.predicted_wildfire_timestamp
+
+            self.emit_propagation(w, w_time, p, p_time, until)
+
+    def emit_propagation(self, w: GeoData, w_timestamp: datetime.datetime, p: GeoData,
+                         p_timestamp: datetime.datetime,
+                         until: datetime.datetime):
         """Publish current situation assessment."""
-        obs = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
-                          wildfire_id=w_id,
-                          raster=serialization.raster_msg_from_geodata(w, 'ignition'))
-        pred = PredictedWildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
-                                    wildfire_id=w_id, prediction_id=p_id,
-                                    last_valid=rospy.Time(secs=int(until.timestamp())),
-                                    raster=serialization.raster_msg_from_geodata(p, 'ignition'))
+        obs = WildfireMap(
+            header=rospy.Header(stamp=rospy.Time.from_sec(w_timestamp.timestamp())),
+            raster=serialization.raster_msg_from_geodata(w, 'ignition'))
+        pred = PredictedWildfireMap(
+            header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
+            last_valid=rospy.Time.from_sec(until.timestamp()),
+            raster=serialization.raster_msg_from_geodata(p, 'ignition'))
         self.pub_wildfire_pred.publish(pred)
         self.pub_wildfire_obs.publish(obs)
 
-        if self.sa.elevation_id != self.last_elevation_id:
+        if self.sa.elevation_timestamp > self.last_elevation_timestamp:
             # pub_elevation is latching, don't bother other nodes with unnecessary elevation updates
-            elevation = ElevationMap(header=rospy.Header(stamp=rospy.Time.now()),
-                                     elevation_id=self.sa.elevation_id,
-                                     raster=serialization.raster_msg_from_geodata(
-                                         self.sa.elevation, 'elevation'))
+            elevation = ElevationMap(
+                header=rospy.Header(
+                    stamp=rospy.Time.from_sec(self.sa.elevation_timestamp.timestamp())),
+                raster=serialization.raster_msg_from_geodata(self.sa.elevation, 'elevation'))
             self.pub_elevation.publish(elevation)
-            self.last_elevation_id = self.sa.elevation_id
+            rospy.loginfo("A new Elevation Map has been generated")
+            self.last_elevation_timestamp = self.sa.elevation_timestamp
 
         g = GeoDataDisplay.pyplot_figure(p)
         g.draw_ignition_shade()
@@ -125,8 +133,6 @@ class SituationAssessmentNode:
         if self.assessment_th is None:
             rospy.loginfo("Doing wildfire propagation")
             self.propagate()
-            # self.assessment_th = threading.Thread(None, self.propagate, daemon=True)
-            # self.assessment_th.start()
         else:
             rospy.loginfo("Previous propagation has not ended")
 
@@ -138,22 +144,10 @@ class SituationAssessmentNode:
                           str(msg.x), str(msg.y),
                           str(datetime.datetime.fromtimestamp(msg.t.to_sec())))
             self.sa.set_point_onfire((msg.x, msg.y, msg.t.to_sec()))
-            self.wildfire_id = str(uuid.uuid4())
+            self.last_wildfire_update = datetime.datetime.now()
 
     # TODO: Service providing the current elevation map
     # TODO: Service providing wind
-
-
-def talker():
-    print("hello")
-    pub = rospy.Publisher('chatter', String, queue_size=10)
-
-    rate = rospy.Rate(1)  # 1 hz
-    while not rospy.is_shutdown():
-        hello_str = "hello world %s" % rospy.get_time()
-        rospy.loginfo(hello_str)
-        pub.publish(hello_str)
-        rate.sleep()
 
 
 if __name__ == '__main__':

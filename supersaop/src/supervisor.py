@@ -27,6 +27,7 @@
 import numpy as np
 
 import rospy
+from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 
 from supersaop.msg import Euler, Plan, PlanConf, PlanCmd, Trajectory, TrajectoryConf, Maneuver, \
@@ -46,13 +47,15 @@ class SupervisorNode:
         end_wp = PoseEuler(position=Point(485060.0 - 1000.0, 6214074.0 - 1000.0, 0.0),
                            orientation=Euler(.0, .0, .0))
 
-        p_conf = PlanConf(name="A stupid plan", prediction_id="",
+        p_conf = PlanConf(name="A stupid plan",
                           flight_window=(rospy.Time.from_sec(.0), rospy.Time.from_sec(4294967295)))
         t_conf = TrajectoryConf(name="One trajectory is enough", uav_model="x8-06",
                                 start_wp=start_wp, end_wp=end_wp,
                                 start_time=rospy.Time.now() + rospy.Duration.from_sec(1. * 60 * 60),
                                 max_duration=np.inf, wind=MeanWind(.0, .0))
-        p = Plan(conf=p_conf, trajectories=[Trajectory(conf=t_conf, maneuvers=[])])
+        p = Plan(header=Header(stamp=rospy.Time.now()),
+                 conf=p_conf,
+                 trajectories=[Trajectory(conf=t_conf, maneuvers=[])])
 
         plan_command = PlanCmd(vns_conf="demo", planning_duration=30.0, plan_prototype=p)
         self.pub.publish(plan_command)
@@ -70,7 +73,7 @@ if __name__ == '__main__':
         r.sleep()
         supnode.request_demo_plan()
         while not rospy.is_shutdown():
-           rospy.spin()
+            rospy.spin()
 
     except rospy.ROSInterruptException:
         pass

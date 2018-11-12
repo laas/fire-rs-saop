@@ -1,5 +1,6 @@
 # Wildfire raster
 
+# Creation time
 Header header
-string wildfire_id
+
 Raster raster

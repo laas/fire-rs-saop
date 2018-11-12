@@ -1,5 +1,6 @@
 # An elevation raster map
 
+# Creation time
 Header header
-string elevation_id
+
 Raster raster

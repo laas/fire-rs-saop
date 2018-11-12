@@ -90,7 +90,7 @@ class ObservationPlanningNode:
                     msg_tc.conf.wind.speed * np.cos(msg_tc.conf.wind.direction),
                     msg_tc.conf.wind.speed * np.sin(msg_tc.conf.wind.direction))) for msg_tc
                 in plan_prototype.trajectories]
-            self.op.initial_plan(plan_prototype.conf.name, plan_prototype.conf.prediction_id,
+            self.op.initial_plan(plan_prototype.conf.name,
                                  vns_conf_name, traj_confs, (
                                      rospy.Time.to_sec(plan_prototype.conf.flight_window[0]),
                                      rospy.Time.to_sec(plan_prototype.conf.flight_window[1])))
@@ -108,7 +108,7 @@ class ObservationPlanningNode:
                                                     orientation=Euler(.0, .0, s.start.dir)))
                                  for n, t, s in zip(names, starts, segs)]
             traj_msg.maneuvers = maneuver_msg_list
-        g = GeoDataDisplay.pyplot_figure(self.op._tagged_elevation[1])
+        g = GeoDataDisplay.pyplot_figure(self.op._elevation)
         g.add_extension(TrajectoryDisplayExtension, (None,), {})
         plot_plan_trajectories(saop_plan, g, trajectories=slice(None),
                                layers=["bases", "arrows", "trajectory_solid"])
@@ -117,17 +117,17 @@ class ObservationPlanningNode:
 
     def on_elevation_map(self, msg: ElevationMap):
         with self.op_lock:
-            rospy.loginfo("Elevation map %s received", str(msg.elevation_id))
+            rospy.loginfo("Elevation map received")
             decoded = serialization.geodata_from_raster_msg(msg.raster, layer="elevation")
             rospy.logwarn("Ignoring data from ElevationMap message. Using flat terrain")
             decoded.data["elevation"][...] = 0.
             self.op.logger.info("%s", str(decoded))
-            self.op.set_elevation(msg.elevation_id, decoded)
+            self.op.set_elevation(decoded)
 
     def on_wildfire_prediction(self, msg: PredictedWildfireMap):
         with self.op_lock:
-            rospy.loginfo("Predicted wildfire map %s received", str(msg.prediction_id))
-            self.op.set_wildfire_map(msg.prediction_id, serialization.geodata_from_raster_msg(
+            rospy.loginfo("Predicted wildfire map received")
+            self.op.set_wildfire_map(serialization.geodata_from_raster_msg(
                 msg.raster, layer="ignition"))
 
     def on_plan_cmd(self, msg: PlanCmd):
