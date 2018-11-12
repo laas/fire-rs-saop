@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  rosgraph_msgs
   message_generation
   geometry_msgs
 )
@@ -74,6 +75,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  rosgraph_msgs
 )
 
 ################################################
