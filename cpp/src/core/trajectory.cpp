@@ -44,6 +44,15 @@ namespace SAOP {
         check_validity();
     }
 
+    Trajectory::Trajectory(TrajectoryConfig config, const std::vector<TrajectoryManeuver>& maneuvers)
+    : config(std::move(config)), _maneuvers({}), _start_times({}), _man_names({}) {
+        for (const auto& m: maneuvers) {
+            _maneuvers.emplace_back(m.maneuver);
+            _start_times.emplace_back(m.time);
+            _man_names.emplace_back(m.name);
+        }
+    }
+
     void Trajectory::freeze_before(double time) {
         ASSERT(_start_times.size() > 0);
 

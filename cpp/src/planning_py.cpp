@@ -286,6 +286,12 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y, self.pt.z), self.time);
             });
 
+    py::class_<TrajectoryManeuver>(m, "TrajectoryManeuver")
+            .def(py::init<Segment3d, double, std::string>())
+            .def_readwrite("maneuver", &TrajectoryManeuver::maneuver)
+            .def_readwrite("time", &TrajectoryManeuver::time)
+            .def_readwrite("name", &TrajectoryManeuver::name);
+
     py::class_<FireData, std::shared_ptr<FireData>>(m, "FireData")
             .def(py::init<const DRaster&, const DRaster&>(), py::arg("ignitions"), py::arg("elevation"))
             .def_readonly("ignitions", &FireData::ignitions)
@@ -358,6 +364,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<Trajectory>(m, "Trajectory")
             .def(py::init<const TrajectoryConfig&>())
+            .def(py::init<TrajectoryConfig, const std::vector<TrajectoryManeuver>&>())
             .def_property_readonly("conf", &Trajectory::conf)
             .def("name", &Trajectory::name)
             .def("start_time", (double (Trajectory::*)() const) &Trajectory::start_time)
@@ -417,6 +424,7 @@ PYBIND11_MODULE(uav_planning, m) {
                         py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
+            .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow, std::vector<PositionTime>>())
             /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
             .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories()); })
             .def("name", &Plan::name)

@@ -50,11 +50,17 @@ namespace SAOP {
         vector<PointTimeWindow> possible_observations;
         vector<PositionTime> observed_previously;
 
-        Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
-             vector<PositionTime> observed_previously = {});
+        Plan(std::vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+             std::vector<PositionTime> observed_previously = {});
 
         Plan(std::string name_id, vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
-             vector<PositionTime> observed_previously = {});
+             std::vector<PositionTime> observed_previously = {});
+
+        Plan(std::string name, std::vector<Trajectory> trajectories, shared_ptr<FireData> fire_data, TimeWindow tw,
+             std::vector<PositionTime> observed_previously = {});
+
+        Plan(std::string name, Trajectories trajectories, shared_ptr<FireData> fire_data, TimeWindow tw,
+                   vector<PositionTime> observed_previously);
 
         ~Plan() = default;
 

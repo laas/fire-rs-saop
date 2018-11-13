@@ -124,6 +124,8 @@ namespace SAOP {
         /* Empty trajectory constructor */
         explicit Trajectory(const TrajectoryConfig& config);
 
+        Trajectory(TrajectoryConfig config, const std::vector<TrajectoryManeuver>& maneuvers);
+
         const TrajectoryConfig& conf() const {
             return config;
         }

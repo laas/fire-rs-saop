@@ -28,15 +28,26 @@ namespace SAOP {
 
 
     Plan::Plan(vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
-               vector<PositionTime> observed_previously) : Plan("unnamed", traj_confs, fire_data, tw,
-                                                                observed_previously) {}
+               vector<PositionTime> observed_previously) : Plan("unnamed", std::move(traj_confs), std::move(fire_data),
+                                                                tw,
+                                                                std::move(observed_previously)) {}
 
-    Plan::Plan(std::string name_id, vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fdata, TimeWindow tw,
-               vector<PositionTime> observed_previously)
-            : time_window(tw), observed_previously(observed_previously), plan_name(name_id),
-              trajs(traj_confs), fire_data(std::move(fdata)) {
-        for (auto& conf : traj_confs) {
-            ASSERT(conf.start_time >= time_window.start && conf.start_time <= time_window.end);
+    Plan::Plan(std::string name, vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+               std::vector<PositionTime> observed_previously)
+            : Plan(std::move(name), Trajectories(std::move(traj_confs)), std::move(fire_data), tw,
+                   std::move(observed_previously)) {}
+
+    Plan::Plan(std::string name, std::vector<Trajectory> trajectories, shared_ptr<FireData> fire_data, TimeWindow tw,
+               std::vector<PositionTime> observed_previously)
+            : Plan(std::move(name), Trajectories(trajectories), std::move(fire_data), tw,
+                   std::move(observed_previously)) {}
+
+    Plan::Plan(std::string name, Trajectories trajectories, shared_ptr<FireData> fire_data, TimeWindow tw,
+               std::vector<PositionTime> observed_previously)
+            : time_window(tw), observed_previously(observed_previously), plan_name(std::move(name)),
+              trajs(std::move(trajectories)), fire_data(std::move(fire_data)) {
+        for (auto& t : trajectories) {
+            ASSERT(t.conf().start_time >= time_window.start && t.conf().start_time <= time_window.end);
         }
 
         std::vector<Cell> obs_prev_cells;
