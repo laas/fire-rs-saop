@@ -45,7 +45,7 @@ namespace SAOP {
     }
 
     Trajectory::Trajectory(TrajectoryConfig config, const std::vector<TrajectoryManeuver>& maneuvers)
-    : config(std::move(config)), _maneuvers({}), _start_times({}), _man_names({}) {
+            : config(std::move(config)), _maneuvers({}), _start_times({}), _man_names({}) {
         for (const auto& m: maneuvers) {
             _maneuvers.emplace_back(m.maneuver);
             _start_times.emplace_back(m.time);
@@ -368,7 +368,7 @@ namespace SAOP {
     void Trajectory::insert_segment(const Segment3d& seg, size_t at_index) {
         std::string name = "wp" + std::to_string(UNIQUE_MAN_N);
         UNIQUE_MAN_N++;
-        insert_segment(seg, at_index,name);
+        insert_segment(seg, at_index, name);
     }
 
     void Trajectory::insert_segment(const Segment3d& seg, size_t at_index, std::string name) {

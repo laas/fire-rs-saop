@@ -50,6 +50,12 @@ namespace SAOP {
         Segment3d maneuver;
         double time;
         std::string name;
+
+        TrajectoryManeuver(Segment3d seg, double time, std::string name)
+                : maneuver(seg), time(time), name(name) {}
+
+        TrajectoryManeuver(Waypoint3d wp, double time, std::string name)
+                : maneuver(Segment3d(wp)), time(time), name(name) {}
     };
 
     static size_t UNIQUE_TRAJ_N = 0;
@@ -109,6 +115,21 @@ namespace SAOP {
             id_unique = "traj" + std::to_string(UNIQUE_TRAJ_N);
             UNIQUE_TRAJ_N++;
         }
+
+        TrajectoryConfig(std::string name,
+                         UAV uav,
+                         Waypoint3d start_position,
+                         Waypoint3d end_position,
+                         double start_time = 0,
+                         double max_flight_time = std::numeric_limits<double>::max(),
+                         WindVector wind = WindVector(0., 0.))
+                : id_unique(std::move(name)),
+                  uav(uav),
+                  start_time(start_time),
+                  start_position(std::move(start_position)),
+                  end_position(std::move(end_position)),
+                  max_flight_time(max_flight_time),
+                  wind(wind) {}
     };
 
     class Trajectory {
