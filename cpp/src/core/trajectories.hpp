@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PROJECT_TRAJECTORIES_H
 #define PROJECT_TRAJECTORIES_H
 
+#include <algorithm>
 #include <ostream>
 #include "trajectory.hpp"
 
@@ -81,6 +82,14 @@ namespace SAOP {
         void freeze_before(double time) {
             for (auto& traj : trajs)
                 traj.freeze_before(time);
+        }
+
+        void freeze_trajectory(std::string traj_name) {
+            auto f_traj = std::find_if(trajs.begin(), trajs.end(),
+                                       [&traj_name](const Trajectory& a) { return a.name() == traj_name; });
+            if (f_traj != trajs.end()) {
+                f_traj->freeze();
+            }
         }
 
         /* For every trajectory, make the maneuvers before and including 'man_id' unmodifiable */

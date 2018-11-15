@@ -483,5 +483,9 @@ namespace SAOP {
         return duration;
     }
 
+    void Trajectory::freeze() {
+        std::swap(insertion_range.start, insertion_range.end);
+        ASSERT(insertion_range.is_empty());
+    }
 
 }

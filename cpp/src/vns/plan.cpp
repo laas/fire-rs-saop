@@ -362,4 +362,8 @@ namespace SAOP {
         trajs.freeze_before(time);
     }
 
+    void Plan::freeze_trajectory(std::string traj_name) {
+        trajs.freeze_trajectory(traj_name);
+    }
+
 }

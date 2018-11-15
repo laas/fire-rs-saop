@@ -158,6 +158,8 @@ namespace SAOP {
 
         void freeze_before(double time);
 
+        void freeze_trajectory(std::string traj);
+
         void post_process() {
             project_on_fire_front();
             smooth_trajectory();

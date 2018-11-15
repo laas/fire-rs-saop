@@ -320,6 +320,8 @@ namespace SAOP {
         /* Make all the maneuvers before 'man_index' unmodifiable. 'man_index' is still modifiable'*/
         void freeze_before(size_t man_index);
 
+        void freeze();
+
         bool can_modify(size_t man_index) const;
 
         bool can_insert_at(size_t man_index) const;
