@@ -95,18 +95,14 @@ namespace SAOP {
     }
 
     SearchResult
-    replan_vns(Plan p, double after_time, std::vector<std::string> frozen_trajectories, DRaster ignitions,
-               DRaster elevation, const std::string& json_conf) {
+    plan_vns(Plan p, const std::string& json_conf,
+             double after_time = .0, std::vector<std::string> frozen_trajectories = {}) {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
             return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
         };
         json conf = json::parse(json_conf);
-        SAOP::check_field_is_present(conf, "min_time");
-//        const double min_time = conf["min_time"];
-        SAOP::check_field_is_present(conf, "max_time");
-//        const double max_time = conf["max_time"];
         SAOP::check_field_is_present(conf, "save_every");
         const size_t save_every = conf["save_every"];
         SAOP::check_field_is_present(conf, "save_improvements");
@@ -115,22 +111,68 @@ namespace SAOP {
         SAOP::check_field_is_present(conf["vns"], "max_time");
         const size_t max_planning_time = conf["vns"]["max_time"];
 
-        BOOST_LOG_TRIVIAL(debug) << "Pre-process fire data";
-        double preprocessing_start = time();
-        shared_ptr<FireData> fire_data = make_shared<FireData>(ignitions, elevation);
-        double preprocessing_end = time();
+        BOOST_LOG_TRIVIAL(debug) << "Preparing plan";
 
-        BOOST_LOG_TRIVIAL(debug) << "Build and set a new plan from last search result ";
-        p.firedata(fire_data);
+        double preprocessing_start = time();
         p.freeze_before(after_time);
         for (const auto& t_name : frozen_trajectories) {
             p.freeze_trajectory(t_name);
         }
+
         p.project_on_fire_front();
 
         auto vns_dump = conf["vns"].dump();
         BOOST_LOG_TRIVIAL(debug) << "Using VNS search conf: " << vns_dump;
         auto vns = build_from_config(vns_dump);
+        double preprocessing_end = time();
+
+        BOOST_LOG_TRIVIAL(info) << "Start planning";
+        const double planning_start = time();
+        auto res = vns->search(p, max_planning_time, save_every, save_improvements);
+        const double planning_end = time();
+
+        BOOST_LOG_TRIVIAL(info) << "Plan found in " << planning_end - planning_start << " seconds";
+        BOOST_LOG_TRIVIAL(info) << "Best plan utility: " << res.final().utility();
+        BOOST_LOG_TRIVIAL(info) << "Best plan duration: " << res.final().duration();
+        res.metadata["planning_time"] = planning_end - planning_start;
+        res.metadata["preprocessing_time"] = preprocessing_end - preprocessing_start;
+        res.metadata["configuration"] = conf;
+
+        return res;
+    }
+
+    SearchResult
+    replan_vns(Plan p, std::shared_ptr<FireData> fire_data, const std::string& json_conf,
+               double after_time, std::vector<std::string> frozen_trajectories = {}) {
+        auto time = []() {
+            struct timeval tp;
+            gettimeofday(&tp, NULL);
+            return (double) tp.tv_sec + ((double) (tp.tv_usec / 1000) / 1000.);
+        };
+        json conf = json::parse(json_conf);
+        SAOP::check_field_is_present(conf, "save_every");
+        const size_t save_every = conf["save_every"];
+        SAOP::check_field_is_present(conf, "save_improvements");
+        const bool save_improvements = conf["save_improvements"];
+        SAOP::check_field_is_present(conf, "vns");
+        SAOP::check_field_is_present(conf["vns"], "max_time");
+        const size_t max_planning_time = conf["vns"]["max_time"];
+
+        BOOST_LOG_TRIVIAL(debug) << "Preparing plan";
+
+        double preprocessing_start = time();
+        p.firedata(fire_data);
+        p.freeze_before(after_time);
+        for (const auto& t_name : frozen_trajectories) {
+            p.freeze_trajectory(t_name);
+        }
+
+        p.project_on_fire_front();
+
+        auto vns_dump = conf["vns"].dump();
+        BOOST_LOG_TRIVIAL(debug) << "Using VNS search conf: " << vns_dump;
+        auto vns = build_from_config(vns_dump);
+        double preprocessing_end = time();
 
         BOOST_LOG_TRIVIAL(info) << "Start planning";
         const double planning_start = time();
@@ -150,7 +192,8 @@ namespace SAOP {
     SearchResult
     replan_vns(SearchResult last_search, double after_time, DRaster ignitions, DRaster elevation,
                const std::string& json_conf) {
-        return replan_vns(last_search.final(), after_time, {}, ignitions, elevation, json_conf);
+        return replan_vns(last_search.final(), after_time, {}, std::make_shared<FireData>(ignitions, elevation),
+                          json_conf);
     }
 }
 
@@ -440,6 +483,8 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<Plan>(m, "Plan")
             .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow, std::vector<PositionTime>>())
+            .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow>())
+            .def(py::init<std::string, std::vector<TrajectoryConfig>, shared_ptr<FireData>, TimeWindow>())
                     /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
             .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories()); })
             .def("name", &Plan::name)
@@ -479,25 +524,27 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("sampled", &DubinsWind::sampled, py::arg("l_step"))
             .def("sampled_airframe", &DubinsWind::sampled_airframe, py::arg("l_step"));
 
-    m.def("replan_vns", (SearchResult(*)(Plan, double, std::vector<std::string>, DRaster, DRaster,
-                                         const std::string&)) SAOP::replan_vns, py::arg("plan"), py::arg("after_time"),
-          py::arg("frozen_trajectories"), py::arg("ignition_map"), py::arg("elevation_map"), py::arg("json_conf"),
-          py::call_guard<py::gil_scoped_release>());
+    m.def("replan_vns", (SearchResult(*)(Plan, std::shared_ptr<FireData> fire_data, const std::string&,
+                                         double, std::vector<std::string>)) SAOP::replan_vns,
+          py::arg("plan"), py::arg("fire_data"), py::arg("json_conf"),
+          py::arg("after_time"), py::arg("frozen_trajectories"), py::call_guard<py::gil_scoped_release>());
 
-    m.def("replan_vns", (SearchResult(*)(SearchResult, double, DRaster, DRaster,
-                                         const std::string&)) SAOP::replan_vns, py::arg("last_search_result"),
-          py::arg("after_time"), py::arg("ignition_map"), py::arg("elevation_map"), py::arg("json_conf"),
-          py::call_guard<py::gil_scoped_release>());
+    m.def("replan_vns", (SearchResult(*)(SearchResult, double, DRaster, DRaster, const std::string&)) SAOP::replan_vns,
+          py::arg("last_search_result"), py::arg("after_time"), py::arg("ignition_map"), py::arg("elevation_map"),
+          py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
 
+    m.def("plan_vns", (SearchResult(*)(Plan, const std::string&, double, std::vector<std::string>)) SAOP::plan_vns,
+          py::arg("plan"), py::arg("json_conf"), py::arg("after_time"), py::arg("frozen_trajectories"),
+          py::call_guard<py::gil_scoped_release>());
 
     m.def("plan_vns", (SearchResult (*)(vector<TrajectoryConfig>, DRaster, DRaster, const std::string&)) SAOP::plan_vns,
           py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
           py::call_guard<py::gil_scoped_release>());
 
     m.def("plan_vns", (SearchResult (*)(std::string, vector<TrajectoryConfig>, DRaster, DRaster,
-                                        const std::string&)) SAOP::plan_vns, py::arg("plan_name"),
-          py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
-          py::call_guard<py::gil_scoped_release>());
+                                        const std::string&)) SAOP::plan_vns,
+          py::arg("plan_name"), py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"),
+          py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
 }
 
 #endif //PLANNING_CPP_PYTHON_VNS_H
