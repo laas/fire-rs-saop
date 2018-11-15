@@ -261,7 +261,7 @@ namespace SAOP {
         }
 
         /* Accesses the index-th segment of the trajectory */
-        Segment3d maneuver(size_t index) const { return _maneuvers[index]; }
+        Segment3d segment(size_t index) const { return _maneuvers[index]; }
 
         // PyBind11 won't cast our opt<T> as std::experimental::optional so these functions cannot be used in python
         // FIXME: Switch to C++14 and use std::experimental::optional
@@ -269,21 +269,27 @@ namespace SAOP {
 
         opt<Segment3d> base_end() const { return config.end_position ? _maneuvers.back() : opt<Segment3d>{}; }
 
-        std::vector<std::string> maneuver_names() const { return _man_names; }
+        const std::vector<std::string>& names() const { return _man_names; }
 
         /* Only for python interface */
-        std::vector<Segment3d> maneuvers() const { return _maneuvers; };
+        const std::vector<Segment3d>& segments() const { return _maneuvers; };
 
-        std::vector<Segment3d>::const_iterator maneuvers_begin() const { return _maneuvers.begin(); };
+        std::vector<Segment3d>::const_iterator segments_begin() const { return _maneuvers.begin(); };
 
-        std::vector<Segment3d>::const_iterator maneuvers_end() const { return _maneuvers.end(); };
+        std::vector<Segment3d>::const_iterator segments_end() const { return _maneuvers.end(); };
 
         /* Only for python interface */
-        std::vector<double> start_times() const { return _start_times; };
+        const std::vector<double>& start_times() const { return _start_times; };
 
         std::vector<double>::const_iterator start_times_begin() const { return _start_times.begin(); };
 
         std::vector<double>::const_iterator start_times_end() const { return _start_times.end(); };
+
+        /* Only for python interface */
+        std::vector<std::string>::const_iterator names_begin() const { return _man_names.begin(); };
+
+        std::vector<std::string>::const_iterator names_end() const { return _man_names.end(); };
+
 
 //    /* Returns the part of a Trajectory within the IndexRange as a new Trajectory.
 //     * For each cut argument, if it is true: fixed start/end on cut
@@ -471,14 +477,14 @@ namespace SAOP {
 
     [[maybe_unused]]
     static void to_json(json& j, const Trajectory& traj) {
-        j = json{{"name", traj.name()},
-                 {"maneuver_names", traj.maneuver_names()},
-                 {"duration", traj.duration()},
-                 {"num_segments", traj.size()},
-                 {"start_time", traj.start_time()},
-                 {"start_times", traj.start_times()},
-                 {"end_time", traj.end_time()},
-                 {"maneuvers", traj.maneuvers()}};
+        j = json{{"name",           traj.name()},
+                 {"maneuver_names", traj.names()},
+                 {"duration",       traj.duration()},
+                 {"num_segments",   traj.size()},
+                 {"start_time",     traj.start_time()},
+                 {"start_times",    traj.start_times()},
+                 {"end_time",       traj.end_time()},
+                 {"segments",       traj.segments()}};
     }
 
 }

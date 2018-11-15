@@ -42,7 +42,8 @@ namespace py = pybind11;
 namespace SAOP {
 
     SearchResult
-    plan_vns(std::string name, vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
+    plan_vns(std::string name, vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation,
+             const std::string& json_conf) {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -78,7 +79,8 @@ namespace SAOP {
         auto res = vns->search(p, max_planning_time, save_every, save_improvements);
         const double planning_end = time();
 
-        BOOST_LOG_TRIVIAL(info) << "Plan \"" << p.name() << "\" found in " << planning_end - planning_start << " seconds";
+        BOOST_LOG_TRIVIAL(info) << "Plan \"" << p.name() << "\" found in " << planning_end - planning_start
+                                << " seconds";
         BOOST_LOG_TRIVIAL(info) << "Plan \"" << p.name() << "\" utility: " << res.final().utility();
         BOOST_LOG_TRIVIAL(info) << "Plan \"" << p.name() << "\" duration: " << res.final().duration();
         res.metadata["planning_time"] = planning_end - planning_start;
@@ -89,12 +91,12 @@ namespace SAOP {
 
     SearchResult
     plan_vns(vector<TrajectoryConfig> configs, DRaster ignitions, DRaster elevation, const std::string& json_conf) {
-       return plan_vns("unnamed", configs, ignitions, elevation, json_conf);
+        return plan_vns("unnamed", configs, ignitions, elevation, json_conf);
     }
 
     SearchResult
-    replan_vns(SearchResult last_search, double after_time, DRaster ignitions, DRaster elevation,
-               const std::string& json_conf) {
+    replan_vns(Plan p, double after_time, std::vector<std::string> frozen_trajectories, DRaster ignitions,
+               DRaster elevation, const std::string& json_conf) {
         auto time = []() {
             struct timeval tp;
             gettimeofday(&tp, NULL);
@@ -119,9 +121,11 @@ namespace SAOP {
         double preprocessing_end = time();
 
         BOOST_LOG_TRIVIAL(debug) << "Build and set a new plan from last search result ";
-        Plan p = last_search.final();
         p.firedata(fire_data);
         p.freeze_before(after_time);
+        for (const auto& t_name : frozen_trajectories) {
+            p.freeze_trajectory(t_name);
+        }
         p.project_on_fire_front();
 
         auto vns_dump = conf["vns"].dump();
@@ -141,6 +145,12 @@ namespace SAOP {
         res.metadata["configuration"] = conf;
 
         return res;
+    }
+
+    SearchResult
+    replan_vns(SearchResult last_search, double after_time, DRaster ignitions, DRaster elevation,
+               const std::string& json_conf) {
+        return replan_vns(last_search.final(), after_time, {}, ignitions, elevation, json_conf);
     }
 }
 
@@ -287,10 +297,11 @@ PYBIND11_MODULE(uav_planning, m) {
             });
 
     py::class_<TrajectoryManeuver>(m, "TrajectoryManeuver")
-            .def(py::init<Segment3d, double, std::string>())
-            .def_readwrite("maneuver", &TrajectoryManeuver::maneuver)
-            .def_readwrite("time", &TrajectoryManeuver::time)
-            .def_readwrite("name", &TrajectoryManeuver::name);
+            .def(py::init<Segment3d, double, std::string>(), py::arg("segment"), py::arg("time"), py::arg("name"))
+            .def(py::init<Waypoint3d, double, std::string>(), py::arg("waypoint"), py::arg("time"), py::arg("name"))
+            .def_readonly("maneuver", &TrajectoryManeuver::maneuver)
+            .def_readonly("time", &TrajectoryManeuver::time)
+            .def_readonly("name", &TrajectoryManeuver::name);
 
     py::class_<FireData, std::shared_ptr<FireData>>(m, "FireData")
             .def(py::init<const DRaster&, const DRaster&>(), py::arg("ignitions"), py::arg("elevation"))
@@ -355,10 +366,13 @@ PYBIND11_MODULE(uav_planning, m) {
                  (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, double) const)
                          &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("step_size"))
             .def("path_sampling",
-                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&, double) const)
-                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("wind"), py::arg("step_size"))
+                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&,
+                                                   double) const)
+                         &UAV::path_sampling, py::arg("origin"), py::arg("destination"), py::arg("wind"),
+                 py::arg("step_size"))
             .def("path_sampling_airframe",
-                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&, double) const)
+                 (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&,
+                                                   double) const)
                          &UAV::path_sampling_airframe, py::arg("origin"), py::arg("destination"), py::arg("wind"),
                  py::arg("step_size"));
 
@@ -371,9 +385,9 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("start_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
             .def("end_time", (double (Trajectory::*)() const) &Trajectory::end_time)
             .def("end_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))
-            .def_property_readonly("segments", &Trajectory::maneuvers)
-            .def("segment", &Trajectory::maneuver, py::arg("index"))
-            .def_property_readonly("maneuver_names", &Trajectory::maneuver_names)
+            .def_property_readonly("segments", &Trajectory::segments)
+            .def("segment", &Trajectory::segment, py::arg("index"))
+            .def_property_readonly("maneuver_names", &Trajectory::names)
 //            .def_property_readonly("base_start", &Trajectory::base_start)
 //            .def_property_readonly("base_end", &Trajectory::base_end)
             .def_property_readonly("start_times", &Trajectory::start_times)
@@ -426,7 +440,7 @@ PYBIND11_MODULE(uav_planning, m) {
 
     py::class_<Plan>(m, "Plan")
             .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow, std::vector<PositionTime>>())
-            /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
+                    /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
             .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories()); })
             .def("name", &Plan::name)
             .def("utility", &Plan::utility)
@@ -465,15 +479,25 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("sampled", &DubinsWind::sampled, py::arg("l_step"))
             .def("sampled_airframe", &DubinsWind::sampled_airframe, py::arg("l_step"));
 
-    m.def("replan_vns", SAOP::replan_vns, py::arg("last_search"), py::arg("after_time"), py::arg("ignitions_update"),
-          py::arg("elevation_update"), py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
+    m.def("replan_vns", (SearchResult(*)(Plan, double, std::vector<std::string>, DRaster, DRaster,
+                                         const std::string&)) SAOP::replan_vns, py::arg("plan"), py::arg("after_time"),
+          py::arg("frozen_trajectories"), py::arg("ignition_map"), py::arg("elevation_map"), py::arg("json_conf"),
+          py::call_guard<py::gil_scoped_release>());
+
+    m.def("replan_vns", (SearchResult(*)(SearchResult, double, DRaster, DRaster,
+                                         const std::string&)) SAOP::replan_vns, py::arg("last_search_result"),
+          py::arg("after_time"), py::arg("ignition_map"), py::arg("elevation_map"), py::arg("json_conf"),
+          py::call_guard<py::gil_scoped_release>());
 
 
-    m.def("plan_vns", (SearchResult (*)(vector<TrajectoryConfig>, DRaster, DRaster, const std::string&)) SAOP::plan_vns, py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"),
-          py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
+    m.def("plan_vns", (SearchResult (*)(vector<TrajectoryConfig>, DRaster, DRaster, const std::string&)) SAOP::plan_vns,
+          py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
+          py::call_guard<py::gil_scoped_release>());
 
-    m.def("plan_vns", (SearchResult (*)(std::string, vector<TrajectoryConfig>, DRaster, DRaster, const std::string&)) SAOP::plan_vns, py::arg("plan_name"), py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"),
-          py::arg("json_conf"), py::call_guard<py::gil_scoped_release>());
+    m.def("plan_vns", (SearchResult (*)(std::string, vector<TrajectoryConfig>, DRaster, DRaster,
+                                        const std::string&)) SAOP::plan_vns, py::arg("plan_name"),
+          py::arg("trajectory_configs"), py::arg("ignitions"), py::arg("elevation"), py::arg("json_conf"),
+          py::call_guard<py::gil_scoped_release>());
 }
 
 #endif //PLANNING_CPP_PYTHON_VNS_H
