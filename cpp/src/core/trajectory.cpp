@@ -54,6 +54,8 @@ namespace SAOP {
     }
 
     void Trajectory::freeze_before(double time) {
+        //FIXME: Fix implementation
+        return;
         ASSERT(_start_times.size() > 0);
 
         for (auto man_id = 0ul; man_id < size() - 1; ++man_id) {
@@ -484,6 +486,8 @@ namespace SAOP {
     }
 
     void Trajectory::freeze() {
+        //FIXME: Fix implementation
+        return;
         std::swap(insertion_range.start, insertion_range.end);
         ASSERT(insertion_range.is_empty());
     }
