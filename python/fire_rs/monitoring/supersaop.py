@@ -111,7 +111,7 @@ class SituationAssessment:
             self.area, wind_speed=self._surface_wind[0], wind_dir=self._surface_wind[
                 1])  # type: ty.Optional[fire_rs.firemodel.propagation.Environment]
 
-        self._elevation_id = str(uuid.uuid4())  # Id of the elevation map (inside self._environment)
+        self._elevation_timestamp = datetime.datetime.now()
 
         self._fire_propagation = fire_rs.firemodel.propagation.FirePropagation(
             self._environment)  # type: ty.Optional[fire_rs.firemodel.propagation.FirePropagation]
@@ -121,7 +121,7 @@ class SituationAssessment:
 
         self._predicted_wildfire = self._environment.raster.clone(
             fill_value=np.finfo(np.float64).max, dtype=[('ignition', 'float64')])
-        self._predicted_wildfire_id = str(uuid.uuid4())
+        self._predicted_wildfire_timestamp = str(uuid.uuid4())
 
         self._cells_on_fire = {}  # type: ty.MutableMapping[ty.Tuple[int, int],ty.Tuple[int, int, float]]
 
@@ -156,9 +156,9 @@ class SituationAssessment:
         return self._predicted_wildfire
 
     @property
-    def predicted_wildfire_id(self):
-        """Expected wildfire map id"""
-        return self._predicted_wildfire_id
+    def predicted_wildfire_timestamp(self):
+        """Expected wildfire map timestamp"""
+        return self._predicted_wildfire_timestamp
 
     @property
     def elevation(self):
@@ -166,9 +166,9 @@ class SituationAssessment:
         return self._environment.raster.slice("elevation")
 
     @property
-    def elevation_id(self):
-        """Elevation map id"""
-        return self._elevation_id
+    def elevation_timestamp(self):
+        """Elevation map timestamp"""
+        return self._elevation_timestamp
 
     # def set_wildfire_map(self, to=None):
     #     """Replace or reset the observed wildfire map.
@@ -215,7 +215,7 @@ class SituationAssessment:
             self._fire_propagation.set_ignition_cell(cf)
         self._fire_propagation.propagate(until.timestamp())
         self._predicted_wildfire = self._fire_propagation.ignitions()
-        self._predicted_wildfire_id = str(uuid.uuid4())
+        self._predicted_wildfire_timestamp = datetime.datetime.now()
         self.logger.info("Propagation ended")
 
 
