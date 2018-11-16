@@ -77,25 +77,22 @@ class ObservationPlanningNode:
         self.planning_th = None  # threading.Thread(None, self.propagate, daemon=True)
 
     def plan(self, vns_conf_name: str, planning_duration: float, plan_prototype: Plan):
-        rospy.loginfo("Initial plan request")
-
-        with self.op_lock:
-            traj_confs = [ObservationPlanning.TrajectoryConf(
-                msg_tc.conf.name, msg_tc.conf.uav_model,
-                (msg_tc.conf.start_wp.position.x, msg_tc.conf.start_wp.position.y,
-                 msg_tc.conf.start_wp.position.z, msg_tc.conf.start_wp.orientation.psi),
-                (msg_tc.conf.end_wp.position.x, msg_tc.conf.end_wp.position.y,
-                 msg_tc.conf.end_wp.position.z, msg_tc.conf.end_wp.orientation.psi),
-                rospy.Time.to_sec(msg_tc.conf.start_time), msg_tc.conf.max_duration, (
-                    msg_tc.conf.wind.speed * np.cos(msg_tc.conf.wind.direction),
-                    msg_tc.conf.wind.speed * np.sin(msg_tc.conf.wind.direction))) for msg_tc
-                in plan_prototype.trajectories]
-            self.op.initial_plan(plan_prototype.conf.name,
-                                 vns_conf_name, traj_confs, (
+        # with self.op_lock:
+        traj_confs = [ObservationPlanning.TrajectoryConf(
+            msg_tc.conf.name, msg_tc.conf.uav_model,
+            (msg_tc.conf.start_wp.position.x, msg_tc.conf.start_wp.position.y,
+             msg_tc.conf.start_wp.position.z, msg_tc.conf.start_wp.orientation.psi),
+            (msg_tc.conf.end_wp.position.x, msg_tc.conf.end_wp.position.y,
+             msg_tc.conf.end_wp.position.z, msg_tc.conf.end_wp.orientation.psi),
+            rospy.Time.to_sec(msg_tc.conf.start_time), msg_tc.conf.max_duration, (
+                msg_tc.conf.wind.speed * np.cos(msg_tc.conf.wind.direction),
+                msg_tc.conf.wind.speed * np.sin(msg_tc.conf.wind.direction))) for msg_tc
+            in plan_prototype.trajectories]
+        self.op.set_initial_plan(plan_prototype.conf.name, traj_confs, (
                                      rospy.Time.to_sec(plan_prototype.conf.flight_window[0]),
                                      rospy.Time.to_sec(plan_prototype.conf.flight_window[1])))
-            saop_plan = self.op.compute_plan(planning_duration)
-            self.publish_plan(plan_prototype, saop_plan)
+        saop_plan = self.op.compute_plan(planning_duration, vns_conf_name)
+        self.publish_plan(plan_prototype, saop_plan)
 
     def publish_plan(self, plan_prototype: Plan, saop_plan):
         """Publish current plan."""
@@ -131,14 +128,14 @@ class ObservationPlanningNode:
                 msg.raster, layer="ignition"))
 
     def on_plan_cmd(self, msg: PlanCmd):
-        rospy.loginfo("Initial plan request")
-        if self.planning_th is None:
-            rospy.loginfo("Initial plan request")
-            self.plan(msg.vns_conf, msg.planning_duration, msg.plan_prototype)
-            # self.assessment_th = threading.Thread(None, self.propagate, daemon=True)
-            # self.assessment_th.start()
-        else:
-            rospy.loginfo("Previous planning has not ended")
+        with self.op_lock:
+            if self.planning_th is None:
+                rospy.loginfo("Initial plan request")
+                self.plan(msg.vns_conf, msg.planning_duration, msg.plan_prototype)
+                # self.assessment_th = threading.Thread(None, self.propagate, daemon=True)
+                # self.assessment_th.start()
+            else:
+                rospy.loginfo("Previous planning has not ended")
 
 
 if __name__ == '__main__':
