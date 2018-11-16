@@ -522,8 +522,8 @@ class NeptusBridge:
 
         self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
         self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
-        self.t_imc.run()
-        self.t_gcs.run()
+        self.t_imc.start()
+        self.t_gcs.start()
 
         self.monitoring = True  # Determine wether we are monitoring
 
