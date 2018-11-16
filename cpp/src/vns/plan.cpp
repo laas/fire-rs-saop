@@ -211,8 +211,12 @@ namespace SAOP {
                     seg_id++;
                 } else {
                     // segment has no projection, remove it
-                    traj.erase_segment(seg_id);
-                    utility_cache_invalid = true;
+                    if (traj.can_modify(seg_id)) {
+                        traj.erase_segment(seg_id);
+                        utility_cache_invalid = true;
+                    } else {
+                        seg_id++;
+                    }
                 }
             }
         }
@@ -362,5 +366,6 @@ namespace SAOP {
     void Plan::freeze_trajectory(std::string traj_name) {
         trajs.freeze_trajectory(traj_name);
     }
+
 
 }
