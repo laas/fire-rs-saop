@@ -52,7 +52,7 @@ class SupervisorNode:
         t_conf = TrajectoryConf(name="One trajectory is enough", uav_model="x8-06",
                                 start_wp=start_wp, end_wp=end_wp,
                                 start_time=rospy.Time.now() + rospy.Duration.from_sec(1. * 60 * 60),
-                                max_duration=np.inf, wind=MeanWind(.0, .0))
+                                max_duration=6000, wind=MeanWind(.0, .0))
         p = Plan(header=Header(stamp=rospy.Time.now()),
                  conf=p_conf,
                  trajectories=[Trajectory(conf=t_conf, maneuvers=[])])
