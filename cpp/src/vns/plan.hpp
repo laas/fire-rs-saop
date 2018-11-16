@@ -50,17 +50,17 @@ namespace SAOP {
         vector<PointTimeWindow> possible_observations;
         vector<PositionTime> observed_previously;
 
-        Plan(std::vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+        Plan(std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data, TimeWindow tw,
              std::vector<PositionTime> observed_previously = {});
 
-        Plan(std::string name_id, vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data, TimeWindow tw,
+        Plan(std::string name_id, std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data,
+             TimeWindow tw, std::vector<PositionTime> observed_previously = {});
+
+        Plan(std::string name, std::vector<Trajectory> trajectories, std::shared_ptr<FireData> fire_data, TimeWindow tw,
              std::vector<PositionTime> observed_previously = {});
 
-        Plan(std::string name, std::vector<Trajectory> trajectories, shared_ptr<FireData> fire_data, TimeWindow tw,
-             std::vector<PositionTime> observed_previously = {});
-
-        Plan(std::string name, Trajectories trajectories, shared_ptr<FireData> fire_data, TimeWindow tw,
-                   vector<PositionTime> observed_previously);
+        Plan(std::string name, Trajectories trajectories, std::shared_ptr<FireData> fire_data, TimeWindow tw,
+             std::vector<PositionTime> observed_previously);
 
         ~Plan() = default;
 
@@ -78,7 +78,7 @@ namespace SAOP {
 
         json metadata();
 
-        std::string name() const {return plan_name;}
+        std::string name() const { return plan_name; }
 
         /** A plan is valid iff all trajectories are valid (match their configuration. */
         bool is_valid() const {

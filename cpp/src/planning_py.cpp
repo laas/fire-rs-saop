@@ -482,10 +482,11 @@ PYBIND11_MODULE(uav_planning, m) {
                         py::arg("max_flight_time") = std::numeric_limits<double>::max());
 
     py::class_<Plan>(m, "Plan")
-            .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow, std::vector<PositionTime>>())
-            .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow>())
-            .def(py::init<std::string, std::vector<TrajectoryConfig>, shared_ptr<FireData>, TimeWindow>())
-                    /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
+            .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow>(),
+                 py::arg("name"), py::arg("traj_confs"), py::arg("fire_data"), py::arg("flightwindow"))
+            .def(py::init<std::string, std::vector<TrajectoryConfig>, shared_ptr<FireData>, TimeWindow>(),
+                 py::arg("name"), py::arg("trajs"), py::arg("fire_data"), py::arg("flightwindow"))
+            /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
             .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories()); })
             .def("name", &Plan::name)
             .def("utility", &Plan::utility)
