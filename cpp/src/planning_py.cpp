@@ -192,8 +192,8 @@ namespace SAOP {
     SearchResult
     replan_vns(SearchResult last_search, double after_time, DRaster ignitions, DRaster elevation,
                const std::string& json_conf) {
-        return replan_vns(last_search.final(), after_time, {}, std::make_shared<FireData>(ignitions, elevation),
-                          json_conf);
+        return replan_vns(last_search.final(), std::make_shared<FireData>(ignitions, elevation),
+                          json_conf, after_time, {});
     }
 }
 
