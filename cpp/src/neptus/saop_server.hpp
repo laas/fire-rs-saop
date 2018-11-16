@@ -354,6 +354,9 @@ namespace SAOP {
             /* Load and start a SAOP::Plan. */
             bool start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
+            /* Load and start a SAOP::Trajectory. */
+            bool start(const Trajectory& t, std::string plan_id, std::string uav);
+
             /* Start the last loaded PlanSpecification */
             bool start(std::string plan_id, std::string uav);
 
@@ -412,6 +415,8 @@ namespace SAOP {
             bool wait_for_start(uint16_t req_id);
 
             IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id);
+            IMC::PlanSpecification plan_specification(const Trajectory& t, std::string plan_id);
+
 
             void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);
 

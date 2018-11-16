@@ -137,6 +137,36 @@ namespace SAOP {
             return PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_names);
         }
 
+        IMC::PlanSpecification
+        GCS::plan_specification(const Trajectory& t, std::string plan_id) {
+
+            auto wp = t.as_waypoints();
+
+            // Remove bases
+            auto r_start = wp.begin();
+            size_t n_start = 0;
+            auto r_end = wp.end();
+            size_t n_end = t.size();
+            if (t.conf().start_position && wp.front() == *t.conf().start_position) {
+                r_start++;
+                n_start++;
+            }
+            if (t.conf().end_position && wp.back() == *t.conf().end_position) {
+                r_end--;
+                n_end--;
+            }
+            auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
+            auto wp_wgs84 = lambert93_to_wgs84(wp_filtered);
+
+            std::vector<std::string> maneuver_names = {};
+
+            for (size_t man_id = n_start; man_id < n_end; ++man_id) {
+                maneuver_names.emplace_back(std::to_string(man_id));
+            }
+
+            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_names);
+        }
+
         void GCS::estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m) {
             UAVStateReport report{m->getTimeStamp(), uav_name_of[m->getSource()],
                                   m->lat, m->lon, m->height,
@@ -239,6 +269,19 @@ namespace SAOP {
             }
 
             return start(plan_specification(p, trajectory, plan_id), uav_addr);
+        }
+
+        bool GCS::start(const Trajectory& t, std::string plan_id, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return false;
+            }
+
+            return start(plan_specification(t, plan_id), uav_addr);
         }
 
         bool GCS::start(std::string plan_id, std::string uav) {
