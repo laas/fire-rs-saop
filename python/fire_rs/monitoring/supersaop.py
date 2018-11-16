@@ -552,20 +552,35 @@ class NeptusBridge:
         """ Tell a UAV to go home"""
         raise NotImplementedError
 
-    def start_trajectory(self, plan, traj_i: int, uav: str) -> bool:
+    #
+    # def start_trajectory(self, plan, traj_i: int, uav: str) -> bool:
+    #     """Execute a SAOP Plan 'a_plan' trajectory 'trajectory' with using the vehicle 'uav'"""
+    #     # self.stop_uav(uav)
+    #
+    #     plan_name = NeptusBridge.neptus_plan_id(plan.name(), traj_i)
+    #
+    #     # Start the mission
+    #     # FIXME: Mission start seems to fail always
+    #     command_r = self.gcs.start(plan, traj_i, plan_name, uav)
+    #     if command_r:
+    #         self.logger.info("Mission %s for %s started", plan_name, uav)
+    #         return True
+    #     else:
+    #         self.logger.error("Start of mission %s failed for %s failed", plan_name, uav)
+    #         return False
+
+    def start_trajectory(self, t: planning.Trajectory, plan_id: str, uav: str) -> bool:
         """Execute a SAOP Plan 'a_plan' trajectory 'trajectory' with using the vehicle 'uav'"""
         # self.stop_uav(uav)
 
-        plan_name = NeptusBridge.neptus_plan_id(plan.name(), traj_i)
-
         # Start the mission
         # FIXME: Mission start seems to fail always
-        command_r = self.gcs.start(plan, traj_i, plan_name, uav)
+        command_r = self.gcs.start(t, plan_id, uav)
         if command_r:
-            self.logger.info("Mission %s for %s started", plan_name, uav)
+            self.logger.info("Mission %s for %s started", plan_id, uav)
             return True
         else:
-            self.logger.error("Start of mission %s failed for %s failed", plan_name, uav)
+            self.logger.error("Start of mission %s failed for %s failed", plan_id, uav)
             return False
 
     def stop_uav(self, uav):
