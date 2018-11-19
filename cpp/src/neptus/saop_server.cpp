@@ -213,7 +213,6 @@ namespace SAOP {
 
             TrajectoryExecutionReport report{m->getTimeStamp(), m->plan_id, uav_name_of[m->getSource()], m->man_id,
                                              m->man_eta, state, outcome};
-            m->last_outcome;
             plan_report_handler(report);
         }
 
