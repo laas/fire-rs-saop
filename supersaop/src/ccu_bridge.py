@@ -80,7 +80,7 @@ class CCUBridgeNode:
         for uav, state in self.dict_state_msg.items():
             with self.dict_state_lock:
                 if state is not None:
-                    rospy.loginfo("%s: %s", str(uav), str(state))
+                    rospy.logdebug("%s: %s", str(uav), str(state))
                     self.pub_dict_state[uav].publish(state)
 
 

@@ -589,7 +589,7 @@ class NeptusBridge:
         """
         self.uav_state_cb[ter.plan_id] = ter
         if self.traj_state_cb:
-            self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, vehicle=ter.vehicle,
+            self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, uav=ter.uav,
                                maneuver=ter.maneuver, manuever_eta=ter.maneuver_eta,
                                state=ter.state, last_outcome=ter.last_outcome)
 

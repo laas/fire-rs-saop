@@ -212,7 +212,7 @@ namespace SAOP {
 
 
         enum class TrajectoryExecutionState : uint8_t {
-            Blocked, // Plan execution is blocked due to a vehicle failure
+            Blocked, // Plan execution is blocked due to a uav failure
             Ready, // Plan not running
             Executing, // Plan is running
         };
@@ -260,7 +260,7 @@ namespace SAOP {
         struct TrajectoryExecutionReport {
             double timestamp;
             std::string plan_id; // Neptus plan name
-            std::string vehicle; // Neptus vehicle performing the trajectory
+            std::string uav; // Neptus uav performing the trajectory
             std::string maneuver; // Current maneuver being executed
             int32_t maneuver_eta; // Estimated time until completion of the manuever
             TrajectoryExecutionState state; // Execution status
@@ -270,12 +270,12 @@ namespace SAOP {
                 stream << "TrajectoryExecutionReport("
                        << ter.timestamp << ", "
                        << ter.plan_id << ", "
-                       << ter.vehicle << ", "
+                       << ter.uav << ", "
                        << ter.maneuver << ", "
                        << ter.maneuver_eta << ", "
                        << ter.state << ", "
                        << ter.last_outcome << ")";
-                // TODO Add vehicle list
+                // TODO Add uav list
                 return stream;
             }
         };

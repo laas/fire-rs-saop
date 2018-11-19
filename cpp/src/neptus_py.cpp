@@ -116,7 +116,7 @@ PYBIND11_MODULE(neptus_interface, m) {
             })
             .def_readonly("timestamp", &neptus::TrajectoryExecutionReport::timestamp)
             .def_readonly("plan_id", &neptus::TrajectoryExecutionReport::plan_id)
-            .def_readonly("vehicle", &neptus::TrajectoryExecutionReport::vehicle)
+            .def_readonly("uav", &neptus::TrajectoryExecutionReport::uav)
             .def_readonly("maneuver", &neptus::TrajectoryExecutionReport::maneuver)
             .def_readonly("maneuver_eta", &neptus::TrajectoryExecutionReport::maneuver_eta)
             .def_readonly("state", &neptus::TrajectoryExecutionReport::state)
