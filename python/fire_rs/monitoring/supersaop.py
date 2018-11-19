@@ -603,7 +603,7 @@ class NeptusBridge:
         """Method called by the GCS to report about the state of the missions"""
         if self.traj_state_cb:
             self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, vehicle=ter.vehicle,
-                               maneuver=ter.maneuver, manuever_eta=ter.manuever_eta,
+                               maneuver=ter.maneuver, manuever_eta=ter.maneuver_eta,
                                state=ter.state, last_outcome=ter.last_outcome)
 
     def set_uav_state_callback(self, fn):
