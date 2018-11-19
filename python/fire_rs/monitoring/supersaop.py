@@ -511,7 +511,13 @@ class ObservationPlanning:
 
 
 class NeptusBridge:
-    """Communicate with the UAV ground control software"""
+    """Communicate with the UAV ground control software.
+
+    This class gets the current state of the UAV fleet and the completion state
+    of trajectories.
+
+    Current status is stored in a couple of dicts. Optionally callback routines
+    can be set. Those are called each time a new state report arrives."""
 
     def __init__(self, logger: logging.Logger):
 
@@ -524,8 +530,6 @@ class NeptusBridge:
         self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
         self.t_imc.start()
         self.t_gcs.start()
-
-        self.monitoring = True  # Determine wether we are monitoring
 
         self.uav_state = {}
         self.traj_state = {}
@@ -552,29 +556,9 @@ class NeptusBridge:
         """ Tell a UAV to go home"""
         raise NotImplementedError
 
-    #
-    # def start_trajectory(self, plan, traj_i: int, uav: str) -> bool:
-    #     """Execute a SAOP Plan 'a_plan' trajectory 'trajectory' with using the vehicle 'uav'"""
-    #     # self.stop_uav(uav)
-    #
-    #     plan_name = NeptusBridge.neptus_plan_id(plan.name(), traj_i)
-    #
-    #     # Start the mission
-    #     # FIXME: Mission start seems to fail always
-    #     command_r = self.gcs.start(plan, traj_i, plan_name, uav)
-    #     if command_r:
-    #         self.logger.info("Mission %s for %s started", plan_name, uav)
-    #         return True
-    #     else:
-    #         self.logger.error("Start of mission %s failed for %s failed", plan_name, uav)
-    #         return False
-
     def start_trajectory(self, t: planning.Trajectory, plan_id: str, uav: str) -> bool:
-        """Execute a SAOP Plan 'a_plan' trajectory 'trajectory' with using the vehicle 'uav'"""
-        # self.stop_uav(uav)
-
+        """Execute a SAOP trajectory with neptus 'plan_id' using the vehicle 'uav'"""
         # Start the mission
-        # FIXME: Mission start seems to fail always
         command_r = self.gcs.start(t, plan_id, uav)
         if command_r:
             self.logger.info("Mission %s for %s started", plan_id, uav)
@@ -594,13 +578,16 @@ class NeptusBridge:
             return False
 
     def set_trajectory_state_callback(self, fn):
-        """Function to be called each time a new Estimated State is received
+        """Function to be called each time a new Plan Control State is received.
+        Keep it short as it blocks the delivery of other messages!!!
         :param fn: a Callable(**kwargs)
         """
         self.traj_state_cb = fn
 
     def on_trajectory_execution_report(self, ter: nifc.TrajectoryExecutionReport):
-        """Method called by the GCS to report about the state of the missions"""
+        """Method called by the GCS to report about the state of the missions.
+        """
+        self.uav_state_cb[ter.plan_id] = ter
         if self.traj_state_cb:
             self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, vehicle=ter.vehicle,
                                maneuver=ter.maneuver, manuever_eta=ter.maneuver_eta,
@@ -608,6 +595,7 @@ class NeptusBridge:
 
     def set_uav_state_callback(self, fn):
         """Function to be called each time a new Estimated State is received
+        Keep it short as it blocks the delivery of other messages!!!
         :param fn: a Callable(**kwargs) (time: float, uav: str,
                                          x: float, y: float, z: float,
                                          phi: float, theta: float, psi: float,
@@ -624,21 +612,3 @@ class NeptusBridge:
                               x=usr.lat, y=usr.lon, z=usr.height,
                               phi=usr.phi, theta=usr.theta, psi=usr.psi,
                               vx=usr.vx, vy=usr.vy, vz=usr.vz)
-
-        # if self.monitoring:
-        #     try:
-        #         if usr.uav not in self.uav_state:
-        #             self.uav_state[usr.uav] = queue.Queue()
-        #         self.uav_state[usr.uav].put(usr, block=True, timeout=1)
-        #     except queue.Full:
-        #         self.logger.exception("UAVStateReport queue timeout reached")
-#
-#
-# def draw_response(gdd: gdisplay.GeoDataDisplay,
-#                   response: AlarmResponse):
-#     gdd.draw_ignition_contour(response.fire_prop.prop_data, with_labels=True)
-#     pdisplay.plot_plan_trajectories(response.plan, gdd, layers=['trajectory_solid', 'arrows'])
-#     gdd.figure.legend()
-#     gdd.figure.suptitle(
-#         "Observation Plan of wildfire alarm.\n Valid from " + str(response.alarm[0]) + " to " + str(
-#             response.alarm[0] + datetime.timedelta(seconds=response.fire_prop.until_time)))
