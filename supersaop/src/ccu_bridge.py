@@ -39,7 +39,7 @@ class CCUBridgeNode:
 
         self.ccu = NeptusBridge(logging.getLogger(__name__))
         self.ccu.set_uav_state_callback(self.on_uav_state_from_neptus)
-        # self.ccu.set_trajectory_state_callback(self.on_trajectory_state_from_neptus)
+        self.ccu.set_trajectory_state_callback(self.on_trajectory_state_from_neptus)
 
         self._known_uavs = set()
         self._known_uavs.add('x8-06')
@@ -72,8 +72,8 @@ class CCUBridgeNode:
                                         orientation=orientation_msg, ground_velocity=velocity_msg)
                 self.dict_state_msg[kwargs['uav']] = pose_msg
 
-    # def on_trajectory_state_from_neptus(self, **kwargs):
-    #     print(kwargs)
+    def on_trajectory_state_from_neptus(self, **kwargs):
+        print(kwargs)
 
     def publish_state(self):
         """ Publish retrieved information from Neptus into ROS topics"""
