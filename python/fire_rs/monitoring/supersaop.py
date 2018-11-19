@@ -587,7 +587,7 @@ class NeptusBridge:
     def on_trajectory_execution_report(self, ter: nifc.TrajectoryExecutionReport):
         """Method called by the GCS to report about the state of the missions.
         """
-        self.uav_state_cb[ter.plan_id] = ter
+        self.traj_state[ter.plan_id] = ter
         if self.traj_state_cb:
             self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, uav=ter.uav,
                                maneuver=ter.maneuver, manuever_eta=ter.maneuver_eta,
