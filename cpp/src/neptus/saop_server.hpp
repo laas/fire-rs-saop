@@ -45,6 +45,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/PlanControl.hpp"
 #include "../../IMC/Spec/PlanControlState.hpp"
 
+#include "../ext/WGS84.hpp"
+
 #include "../vns/plan.hpp"
 
 #include "imc_comm.hpp"
@@ -355,7 +357,7 @@ namespace SAOP {
             bool start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
             /* Load and start a SAOP::Trajectory. */
-            bool start(const Trajectory& t, std::string plan_id, std::string uav);
+            bool start(const Trajectory& t, std::string uav);
 
             /* Start the last loaded PlanSpecification */
             bool start(std::string plan_id, std::string uav);
@@ -415,7 +417,7 @@ namespace SAOP {
             bool wait_for_start(uint16_t req_id);
 
             IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id);
-            IMC::PlanSpecification plan_specification(const Trajectory& t, std::string plan_id);
+            IMC::PlanSpecification plan_specification(const Trajectory& t);
 
 
             void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);

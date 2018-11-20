@@ -83,6 +83,36 @@ namespace SAOP {
             OGRCoordinateTransformation::DestroyCT(poCT);
             return wgs84_wp;
         }
+
+        /*Convert Lambert93 (EPSG:2154) points to WGS84 (lat, lon) coordinates*/
+        static std::vector<Waypoint3d> wgs84_to_lambert93(std::vector<Waypoint3d> wgs84_wp) {
+            OGRSpatialReference wgs84_gcs;
+            OGRSpatialReference lambert93_pcs;
+            wgs84_gcs.importFromEPSG(4171); // RGF93 (EPSG:4171) is in practice equal to WGS84 (EPSG:4326)
+            lambert93_pcs.importFromEPSG(2154);
+
+            auto poCT = OGRCreateCoordinateTransformation(&wgs84_gcs, &lambert93_pcs);
+            ASSERT(poCT); // If the conversion cannot take place, poCT is null
+
+            double xx;
+            double yy;
+
+            auto lambert93 = std::vector<Waypoint3d>();
+
+            for (auto it = wgs84_wp.begin(); it < wgs84_wp.end();++it) {
+                xx = it->x;
+                yy = it->y;
+
+                poCT->Transform(1, &xx, &yy); // Again Transform must succed
+
+                lambert93.emplace_back(Waypoint3d(xx/180*M_PI, yy/180*M_PI, it->z, it->dir));
+                xx = 0;
+                yy = 0;
+            }
+
+            OGRCoordinateTransformation::DestroyCT(poCT);
+            return lambert93;
+        }
     }
 }
 

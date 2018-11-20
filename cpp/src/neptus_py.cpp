@@ -69,6 +69,10 @@ PYBIND11_MODULE(neptus_interface, m) {
     py::class_<neptus::DuneLink>(m, "DuneLink")
             .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
 
+
+    m.def("wgs84_to_lambert93", SAOP::neptus::wgs84_to_lambert93, py::arg("wgs84_wp"));
+    m.def("lambert93_to_wgs84", SAOP::neptus::lambert93_to_wgs84, py::arg("lambert94_wp"));
+
     // Neptus interface
 
 
@@ -86,8 +90,8 @@ PYBIND11_MODULE(neptus_interface, m) {
             .def("start", (bool (neptus::GCS::*)(const Plan&, size_t, std::string, std::string)) &neptus::GCS::start,
                  py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
                  py::call_guard<py::gil_scoped_release>())
-            .def("start", (bool (neptus::GCS::*)(const Trajectory&, std::string, std::string)) &neptus::GCS::start,
-                 py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
+            .def("start", (bool (neptus::GCS::*)(const Trajectory&, std::string)) &neptus::GCS::start,
+                 py::arg("trajectory"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
             .def("start", (bool (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::start,
                  py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
             .def("load", (bool (neptus::GCS::*)(const Plan&, size_t, std::string, std::string)) &neptus::GCS::load,

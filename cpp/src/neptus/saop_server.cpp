@@ -138,15 +138,16 @@ namespace SAOP {
         }
 
         IMC::PlanSpecification
-        GCS::plan_specification(const Trajectory& t, std::string plan_id) {
+        GCS::plan_specification(const Trajectory& t) {
 
             auto wp = t.as_waypoints();
+            auto all_names = t.names();
 
             // Remove bases
             auto r_start = wp.begin();
-            size_t n_start = 0;
+            auto n_start = all_names.begin();
             auto r_end = wp.end();
-            size_t n_end = t.size();
+            auto n_end = all_names.end();
             if (t.conf().start_position && wp.front() == *t.conf().start_position) {
                 r_start++;
                 n_start++;
@@ -158,18 +159,24 @@ namespace SAOP {
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
             auto wp_wgs84 = lambert93_to_wgs84(wp_filtered);
 
-            std::vector<std::string> maneuver_names = {};
+            std::vector<std::string> maneuver_names = std::vector<std::string>(n_start, n_end);
 
-            for (size_t man_id = n_start; man_id < n_end; ++man_id) {
-                maneuver_names.emplace_back(std::to_string(man_id));
-            }
 
-            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_names);
+            return PlanSpecificationFactory::make_message(t.name(), wp_wgs84, maneuver_names);
         }
 
         void GCS::estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m) {
+
+            // Convert from DUNE frame to WGS84
+            // Base location "LLH"
+            double m_lat = m->lat;
+            double m_lon = m->lon;
+            double m_agl = m->height;
+            // m->x, m->y, m->z is a displacement from LLH
+            DUNE::Coordinates::WGS84::displace(m->x, m->y, m->z, &m_lat, &m_lon, &m_agl);
+
             UAVStateReport report{m->getTimeStamp(), uav_name_of[m->getSource()],
-                                  m->lat, m->lon, m->height,
+                                  m_lat, m_lon, m->alt,
                                   m->phi, m->theta, m->psi,
                                   m->vx, m->vy, m->vz};
             uav_report_handler(report);
@@ -270,7 +277,7 @@ namespace SAOP {
             return start(plan_specification(p, trajectory, plan_id), uav_addr);
         }
 
-        bool GCS::start(const Trajectory& t, std::string plan_id, std::string uav) {
+        bool GCS::start(const Trajectory& t, std::string uav) {
             uint16_t uav_addr = 0;
             auto uav_id_it = uav_addr_of.find(uav);
             if (uav_id_it != uav_addr_of.end()) {
@@ -280,7 +287,7 @@ namespace SAOP {
                 return false;
             }
 
-            return start(plan_specification(t, plan_id), uav_addr);
+            return start(plan_specification(t), uav_addr);
         }
 
         bool GCS::start(std::string plan_id, std::string uav) {
