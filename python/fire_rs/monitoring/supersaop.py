@@ -37,6 +37,8 @@ import collections
 from collections import namedtuple
 from enum import Enum
 
+from osgeo import osr
+
 import numpy as np
 # import matplotlib.pyplot as plt
 
@@ -510,6 +512,23 @@ class ObservationPlanning:
     #
 
 
+class _CoordinateTransformation:
+    EPSG_LAMBERT93 = 2154
+    EPSG_RGF93 = 4171  # RGF93 is equivalent to WGS84
+
+    def __init__(self, src: int, dst: int):
+        source = osr.SpatialReference()
+        source.ImportFromEPSG(src)
+
+        target = osr.SpatialReference()
+        target.ImportFromEPSG(dst)
+
+        self._transform = osr.CoordinateTransformation(source, target)
+
+    def transform(self, *args) -> ty.Tuple[float, float, float]:
+        return self._transform.TransformPoint(*args)
+
+
 class NeptusBridge:
     """Communicate with the UAV ground control software.
 
@@ -529,16 +548,23 @@ class NeptusBridge:
         self.imccomm = nifc.IMCComm()
         self.gcs = None
 
-        self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
-        self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
-        self.t_imc.start()
-        self.t_gcs.start()
-
         self.uav_state = {}
         self.traj_state = {}
 
         self.uav_state_cb = None
         self.traj_state_cb = None
+
+        self._coor_tran = _CoordinateTransformation(_CoordinateTransformation.EPSG_RGF93,
+                                                    _CoordinateTransformation.EPSG_LAMBERT93)
+
+        self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
+        self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
+        self.t_imc.start()
+        self.t_gcs.start()
+
+    def set_projected_coordinate_system_transformation(self, src_epsg: int, dst_epsg: int):
+        """Set a projected coordinate system for UAV locations by EPSG code."""
+        self._coor_tran = _CoordinateTransformation(src_epsg, dst_epsg)
 
     def _create_gcs(self):
         """Create GCS object of this class.
@@ -583,7 +609,9 @@ class NeptusBridge:
     def on_trajectory_execution_report(self, ter: nifc.TrajectoryExecutionReport):
         """Method called by the GCS to report about the state of the missions.
         """
-        self.traj_state[ter.plan_id] = ter
+        self.traj_state[ter.plan_id] = dict(time=ter.timestamp, plan_id=ter.plan_id, uav=ter.uav,
+                                            maneuver=ter.maneuver, maneuver_eta=ter.maneuver_eta,
+                                            state=ter.state, last_outcome=ter.last_outcome)
         if self.traj_state_cb:
             self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, uav=ter.uav,
                                maneuver=ter.maneuver, maneuver_eta=ter.maneuver_eta,
@@ -601,10 +629,15 @@ class NeptusBridge:
 
     def _on_uav_state_report(self, usr: nifc.UAVStateReport):
         """Method called by the GCS to report about the state of the UAVs"""
-        self.uav_state[usr.uav] = usr
-        # TODO: Transform position from LatLonHeight to XYZ
+        x, y, z = self._coor_tran.transform(usr.lon * 180 / np.pi,
+                                            usr.lat * 180 / np.pi,
+                                            usr.height)
+        self.uav_state[usr.uav] = dict(time=usr.timestamp, uav=usr.uav,
+                                       x=x, y=y, z=z,
+                                       phi=usr.phi, theta=usr.theta, psi=usr.psi,
+                                       vx=usr.vx, vy=usr.vy, vz=usr.vz)
         if self.uav_state_cb:
             self.uav_state_cb(time=usr.timestamp, uav=usr.uav,
-                              x=usr.lat, y=usr.lon, z=usr.height,
+                              x=x, y=y, z=usr.height,
                               phi=usr.phi, theta=usr.theta, psi=usr.psi,
                               vx=usr.vx, vy=usr.vy, vz=usr.vz)

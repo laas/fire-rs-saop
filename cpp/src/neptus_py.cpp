@@ -69,10 +69,6 @@ PYBIND11_MODULE(neptus_interface, m) {
     py::class_<neptus::DuneLink>(m, "DuneLink")
             .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
 
-
-    m.def("wgs84_to_lambert93", SAOP::neptus::wgs84_to_lambert93, py::arg("wgs84_wp"));
-    m.def("lambert93_to_wgs84", SAOP::neptus::lambert93_to_wgs84, py::arg("lambert94_wp"));
-
     // Neptus interface
 
 
