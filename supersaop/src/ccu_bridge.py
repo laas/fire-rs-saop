@@ -4,7 +4,6 @@ import logging
 import re
 import threading
 import typing as ty
-import uuid
 
 import matplotlib
 
@@ -16,7 +15,7 @@ from geometry_msgs.msg import Point
 
 from supersaop.msg import ElevationMap, Euler, PoseEuler, PredictedWildfireMap, PropagateCmd, \
     Raster, RasterMetaData, WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, \
-    Plan, VehicleState, Velocity
+    Plan, VehicleState, Velocity, TrajectoryState
 
 from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.monitoring.supersaop import NeptusBridge
@@ -49,10 +48,17 @@ class CCUBridgeNode:
 
         self.pub_dict_state = {uav: rospy.Publisher("/".join((ros_name_for(uav), 'state')),
                                                     VehicleState, queue_size=10) for uav in
-                               self._known_uavs}  # type: ty.Mapping[rospy.Publisher]
+                               self._known_uavs}  # type: ty.Mapping[str, rospy.Publisher]
+
+        self.dict_traj_lock = threading.Lock()
+        self.dict_traj_msg = {uav: None for uav in self._known_uavs}
+
+        self.pub_dict_traj = {uav: rospy.Publisher("/".join((ros_name_for(uav), 'trajectory')),
+                                                   TrajectoryState, queue_size=10) for uav in
+                              self._known_uavs}  # type: ty.Mapping[str, rospy.Publisher]
 
         self.current_saop_plan = None
-        self.sub_saop_plan = rospy.Subscriber("plan", Plan,  self.on_saop_plan, queue_size=10)
+        self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
 
     def on_saop_plan(self, msg: Plan):
         t = serialization.saop_trajectories_from_plan_msg(msg)
@@ -61,8 +67,6 @@ class CCUBridgeNode:
     def on_uav_state_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:
             with self.dict_state_lock:
-                # kwargs['uav'] = rospy.Publisher("/".join((ros_name_for(kwargs['uav']), 'pose')),
-                #                                 PoseEuler, queue_size=10)
                 position_msg = Point(kwargs['x'], kwargs['y'], kwargs['z'])
                 orientation_msg = Euler(phi=kwargs['phi'], theta=kwargs['theta'],
                                         psi=kwargs['psi'])
@@ -73,15 +77,28 @@ class CCUBridgeNode:
                 self.dict_state_msg[kwargs['uav']] = pose_msg
 
     def on_trajectory_state_from_neptus(self, **kwargs):
-        print(kwargs)
+        if kwargs['uav'] in self._known_uavs:
+            with self.dict_traj_lock:
+                traj_state_msg = TrajectoryState(
+                    header=Header(stamp=rospy.Time.from_sec(kwargs['time'])),
+                    name=kwargs['plan_id'], uav=kwargs['uav'],
+                    maneuver=kwargs['maneuver'], maneuver_eta=rospy.Duration(kwargs['maneuver_eta']),
+                    state=int(kwargs['state']), last_outcome=int(kwargs['last_outcome']))
+                self.dict_traj_msg[kwargs['uav']] = traj_state_msg
 
     def publish_state(self):
         """ Publish retrieved information from Neptus into ROS topics"""
         for uav, state in self.dict_state_msg.items():
             with self.dict_state_lock:
                 if state is not None:
-                    rospy.logdebug("%s: %s", str(uav), str(state))
+                    # rospy.logdebug("%s: %s", str(uav), str(state))
                     self.pub_dict_state[uav].publish(state)
+
+        for uav, traj_state in self.dict_traj_msg.items():
+            with self.dict_traj_lock:
+                if traj_state is not None:
+                    # rospy.logdebug("%s: %s", str(uav), str(traj_state))
+                    self.pub_dict_traj[uav].publish(traj_state)
 
 
 if __name__ == '__main__':

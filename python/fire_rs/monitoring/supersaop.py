@@ -519,6 +519,9 @@ class NeptusBridge:
     Current status is stored in a couple of dicts. Optionally callback routines
     can be set. Those are called each time a new state report arrives."""
 
+    TrajectoryExecutionState = nifc.TrajectoryExecutionState
+    TrajectoryExecutionOutcome = nifc.TrajectoryExecutionOutcome
+
     def __init__(self, logger: logging.Logger):
 
         self.logger = logger
@@ -543,14 +546,7 @@ class NeptusBridge:
         self.gcs = nifc.GCS(self.imccomm, self.on_trajectory_execution_report,
                             self._on_uav_state_report)
 
-    @staticmethod
-    def saop_plan_and_traj(neptus_plan_id: str) -> ty.Tuple[str, int]:
-        splited = neptus_plan_id.split(sep=".")
-        return ".".join(splited[:-1]), int(splited[-1])
 
-    @staticmethod
-    def neptus_plan_id(plan_name: str, traj_id: int) -> str:
-        return ".".join((plan_name, str(traj_id)))
 
     def send_home(self, uav):
         """ Tell a UAV to go home"""
@@ -590,7 +586,7 @@ class NeptusBridge:
         self.traj_state[ter.plan_id] = ter
         if self.traj_state_cb:
             self.traj_state_cb(time=ter.timestamp, plan_id=ter.plan_id, uav=ter.uav,
-                               maneuver=ter.maneuver, manuever_eta=ter.maneuver_eta,
+                               maneuver=ter.maneuver, maneuver_eta=ter.maneuver_eta,
                                state=ter.state, last_outcome=ter.last_outcome)
 
     def set_uav_state_callback(self, fn):
