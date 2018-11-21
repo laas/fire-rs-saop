@@ -34,6 +34,7 @@ import typing as ty
 import matplotlib.figure
 
 import gi
+
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, GLib, Gtk, Pango
 from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
@@ -51,16 +52,21 @@ from fire_rs.monitoring.supersaop import SituationAssessment
 import serialization
 
 
-class ControllerObserverInterface:
+class HMIModel:
     def __init__(self):
         self.gui = None
         self.node = None
+
+        self.elevation_map = None  # type: ty.Optional[GeoData]
+        self.wildfire_map = None  # type: ty.Optional[GeoData]
+
+        self.uav_state = {}
 
     def set_controller(self, saopcontrolwindow):
         """Set the GUI that is controlling stuff"""
         self.gui = saopcontrolwindow
 
-    def set_observer(self, hmi_node):
+    def set_model_provider(self, hmi_node):
         """Set the HMI node retrieving information from ROS topics"""
         self.node = hmi_node
 
@@ -72,15 +78,15 @@ class ControllerObserverInterface:
 
     def on_elevation_map(self, elevation_map_msg: ElevationMap):
         if self.gui is not None:
-            GLib.idle_add(self.gui.update_elevation_map,
-                          serialization.geodata_from_raster_msg(elevation_map_msg.raster,
-                                                                "elevation"))
+            self.elevation_map = serialization.geodata_from_raster_msg(elevation_map_msg.raster,
+                                                                       "elevation")
+            GLib.idle_add(self.gui.update_elevation_map)
 
     def on_wildfire_map(self, wildfire_map_msg: PredictedWildfireMap):
         if self.gui is not None:
-            GLib.idle_add(self.gui.update_wildfire_map,
-                          serialization.geodata_from_raster_msg(wildfire_map_msg.raster,
-                                                                "ignition"))
+            self.wildfire_map = serialization.geodata_from_raster_msg(wildfire_map_msg.raster,
+                                                                      "ignition")
+            GLib.idle_add(self.gui.update_wildfire_map)
 
     def propagate_command(self):
         if self.node is not None:
@@ -89,47 +95,60 @@ class ControllerObserverInterface:
 
 class HMINode:
 
-    def __init__(self, co_interface: ControllerObserverInterface):
+    def __init__(self, model: HMIModel):
         rospy.init_node("hmi")
         self.elevation_map_cb = lambda x: None
 
-        self.co_interface = co_interface
-        self.co_interface.set_observer(self)
+        self.hmi_model = model
+        self.hmi_model.set_model_provider(self)
 
+        self.sub_rosout = rospy.Subscriber("rosout", Log, self._on_log, queue_size=10)
         self.sub_elevation_map = rospy.Subscriber("elevation", ElevationMap, self._on_elevation_map,
                                                   queue_size=10)
         self.sub_wildfire_map = rospy.Subscriber("wildfire_prediction", PredictedWildfireMap,
                                                  self._on_wildfire_map, queue_size=10)
-        self.sub_rosout = rospy.Subscriber("rosout", Log, self._on_log, queue_size=10)
 
         self.pub_propagate = rospy.Publisher("propagate", PropagateCmd, queue_size=10)
 
     def _on_log(self, msg: Log):
-        self.co_interface.on_log(msg)
+        self.hmi_model.on_log(msg)
+
+    def _on_elevation_map(self, msg: ElevationMap):
+        if self.elevation_map_cb:
+            self.hmi_model.on_elevation_map(msg)
+
+    def _on_wildfire_map(self, msg: PredictedWildfireMap):
+        if self.elevation_map_cb:
+            self.hmi_model.on_wildfire_map(msg)
 
     def propagate(self):
         self.pub_propagate.publish()
 
-    def _on_elevation_map(self, msg: ElevationMap):
-        if self.elevation_map_cb:
-            self.co_interface.on_elevation_map(msg)
 
-    def _on_wildfire_map(self, msg: PredictedWildfireMap):
-        if self.elevation_map_cb:
-            self.co_interface.on_wildfire_map(msg)
+class PlanCreationWindow(Gtk.Dialog):
+    def __init__(self, parent):
+        Gtk.Dialog.__init__(self, title="New plan", parent=parent, modal=True,
+                            destroy_with_parent=True, use_header_bar=True)
+
+        self.set_default_size(150, 100)
+        self.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
+        self.add_button(Gtk.STOCK_OK, Gtk.ResponseType.OK)
+
+        label = Gtk.Label("This is a dialog to display additional information")
+
+        box = self.get_content_area()
+        box.add(label)
+        self.show_all()
 
 
 class SAOPControlWindow(Gtk.Window):
 
-    def __init__(self, co_interface: ControllerObserverInterface):
+    def __init__(self, model: HMIModel):
         super(SAOPControlWindow, self).__init__(
             default_width=500, default_height=400, title="SAOP HMI")
 
-        self.co_interface = co_interface
-        self.co_interface.set_controller(self)
-
-        self.elevation_map = None  # type: ty.Optional[GeoData]
-        self.wildfire_map = None  # type: ty.Optional[GeoData]
+        self.hmi_model = model
+        self.hmi_model.set_controller(self)
 
         ## Actions
         self.cancel_button = Gtk.Button(label="Plan")
@@ -175,45 +194,50 @@ class SAOPControlWindow(Gtk.Window):
 
     def append_log(self, t: datetime.datetime, name: str, msg: str):
         self._append_text_with_markup(
-            "<b>{}</b> <i>{}</i>: {} \n".format(datetime.datetime.strftime(t, "%x %X"), str(name),
-                                                str(msg)))
+            "<b>{}</b> <i>{}</i>: <tt>{}</tt>\n".format(datetime.datetime.strftime(t, "%x %X"),
+                                                        str(name), str(msg)))
 
     def _append_text_with_markup(self, text):
         end_iter = self.log_textbuffer.get_end_iter()
         self.log_textbuffer.insert_markup(end_iter, text, -1)
 
-    def update_elevation_map(self, elevation_map: GeoData):
-        self.elevation_map = elevation_map
+    def update_uav_state(self):
         self._redraw_figure()
 
-    def update_wildfire_map(self, wildfire_map: GeoData):
-        self.wildfire_map = wildfire_map
+    def update_elevation_map(self):
+        self._redraw_figure()
+
+    def update_wildfire_map(self):
         self._redraw_figure()
 
     def _redraw_figure(self):
         """Redraw the matplotlib figure"""
         # Redraw
         gdd = None
-        if self.elevation_map is not None:
-            gdd = GeoDataDisplay.pyplot_figure(self.elevation_map, frame=(0, 0))
+        if self.model.elevation_map is not None:
+            gdd = GeoDataDisplay.pyplot_figure(self.model.elevation_map, frame=(0, 0))
             gdd.draw_elevation_shade()
-        if self.wildfire_map is not None:
+        if self.model.wildfire_map is not None:
             if gdd is None:
-                gdd = GeoDataDisplay.pyplot_figure(self.wildfire_map, frame=(0, 0))
-            gdd.draw_ignition_shade(self.wildfire_map)
+                gdd = GeoDataDisplay.pyplot_figure(self.model.wildfire_map, frame=(0, 0))
+            gdd.draw_ignition_contour(self.model.wildfire_map, with_labels=True)
 
         # Update the Gtk object
-        self.figure_box.remove(self.canvas)
-        self.canvas = FigureCanvas(gdd.figure)  # a Gtk.DrawingArea
-        self.figure_box.pack_end(self.canvas, True, True, 0)
-        self.navigation_toolbar.canvas = self.canvas
-        self.canvas.show()
+        # self.figure_box.remove(self.canvas)
+        self.canvas.figure = gdd.figure  # a Gtk.DrawingArea
+        # self.figure_box.pack_end(self.canvas, True, True, 0)
+        # self.navigation_toolbar.canvas = self.canvas
+        # self.canvas.show()
+        self.canvas.queue_draw()  # TODO: verifiy whether we need it or not
 
     def on_propagate_clicked(self, button):
-        self.co_interface.propagate_command()
+        self.hmi_model.propagate_command()
 
     def on_plan_clicked(self, button):
-        pass
+        pdiag = PlanCreationWindow(self)
+        if pdiag.run() == Gtk.ResponseType.OK:
+            print("hello")
+        pdiag.destroy()
 
 
 if __name__ == "__main__":
@@ -225,14 +249,14 @@ if __name__ == "__main__":
             pass
 
 
-    # Controller
-    coi = ControllerObserverInterface()
+    # Model
+    model = HMIModel()
 
     # View
-    win = SAOPControlWindow(coi)
+    win = SAOPControlWindow(model)
 
-    # Model
-    node = HMINode(coi)
+    # Provider
+    node = HMINode(model)
 
     win.show_all()
     win.connect("delete-event", Gtk.main_quit)
