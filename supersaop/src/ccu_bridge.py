@@ -25,11 +25,6 @@ import serialization
 TEST_AREA = ((480060.0, 489060.0), (6210074.0, 6217074.0))
 
 
-def ros_name_for(s: str):
-    """Obtain a ROS-allowed name"""
-    return re.sub('[^a-zA-Z0-9_]', '_', s)
-
-
 class CCUBridgeNode:
 
     def __init__(self):
@@ -42,20 +37,24 @@ class CCUBridgeNode:
 
         self._known_uavs = set()
         self._known_uavs.add('x8-06')
+        self._known_uavs.add('x8-02')
 
         self.dict_state_lock = threading.Lock()
         self.dict_state_msg = {uav: None for uav in self._known_uavs}
 
-        self.pub_dict_state = {uav: rospy.Publisher("/".join((ros_name_for(uav), 'state')),
-                                                    VehicleState, queue_size=10) for uav in
-                               self._known_uavs}  # type: ty.Mapping[str, rospy.Publisher]
+        # type: ty.Mapping[str, rospy.Publisher]
+        self.pub_dict_state = {
+            uav: rospy.Publisher("/".join(("uavs", serialization.ros_name_for(uav), 'state')),
+                                 VehicleState,
+                                 queue_size=10) for uav in self._known_uavs}
 
         self.dict_traj_lock = threading.Lock()
         self.dict_traj_msg = {uav: None for uav in self._known_uavs}
 
-        self.pub_dict_traj = {uav: rospy.Publisher("/".join((ros_name_for(uav), 'trajectory')),
-                                                   TrajectoryState, queue_size=10) for uav in
-                              self._known_uavs}  # type: ty.Mapping[str, rospy.Publisher]
+        # type: ty.Mapping[str, rospy.Publisher]
+        self.pub_dict_traj = {
+            uav: rospy.Publisher("/".join(("uavs", serialization.ros_name_for(uav), 'trajectory')),
+                                 TrajectoryState, queue_size=10) for uav in self._known_uavs}
 
         self.current_saop_plan = None
         self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
@@ -82,7 +81,8 @@ class CCUBridgeNode:
                 traj_state_msg = TrajectoryState(
                     header=Header(stamp=rospy.Time.from_sec(kwargs['time'])),
                     name=kwargs['plan_id'], uav=kwargs['uav'],
-                    maneuver=kwargs['maneuver'], maneuver_eta=rospy.Duration(kwargs['maneuver_eta']),
+                    maneuver=kwargs['maneuver'],
+                    maneuver_eta=rospy.Duration(kwargs['maneuver_eta']),
                     state=int(kwargs['state']), last_outcome=int(kwargs['last_outcome']))
                 self.dict_traj_msg[kwargs['uav']] = traj_state_msg
 

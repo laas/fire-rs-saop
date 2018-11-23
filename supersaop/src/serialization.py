@@ -1,3 +1,4 @@
+import re
 import typing as ty
 
 import numpy as np
@@ -6,6 +7,11 @@ import rospy
 from fire_rs.geodata.geo_data import GeoData
 import fire_rs.planning.new_planning as planning
 from supersaop.msg import Raster, RasterMetaData, Plan
+
+
+def ros_name_for(s: str):
+    """Obtain a ROS-allowed name"""
+    return re.sub('[^a-zA-Z0-9_]', '_', s)
 
 
 def raster_msg_from_geodata(geodata: GeoData, layer: str):
