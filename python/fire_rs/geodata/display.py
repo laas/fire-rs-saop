@@ -268,7 +268,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
         ls = LightSource(azdeg=315, altdeg=35)
         axim = self.axes.imshow(
-            ls.shade(z, cmap=kwargs['cmap'], blend_mode='overlay', vert_exag=1, dx=gd.cell_width,
+            ls.shade(z, cmap=kwargs['cmap'], blend_mode='soft', vert_exag=1, dx=gd.cell_width,
                      dy=gd.cell_height, vmin=kwargs['vmin'], vmax=kwargs['vmax']), **kwargs)
 
         self._drawings.append(axim)
