@@ -80,7 +80,26 @@ def get_pyplot_figure_and_axis():
     return fire_fig, fire_ax
 
 
-def plot_uav(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwargs):
+def plot_uav(ax, position: Tuple[float, float], orientation: float, size=1, **kwargs):
+    if 'facecolor' not in kwargs:
+        kwargs['facecolor'] = 'blue'
+    if 'edgecolor' not in kwargs:
+        kwargs['edgecolor'] = 'black'
+
+    plane_vertices = (np.array([[3.5, 6], [4, 5], [4, 4], [7, 4], [7, 3],
+                                [4, 3], [4, 1], [5, 1], [5, 0], [2, 0],
+                                [2, 1], [3, 1], [3, 3], [0, 3], [0, 4],
+                                [3, 4], [3, 5]]) - np.array([3.5, 3])) * size
+    r = np.array([[np.cos(orientation), -np.sin(orientation)],
+                  [np.sin(orientation), np.cos(orientation)]])
+
+    plane_polygon = matplotlib.patches.Polygon(np.matmul(plane_vertices, r) + position,
+                                               closed=True, fill=True, **kwargs)
+    return ax.add_patch(plane_polygon)
+
+
+@deprecated
+def plot_uav_deprecated(ax, uav_state, size=1, facecolor='blue', edgecolor='black', **kwargs):
     plane_vertices = (np.array([[3.5, 6], [4, 5], [4, 4], [7, 4], [7, 3],
                                 [4, 3], [4, 1], [5, 1], [5, 0], [2, 0],
                                 [2, 1], [3, 1], [3, 3], [0, 3], [0, 4],
@@ -213,6 +232,11 @@ class GeoDataDisplayBase:
     def legend(self):
         """Draw legend of labeled plots"""
         self._axes.legend()
+
+
+class CustomDateFormatter(matplotlib.dates.DateFormatter):
+    def __call__(self, x, pos=0):
+        return datetime.datetime.fromtimestamp(x, self.tz).strftime(self.fmt)
 
 
 class GeoDataDisplay(GeoDataDisplayBase):
@@ -393,6 +417,12 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
         return scattered
 
+    def draw_uav(self, position: Tuple[float, float], orientation: float, size=50, **kwargs):
+        """Draw a uav symbol in a GeoDataDisplay figure."""
+        if "zorder" not in kwargs:
+            kwargs["zorder"] = GeoDataDisplayBase.FOREGROUND_OVERLAY_LAYER
+        self._drawings.append(plot_uav(self.axes, position, orientation, size, **kwargs))
+
 
 class DisplayExtension:
 
@@ -405,6 +435,7 @@ class DisplayExtension:
         return self._name
 
 
+@deprecated("Use basic GeoDataDisplay instead")
 class UAVDisplayExtension(DisplayExtension):
     """Extension to GeoDataDisplay that draws small uavs"""
 
@@ -412,11 +443,12 @@ class UAVDisplayExtension(DisplayExtension):
         super().__init__(base_display, self.__class__.__name__)
         self.uav_state_list = uav_state_list
 
+    @deprecated("Use draw_uav of GeoDataDisplay instead")
     def draw_uav(self, *args, **kwargs):
         """Draw ignition point in a GeoDataDisplay figure."""
         for p in self.uav_state_list:
             self._base_display.drawings.append(
-                plot_uav(self._base_display.axes, p, *args, **kwargs))
+                plot_uav_deprecated(self._base_display.axes, p, *args, **kwargs))
 
 
 @deprecated
