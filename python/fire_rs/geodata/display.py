@@ -27,11 +27,13 @@
 __all__ = ['GeoDataDisplay', 'GeoDataDisplayBase', 'DisplayExtension', 'UAVDisplayExtension']
 
 from collections import Sequence
+import datetime
 from typing import Optional, Tuple, Type, Union, Dict
 
 import matplotlib
 import matplotlib.axis
 import matplotlib.cm
+import matplotlib.dates
 import matplotlib.figure
 import matplotlib.ticker
 import matplotlib.patches
@@ -334,8 +336,10 @@ class GeoDataDisplay(GeoDataDisplayBase):
         return firecont
 
     def _add_ignition_contour_labels(self, firecont):
+        # self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
+        #                  fmt='%.0f')
         self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
-                         fmt='%.0f')
+                         fmt=CustomDateFormatter('%H:%M'))
 
     def draw_ignition_shade(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'ignition',
                             time_range: 'Optional[Tuple[float, float]]' = None,
@@ -376,7 +380,8 @@ class GeoDataDisplay(GeoDataDisplayBase):
         return shade
 
     def _add_ignition_shade_colorbar(self, shade, label: 'str'):
-        cb = self._figure.colorbar(shade, ax=self.axes, shrink=0.65, aspect=20, format="%d min")
+        cb = self._figure.colorbar(shade, ax=self.axes, shrink=0.65, aspect=20,
+                                   format=CustomDateFormatter('%H:%M'))
         cb.set_label(label)
         self._colorbars.append(cb)
 
