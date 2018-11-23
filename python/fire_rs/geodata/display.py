@@ -322,7 +322,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
         igni[np.isnan(igni)] = np.finfo(np.float64).max
         igni[igni > lim[1]] = lim[1]
         igni[igni < lim[0]] = lim[0]
-        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 20))
+        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 10))
 
         if 'cmap' not in kwargs:
             kwargs['cmap'] = matplotlib.cm.YlOrRd
