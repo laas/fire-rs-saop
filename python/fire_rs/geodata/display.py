@@ -151,15 +151,17 @@ class GeoDataDisplayBase:
         self._geodata = geodata
 
         if not frame:
-            frame = (geodata.x_offset, geodata.y_offset)
+            frame = (geodata.x_offset + geodata.cell_width, geodata.y_offset + geodata.cell_width)
 
         x = np.arange(geodata.max_x)
         self._x_ticks = (x * geodata.cell_width) + geodata.x_offset
         y = np.arange(geodata.max_y)
         self._y_ticks = (y * geodata.cell_height) + geodata.y_offset
 
-        x_fmtr = EngOffsetFormatter(unit='m', offset=-geodata.x_offset + frame[0])
-        y_fmtr = EngOffsetFormatter(unit='m', offset=-geodata.y_offset + frame[1])
+        x_fmtr = EngOffsetFormatter(unit='m',
+                                    offset=-geodata.x_offset - geodata.cell_width + frame[0])
+        y_fmtr = EngOffsetFormatter(unit='m',
+                                    offset=-geodata.y_offset - geodata.cell_width + frame[1])
         self._axes.xaxis.set_major_formatter(x_fmtr)
         self._axes.yaxis.set_major_formatter(y_fmtr)
 
