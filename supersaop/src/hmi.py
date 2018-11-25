@@ -44,8 +44,11 @@ from matplotlib.backends.backend_gtk3 import NavigationToolbar2GTK3 as Navigatio
 
 import rospy
 from rosgraph_msgs.msg import Log
+from std_msgs.msg import Header
+from geometry_msgs.msg import Point
 from supersaop.msg import ElevationMap, PredictedWildfireMap, PropagateCmd, Raster, RasterMetaData, \
-    WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, VehicleState
+    WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, VehicleState, PlanCmd, Plan, \
+    Trajectory, TrajectoryConf, PlanConf, PoseEuler, Euler, MeanWind
 
 from fire_rs.geodata.geo_data import GeoData
 from fire_rs.geodata.display import GeoDataDisplay
@@ -132,6 +135,16 @@ class HMIModel:
         if self.node is not None:
             self.node.propagate()
 
+    def loiter_command(self, uav: str):
+        if self.node is not None:
+            self.node.loiter(uav)
+
+    def plan_command(self, vns_conf: str, planning_duration: float, uavs: ty.Sequence[str]):
+        if self.node is not None:
+            uav_stuff = {uav: {"start": self.uav_state_dict[uav],
+                               "end": self.uav_state_dict[uav]} for uav in uavs}
+            self.node.publish_plan_request(vns_conf, planning_duration, uav_stuff)
+
 
 class HMINode:
 
@@ -157,6 +170,7 @@ class HMINode:
             callback=self._on_vehicle_state, callback_args=uav, queue_size=10) for uav in self.uavs}
 
         self.pub_propagate = rospy.Publisher("propagate", PropagateCmd, queue_size=10)
+        self.pub_initial_plan = rospy.Publisher("initial_plan", PlanCmd, queue_size=10)
 
     def _on_log(self, msg: Log):
         self.hmi_model.on_log(msg)
@@ -176,9 +190,37 @@ class HMINode:
     def propagate(self):
         self.pub_propagate.publish()
 
+    def loiter(self, uav: str):
+        raise NotImplementedError()
+
+    def publish_plan_request(self, vns_conf: str, planning_duration: float,
+                             uavs: ty.Mapping[str, ty.Any]):
+
+        p_conf = PlanConf(name="A manual plan",
+                          flight_window=(rospy.Time.from_sec(.0), rospy.Time.from_sec(4294967295)))
+        trajs = []
+        for u_name, u_val in uavs.items():
+            start_wp = PoseEuler(position=Point(*u_val["start"]["position"]),
+                                 orientation=Euler(*u_val["start"]["orientation"]))
+            end_wp = PoseEuler(position=Point(*u_val["end"]["position"]),
+                               orientation=Euler(*u_val["end"]["orientation"]))
+
+            t_conf = TrajectoryConf(name="-".join(("traj", u_name)), uav_model=u_name,
+                                    start_wp=start_wp, end_wp=end_wp,
+                                    start_time=rospy.Time.now() + rospy.Duration.from_sec(
+                                        planning_duration),
+                                    max_duration=6000, wind=MeanWind(.0, .0))
+            trajs.append(Trajectory(conf=t_conf, maneuvers=[]))
+        p = Plan(header=Header(stamp=rospy.Time.now()), conf=p_conf, trajectories=trajs)
+
+        plan_command = PlanCmd(vns_conf=vns_conf, planning_duration=planning_duration,
+                               plan_prototype=p)
+        self.pub_initial_plan.publish(plan_command)
+        rospy.loginfo(plan_command)
+
 
 class PlanCreationWindow(Gtk.Dialog):
-    def __init__(self, parent):
+    def __init__(self, parent, uavs: ty.Sequence[str]):
         Gtk.Dialog.__init__(self, title="New plan", parent=parent, modal=True,
                             destroy_with_parent=True, use_header_bar=True)
 
@@ -186,11 +228,58 @@ class PlanCreationWindow(Gtk.Dialog):
         self.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
         self.add_button(Gtk.STOCK_OK, Gtk.ResponseType.OK)
 
-        label = Gtk.Label("This is a dialog to display additional information")
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, border_width=12)
+
+        vnsconf_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, border_width=0)
+        vnsconf_label = Gtk.Label("VNS configuration")
+        self.vnsconf_entry = Gtk.Entry(text="demo")
+        vnsconf_box.pack_start(vnsconf_label, False, False, 0)
+        vnsconf_box.pack_start(self.vnsconf_entry, True, True, 0)
+
+        duration_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, border_width=0)
+        duration_adjustment = Gtk.Adjustment(30, 5, 300, 1, 10, 0)
+        duration_label = Gtk.Label("Planning duration")
+        self.duration_entry = Gtk.SpinButton(text="demo")
+        self.duration_entry.set_adjustment(duration_adjustment)
+        duration_box.pack_start(duration_label, False, False, 0)
+        duration_box.pack_start(self.duration_entry, True, True, 0)
+
+        flowbox = Gtk.FlowBox()
+        flowbox.set_valign(Gtk.Align.START)
+        flowbox.set_max_children_per_line(3)
+        flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
+
+        # UAV Checkboxes
+        self.uav_selection = {}
+        for uav in uavs:
+            b = Gtk.CheckButton(uav)
+            b.props.active = True
+            self.uav_selection[uav] = True
+            b.connect("toggled", self._toggled_cb, uav)
+            flowbox.add(b)
+
+        content.pack_start(vnsconf_box, False, False, 0)
+        content.pack_start(duration_box, False, False, 0)
+        content.pack_start(flowbox, False, False, 0)
 
         box = self.get_content_area()
-        box.add(label)
+        box.add(content)
         self.show_all()
+
+    def _toggled_cb(self, button, uav_name):
+        self.uav_selection[uav_name] = button.props.active
+
+    @property
+    def selected_uavs(self):
+        return [filter(lambda x: self.uav_selection[x], self.uav_selection.keys())]
+
+    @property
+    def vns_conf(self):
+        return self.vnsconf_entry.get_text()
+
+    @property
+    def planning_duration(self):
+        return self.duration_entry.get_value()
 
 
 class SAOPControlWindow(Gtk.Window):
@@ -209,11 +298,14 @@ class SAOPControlWindow(Gtk.Window):
         self.propagate_button = Gtk.Button(label="Propagate")
         self.propagate_button.connect("clicked", self.on_propagate_clicked)
 
+        self.propagate_button = Gtk.Button(label="Loiter")
+        self.propagate_button.connect("clicked", self.on_propagate_clicked)
+
         self.action_bar = Gtk.ActionBar()
         self.action_bar.pack_start(self.propagate_button)
         self.action_bar.pack_start(self.cancel_button)
 
-        ## Visualization
+        ## Visualization control
         # Empty drawing area that will be replaced by a matplotlib figure
         default_fig = matplotlib.figure.Figure()
         self.canvas = FigureCanvas(default_fig)
@@ -266,6 +358,8 @@ class SAOPControlWindow(Gtk.Window):
         self.figure_box.pack_start(self.canvas, True, True, 0)
         self.figure_box.pack_start(scrolled_flowbox, False, False, 0)
 
+        ## Side panel
+        right_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         # View of ROS logs
         log_textview = Gtk.TextView()
         log_textview.set_editable(False)
@@ -275,6 +369,7 @@ class SAOPControlWindow(Gtk.Window):
         self.tag_bold = self.log_textbuffer.create_tag("bold", weight=Pango.Weight.BOLD)
         log_scrolled = Gtk.ScrolledWindow()
         log_scrolled.add(log_textview)
+        right_panel.pack_start(log_scrolled, True, True, 0)
 
         # UAV controls
 
@@ -282,7 +377,7 @@ class SAOPControlWindow(Gtk.Window):
         #                            border_width=12)
         self.content_panned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.content_panned.pack1(self.figure_box, True, True)
-        self.content_panned.pack2(log_scrolled, False, True)
+        self.content_panned.pack2(right_panel, False, True)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0, border_width=0)
         box.pack_start(self.content_panned, True, True, 0)
@@ -297,6 +392,9 @@ class SAOPControlWindow(Gtk.Window):
     def _append_text_with_markup(self, text):
         end_iter = self.log_textbuffer.get_end_iter()
         self.log_textbuffer.insert_markup(end_iter, text, -1)
+
+    def set_uav_controls(self):
+        """Update UAV control panel"""
 
     def update_uav_state(self, uav: str):
         self._redraw_figure()
@@ -317,9 +415,10 @@ class SAOPControlWindow(Gtk.Window):
         self.hmi_model.propagate_command()
 
     def on_plan_clicked(self, button):
-        pdiag = PlanCreationWindow(self)
+        pdiag = PlanCreationWindow(self, tuple(self.hmi_model.uav_state_dict.keys()))
         if pdiag.run() == Gtk.ResponseType.OK:
-            print("hello")
+            GLib.idle_add(self.hmi_model.plan_command, pdiag.vns_conf, pdiag.planning_duration,
+                          pdiag.uav_selection)
         pdiag.destroy()
 
 

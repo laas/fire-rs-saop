@@ -86,7 +86,31 @@ class VNSConfDB(Mapping):
                  "select_arbitrary_position": False},
             ]
         }
-        return cls({demo_vns_key: demo_vns})
+        full_vns_key = 'full'
+        full_vns = {
+            "max_time": 30.0,
+            "neighborhoods": [
+                {"name": "dubins-opt",
+                 "max_trials": 100,
+                 "generators": [
+                     {"name": "MeanOrientationChangeGenerator"},
+                     {"name": "RandomOrientationChangeGenerator"},
+                     {"name": "FlipOrientationChangeGenerator"}]},
+                {"name": "one-insert",
+                 "max_trials": 50,
+                 "select_arbitrary_trajectory": False,
+                 "select_arbitrary_position": False},
+                {"name": "one-insert",
+                 "max_trials": 200,
+                 "select_arbitrary_trajectory": True,
+                 "select_arbitrary_position": False},
+                {"name": "one-insert",
+                 "max_trials": 200,
+                 "select_arbitrary_trajectory": True,
+                 "select_arbitrary_position": True}
+            ]
+        }
+        return cls({demo_vns_key: demo_vns, full_vns_key: full_vns})
 
 
 class SAOPPlannerConf(Mapping):
@@ -145,6 +169,11 @@ Plan = up.Plan
 
 class UAVModels:
 
+    @staticmethod
+    def get(name: str):
+        """Get a UAV model by its name. Only x8 units are supported"""
+        return UAVModels.x8(name.split("-")[1])
+
     @property
     def x8_02(self):
         return UAVModels.x8("02")
@@ -199,15 +228,18 @@ class Planner:
 
 
 if __name__ == "__main__":
-    tc = TrajectoryConfig("name", UAVModels.x8("02"), Waypoint(480000.+1000, 6210000.+1000, 0., 0.),
-                          Waypoint(480000.+1000, 6210000.+1000, 0., 0.), 0., 3000., WindVector(0., 0.))
+    tc = TrajectoryConfig("name", UAVModels.x8("02"),
+                          Waypoint(480000. + 1000, 6210000. + 1000, 0., 0.),
+                          Waypoint(480000. + 1000, 6210000. + 1000, 0., 0.), 0., 3000.,
+                          WindVector(0., 0.))
 
     from fire_rs.firemodel.propagation import Environment
+
     wind = (10., 0.)
     area = ((480000.0, 485000.0), (6210000.0, 6215000.0))
     env = Environment(area, wind_speed=wind[0], wind_dir=wind[1])
     el = env.raster.as_cpp_raster("elevation")
-    tw = TimeWindow(0., 1542362677.0+100000.0)
+    tw = TimeWindow(0., 1542362677.0 + 100000.0)
     p = Plan("nombre", [tc], el, el, tw)
 
     print(p)

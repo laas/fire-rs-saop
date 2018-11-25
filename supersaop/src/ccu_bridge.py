@@ -61,7 +61,8 @@ class CCUBridgeNode:
 
     def on_saop_plan(self, msg: Plan):
         t = serialization.saop_trajectories_from_plan_msg(msg)
-        self.ccu.start_trajectory(t[0], "demo_traj", "x8-06")
+        for traj in t:
+            self.ccu.start_trajectory(traj, traj.conf.uav.name)
 
     def on_uav_state_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:

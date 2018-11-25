@@ -572,21 +572,21 @@ class NeptusBridge:
         self.gcs = nifc.GCS(self.imccomm, self.on_trajectory_execution_report,
                             self._on_uav_state_report)
 
-
-
     def send_home(self, uav):
         """ Tell a UAV to go home"""
         raise NotImplementedError
 
-    def start_trajectory(self, t: planning.Trajectory, plan_id: str, uav: str) -> bool:
+    def start_trajectory(self, t: planning.Trajectory, uav: str) -> bool:
         """Execute a SAOP trajectory with neptus 'plan_id' using the vehicle 'uav'"""
         # Start the mission
-        command_r = self.gcs.start(t, plan_id, uav)
+
+        command_r = self.gcs.start(t, uav)
+
         if command_r:
-            self.logger.info("Mission %s for %s started", plan_id, uav)
+            self.logger.info("Mission %s for %s started", t.name(), uav)
             return True
         else:
-            self.logger.error("Start of mission %s failed for %s failed", plan_id, uav)
+            self.logger.error("Start of mission %s failed for %s failed", t.name(), uav)
             return False
 
     def stop_uav(self, uav):

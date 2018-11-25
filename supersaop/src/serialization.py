@@ -32,7 +32,7 @@ def saop_trajectories_from_plan_msg(msg: Plan) -> ty.Sequence[planning.Trajector
     # msg_tc.conf.uav_model
     return [planning.Trajectory(planning.TrajectoryConfig(
         msg_tc.conf.name,
-        planning.UAVModels.x8("06"),
+        planning.UAVModels.get(msg_tc.conf.uav_model),
         planning.Waypoint(msg_tc.conf.start_wp.position.x, msg_tc.conf.start_wp.position.y,
                           msg_tc.conf.start_wp.position.z, msg_tc.conf.start_wp.orientation.psi),
         planning.Waypoint(msg_tc.conf.end_wp.position.x, msg_tc.conf.end_wp.position.y,
