@@ -238,9 +238,14 @@ class GeoDataDisplayBase:
         self._axes.legend()
 
 
-class CustomDateFormatter(matplotlib.dates.DateFormatter):
+class MinuteDateFormatter(matplotlib.dates.DateFormatter):
+    """Format date from a timestamp in minutes"""
+
     def __call__(self, x, pos=0):
-        return datetime.datetime.fromtimestamp(x, self.tz).strftime(self.fmt)
+        # TZ should not be used, because ROS only work on localtime
+        # without any time zone consideration
+        print(x)
+        return datetime.datetime.fromtimestamp(x * 60, None).strftime(self.fmt)
 
 
 class GeoDataDisplay(GeoDataDisplayBase):
@@ -339,7 +344,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
         # self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
         #                  fmt='%.0f')
         self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
-                         fmt=CustomDateFormatter('%H:%M'))
+                         fmt=MinuteDateFormatter('%H:%M'))
 
     def draw_ignition_shade(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'ignition',
                             time_range: 'Optional[Tuple[float, float]]' = None,
@@ -381,7 +386,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
     def _add_ignition_shade_colorbar(self, shade, label: 'str'):
         cb = self._figure.colorbar(shade, ax=self.axes, shrink=0.65, aspect=20,
-                                   format=CustomDateFormatter('%H:%M'))
+                                   format=MinuteDateFormatter('%H:%M'))
         cb.set_label(label)
         self._colorbars.append(cb)
 
