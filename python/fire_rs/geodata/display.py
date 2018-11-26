@@ -429,7 +429,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
         return scattered
 
-    def draw_uav(self, position: Tuple[float, float], orientation: float, size=50, **kwargs):
+    def draw_uav(self, position: Tuple[float, float], orientation: float, size=25, **kwargs):
         """Draw a uav symbol in a GeoDataDisplay figure."""
         if "zorder" not in kwargs:
             kwargs["zorder"] = GeoDataDisplayBase.FOREGROUND_OVERLAY_LAYER

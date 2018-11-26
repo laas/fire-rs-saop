@@ -24,12 +24,14 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import collections
 import datetime
 import logging
 import queue
 import time
 import threading
 import typing as ty
+from itertools import cycle
 
 import numpy as np
 
@@ -52,7 +54,7 @@ from supersaop.msg import ElevationMap, PredictedWildfireMap, PropagateCmd, Rast
 
 from fire_rs.geodata.geo_data import GeoData
 from fire_rs.geodata.display import GeoDataDisplay
-from fire_rs.planning.display import TrajectoryDisplayExtension, plot_trajectory
+from fire_rs.planning.display import TrajectoryDisplayExtension, plot_trajectory, TRAJECTORY_COLORS
 
 import serialization
 
@@ -82,9 +84,16 @@ class HMIModel:
         self.uav_state_updatable = True
         self.uav_state_drawable = True
 
+        self.uav_trail_dict = {}  # type: ty.MutableMapping[str, collections.deque]
+        self.uav_trail_count = 100
+        self.uav_trail_updatable = True
+        self.uav_trail_drawable = True
+
         self.trajectories = []
         self.trajectories_updatable = True
         self.trajectories_drawable = True
+
+        self.uav_colors = TRAJECTORY_COLORS
 
     def set_controller(self, saopcontrolwindow):
         """Set the GUI that is controlling stuff"""
@@ -125,6 +134,11 @@ class HMIModel:
                                                         vehicle_state_msg.orientation.theta,
                                                         vehicle_state_msg.orientation.psi)}
             if datetime.datetime.now() - self.last_uav_state_draw > datetime.timedelta(seconds=2.):
+                if self.uav_trail_updatable:
+                    if uav not in self.uav_trail_dict:
+                        self.uav_trail_dict[uav] = collections.deque([], self.uav_trail_count)
+                    self.uav_trail_dict[uav].appendleft(
+                        (vehicle_state_msg.position.x, vehicle_state_msg.position.y))
                 if self.gui is not None:
                     GLib.idle_add(self._draw_geodatadisplay)
                     GLib.idle_add(self.gui.update_uav_state, uav)
@@ -137,7 +151,7 @@ class HMIModel:
         if self.gdd_drawable:
             if self.gdd is None:
                 if self.elevation_map is not None:
-                    self.gdd = GeoDataDisplay.pyplot_figure(self.elevation_map, frame=(0, 0))
+                    self.gdd = GeoDataDisplay.pyplot_figure(self.elevation_map, frame=(0., 0.))
                     self.gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
             else:
                 self.gdd.axes.cla()
@@ -147,12 +161,17 @@ class HMIModel:
                     self.gdd.draw_ignition_contour(self.wildfire_map, with_labels=True)
                     # self.gdd.draw_ignition_shade(self.wildfire_map, with_colorbar=True)
                 if self.uav_state_drawable:
-                    for uav_state in self.uav_state_dict.values():
+                    for uav_state, color in zip(self.uav_state_dict.values(),
+                                                cycle(self.uav_colors)):
                         self.gdd.draw_uav(uav_state["position"][0:2],
-                                          uav_state["orientation"][2])
+                                          uav_state["orientation"][2], facecolor=color)
+                if self.uav_trail_drawable:
+                    for trail, color in zip(self.uav_trail_dict.values(), cycle(self.uav_colors)):
+                        self.gdd.TrajectoryDisplayExtension.draw_waypoint_trail(trail, color=color)
                 if self.trajectories_drawable:
-                    for traj in self.trajectories:
-                        plot_trajectory(self.gdd, traj, ["bases", "trajectory_solid", "arrows"])
+                    for traj, color in zip(self.trajectories, cycle(self.uav_colors)):
+                        plot_trajectory(self.gdd, traj, ["bases", "trajectory_solid", "arrows"],
+                                        color=color)
 
     def propagate_command(self):
         if self.node is not None:
@@ -350,35 +369,36 @@ class SAOPControlWindow(Gtk.Window):
         flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
 
         # Checkboxes
-        elevation_toggle = Gtk.CheckButton("Elevation")
-        elevation_toggle.props.active = True
+        def toggle_pause(button):
+            self.set_update_plot(not button.props.active)
+        pause_toggle = Gtk.ToggleButton("Pause")
+        pause_toggle.props.active = False
+        pause_toggle.connect("toggled", toggle_pause)
+        pause_toggle.toggled()
+        flowbox.add(pause_toggle)
+
+        display_label = Gtk.Label("Display:")
+        flowbox.add(display_label)
 
         def toggle_elevation(button):
             self.hmi_model.elevation_map_drawable = button.get_active()
-
-        elevation_toggle.connect("toggled", toggle_elevation)
-        elevation_toggle.toggled()
+        elevation_toggle = SAOPControlWindow._check_button_with_action("Elevation", toggle_elevation)
         flowbox.add(elevation_toggle)
-
-        wildfire_toggle = Gtk.CheckButton("Wildfire")
-        wildfire_toggle.props.active = True
 
         def toggle_wildfire(button):
             self.hmi_model.wildfire_map_drawable = button.get_active()
-
-        wildfire_toggle.connect("toggled", toggle_wildfire)
-        wildfire_toggle.toggled()
+        wildfire_toggle = SAOPControlWindow._check_button_with_action("Wildfire", toggle_wildfire)
         flowbox.add(wildfire_toggle)
-
-        uav_toggle = Gtk.CheckButton("UAVs")
-        uav_toggle.props.active = True
 
         def toggle_uav(button):
             self.hmi_model.uav_state_drawable = button.get_active()
-
-        uav_toggle.connect("toggled", toggle_uav)
-        uav_toggle.toggled()
+        uav_toggle = SAOPControlWindow._check_button_with_action("UAV", toggle_uav)
         flowbox.add(uav_toggle)
+
+        def toggle_trails(button):
+            self.hmi_model.uav_trail_drawable = button.get_active()
+        trail_toggle = SAOPControlWindow._check_button_with_action("UAV trails", toggle_trails)
+        flowbox.add(trail_toggle)
 
         scrolled_flowbox.add(flowbox)
 
@@ -412,6 +432,17 @@ class SAOPControlWindow(Gtk.Window):
         box.pack_start(self.content_panned, True, True, 0)
         box.pack_start(self.action_bar, False, False, 0)
         self.add(box)
+
+    @staticmethod
+    def _check_button_with_action(name, action):
+        toggle = Gtk.CheckButton(name)
+        toggle.props.active = True
+        toggle.connect("toggled", action)
+        toggle.toggled()
+        return toggle
+
+    def set_update_plot(self, state: bool):
+        self.hmi_model.gdd_drawable = state
 
     def append_log(self, t: datetime.datetime, name: str, msg: str):
         self._append_text_with_markup(

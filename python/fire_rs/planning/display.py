@@ -153,6 +153,22 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
                                          label=label, zorder=self._base_display.FOREGROUND_LAYER))
         # TODO: implement legend
 
+    def draw_waypoint_trail(self, wp_trail, **kwargs):
+        """Draw a waypoint trail in a GeoDataDisplay figure with solid color
+
+        kwargs:
+            color: desired color. Default: C0.
+        """
+        color = kwargs.get('color', 'C0')
+        size = kwargs.get('size', 1)
+        label = kwargs.get('label', None)
+        linestyle = kwargs.get('linestyle', '--')
+
+        self._base_display.drawings.append(
+            self._base_display.axes.plot(*(zip(*wp_trail)), linewidth=size, linestyle=linestyle,
+                                         c=color, label=label,
+                                         zorder=self._base_display.FOREGROUND_LAYER))
+
     def draw_segments(self, *args, **kwargs):
         """Draw observation segments with start and end points in a GeoDataDisplay figure."""
         if len(self.plan_trajectory) < 2:
