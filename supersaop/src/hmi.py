@@ -50,7 +50,7 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 from supersaop.msg import ElevationMap, PredictedWildfireMap, PropagateCmd, Raster, RasterMetaData, \
     WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, VehicleState, PlanCmd, Plan, \
-    Trajectory, TrajectoryConf, PlanConf, PoseEuler, Euler, MeanWind
+    Trajectory, TrajectoryConf, PlanConf, PoseEuler, Euler, MeanWind, StopCmd
 
 from fire_rs.geodata.geo_data import GeoData
 from fire_rs.geodata.display import GeoDataDisplay
@@ -187,6 +187,10 @@ class HMIModel:
                                "end": self.uav_state_dict[uav]} for uav in uavs}
             self.node.publish_plan_request(vns_conf, planning_duration, uav_stuff)
 
+    def stop_command(self, uav: str):
+        if self.node is not None:
+            self.node.stop(uav)
+
 
 class HMINode:
 
@@ -215,6 +219,7 @@ class HMINode:
 
         self.pub_propagate = rospy.Publisher("propagate", PropagateCmd, queue_size=10)
         self.pub_initial_plan = rospy.Publisher("initial_plan", PlanCmd, queue_size=10)
+        self.pub_stop = rospy.Publisher("stop", StopCmd, queue_size=10)
 
     def _on_log(self, msg: Log):
         self.hmi_model.on_log(msg)
@@ -240,6 +245,9 @@ class HMINode:
 
     def loiter(self, uav: str):
         raise NotImplementedError()
+
+    def stop(self, uav: str):
+        self.pub_stop.publish(StopCmd(uav))
 
     def publish_plan_request(self, vns_conf: str, planning_duration: float,
                              uavs: ty.Mapping[str, ty.Any]):
@@ -340,18 +348,22 @@ class SAOPControlWindow(Gtk.Window):
         self.hmi_model.set_controller(self)
 
         ## Actions
-        self.cancel_button = Gtk.Button(label="Plan")
-        self.cancel_button.connect("clicked", self.on_plan_clicked)
+        self.plan_button = Gtk.Button(label="Create")
+        self.plan_button.connect("clicked", self.on_plan_clicked)
+
+        self.cancel_button = Gtk.Button(label="Stop")
+        self.cancel_button.connect("clicked", self.on_cancel_clicked)
 
         self.propagate_button = Gtk.Button(label="Propagate")
         self.propagate_button.connect("clicked", self.on_propagate_clicked)
 
-        self.propagate_button = Gtk.Button(label="Loiter")
-        self.propagate_button.connect("clicked", self.on_propagate_clicked)
-
         self.action_bar = Gtk.ActionBar()
-        self.action_bar.pack_start(self.propagate_button)
+        self.action_bar.pack_start(Gtk.Label("Plan:"))
+        self.action_bar.pack_start(self.plan_button)
         self.action_bar.pack_start(self.cancel_button)
+        self.action_bar.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
+        self.action_bar.pack_start(Gtk.Label("Wildfire:"))
+        self.action_bar.pack_start(self.propagate_button)
 
         ## Visualization control
         # Empty drawing area that will be replaced by a matplotlib figure
@@ -371,6 +383,7 @@ class SAOPControlWindow(Gtk.Window):
         # Checkboxes
         def toggle_pause(button):
             self.set_update_plot(not button.props.active)
+
         pause_toggle = Gtk.ToggleButton("Pause")
         pause_toggle.props.active = False
         pause_toggle.connect("toggled", toggle_pause)
@@ -382,21 +395,26 @@ class SAOPControlWindow(Gtk.Window):
 
         def toggle_elevation(button):
             self.hmi_model.elevation_map_drawable = button.get_active()
-        elevation_toggle = SAOPControlWindow._check_button_with_action("Elevation", toggle_elevation)
+
+        elevation_toggle = SAOPControlWindow._check_button_with_action("Elevation",
+                                                                       toggle_elevation)
         flowbox.add(elevation_toggle)
 
         def toggle_wildfire(button):
             self.hmi_model.wildfire_map_drawable = button.get_active()
+
         wildfire_toggle = SAOPControlWindow._check_button_with_action("Wildfire", toggle_wildfire)
         flowbox.add(wildfire_toggle)
 
         def toggle_uav(button):
             self.hmi_model.uav_state_drawable = button.get_active()
+
         uav_toggle = SAOPControlWindow._check_button_with_action("UAV", toggle_uav)
         flowbox.add(uav_toggle)
 
         def toggle_trails(button):
             self.hmi_model.uav_trail_drawable = button.get_active()
+
         trail_toggle = SAOPControlWindow._check_button_with_action("UAV trails", toggle_trails)
         flowbox.add(trail_toggle)
 
@@ -480,6 +498,10 @@ class SAOPControlWindow(Gtk.Window):
             GLib.idle_add(self.hmi_model.plan_command, pdiag.vns_conf, pdiag.planning_duration,
                           pdiag.uav_selection)
         pdiag.destroy()
+
+    def on_cancel_clicked(self, button):
+        for uav in self.hmi_model.uav_state_dict.keys():
+            self.hmi_model.stop_command(uav)
 
 
 if __name__ == "__main__":

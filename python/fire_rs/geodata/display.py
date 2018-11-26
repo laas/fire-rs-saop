@@ -244,7 +244,6 @@ class MinuteDateFormatter(matplotlib.dates.DateFormatter):
     def __call__(self, x, pos=0):
         # TZ should not be used, because ROS only work on localtime
         # without any time zone consideration
-        print(x)
         return datetime.datetime.fromtimestamp(x * 60, None).strftime(self.fmt)
 
 

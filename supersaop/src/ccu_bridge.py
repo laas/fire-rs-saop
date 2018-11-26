@@ -15,7 +15,7 @@ from geometry_msgs.msg import Point
 
 from supersaop.msg import ElevationMap, Euler, PoseEuler, PredictedWildfireMap, PropagateCmd, \
     Raster, RasterMetaData, WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, \
-    Plan, VehicleState, Velocity, TrajectoryState
+    Plan, VehicleState, Velocity, TrajectoryState, StopCmd
 
 from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.monitoring.supersaop import NeptusBridge
@@ -58,12 +58,16 @@ class CCUBridgeNode:
 
         self.current_saop_plan = None
         self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
+        self.sub_saop_plan = rospy.Subscriber("stop", StopCmd, self.on_stop_cmd, queue_size=10)
 
     def on_saop_plan(self, msg: Plan):
         t = serialization.saop_trajectories_from_plan_msg(msg)
         for traj in t:
             if traj.length() > 0.:
                 self.ccu.start_trajectory(traj, traj.conf.uav.name)
+
+    def on_stop_cmd(self, msg: StopCmd):
+        self.ccu.stop_uav(msg.uav)
 
     def on_uav_state_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:
