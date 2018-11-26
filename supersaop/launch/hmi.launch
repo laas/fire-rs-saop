@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="supersaop"
+          type="hmi.py"
+          name="hmi"/>
+</launch>

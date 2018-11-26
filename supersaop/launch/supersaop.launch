@@ -1,0 +1,28 @@
+<launch>
+    <node pkg="supersaop"
+          type="situation_assessment.py"
+          name="situation_assessment"
+          output="screen"
+          respawn="true"/>
+
+    <node pkg="supersaop"
+          type="observation_planning.py"
+          name="observation_planning"
+          output="screen"
+          respawn="true"/>
+
+    <node pkg="supersaop"
+          type="ccu_bridge.py"
+          name="ccu_bridge"
+          output="screen"
+          respawn="true"/>
+
+    <!-- Comming soon ! -->
+    <!--
+    <node pkg="supersaop"
+          type="supervisor.py"
+          name="supervisor"
+          output="screen"
+          respawn="true"/>
+     -->
+</launch>
