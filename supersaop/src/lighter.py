@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
         actions = [(w_starter.set_on_fire, ((483060.0, 6214074.0), rospy.Time.now() - one_hour)),
                    (w_starter.propagate, None),
-                   (w_starter.set_on_fire, ((484060.0, 6214574.0), rospy.Time.now() - two_hours)),
+                   (w_starter.set_on_fire, ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
                    (w_starter.propagate, None)]
 
         r = rospy.Rate(1 / 2.)

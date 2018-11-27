@@ -49,11 +49,11 @@ TEST_AREA = ((480060.0, 489060.0), (6210074.0, 6217074.0))
 
 class SituationAssessmentNode:
 
-    def __init__(self):
+    def __init__(self, area):
         rospy.init_node('situation_assessment')
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
-        self.sa = SituationAssessment(TEST_AREA, logging.getLogger(__name__))
+        self.sa = SituationAssessment(area, logging.getLogger(__name__))
 
         # Lock from new observations while doing predictions
         self.sa_lock = threading.Lock()
@@ -152,7 +152,8 @@ class SituationAssessmentNode:
 
 if __name__ == '__main__':
     try:
-        sa = SituationAssessmentNode()
+        area = rospy.get_param("area", TEST_AREA)
+        sa = SituationAssessmentNode(area)
         rospy.spin()
     except rospy.ROSInterruptException:
         pass
