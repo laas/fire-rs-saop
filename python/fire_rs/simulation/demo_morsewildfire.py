@@ -11,7 +11,8 @@ if __name__ == "__main__":
     prop = fire_rs.firemodel.propagation.propagate_from_points(env, [ignition_point],
                                                                until=3 * 3600)
 
-    mw = fire_rs.simulation.morse.MorseWildfire(('localhost', 4000), 'demo_fire', prop.prop_data)
+    mw = fire_rs.simulation.morse.MorseWildfire(('localhost', 4000), 'demo_fire')
+    mw.set_wildfire_prediction_map(prop.prop_data)
 
     with mw:
         start_time = datetime.now().timestamp()

@@ -13,25 +13,31 @@ from fire_rs.geodata.geo_data import GeoData
 
 
 class MorseWildfire:
+    """Communicate with Morse to display a fire in the scene"""
 
-    def __init__(self, address: 'Tuple[str, int]', terrain_object: 'str', fire_gd: 'GeoData',
-                 layer='ignition'):
+    def __init__(self, address: 'Tuple[str, int]', terrain_object: 'str'):
         self.address = address
         self.terrain_object = terrain_object
-        self.fire_map = fire_gd
-        self.layer = layer
 
+        self.fire_map = None
+        self.layer = None
+
+        self.fire_image = None
         self.color = (255, 255, 255)
 
-        self.fire_image = np.zeros((*self.fire_map.data.shape, 3), dtype=np.uint8)
-
         self.morse_conn = None  # type: Optional[pymorse.Morse]
-
         self._morse_timeout = 5.
 
     def close(self, *args):
+        """Close Morse connection"""
         if self.morse_conn is not None:
             self.morse_conn.close(*args)
+            self.morse_conn = None
+
+    def set_wildfire_prediction_map(self, fire_map: GeoData, layer='ignition'):
+        """Set the wildfire ignition time map"""
+        self.fire_map = fire_map
+        self.layer = layer
 
     def _update_fire_image(self, time: 'float'):
         fire_image = np.zeros((*self.fire_map.data.shape, 3), dtype=np.uint8)
@@ -47,7 +53,10 @@ class MorseWildfire:
         self.fire_image = fire_image
 
     def update(self, time: 'Optional[float]' = None):
-        """Update wildfire at current time in morse"""
+        """Update wildfire texture at current time in morse"""
+        if self.fire_map is None:
+            raise ValueError("The wildfire ignition time map is not set")
+
         if time is None:
             time = datetime.now().timestamp()
 
