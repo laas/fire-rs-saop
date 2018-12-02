@@ -44,16 +44,14 @@ from fire_rs.monitoring.supersaop import SituationAssessment
 
 import serialization
 
-TEST_AREA = ((480060.0, 489060.0), (6210074.0, 6217074.0))
-
 
 class SituationAssessmentNode:
 
-    def __init__(self, area):
+    def __init__(self, area, world_paths=None):
         rospy.init_node('situation_assessment')
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
-        self.sa = SituationAssessment(area, logging.getLogger(__name__))
+        self.sa = SituationAssessment(area, logging.getLogger(__name__), world_paths=world_paths)
 
         # Lock from new observations while doing predictions
         self.sa_lock = threading.Lock()
@@ -152,8 +150,31 @@ class SituationAssessmentNode:
 
 if __name__ == '__main__':
     try:
-        area = rospy.get_param("area", TEST_AREA)
-        sa = SituationAssessmentNode(area)
-        rospy.spin()
+        area = rospy.get_param("area")
+
+        world_paths = None
+        has_dem_dir = rospy.has_param("dem_dir")
+        has_landcover_dir = rospy.has_param("landcover_dir")
+        has_wind_dir = rospy.has_param("wind_dir")
+
+        if has_dem_dir and has_landcover_dir and has_wind_dir:
+            # Either all are defined ...
+            world_paths = {}
+            world_paths["elevation_path"] = rospy.get_param("dem_dir")
+            world_paths["landcover_path"] = rospy.get_param("landcover_dir")
+            world_paths["wind_path"] = rospy.get_param("wind_dir")
+        else:
+            # ... or none of them
+            if has_dem_dir or has_landcover_dir or has_wind_dir:
+                # This is an error
+                rospy.logerr("dem_dir, landcover_dir and wind_dir have to be defined all toghether "
+                             "or not be defined at all.")
+                rospy.signal_shutdown("Geographic data directories are not well defined")
+            else:
+                # data folders are implicitely defined
+                pass
+        if not rospy.is_shutdown():
+            sa = SituationAssessmentNode(area, world_paths=world_paths)
+            rospy.spin()
     except rospy.ROSInterruptException:
         pass

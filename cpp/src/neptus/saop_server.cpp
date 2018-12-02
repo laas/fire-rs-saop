@@ -106,7 +106,8 @@ namespace SAOP {
         }
 
         IMC::PlanSpecification
-        GCS::plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id) {
+        GCS::plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id,
+                                int epsg_pcs = EPSG_RGF93_LAMBERT93) {
 
             const auto& t = saop_plan.trajectories()[trajectory];
 
@@ -126,7 +127,16 @@ namespace SAOP {
                 n_end--;
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
-            auto wp_wgs84 = lambert93_to_wgs84(wp_filtered);
+
+            std::vector<Waypoint3d> wp_wgs84;
+            switch (epsg_pcs) {
+                case EPSG_ETRS89_LAEA:
+                    wp_wgs84 = laea_to_world_coordinates(wp_filtered);
+                    break;
+                default:
+                    // If not ETRS89/LAEA, fallback to RGF93/Lambert93
+                    wp_wgs84 = lambert93_to_world_coordinates(wp_filtered);
+            }
 
             std::vector<std::string> maneuver_names = {};
 
@@ -138,8 +148,8 @@ namespace SAOP {
         }
 
         IMC::PlanSpecification
-        GCS::plan_specification(const Trajectory& t) {
-
+        GCS::plan_specification(const Trajectory& t, int epsg_pcs = EPSG_RGF93_LAMBERT93) {
+            // epsg_pcs: EPSG code of trajectory waypoints projected coordinate system
             auto wp = t.as_waypoints();
             auto all_names = t.names();
 
@@ -157,7 +167,16 @@ namespace SAOP {
                 n_end--;
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
-            auto wp_wgs84 = lambert93_to_wgs84(wp_filtered);
+
+            std::vector<Waypoint3d> wp_wgs84;
+            switch (epsg_pcs) {
+                case EPSG_ETRS89_LAEA:
+                    wp_wgs84 = laea_to_world_coordinates(wp_filtered);
+                    break;
+                default:
+                    // If not ETRS89/LAEA, fallback to RGF93/Lambert93
+                    wp_wgs84 = lambert93_to_world_coordinates(wp_filtered);
+            }
 
             std::vector<std::string> maneuver_names = std::vector<std::string>(n_start, n_end);
 

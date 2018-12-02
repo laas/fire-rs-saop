@@ -45,20 +45,28 @@ TimedPoint = namedtuple('TimedPoint', 'x, y, time')
 
 Area = namedtuple('Area', 'xmin, xmax, ymin, ymax')
 
+EPSG_RGF93_LAMBERT93 = 2154  # Lambert93 projected coordinate system (France)
+EPSG_RGF93 = 4171  # Lambert93 Geodetic coordinate system
+EPSG_ETRS89_LAEA = 3035  # Lambert Azimuthal Equal-Area projection (Europe)
+EPSG_ETRS89 = 4258  # European Terrestrial Reference System (Europe)
+
 
 class GeoData:
     """Container for geo-referenced raster data stored in a structured numpy array."""
 
-    def __init__(self, array, x_offset, y_offset, cell_width, cell_height):
+    def __init__(self, array, x_offset, y_offset, cell_width, cell_height,
+                 projection: Union[int, osr.SpatialReference] = EPSG_RGF93_LAMBERT93):
         assert cell_width > 0 and cell_height > 0, 'Origin must be on left-bottom'
         self.data = array  # type: 'np.array'
         self.x_offset = x_offset
         self.y_offset = y_offset
         self.cell_width = cell_width
         self.cell_height = cell_height
-        projection = osr.SpatialReference()
-        projection.ImportFromEPSG(2154)  # EPSG code for RGF93 / Lambert-93 projection
-        self.projection = projection
+        proj = projection
+        if isinstance(projection, int):
+            proj = osr.SpatialReference()
+            proj.ImportFromEPSG(projection)  # default is EPSG:2154, the RGF93/Lambert-93 projection
+        self.projection = proj
         self.max_x = array.shape[0]
         self.max_y = array.shape[1]
 
@@ -72,26 +80,28 @@ class GeoData:
         return up.DRaster(self.data[layer_name], self.x_offset, self.y_offset, self.cell_height)
 
     @staticmethod
-    def from_cpp_raster(raster, layer_name):
+    def from_cpp_raster(raster, layer_name, projection=EPSG_RGF93_LAMBERT93):
         ar = np.array(raster.as_numpy(), dtype=[(layer_name, 'float64')])
-        gd = GeoData(ar, raster.x_offset, raster.y_offset, raster.cell_width, raster.cell_width)
+        gd = GeoData(ar, raster.x_offset, raster.y_offset, raster.cell_width, raster.cell_width,
+                     projection=projection)
         return gd
 
     @staticmethod
-    def from_cpp_long_raster(lraster, layer_name):
+    def from_cpp_long_raster(lraster, layer_name, projection=EPSG_RGF93_LAMBERT93):
         ar = np.array(lraster.as_numpy(), dtype=[(layer_name, 'int64')])
-        gd = GeoData(ar, lraster.x_offset, lraster.y_offset, lraster.cell_width, lraster.cell_width)
+        gd = GeoData(ar, lraster.x_offset, lraster.y_offset, lraster.cell_width, lraster.cell_width,
+                     projection=projection)
         return gd
 
     @classmethod
     def zeros_like(cls, other: 'GeoData'):
         return cls(np.zeros_like(other.data), other.x_offset, other.y_offset,
-                   other.cell_width, other.cell_height)
+                   other.cell_width, other.cell_height, projection=other.projection)
 
     @classmethod
     def full_like(cls, other: 'GeoData', fill_value):
         return cls(np.full_like(other.data, fill_value), other.x_offset, other.y_offset,
-                   other.cell_width, other.cell_height)
+                   other.cell_width, other.cell_height, projection=other.projection)
 
     def __contains__(self, coordinates):
         (x, y) = coordinates
@@ -137,7 +147,8 @@ class GeoData:
         (xi_min, yi_min) = self.array_index(Point(area.xmin, area.ymin))
         (xi_max, yi_max) = self.array_index(Point(area.xmax, area.ymax))
         ary = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1]
-        return GeoData(ary, *self.coordinates(Cell(xi_min, yi_min)), self.cell_width, self.cell_height)
+        return GeoData(ary, *self.coordinates(Cell(xi_min, yi_min)), self.cell_width,
+                       self.cell_height)
 
     def array_index(self, coordinates: Point) -> Union[Cell, Tuple[int, int]]:
         (x, y) = coordinates
@@ -212,13 +223,15 @@ class GeoData:
         """
         if data_array is None and fill_value is None:
             assert dtype is None
-            return GeoData(self.data.copy(), self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+            return GeoData(self.data.copy(), self.x_offset, self.y_offset, self.cell_width,
+                           self.cell_height)
         elif data_array is not None:
             assert fill_value is None
             # impose data-type if provided
             data_array = data_array if dtype is None else np.array(data_array, dtype=dtype)
             assert data_array.shape == self.data.shape, 'The passed array as a different shape'
-            return GeoData(data_array, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+            return GeoData(data_array, self.x_offset, self.y_offset, self.cell_width,
+                           self.cell_height)
         else:
             assert fill_value is not None and dtype is not None
             d = np.full(self.data.shape, fill_value, dtype=dtype)
@@ -307,7 +320,8 @@ class GeoData:
         for i, layer in enumerate(layers):
             outband = out_raster.GetRasterBand(i + 1)
             outband.WriteArray(data[layer])
-            outband.SetDescription(layer)  # apparently not visible in QGIS, maybe there is a better alternative
+            outband.SetDescription(
+                layer)  # apparently not visible in QGIS, maybe there is a better alternative
             outband.FlushCache()
         out_raster.SetProjection(self.projection.ExportToWkt())
 
@@ -338,7 +352,8 @@ class GeoData:
         for i, layer in enumerate(layers):
             outband = mem_raster.GetRasterBand(i + 1)
             outband.WriteArray(data[layer])
-            outband.SetDescription(layer)  # apparently not visible in QGIS, maybe there is a better alternative
+            outband.SetDescription(
+                layer)  # apparently not visible in QGIS, maybe there is a better alternative
             outband.FlushCache()
         mem_raster.SetProjection(self.projection.ExportToWkt())
 
@@ -349,9 +364,8 @@ class GeoData:
     def load_from_file(cls, filename: str):
         handle = gdal.Open(filename)
 
-        expected_projection = osr.SpatialReference()
-        expected_projection.ImportFromEPSG(2154)  # EPSG code for RGF93 / Lambert-93 projection
-        assert handle.GetProjection() == expected_projection.ExportToWkt()
+        proj_wkt = handle.GetProjection()
+        proj = osr.SpatialReference(wkt=proj_wkt)
 
         geotransform = handle.GetGeoTransform()
         x_delta = geotransform[1]
@@ -381,7 +395,7 @@ class GeoData:
             y_delta = -y_delta
             array = array[..., ::-1].transpose()
 
-        return cls(array, x_orig, y_orig, x_delta, y_delta)
+        return cls(array, x_orig, y_orig, x_delta, y_delta, projection=proj)
 
 
 def join_structured_arrays(arrays):

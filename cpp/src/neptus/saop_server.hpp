@@ -321,10 +321,11 @@ namespace SAOP {
 
             GCS(std::shared_ptr<IMCComm> imc,
                 std::function<void(TrajectoryExecutionReport per)> plan_report_cb,
-                std::function<void(UAVStateReport usr)> uav_report_cb)
+                std::function<void(UAVStateReport usr)> uav_report_cb, int pcs_epsg=EPSG_RGF93_LAMBERT93)
                     : imc_comm(std::move(imc)),
                       plan_report_handler(std::move(plan_report_cb)),
                       uav_report_handler(std::move(uav_report_cb)),
+                      projected_coordinate_system_epsg(pcs_epsg),
                       req() {
 
                 // Bind to IMC messages
@@ -391,6 +392,8 @@ namespace SAOP {
             /* Function to be called periodically with UAV state information*/
             std::function<void(UAVStateReport usr)> uav_report_handler;
 
+            int projected_coordinate_system_epsg = EPSG_RGF93_LAMBERT93;
+
             std::unordered_map<uint16_t, std::string> uav_name_of = {{0x0c0c, "x8-02"},
                                                                      {0x0c10, "x8-06"}};
 
@@ -413,11 +416,15 @@ namespace SAOP {
             bool stop(std::string plan_id, uint16_t uav_addr);
 
             bool wait_for_load(uint16_t req_id);
+
             bool wait_for_stop(uint16_t req_id);
+
             bool wait_for_start(uint16_t req_id);
 
-            IMC::PlanSpecification plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id);
-            IMC::PlanSpecification plan_specification(const Trajectory& t);
+            IMC::PlanSpecification
+            plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id, int epsg_pcs);
+
+            IMC::PlanSpecification plan_specification(const Trajectory& t, int epsg_pcs);
 
 
             void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);

@@ -38,8 +38,8 @@ class LighterNode:
     def __init__(self):
         rospy.init_node("wildfire_starter")
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
-        self.pub_w = rospy.Publisher("wildfire_point", Timed2DPointStamped, queue_size=1)
-        self.pub_p = rospy.Publisher("propagate", PropagateCmd, queue_size=1)
+        self.pub_w = rospy.Publisher("wildfire_point", Timed2DPointStamped, queue_size=1, tcp_nodelay=True)
+        self.pub_p = rospy.Publisher("propagate", PropagateCmd, queue_size=1, tcp_nodelay=True)
 
     def set_on_fire(self, position, timestamp):
         fire_pos = Timed2DPointStamped(header=Header(stamp=rospy.Time.now()), x=position[0],
@@ -61,10 +61,22 @@ if __name__ == '__main__':
         one_hour = rospy.Duration(secs=1 * 60 * 60)
         two_hours = rospy.Duration(secs=2 * 60 * 60)
 
-        actions = [(w_starter.set_on_fire, ((483060.0, 6214074.0), rospy.Time.now() - one_hour)),
-                   (w_starter.propagate, None),
-                   (w_starter.set_on_fire, ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
-                   (w_starter.propagate, None)]
+        actions = []
+
+        location = rospy.get_param("~location", None)
+        print(location)
+        if location == "porto":
+            actions = [
+                (w_starter.set_on_fire, ((2776847.0, 2212167.0), rospy.Time.now() - two_hours*10)),
+                (w_starter.set_on_fire, ((2776847.0, 2212167.0), rospy.Time.now() - two_hours*10)),
+                (w_starter.propagate, None)]
+        else:
+            # Default actions
+            actions = [
+                (w_starter.set_on_fire, ((483060.0, 6214074.0), rospy.Time.now() - one_hour)),
+                (w_starter.propagate, None),
+                (w_starter.set_on_fire, ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
+                (w_starter.propagate, None)]
 
         r = rospy.Rate(1 / 2.)
 

@@ -100,7 +100,12 @@ class AreaGenerator:
 class SituationAssessment:
     """Evaluate the current state of a wildfire and provide fire perimeter forecasts"""
 
-    def __init__(self, area, logger: logging.Logger):
+    def __init__(self, area, logger: logging.Logger, world_paths: ty.Optional[ty.Mapping] = None):
+        """Initialize Situation Assessment.
+
+        :param area: Area of interest in projected coordinates
+        :param logger: A logging.Logger object
+        :param world_paths: (Optional) A mapping with paths to elevation, landcover and wind maps"""
         super().__init__()
         self.logger = logger
 
@@ -109,9 +114,12 @@ class SituationAssessment:
 
         self._surface_wind = (.0, .0)  # (speed, orientation)
 
+        world = None
+        if world_paths:
+            world = fire_rs.geodata.environment.World(**world_paths)
         self._environment = fire_rs.firemodel.propagation.Environment(
             self.area, wind_speed=self._surface_wind[0], wind_dir=self._surface_wind[
-                1])  # type: ty.Optional[fire_rs.firemodel.propagation.Environment]
+                1], world=world)  # type: ty.Optional[fire_rs.firemodel.propagation.Environment]
 
         self._elevation_timestamp = datetime.datetime.now()
 
@@ -513,8 +521,6 @@ class ObservationPlanning:
 
 
 class _CoordinateTransformation:
-    EPSG_LAMBERT93 = 2154
-    EPSG_RGF93 = 4171  # RGF93 is equivalent to WGS84
 
     def __init__(self, src: int, dst: int):
         source = osr.SpatialReference()
@@ -542,7 +548,10 @@ class NeptusBridge:
     TrajectoryExecutionOutcome = nifc.TrajectoryExecutionOutcome
 
     def __init__(self, logger: logging.Logger):
+        """Initialize a Neptus Bridge.
 
+        :param logger: A logging.Logger object
+        """
         self.logger = logger
 
         self.imccomm = nifc.IMCComm()
@@ -554,23 +563,38 @@ class NeptusBridge:
         self.uav_state_cb = None
         self.traj_state_cb = None
 
-        self._coor_tran = _CoordinateTransformation(_CoordinateTransformation.EPSG_RGF93,
-                                                    _CoordinateTransformation.EPSG_LAMBERT93)
+        self._projected_cs_epsg = geo_data.EPSG_RGF93_LAMBERT93
+        self._geodetic_cs_epsg = geo_data.EPSG_RGF93
+        self._coor_tran = _CoordinateTransformation(self._geodetic_cs_epsg, self._projected_cs_epsg)
 
         self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
         self.t_gcs = threading.Thread(target=self._create_gcs, daemon=False)
+
+    def start(self):
+        """Start the communication with Neptus"""
         self.t_imc.start()
         self.t_gcs.start()
 
-    def set_projected_coordinate_system_transformation(self, src_epsg: int, dst_epsg: int):
-        """Set a projected coordinate system for UAV locations by EPSG code."""
-        self._coor_tran = _CoordinateTransformation(src_epsg, dst_epsg)
+    def set_coordinate_system(self, projected_cs: int, geodetic_cs: int = None):
+        """Set the projected coordinate system for UAV locations.
+
+        For Lambert93 and LAEA, the geodetic_cs parameter is not necessary
+
+        :param projected_cs: Projected coordinate system
+        :param geodetic_cs: (Optional) Force a geodetic coordinate system
+        """
+        if projected_cs is geo_data.EPSG_RGF93_LAMBERT93:
+            geodetic_cs = geo_data.EPSG_RGF93
+        elif projected_cs is geo_data.EPSG_ETRS89_LAEA:
+            geodetic_cs = geo_data.EPSG_ETRS89
+
+        self._coor_tran = _CoordinateTransformation(geodetic_cs, projected_cs)
 
     def _create_gcs(self):
         """Create GCS object of this class.
         To be runned in a different thread."""
         self.gcs = nifc.GCS(self.imccomm, self.on_trajectory_execution_report,
-                            self._on_uav_state_report)
+                            self._on_uav_state_report, self._projected_cs_epsg)
 
     def send_home(self, uav):
         """ Tell a UAV to go home"""
@@ -629,15 +653,18 @@ class NeptusBridge:
 
     def _on_uav_state_report(self, usr: nifc.UAVStateReport):
         """Method called by the GCS to report about the state of the UAVs"""
-        x, y, z = self._coor_tran.transform(usr.lon * 180 / np.pi,
-                                            usr.lat * 180 / np.pi,
-                                            usr.height)
-        self.uav_state[usr.uav] = dict(time=usr.timestamp, uav=usr.uav,
-                                       x=x, y=y, z=z,
-                                       phi=usr.phi, theta=usr.theta, psi=usr.psi,
-                                       vx=usr.vx, vy=usr.vy, vz=usr.vz)
-        if self.uav_state_cb:
-            self.uav_state_cb(time=usr.timestamp, uav=usr.uav,
-                              x=x, y=y, z=usr.height,
-                              phi=usr.phi, theta=usr.theta, psi=usr.psi,
-                              vx=usr.vx, vy=usr.vy, vz=usr.vz)
+        try:
+            x, y, z = self._coor_tran.transform(usr.lon * 180 / np.pi,
+                                                usr.lat * 180 / np.pi,
+                                                usr.height)
+            self.uav_state[usr.uav] = dict(time=usr.timestamp, uav=usr.uav,
+                                           x=x, y=y, z=z,
+                                           phi=usr.phi, theta=usr.theta, psi=usr.psi,
+                                           vx=usr.vx, vy=usr.vy, vz=usr.vz)
+            if self.uav_state_cb:
+                self.uav_state_cb(time=usr.timestamp, uav=usr.uav,
+                                  x=x, y=y, z=usr.height,
+                                  phi=usr.phi, theta=usr.theta, psi=usr.psi,
+                                  vx=usr.vx, vy=usr.vy, vz=usr.vz)
+        except Exception as e:
+            self.logger.error(e)

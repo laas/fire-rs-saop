@@ -18,6 +18,7 @@ from supersaop.msg import ElevationMap, Euler, PoseEuler, PredictedWildfireMap, 
     Plan, VehicleState, Velocity, TrajectoryState, StopCmd
 
 from fire_rs.geodata.display import GeoDataDisplay
+from fire_rs.geodata.geo_data import EPSG_ETRS89_LAEA, EPSG_ETRS89
 from fire_rs.monitoring.supersaop import NeptusBridge
 
 import serialization
@@ -32,6 +33,7 @@ class CCUBridgeNode:
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
         self.ccu = NeptusBridge(logging.getLogger(__name__))
+        self.ccu.set_coordinate_system(EPSG_ETRS89_LAEA, EPSG_ETRS89)
         self.ccu.set_uav_state_callback(self.on_uav_state_from_neptus)
         self.ccu.set_trajectory_state_callback(self.on_trajectory_state_from_neptus)
 

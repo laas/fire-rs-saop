@@ -22,8 +22,15 @@ def raster_msg_from_geodata(geodata: GeoData, layer: str):
 
 
 def geodata_from_raster_msg(msg: Raster, layer: str):
+    """Deserialize a Raster msg into a GeoData object.
+
+    if layer is "elevation", the raster is inverted
+    """
     array = np.fromiter(zip(msg.data), dtype=[(layer, 'float64')])
     array.resize((msg.metadata.x_width, msg.metadata.y_height))
+    # FIXME (Workaround) invert elevation rasters as they are shown inverted in the GUI
+    if layer == "elevation":
+        array = array[..., ::-1]
     return GeoData(array, msg.metadata.x_offset, msg.metadata.y_offset, msg.metadata.cell_width,
                    msg.metadata.cell_width)
 

@@ -24,6 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #ifndef PLANNING_CPP_GEOGRAPHY_HPP
 #define PLANNING_CPP_GEOGRAPHY_HPP
 
+#include <stdexcept>
 #include <vector>
 
 #include <gdal/ogr_spatialref.h>
@@ -34,6 +35,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 namespace SAOP {
 
     namespace neptus {
+
+        static const int EPSG_RGF93_LAMBERT93 = 2154;
+        static const int EPSG_RGF93 = 4171; // Equivalent in practice to WGS84
+        static const int EPSG_ETRS89_LAEA = 3035;
+        static const int EPSG_ETRS89 = 4258; // Equivalent in practice to WGS84
 
         static std::vector<Waypoint3d> WGS84_waypoints(std::vector<Waypoint3d> waypoints,
                                                        Position origin, int utm_zone = 29,
@@ -52,33 +58,44 @@ namespace SAOP {
             return wgs84_wp;
         }
 
-        /*Convert Lambert93 (EPSG:2154) points to WGS84 (lat, lon) coordinates*/
-        static std::vector<Waypoint3d> lambert93_to_wgs84(std::vector<Waypoint3d> lambert93_wp) {
-            OGRSpatialReference wgs84_gcs;
-            OGRSpatialReference lambert93_pcs;
-            wgs84_gcs.importFromEPSG(4171); // RGF93 (EPSG:4171) is in practice equal to WGS84 (EPSG:4326)
-            lambert93_pcs.importFromEPSG(2154);
+        static std::vector<Waypoint3d> transform_coordinates(const std::vector<Waypoint3d>& from_wp, int from, int to) {
+            OGRSpatialReference dst_sr;
+            OGRSpatialReference src_sr;
+            src_sr.importFromEPSG(from);
+            dst_sr.importFromEPSG(to);
 
-            auto poCT = OGRCreateCoordinateTransformation(&lambert93_pcs, &wgs84_gcs);
-            ASSERT(poCT); // If the conversion cannot take place, poCT is null
+            auto poCT = OGRCreateCoordinateTransformation(&src_sr, &dst_sr);
+            if (poCT == nullptr) {
+                // If the conversion cannot take place, poCT is null
+                throw std::invalid_argument("The conversion cannot take between the given coordinate systems");
+            }
 
             double xx;
             double yy;
+            auto to_wp = std::vector<Waypoint3d>();
 
-            auto wgs84_wp = std::vector<Waypoint3d>();
-
-            for (auto it = lambert93_wp.begin(); it < lambert93_wp.end();++it) {
+            for (auto it = from_wp.begin(); it < from_wp.end();++it) {
                 xx = it->x;
                 yy = it->y;
                 poCT->Transform(1, &xx, &yy); // Again Transform must succed
 
-                wgs84_wp.emplace_back(Waypoint3d(xx/180*M_PI, yy/180*M_PI, it->z, it->dir));
+                to_wp.emplace_back(Waypoint3d(xx/180*M_PI, yy/180*M_PI, it->z, it->dir));
                 xx = 0;
                 yy = 0;
             }
+            delete poCT;
 
-            OGRCoordinateTransformation::DestroyCT(poCT);
-            return wgs84_wp;
+            return to_wp;
+        }
+
+        /*Convert Lambert93 points to WGS84 (lat, lon) coordinates*/
+        static std::vector<Waypoint3d> lambert93_to_world_coordinates(std::vector<Waypoint3d> lambert93_wp) {
+            return transform_coordinates(lambert93_wp, EPSG_RGF93_LAMBERT93, EPSG_RGF93);
+        }
+
+        /*Convert LAEA points to ETRS89 (lat, lon) coordinates*/
+        static std::vector<Waypoint3d> laea_to_world_coordinates(const std::vector<Waypoint3d>& laea_wp) {
+            return transform_coordinates(laea_wp, EPSG_ETRS89_LAEA, EPSG_ETRS89);
         }
     }
 }

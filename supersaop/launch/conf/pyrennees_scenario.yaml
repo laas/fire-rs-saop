@@ -1,1 +1,5 @@
+dem_dir: "/home/rbailonr/firers_data/dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17"
+landcover_dir: "/home/rbailonr/firers_data/landcover/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17"
+wind_dir: "/home/rbailonr/firers_data/wind/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17"
+coordinate_system: 2154  # Lambert93
 area: [[480060.0, 485060.0], [6211074.0, 6216074.0]]
