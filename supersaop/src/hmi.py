@@ -154,7 +154,7 @@ class HMIModel:
                     self.gdd = GeoDataDisplay.pyplot_figure(self.elevation_map, frame=(0., 0.))
                     self.gdd.add_extension(TrajectoryDisplayExtension, (None,), {})
             else:
-                self.gdd.axes.cla()
+                self.gdd.clear_axis()
                 if self.elevation_map_drawable and self.elevation_map is not None:
                     self.gdd.draw_elevation_shade(self.elevation_map)
                 if self.wildfire_map_drawable and self.wildfire_map is not None:

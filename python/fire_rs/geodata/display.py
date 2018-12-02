@@ -152,8 +152,11 @@ class GeoDataDisplayBase:
         self._figure, self._axes = figure, axes
         self._geodata = geodata
 
-        if not frame:
-            frame = (geodata.x_offset + geodata.cell_width, geodata.y_offset + geodata.cell_width)
+        if frame is None:
+            self._frame = (
+                geodata.x_offset + geodata.cell_width, geodata.y_offset + geodata.cell_width)
+        else:
+            self._frame = frame
 
         x = np.arange(geodata.max_x)
         self._x_ticks = (x * geodata.cell_width) + geodata.x_offset
@@ -221,6 +224,18 @@ class GeoDataDisplayBase:
     def pyplot_figure(cls, geodata, frame=None):
         figure, axis = get_pyplot_figure_and_axis()
         return cls(figure, axis, geodata, frame=frame)
+
+    def clear_axis(self):
+        self._axes.cla()
+        self._axes.set_aspect('equal')
+        self._axes.set_xlabel("East")
+        self._axes.set_ylabel("North")
+        x_fmtr = EngOffsetFormatter(
+            unit='m', offset=-self._geodata.x_offset - self._geodata.cell_width + self._frame[0])
+        y_fmtr = EngOffsetFormatter(
+            unit='m', offset=-self._geodata.y_offset - self._geodata.cell_width + self._frame[1])
+        self._axes.xaxis.set_major_formatter(x_fmtr)
+        self._axes.yaxis.set_major_formatter(y_fmtr)
 
     def add_extension(self, extensionclass: 'Type[DisplayExtension]', extension_args: 'tuple' = (),
                       extension_kwargs: 'dict' = {}):
