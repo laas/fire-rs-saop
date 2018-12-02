@@ -1,10 +1,11 @@
 <launch>
-    <rosparam command="load" file="$(find supersaop)/launch/conf/pyrennees_scenario.yaml"/>
+    <arg name="scenario"/>
+    <rosparam command="load" file="$(find supersaop)/launch/conf/$(arg scenario)"/>
     <node pkg="supersaop"
           type="situation_assessment.py"
           name="situation_assessment"
           output="screen"
-          respawn="true"/>
+          required="true"/>
 
     <node pkg="supersaop"
           type="observation_planning.py"
