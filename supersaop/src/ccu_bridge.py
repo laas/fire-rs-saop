@@ -18,7 +18,7 @@ from supersaop.msg import ElevationMap, Euler, PoseEuler, PredictedWildfireMap, 
     Plan, VehicleState, Velocity, TrajectoryState, StopCmd
 
 from fire_rs.geodata.display import GeoDataDisplay
-from fire_rs.geodata.geo_data import EPSG_ETRS89_LAEA, EPSG_ETRS89
+import fire_rs.geodata.geo_data as geo_data
 from fire_rs.monitoring.supersaop import NeptusBridge
 
 import serialization
@@ -28,12 +28,24 @@ TEST_AREA = ((480060.0, 489060.0), (6210074.0, 6217074.0))
 
 class CCUBridgeNode:
 
-    def __init__(self):
+    def __init__(self, coordinate_system=None):
         rospy.init_node('ccu_bridge')
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
         self.ccu = NeptusBridge(logging.getLogger(__name__))
-        self.ccu.set_coordinate_system(EPSG_ETRS89_LAEA, EPSG_ETRS89)
+
+        if coordinate_system is not None:
+            if coordinate_system == geo_data.EPSG_ETRS89_LAEA:
+                self.ccu.set_coordinate_system(geo_data.EPSG_ETRS89_LAEA, geo_data.EPSG_ETRS89)
+            elif coordinate_system == geo_data.EPSG_RGF93_LAMBERT93:
+                self.ccu.set_coordinate_system(geo_data.EPSG_RGF93_LAMBERT93, geo_data.EPSG_RGF93)
+            else:
+                rospy.logfatal("Unknown coordinate system code '%s'", str(coordinate_system))
+                raise rospy.ROSInterruptException(
+                    "Unknown coordinate system code '{}'".format(str(coordinate_system)))
+        else:
+            rospy.logwarn("No coordinate system has been set. Using default Lambert93/RGF93")
+
         self.ccu.start()
         self.ccu.set_uav_state_callback(self.on_uav_state_from_neptus)
         self.ccu.set_trajectory_state_callback(self.on_trajectory_state_from_neptus)
@@ -65,8 +77,9 @@ class CCUBridgeNode:
 
         # type: ty.Mapping[str, rospy.Publisher]
         self.pub_dict_firemap = {
-            uav: rospy.Publisher("/".join(("uavs", serialization.ros_name_for(uav), 'wildfire_observed')),
-                                 WildfireMap, queue_size=10) for uav in self._known_uavs}
+            uav: rospy.Publisher(
+                "/".join(("uavs", serialization.ros_name_for(uav), 'wildfire_observed')),
+                WildfireMap, queue_size=10) for uav in self._known_uavs}
 
         self.current_saop_plan = None
         self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
@@ -135,7 +148,8 @@ class CCUBridgeNode:
 
 if __name__ == '__main__':
     try:
-        ccu = CCUBridgeNode()
+        coordinate_s = rospy.get_param("coordinate_system", None)
+        ccu = CCUBridgeNode(coordinate_system=coordinate_s)
         r = rospy.Rate(1)
         while not rospy.is_shutdown():
             ccu.publish_state()
