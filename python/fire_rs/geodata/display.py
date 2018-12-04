@@ -164,9 +164,9 @@ class GeoDataDisplayBase:
         self._y_ticks = (y * geodata.cell_height) + geodata.y_offset
 
         x_fmtr = EngOffsetFormatter(unit='m',
-                                    offset=-geodata.x_offset - geodata.cell_width + frame[0])
+                                    offset=-geodata.x_offset - geodata.cell_width + self._frame[0])
         y_fmtr = EngOffsetFormatter(unit='m',
-                                    offset=-geodata.y_offset - geodata.cell_width + frame[1])
+                                    offset=-geodata.y_offset - geodata.cell_width + self._frame[1])
         self._axes.xaxis.set_major_formatter(x_fmtr)
         self._axes.yaxis.set_major_formatter(y_fmtr)
 
