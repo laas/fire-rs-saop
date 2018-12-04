@@ -270,6 +270,16 @@ namespace SAOP {
             }
         }
 
+        void GCS::dev_data_binary_handler(std::unique_ptr<IMC::DevDataBinary> m) {
+            try {
+                DRaster firemap = DRaster::decode(m->value);
+                FireMapReport fmr = FireMapReport{m->getTimeStamp(), uav_name_of[m->getSource()], firemap};
+                firemap_report_handler(fmr);
+            } catch (const std::invalid_argument& e) {
+                BOOST_LOG_TRIVIAL(error) << "IMC::DevDataBinary handler: " << e.what();
+            }
+        }
+
         bool GCS::load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
             uint16_t uav_addr = 0;
             auto uav_id_it = uav_addr_of.find(uav);
@@ -424,6 +434,7 @@ namespace SAOP {
             }
             return false;
         }
+
     }
 }
 #endif //PLANNING_CPP_SAOP_NEPTUS_H

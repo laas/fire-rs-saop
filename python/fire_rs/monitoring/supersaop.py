@@ -559,9 +559,11 @@ class NeptusBridge:
 
         self.uav_state = {}
         self.traj_state = {}
+        self.firemaps = {}
 
         self.uav_state_cb = None
         self.traj_state_cb = None
+        self.fire_map_cb = None
 
         self._projected_cs_epsg = geo_data.EPSG_RGF93_LAMBERT93
         self._geodetic_cs_epsg = geo_data.EPSG_RGF93
@@ -594,7 +596,8 @@ class NeptusBridge:
         """Create GCS object of this class.
         To be runned in a different thread."""
         self.gcs = nifc.GCS(self.imccomm, self.on_trajectory_execution_report,
-                            self._on_uav_state_report, self._projected_cs_epsg)
+                            self._on_uav_state_report, self._on_firemap_report,
+                            self._projected_cs_epsg)
 
     def send_home(self, uav):
         """ Tell a UAV to go home"""
@@ -668,3 +671,12 @@ class NeptusBridge:
                                   vx=usr.vx, vy=usr.vy, vz=usr.vz)
         except Exception as e:
             self.logger.error(e)
+
+    def set_firemap_callback(self, fn):
+        self.fire_map_cb = fn
+
+    def _on_firemap_report(self, fmr: nifc.FireMapReport):
+        firemap = geo_data.GeoData.from_cpp_raster(fmr.firemap, "ignition", self._projected_cs_epsg)
+        self.firemaps[fmr.uav] = dict(time=fmr.timestamp, uav=fmr.uav, firemap=firemap)
+        if self.fire_map_cb:
+            self.fire_map_cb(time=fmr.timestamp, uav=fmr.uav, firemap=firemap)

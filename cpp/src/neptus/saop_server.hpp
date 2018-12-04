@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/Heartbeat.hpp"
 #include "../../IMC/Spec/PlanControl.hpp"
 #include "../../IMC/Spec/PlanControlState.hpp"
+#include "../../IMC/Spec/DevDataBinary.hpp"
 
 #include "../ext/WGS84.hpp"
 
@@ -258,7 +259,6 @@ namespace SAOP {
 
         // Neptus plans correspond to SAOP Plan trajectories
         // A SAOP Plan can be seen as set of Neptus plans
-
         struct TrajectoryExecutionReport {
             double timestamp;
             std::string plan_id; // Neptus plan name
@@ -313,18 +313,38 @@ namespace SAOP {
             }
         };
 
+        // Neptus plans correspond to SAOP Plan trajectories
+        // A SAOP Plan can be seen as set of Neptus plans
+
+        struct FireMapReport {
+            double timestamp;
+            std::string uav;
+            DRaster firemap;
+
+            friend std::ostream& operator<<(std::ostream& stream, const FireMapReport& fmr) {
+                stream << "FireMapReport("
+                       << fmr.timestamp << ", "
+                       << fmr.uav << ", "
+                       << fmr.firemap << ")";
+                return stream;
+            }
+        };
+
         /* Command and supervise plan execution */
         class GCS final {
         public:
             explicit GCS(std::shared_ptr<IMCComm> imc) :
-                    GCS(std::move(imc), nullptr, nullptr) {}
+                    GCS(std::move(imc), nullptr, nullptr, nullptr) {}
 
             GCS(std::shared_ptr<IMCComm> imc,
                 std::function<void(TrajectoryExecutionReport per)> plan_report_cb,
-                std::function<void(UAVStateReport usr)> uav_report_cb, int pcs_epsg=EPSG_RGF93_LAMBERT93)
+                std::function<void(UAVStateReport usr)> uav_report_cb,
+                std::function<void(FireMapReport fmr)> firemap_report_cb,
+                int pcs_epsg = EPSG_RGF93_LAMBERT93)
                     : imc_comm(std::move(imc)),
                       plan_report_handler(std::move(plan_report_cb)),
                       uav_report_handler(std::move(uav_report_cb)),
+                      firemap_report_handler(std::move(firemap_report_cb)),
                       projected_coordinate_system_epsg(pcs_epsg),
                       req() {
 
@@ -335,9 +355,12 @@ namespace SAOP {
                         std::bind(&GCS::plan_control_state_handler, this, placeholders::_1));
                 imc_comm->bind<IMC::PlanControl>(
                         std::bind(&GCS::plan_control_handler, this, placeholders::_1));
+                imc_comm->bind<IMC::DevDataBinary>(
+                        std::bind(&GCS::dev_data_binary_handler, this, placeholders::_1));
             }
 
             virtual ~GCS() {
+                imc_comm->unbind<IMC::DevDataBinary>();
                 imc_comm->unbind<IMC::PlanControl>();
                 imc_comm->unbind<IMC::PlanControlState>();
                 imc_comm->unbind<IMC::EstimatedState>();
@@ -391,6 +414,8 @@ namespace SAOP {
                     plan_report_handler;
             /* Function to be called periodically with UAV state information*/
             std::function<void(UAVStateReport usr)> uav_report_handler;
+            /* Function to be called with received firemaps*/
+            std::function<void(FireMapReport usr)> firemap_report_handler;
 
             int projected_coordinate_system_epsg = EPSG_RGF93_LAMBERT93;
 
@@ -432,6 +457,9 @@ namespace SAOP {
             void plan_control_state_handler(std::unique_ptr<IMC::PlanControlState> m);
 
             void plan_control_handler(std::unique_ptr<IMC::PlanControl> m);
+
+            /* Handle fire map messages from the fire mapper */
+            void dev_data_binary_handler(std::unique_ptr<IMC::DevDataBinary> m);
         };
 
     }

@@ -34,8 +34,10 @@ class CCUBridgeNode:
 
         self.ccu = NeptusBridge(logging.getLogger(__name__))
         self.ccu.set_coordinate_system(EPSG_ETRS89_LAEA, EPSG_ETRS89)
+        self.ccu.start()
         self.ccu.set_uav_state_callback(self.on_uav_state_from_neptus)
         self.ccu.set_trajectory_state_callback(self.on_trajectory_state_from_neptus)
+        self.ccu.set_firemap_callback(self.on_firemap_from_neptus)
 
         self._known_uavs = set()
         self._known_uavs.add('x8-06')
@@ -57,6 +59,14 @@ class CCUBridgeNode:
         self.pub_dict_traj = {
             uav: rospy.Publisher("/".join(("uavs", serialization.ros_name_for(uav), 'trajectory')),
                                  TrajectoryState, queue_size=10) for uav in self._known_uavs}
+
+        self.dict_firemap_lock = threading.Lock()
+        self.dict_firemap_msg = {uav: None for uav in self._known_uavs}
+
+        # type: ty.Mapping[str, rospy.Publisher]
+        self.pub_dict_firemap = {
+            uav: rospy.Publisher("/".join(("uavs", serialization.ros_name_for(uav), 'wildfire_observed')),
+                                 WildfireMap, queue_size=10) for uav in self._known_uavs}
 
         self.current_saop_plan = None
         self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
@@ -94,6 +104,14 @@ class CCUBridgeNode:
                     state=int(kwargs['state']), last_outcome=int(kwargs['last_outcome']))
                 self.dict_traj_msg[kwargs['uav']] = traj_state_msg
 
+    def on_firemap_from_neptus(self, **kwargs):
+        if kwargs['uav'] in self._known_uavs:
+            with self.dict_firemap_lock:
+                firemap_msg = WildfireMap(
+                    header=Header(stamp=rospy.Time.from_sec(kwargs['time'])),
+                    raster=serialization.raster_msg_from_geodata(kwargs["firemap"], 'ignition'))
+                self.dict_firemap_msg[kwargs['uav']] = firemap_msg
+
     def publish_state(self):
         """ Publish retrieved information from Neptus into ROS topics"""
         for uav, state in self.dict_state_msg.items():
@@ -107,6 +125,12 @@ class CCUBridgeNode:
                 if traj_state is not None:
                     # rospy.logdebug("%s: %s", str(uav), str(traj_state))
                     self.pub_dict_traj[uav].publish(traj_state)
+
+        for uav, firemap in self.dict_firemap_msg.items():
+            with self.dict_firemap_lock:
+                if firemap is not None:
+                    # rospy.logdebug("%s: %s", str(uav), str(firemap))
+                    self.pub_dict_firemap[uav].publish(firemap)
 
 
 if __name__ == '__main__':

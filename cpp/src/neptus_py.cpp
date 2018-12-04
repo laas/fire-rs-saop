@@ -80,10 +80,12 @@ PYBIND11_MODULE(neptus_interface, m) {
     py::class_<neptus::GCS, std::shared_ptr<neptus::GCS>>(m, "GCS")
             .def(py::init<std::shared_ptr<neptus::IMCComm>>(), py::arg("imc"))
             .def(py::init<std::shared_ptr<neptus::IMCComm>,
-                         const std::function<void(neptus::TrajectoryExecutionReport)>,
-                         const std::function<void(neptus::UAVStateReport)>, int>(),
-                 py::arg("imc"), py::arg("ter_cb"), py::arg("usr_cb"), py::arg("pcs_epsg"),
+                         std::function<void(neptus::TrajectoryExecutionReport)>,
+                         std::function<void(neptus::UAVStateReport)>,
+                         std::function<void(neptus::FireMapReport)>, int>(),
+                 py::arg("imc"), py::arg("ter_cb"), py::arg("usr_cb"), py::arg("fmr_cb"), py::arg("pcs_epsg"),
                  py::call_guard<py::gil_scoped_release>())
+
             .def("start", (bool (neptus::GCS::*)(const Plan&, size_t, std::string, std::string)) &neptus::GCS::start,
                  py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
                  py::call_guard<py::gil_scoped_release>())
@@ -108,6 +110,16 @@ PYBIND11_MODULE(neptus_interface, m) {
             .value("Nothing", neptus::TrajectoryExecutionOutcome::Nothing)
             .value("Success", neptus::TrajectoryExecutionOutcome::Success)
             .value("Failure", neptus::TrajectoryExecutionOutcome::Failure);
+
+    py::class_<neptus::FireMapReport>(m, "FireMapReport")
+            .def("__repr__", [](neptus::FireMapReport& self) -> std::string {
+                std::stringstream ss;
+                ss << self;
+                return ss.str();
+            })
+            .def_readonly("timestamp", &neptus::FireMapReport::timestamp)
+            .def_readonly("uav", &neptus::FireMapReport::uav)
+            .def_readonly("firemap", &neptus::FireMapReport::firemap);
 
     py::class_<neptus::TrajectoryExecutionReport>(m, "TrajectoryExecutionReport")
             .def("__repr__", [](neptus::TrajectoryExecutionReport& self) -> std::string {

@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #define PLANNING_CPP_RASTER_H
 
 #include <valarray>
+#include <stdexcept>
 
 #include "waypoint.hpp"
 #include "../ext/optional.hpp"
@@ -79,6 +80,63 @@ namespace SAOP {
                 : GenRaster<T>(std::vector<T>(like.x_width * like.y_height, fill), like.x_width, like.y_height,
                                like.x_offset,
                                like.y_offset, like.cell_width) {}
+
+        friend std::ostream& operator<<(std::ostream& stream, const GenRaster<T>& raster) {
+            stream << "GenRaster(" << typeid(T).name() << ", "
+                   << "origin=(" << raster.x_offset << ", " << raster.y_offset << "), "
+                   << "size=(" << raster.x_width << ", " << raster.y_height << "), "
+                   << "cell_size=" << raster.cell_width
+                   << ")";
+            // TODO Add uav list
+            return stream;
+        }
+
+        /* Reconstruct a GenRaster<T> from an binary encoded version of it*/
+        static GenRaster<T> decode(const std::vector<char>& encoded_raster) {
+            // First two bytes are the magic code: 0xF13E big-endian
+
+            static constexpr size_t header_size = sizeof(uint16_t) +  // magic number
+                                                  2 * sizeof(uint64_t) +  // offset
+                                                  2 * sizeof(double) +  // size
+                                                  sizeof(double);  // cell size
+            if (encoded_raster.size() <= header_size) {
+                throw std::invalid_argument("Malformed raster");
+            }
+
+            size_t x_width;
+            size_t y_height;
+            double x_offset;
+            double y_offset;
+            double cell_width;
+
+            auto raster_bin_it = encoded_raster.begin();
+
+            char magic_number[2] = {static_cast<char>(0xF1), static_cast<char>(0x3E)};
+
+            // Check magic number
+            if (!((*raster_bin_it == magic_number[0]) &&
+                  (*(raster_bin_it + 1) == magic_number[1]))) {
+                throw std::invalid_argument("Malformed raster");
+            }
+            raster_bin_it += sizeof(uint16_t);
+
+            x_width = *reinterpret_cast<const size_t*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(uint64_t);
+            y_height = *reinterpret_cast<const size_t*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(uint64_t);
+            x_offset = *reinterpret_cast<const double*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(double);
+            y_offset = *reinterpret_cast<const double*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(double);
+            cell_width = *reinterpret_cast<const double*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(double);
+
+            std::vector<T> data = std::vector<T>();
+            for (auto it = raster_bin_it; it < encoded_raster.end(); it+=sizeof(double)) {
+                data.emplace_back(*reinterpret_cast<const double*>(&(*it)));
+            }
+            return GenRaster<T>(data, x_width, y_height, x_offset, y_offset, cell_width);
+        }
 
         void reset() {
             for (size_t i = 0; i < x_width * y_height; i++)
