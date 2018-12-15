@@ -88,10 +88,13 @@ set(Boost_USE_MULTITHREADED ON)
 add_definitions(-DBOOST_LOG_DYN_LINK)
 find_package(Boost COMPONENTS log log_setup thread date_time filesystem system REQUIRED)
 
+find_package(ZLIB REQUIRED)
+
 target_link_libraries(saop
         imc
         ${CMAKE_THREAD_LIBS_INIT}
         ${GDAL_LIBRARY}
+        ${ZLIB_LIBRARIES}
         ${Boost_LIBRARIES}
         )
 
