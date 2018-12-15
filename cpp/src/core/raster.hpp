@@ -28,6 +28,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <valarray>
 #include <stdexcept>
 
+#include <zlib.h>
+
+#include <string>
+
 #include "waypoint.hpp"
 #include "../ext/optional.hpp"
 #include "../ext/optional.hpp"
@@ -91,23 +95,25 @@ namespace SAOP {
             return stream;
         }
 
-        /* Reconstruct a GenRaster<T> from an binary encoded version of it*/
+        /* Reconstruct a GenRaster<T> from an compressed binary encoded version of it*/
         static GenRaster<T> decode(const std::vector<char>& encoded_raster) {
             // First two bytes are the magic code: 0xF13E big-endian
 
             static constexpr size_t header_size = sizeof(uint16_t) +  // magic number
                                                   2 * sizeof(uint64_t) +  // offset
                                                   2 * sizeof(double) +  // size
-                                                  sizeof(double);  // cell size
+                                                  sizeof(double) +  // cell size
+                                                  sizeof(uint64_t); // uncompressed data size;
             if (encoded_raster.size() <= header_size) {
                 throw std::invalid_argument("Malformed raster");
             }
 
-            size_t x_width;
-            size_t y_height;
+            uint64_t x_width;
+            uint64_t y_height;
             double x_offset;
             double y_offset;
             double cell_width;
+            uint64_t uncomp_data_size;
 
             auto raster_bin_it = encoded_raster.begin();
 
@@ -120,9 +126,9 @@ namespace SAOP {
             }
             raster_bin_it += sizeof(uint16_t);
 
-            x_width = *reinterpret_cast<const size_t*>(&(*raster_bin_it));
+            x_width = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
             raster_bin_it += sizeof(uint64_t);
-            y_height = *reinterpret_cast<const size_t*>(&(*raster_bin_it));
+            y_height = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
             raster_bin_it += sizeof(uint64_t);
             x_offset = *reinterpret_cast<const double*>(&(*raster_bin_it));
             raster_bin_it += sizeof(double);
@@ -131,11 +137,34 @@ namespace SAOP {
             cell_width = *reinterpret_cast<const double*>(&(*raster_bin_it));
             raster_bin_it += sizeof(double);
 
+            uncomp_data_size = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(double);
+
+            std::vector<char> data_char = std::vector<char>(uncomp_data_size);
+            size_t destlen = data_char.size();
+            unsigned char* dest = reinterpret_cast<unsigned char*>(data_char.data());
+            const unsigned char* src = reinterpret_cast<const unsigned char*>(&(*raster_bin_it));
+
+            int uncomp_res = uncompress(dest, &destlen, src, encoded_raster.size() - header_size);
+            if (uncomp_res != Z_OK) {
+                switch (uncomp_res) {
+                    case Z_MEM_ERROR:
+                        throw std::invalid_argument("zlib Z_MEM_ERROR");
+                    case Z_BUF_ERROR:
+                        throw std::invalid_argument("zlib Z_BUF_ERROR");
+                    case Z_DATA_ERROR:
+                        throw std::invalid_argument("zlib Z_DATA_ERROR");
+                    default:
+                        throw std::invalid_argument("unknown zlib error");
+                }
+
+            }
             std::vector<T> data = std::vector<T>();
-            for (auto it = raster_bin_it; it < encoded_raster.end(); it+=sizeof(double)) {
-                data.emplace_back(*reinterpret_cast<const double*>(&(*it)));
+            for (auto it = data_char.begin(); it < data_char.end(); it += sizeof(T)) {
+                data.emplace_back(*reinterpret_cast<const T*>(&(*it)));
             }
             return GenRaster<T>(data, x_width, y_height, x_offset, y_offset, cell_width);
+//            return GenRaster<T>(2, 2, 1.0, 1.0, 5.0);
         }
 
         void reset() {
@@ -457,11 +486,12 @@ namespace SAOP {
                                                    raster.x_offset + raster.x_width * raster.cell_width -
                                                    raster.cell_width / 2), raster.x_offset + raster.cell_width / 2);
             const double min_y = std::min(std::max(std::min(std::min(ay, by), std::min(cy, dy)) - raster.cell_width,
-                                                   raster.y_offset + raster.cell_width / 2), raster.y_offset + raster.y_height * raster.cell_width -
-                                                                                            raster.cell_width / 2);
-            const double max_y = std::max(std::min(std::max(std::max(ay, by), std::max(cy, dy)) + raster.cell_width,
+                                                   raster.y_offset + raster.cell_width / 2),
                                           raster.y_offset + raster.y_height * raster.cell_width -
-                                          raster.cell_width / 2), raster.y_offset + raster.cell_width / 2);
+                                          raster.cell_width / 2);
+            const double max_y = std::max(std::min(std::max(std::max(ay, by), std::max(cy, dy)) + raster.cell_width,
+                                                   raster.y_offset + raster.y_height * raster.cell_width -
+                                                   raster.cell_width / 2), raster.y_offset + raster.cell_width / 2);
 
             // coordinates of where to start the search, centered on a cell
             const size_t start_x = raster.x_coords(raster.x_index(min_x));
