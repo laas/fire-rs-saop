@@ -52,7 +52,7 @@ from supersaop.msg import ElevationMap, PredictedWildfireMap, PropagateCmd, Rast
     WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, VehicleState, PlanCmd, Plan, \
     Trajectory, TrajectoryConf, PlanConf, PoseEuler, Euler, MeanWind, StopCmd
 
-from fire_rs.geodata.geo_data import GeoData
+from fire_rs.geodata.geo_data import GeoData, Area
 from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.planning.display import TrajectoryDisplayExtension, plot_trajectory, TRAJECTORY_COLORS
 
@@ -78,6 +78,10 @@ class HMIModel:
         self.wildfire_map = None  # type: ty.Optional[GeoData]
         self.wildfire_map_updatable = True
         self.wildfire_map_drawable = True
+
+        self.wildfire_map_observed = None  # type: ty.Optional[GeoData]
+        self.wildfire_map_observed_updatable = True
+        self.wildfire_map_observed_drawable = True
 
         self.uav_state_dict = {}
         self.last_uav_state_draw = datetime.datetime.min
@@ -125,6 +129,21 @@ class HMIModel:
                 GLib.idle_add(self._draw_geodatadisplay)
                 GLib.idle_add(self.gui.update_wildfire_map)
 
+    def on_wildfire_map_observed(self, uav: str, wildfire_map_observed_msg: WildfireMap):
+        if self.wildfire_map_observed_updatable:
+            self.wildfire_map_observed = serialization.geodata_from_raster_msg(
+                wildfire_map_observed_msg.raster,
+                "ignition")
+            self.wildfire_map_observed = self.wildfire_map_observed.subset(
+                Area(self.elevation_map.x_offset,
+                     self.elevation_map.x_offset + self.elevation_map.cell_width * self.elevation_map.max_x,
+                     self.elevation_map.y_offset,
+                     self.elevation_map.y_offset + self.elevation_map.cell_height * self.elevation_map.max_y
+                     ))
+            if self.gui is not None:
+                GLib.idle_add(self._draw_geodatadisplay)
+                GLib.idle_add(self.gui.update_wildfire_map)
+
     def on_uav_state(self, uav: str, vehicle_state_msg: VehicleState):
         if self.uav_state_updatable:
             self.uav_state_dict[uav] = {"position": (vehicle_state_msg.position.x,
@@ -157,6 +176,9 @@ class HMIModel:
                 self.gdd.clear_axis()
                 if self.elevation_map_drawable and self.elevation_map is not None:
                     self.gdd.draw_elevation_shade(self.elevation_map)
+                if self.wildfire_map_observed_drawable and self.wildfire_map_observed is not None:
+                    # self.gdd.draw_ignition_contour(self.wildfire_map_observed, with_labels=True)
+                    self.gdd.draw_ignition_shade(self.wildfire_map_observed, with_colorbar=False)
                 if self.wildfire_map_drawable and self.wildfire_map is not None:
                     self.gdd.draw_ignition_contour(self.wildfire_map, with_labels=True)
                     # self.gdd.draw_ignition_shade(self.wildfire_map, with_colorbar=True)
@@ -215,6 +237,12 @@ class HMINode:
             "/".join(("uavs", serialization.ros_name_for(uav), 'state')), VehicleState,
             callback=self._on_vehicle_state, callback_args=uav, queue_size=10) for uav in self.uavs}
 
+        self.sub_firemap_obs_dict = {
+            uav: rospy.Subscriber(
+                "/".join(("uavs", serialization.ros_name_for(uav), 'wildfire_observed')),
+                WildfireMap, callback=self._on_wildfire_map_observed, callback_args=uav,
+                queue_size=10) for uav in self.uavs}
+
         self.sub_plan = rospy.Subscriber("plan", Plan, callback=self._on_plan, queue_size=10)
 
         self.pub_propagate = rospy.Publisher("propagate", PropagateCmd, queue_size=10)
@@ -231,6 +259,10 @@ class HMINode:
     def _on_wildfire_map(self, msg: PredictedWildfireMap):
         if self.hmi_model:
             self.hmi_model.on_wildfire_map(msg)
+
+    def _on_wildfire_map_observed(self, msg: WildfireMap, uav: str):
+        if self.hmi_model:
+            self.hmi_model.on_wildfire_map_observed(uav, msg)
 
     def _on_vehicle_state(self, msg: VehicleState, uav: str):
         if self.hmi_model:
@@ -406,6 +438,13 @@ class SAOPControlWindow(Gtk.Window):
         wildfire_toggle = SAOPControlWindow._check_button_with_action("Wildfire", toggle_wildfire)
         flowbox.add(wildfire_toggle)
 
+        def toggle_wildfire_observed(button):
+            self.hmi_model.wildfire_map_observed_drawable = button.get_active()
+
+        wildfire_observed_toggle = SAOPControlWindow._check_button_with_action(
+            "Observed Wildfire", toggle_wildfire_observed)
+        flowbox.add(wildfire_observed_toggle)
+
         def toggle_uav(button):
             self.hmi_model.uav_state_drawable = button.get_active()
 
@@ -473,6 +512,7 @@ class SAOPControlWindow(Gtk.Window):
 
     def set_uav_controls(self):
         """Update UAV control panel"""
+        pass
 
     def update_uav_state(self, uav: str):
         self._update_figure()
