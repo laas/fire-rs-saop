@@ -348,6 +348,7 @@ namespace SAOP {
                       projected_coordinate_system_epsg(pcs_epsg),
                       req() {
 
+                BOOST_LOG_TRIVIAL(info) << "Using projected coordinate system " << projected_coordinate_system_epsg;
                 // Bind to IMC messages
                 imc_comm->bind<IMC::EstimatedState>(
                         std::bind(&GCS::estimated_state_handler, this, placeholders::_1));
@@ -447,9 +448,9 @@ namespace SAOP {
             bool wait_for_start(uint16_t req_id);
 
             IMC::PlanSpecification
-            plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id, int epsg_pcs);
+            plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id);
 
-            IMC::PlanSpecification plan_specification(const Trajectory& t, int epsg_pcs);
+            IMC::PlanSpecification plan_specification(const Trajectory& t);
 
 
             void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);

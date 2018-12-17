@@ -547,10 +547,11 @@ class NeptusBridge:
     TrajectoryExecutionState = nifc.TrajectoryExecutionState
     TrajectoryExecutionOutcome = nifc.TrajectoryExecutionOutcome
 
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, logger: logging.Logger, coordinate_system: int = None):
         """Initialize a Neptus Bridge.
 
         :param logger: A logging.Logger object
+        :param coordinate_system: A projected coordinate system EPSG code
         """
         self.logger = logger
 
@@ -565,8 +566,12 @@ class NeptusBridge:
         self.traj_state_cb = None
         self.fire_map_cb = None
 
-        self._projected_cs_epsg = geo_data.EPSG_RGF93_LAMBERT93
+        self._projected_cs_epsg = geo_data.EPSG_RGF93_LAMBERT93 \
+            if coordinate_system is None else coordinate_system
         self._geodetic_cs_epsg = geo_data.EPSG_RGF93
+
+        self.set_coordinate_system(self._projected_cs_epsg)
+
         self._coor_tran = _CoordinateTransformation(self._geodetic_cs_epsg, self._projected_cs_epsg)
 
         self.t_imc = threading.Thread(target=self.imccomm.run, daemon=False)
@@ -585,12 +590,14 @@ class NeptusBridge:
         :param projected_cs: Projected coordinate system
         :param geodetic_cs: (Optional) Force a geodetic coordinate system
         """
-        if projected_cs is geo_data.EPSG_RGF93_LAMBERT93:
-            geodetic_cs = geo_data.EPSG_RGF93
-        elif projected_cs is geo_data.EPSG_ETRS89_LAEA:
-            geodetic_cs = geo_data.EPSG_ETRS89
+        if projected_cs == geo_data.EPSG_RGF93_LAMBERT93:
+            self._projected_cs_epsg = projected_cs
+            self._geodetic_cs_epsg = geo_data.EPSG_RGF93
+        elif projected_cs == geo_data.EPSG_ETRS89_LAEA:
+            self._projected_cs_epsg = projected_cs
+            self._geodetic_cs_epsg = geo_data.EPSG_ETRS89
 
-        self._coor_tran = _CoordinateTransformation(geodetic_cs, projected_cs)
+        self._coor_tran = _CoordinateTransformation(self._geodetic_cs_epsg, self._projected_cs_epsg)
 
     def _create_gcs(self):
         """Create GCS object of this class.

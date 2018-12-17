@@ -32,13 +32,13 @@ class CCUBridgeNode:
         rospy.init_node('ccu_bridge')
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
-        self.ccu = NeptusBridge(logging.getLogger(__name__))
-
         if coordinate_system is not None:
             if coordinate_system == geo_data.EPSG_ETRS89_LAEA:
-                self.ccu.set_coordinate_system(geo_data.EPSG_ETRS89_LAEA, geo_data.EPSG_ETRS89)
+                # self.ccu.set_coordinate_system(geo_data.EPSG_ETRS89_LAEA, geo_data.EPSG_ETRS89)
+                pass
             elif coordinate_system == geo_data.EPSG_RGF93_LAMBERT93:
-                self.ccu.set_coordinate_system(geo_data.EPSG_RGF93_LAMBERT93, geo_data.EPSG_RGF93)
+                # self.ccu.set_coordinate_system(geo_data.EPSG_RGF93_LAMBERT93, geo_data.EPSG_RGF93)
+                pass
             else:
                 rospy.logfatal("Unknown coordinate system code '%s'", str(coordinate_system))
                 raise rospy.ROSInterruptException(
@@ -46,6 +46,7 @@ class CCUBridgeNode:
         else:
             rospy.logwarn("No coordinate system has been set. Using default Lambert93/RGF93")
 
+        self.ccu = NeptusBridge(logging.getLogger(__name__), coordinate_system)
         self.ccu.start()
         self.ccu.set_uav_state_callback(self.on_uav_state_from_neptus)
         self.ccu.set_trajectory_state_callback(self.on_trajectory_state_from_neptus)
@@ -154,5 +155,5 @@ if __name__ == '__main__':
         while not rospy.is_shutdown():
             ccu.publish_state()
             r.sleep()
-    except rospy.ROSInterruptException:
-        pass
+    except rospy.ROSInterruptException as e:
+        print(e)

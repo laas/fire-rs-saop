@@ -106,8 +106,7 @@ namespace SAOP {
         }
 
         IMC::PlanSpecification
-        GCS::plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id,
-                                int epsg_pcs = EPSG_RGF93_LAMBERT93) {
+        GCS::plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id) {
 
             const auto& t = saop_plan.trajectories()[trajectory];
 
@@ -129,7 +128,7 @@ namespace SAOP {
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
 
             std::vector<Waypoint3d> wp_wgs84;
-            switch (epsg_pcs) {
+            switch (projected_coordinate_system_epsg) {
                 case EPSG_ETRS89_LAEA:
                     wp_wgs84 = laea_to_world_coordinates(wp_filtered);
                     break;
@@ -148,7 +147,7 @@ namespace SAOP {
         }
 
         IMC::PlanSpecification
-        GCS::plan_specification(const Trajectory& t, int epsg_pcs = EPSG_RGF93_LAMBERT93) {
+        GCS::plan_specification(const Trajectory& t) {
             // epsg_pcs: EPSG code of trajectory waypoints projected coordinate system
             auto wp = t.as_waypoints();
             auto all_names = t.names();
@@ -169,7 +168,7 @@ namespace SAOP {
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
 
             std::vector<Waypoint3d> wp_wgs84;
-            switch (epsg_pcs) {
+            switch (projected_coordinate_system_epsg) {
                 case EPSG_ETRS89_LAEA:
                     wp_wgs84 = laea_to_world_coordinates(wp_filtered);
                     break;
