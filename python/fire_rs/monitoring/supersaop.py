@@ -116,7 +116,9 @@ class SituationAssessment:
 
         world = None
         if world_paths:
-            world = fire_rs.geodata.environment.World(**world_paths)
+            world = fire_rs.geodata.environment.World(
+                **world_paths,
+                landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP)
         self._environment = fire_rs.firemodel.propagation.Environment(
             self.area, wind_speed=self._surface_wind[0], wind_dir=self._surface_wind[
                 1], world=world)  # type: ty.Optional[fire_rs.firemodel.propagation.Environment]
