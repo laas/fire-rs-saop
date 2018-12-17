@@ -77,7 +77,16 @@ namespace SAOP {
                 p_ctrl_entity_parameter.value = "true";
                 p_ctrl_set_entity_parameters.params.push_back(p_ctrl_entity_parameter);
 
+                auto fm_ctrl_set_entity_parameters = IMC::SetEntityParameters();
+                fm_ctrl_set_entity_parameters.name = "FireMapper";
+                fm_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
+                auto fm_ctrl_entity_parameter = IMC::EntityParameter();
+                fm_ctrl_entity_parameter.name = "Active";
+                fm_ctrl_entity_parameter.value = "true";
+                fm_ctrl_set_entity_parameters.params.push_back(fm_ctrl_entity_parameter);
+
                 auto start_actions = IMC::MessageList<IMC::Message>();
+                start_actions.push_back(fm_ctrl_set_entity_parameters);
                 start_actions.push_back(h_ctrl_set_entity_parameters);
                 start_actions.push_back(p_ctrl_set_entity_parameters);
 
