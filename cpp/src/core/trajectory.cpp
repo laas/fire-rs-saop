@@ -486,8 +486,6 @@ namespace SAOP {
     }
 
     void Trajectory::freeze() {
-        //FIXME: Fix implementation
-        return;
         std::swap(insertion_range.start, insertion_range.end);
         ASSERT(insertion_range.is_empty());
     }

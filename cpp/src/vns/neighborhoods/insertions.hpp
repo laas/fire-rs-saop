@@ -124,6 +124,7 @@ namespace SAOP {
                     default_height + (*p->firedata().elevation)(p->firedata().elevation->as_cell(pt.pt)),
                     random_angle, default_segment_length);
 
+
             opt<Candidate> best;
 
             // last valid projection made of the random observation.
@@ -160,9 +161,14 @@ namespace SAOP {
 
                 size_t first_insertion_loc, last_insertion_loc;
                 if (select_arbitrary_position) {
-                    const size_t loc = *traj.random_insertion_id();
-                    first_insertion_loc = loc;
-                    last_insertion_loc = loc;
+                    const opt<size_t> loc = traj.random_insertion_id();
+                    if (loc) {
+                        first_insertion_loc = *loc;
+                        last_insertion_loc = *loc;
+                    } else {
+                        first_insertion_loc = 1;
+                        last_insertion_loc = 0;
+                    }
                 } else {
                     first_insertion_loc = traj.insertion_range_start();
                     last_insertion_loc = traj.insertion_range_end();
