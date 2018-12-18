@@ -210,7 +210,7 @@ class WindNinjaCLI():
         self.args = {}  # dict(arg, value)
         num_threads = len(os.sched_getaffinity(0)) if "sched_getaffinity" in dir(os) else 2
         self.add_arguments(num_threads=num_threads,
-                           output_speed_units='mps',
+                           output_speed_units='kph',
                            ascii_out_resolution=int(ascii_out_resolution),
                            units_ascii_out_resolution='m',
                            units_mesh_resolution='m',
@@ -300,7 +300,7 @@ class WindNinjaCLI():
             input_direction)
         args = {'initialization_method': 'domainAverageInitialization',
                 'input_speed': input_speed,
-                'input_speed_units': 'mps',
+                'input_speed_units': 'kph',
                 'input_direction': trigo_angle_to_geo_angle(input_direction),
                 'input_wind_height': '10.0',
                 'units_input_wind_height': 'm',

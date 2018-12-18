@@ -144,7 +144,7 @@ class SituationAssessment:
     def set_surface_wind(self, value: ty.Tuple[float, float]):
         """ Set mean surface wind.
 
-        :param value: as (speed, direction)
+        :param value: as (speed km/h, direction)
         """
         self._environment.update_area_wind(value[0], value[1])
         self.logger.debug("Surface wind has been updated to %s", value)
