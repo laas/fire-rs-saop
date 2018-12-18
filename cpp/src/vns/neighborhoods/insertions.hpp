@@ -53,7 +53,10 @@ namespace SAOP {
                                const bool select_arbitrary_position)
                 : max_trials(max_trials),
                   select_arbitrary_trajectory(select_arbitrary_trajectory),
-                  select_arbitrary_position(select_arbitrary_position) {}
+                  select_arbitrary_position(select_arbitrary_position) {
+            BOOST_LOG_TRIVIAL(info) << "OneInsertNbhd is inserting wapoints at " << default_height
+                                    << " above ground altitude";
+        }
 
         unique_ptr<LocalMove> get_move(PlanPtr p) override {
             UpdateBasedMove no_move(p, unique_ptr<EmptyUpdate>(new EmptyUpdate()));
@@ -112,7 +115,11 @@ namespace SAOP {
             const double random_angle = drand(0, 2 * M_PI);
 
             /** Waypoint and segment resulting from the random picks */
-            const Segment3d random_observation = p->trajectories().uav(0).observation_segment(
+//            const Segment3d random_observation = p->trajectories().uav(0).observation_segment(
+//                    pt.pt.x, pt.pt.y,
+//                    default_height + (*p->firedata().elevation)(p->firedata().elevation->as_cell(pt.pt)),
+//                    random_angle, default_segment_length);
+            Segment3d random_observation = p->trajectories().uav(0).observation_segment(
                     pt.pt.x, pt.pt.y,
                     default_height + (*p->firedata().elevation)(p->firedata().elevation->as_cell(pt.pt)),
                     random_angle, default_segment_length);
@@ -138,6 +145,12 @@ namespace SAOP {
             /** Try best insert for each subtrajectory in the plan */
             for (size_t i = first_traj; i <= last_traj; i++) {
                 const Trajectory& traj = p->trajectories()[i];
+
+                // FIXME: DO not force a constant altitude
+                // This is a workaround for the limitation in z of DubinsWind
+                random_observation = Segment3d(
+                        projected_random_observation.start.with_z(p->trajectories()[i][0].maneuver.start.z),
+                        projected_random_observation.end.with_z(p->trajectories()[i][0].maneuver.start.z));
 
                 // get projected observation closer to the fire front at the beginning of the trajectory
                 // this is useful to avoid to projection to follow the same path multiple times to end up on a failure.
