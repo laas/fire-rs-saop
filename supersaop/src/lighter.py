@@ -71,15 +71,38 @@ if __name__ == '__main__':
         one_hour = rospy.Duration(secs=1 * 60 * 60)
         two_hours = rospy.Duration(secs=2 * 60 * 60)
         five_hours = rospy.Duration(secs=5 * 60 * 60)
+        ten_hours = rospy.Duration(secs=10 * 60 * 60)
 
         actions = []
 
         location = rospy.get_param("~location", None)
         print(location)
-        if location == "porto_2":
+        if location == "porto":
             actions = [
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
+                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
+                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
+                (w_starter.propagate, None)]
+
+        elif location == "porto_3":
+            # Two fires around LIPA, one over the north, and the other on the south
+            actions = [
+                # North fire
+                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - half_hour)),
+                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - half_hour)),
+
+                # South fire
+                (w_starter.set_on_fire, ((2776704.0, 2211865.0), rospy.Time.now() - half_hour)),
+
+                (w_starter.set_wind, (3, 1 * np.pi / 4)),
+
+                (w_starter.propagate, None)]
+
+        elif location == "porto_2":
+            # Bigger fire around LIPA directed to the north-east
+            actions = [
+                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - half_hour)),
+                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - half_hour)),
+                (w_starter.set_wind, (5, 1 * np.pi / 4)),
                 (w_starter.propagate, None)]
         elif location == "porto_1":
             # Small fire around LIPA
