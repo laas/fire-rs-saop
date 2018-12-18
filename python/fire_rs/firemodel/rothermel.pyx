@@ -66,7 +66,7 @@ cdef RothermelResult ros_detailed(FuelModel fuel, MoistureScenario moistures, do
 
     cdef double delta = fuel.depth * 0.0328084
     cdef double mx_dead = fuel.mx_dead / 100
-    cdef double u = wind * 54.6806649
+    cdef double u = wind * 54.6806649 # km/h to feet/minute
     slope /= 100
 
     assert m[3] >= 0.3, "Moisture of live herbs should be greater than 30%"
