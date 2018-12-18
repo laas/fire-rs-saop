@@ -16,6 +16,7 @@
     <node pkg="supersaop"
           type="ccu_bridge.py"
           name="ccu_bridge"
+          output="screen"
           respawn="true"/>
 
     <!-- Comming soon ! -->
