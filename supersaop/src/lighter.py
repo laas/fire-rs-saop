@@ -31,7 +31,7 @@ import rospy
 from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 
-from supersaop.msg import Timed2DPointStamped, PropagateCmd
+from supersaop.msg import Timed2DPointStamped, PropagateCmd, MeanWindStamped
 
 
 class LighterNode:
@@ -40,6 +40,8 @@ class LighterNode:
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
         self.pub_w = rospy.Publisher("wildfire_point", Timed2DPointStamped, queue_size=1,
                                      tcp_nodelay=True)
+        self.pub_wind = rospy.Publisher("mean_wind", MeanWindStamped, queue_size=1,
+                                        tcp_nodelay=True)
         self.pub_p = rospy.Publisher("propagate", PropagateCmd, queue_size=1, tcp_nodelay=True)
 
     def set_on_fire(self, position, timestamp):
@@ -48,6 +50,13 @@ class LighterNode:
 
         self.pub_w.publish(fire_pos)
         rospy.loginfo(fire_pos)
+
+    def set_wind(self, wind_speed, wind_direction):
+        wind = MeanWindStamped(header=Header(stamp=rospy.Time.now()), speed=wind_speed,
+                               direction=wind_direction)
+
+        self.pub_wind.publish(wind)
+        rospy.loginfo(wind)
 
     def propagate(self):
         pcmd = PropagateCmd()

@@ -29,6 +29,7 @@ import logging
 import threading
 import uuid
 
+import numpy as np
 import matplotlib
 
 matplotlib.use('Gtk3Agg')
@@ -125,6 +126,8 @@ class SituationAssessmentNode:
 
     def on_mean_wind(self, msg: MeanWindStamped):
         with self.sa_lock:
+            rospy.loginfo("Mean wind set to %s km/h direction %s º)",
+                          str(msg.speed), str(msg.direction / np.pi * 180))
             self.sa.set_surface_wind((msg.speed, msg.direction))
 
     def on_propagate_cmd(self, msg: PropagateCmd):
