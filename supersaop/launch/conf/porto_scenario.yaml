@@ -2,4 +2,6 @@ dem_dir: "/home/rbailonr/firers_data_porto/dem"
 landcover_dir: "/home/rbailonr/firers_data_porto/landcover"
 wind_dir: "/home/rbailonr/firers_data_porto/wind"
 coordinate_system: 3035  # LAEA
-area: [[2775325.0, 2778325.0], [2210675.0, 2213675.0]]
+area: [[2775829.0, 2777829.0], [2211180.0, 2213180.0]]
+
+# LIPA coords: X 2776829.27  Y 2212180.47
