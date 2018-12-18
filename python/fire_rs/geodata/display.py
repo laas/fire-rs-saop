@@ -227,6 +227,9 @@ class GeoDataDisplayBase:
 
     def clear_axis(self):
         self._axes.cla()
+        # drawings and colorbar references must be cleared to prevent increasing memory usage
+        self._drawings = []
+        self._colorbars = []
         self._axes.set_aspect('equal')
         self._axes.set_xlabel("East")
         self._axes.set_ylabel("North")
