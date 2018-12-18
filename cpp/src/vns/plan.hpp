@@ -116,7 +116,7 @@ namespace SAOP {
         }
 
         GenRaster<double> utility_map() const {
-            return utility_comp_propagation();
+            return utility_comp_radial();
         }
 
         size_t num_segments() const {
