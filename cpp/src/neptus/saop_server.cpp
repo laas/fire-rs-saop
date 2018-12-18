@@ -201,12 +201,12 @@ namespace SAOP {
             // Base location "LLH"
             double m_lat = m->lat;
             double m_lon = m->lon;
-            double m_agl = m->height;
+            double m_asl = m->height;
             // m->x, m->y, m->z is a displacement from LLH
-            DUNE::Coordinates::WGS84::displace(m->x, m->y, m->z, &m_lat, &m_lon, &m_agl);
+            DUNE::Coordinates::WGS84::displace(m->x, m->y, m->z, &m_lat, &m_lon, &m_asl);
 
             UAVStateReport report{m->getTimeStamp(), uav_name_of[m->getSource()],
-                                  m_lat, m_lon, m->alt,
+                                  m_lat, m_lon, m_asl,
                                   m->phi, m->theta, m->psi,
                                   m->vx, m->vy, m->vz};
             uav_report_handler(report);
