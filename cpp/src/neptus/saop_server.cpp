@@ -127,6 +127,12 @@ namespace SAOP {
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
 
+            double forward_dist = 0.;
+            for (auto& wp: wp_filtered) {
+                wp = wp.forward(forward_dist);
+                BOOST_LOG_TRIVIAL(info) << "Moving waypoints forward " << forward_dist << " meters";
+            }
+
             std::vector<Waypoint3d> wp_wgs84;
             switch (projected_coordinate_system_epsg) {
                 case EPSG_ETRS89_LAEA:
@@ -166,6 +172,12 @@ namespace SAOP {
                 n_end--;
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
+
+            double forward_dist = 0.;
+            for (auto& wp: wp_filtered) {
+                wp = wp.forward(forward_dist);
+                BOOST_LOG_TRIVIAL(info) << "Moving waypoints forward " << forward_dist << " meters";
+            }
 
             std::vector<Waypoint3d> wp_wgs84;
             switch (projected_coordinate_system_epsg) {

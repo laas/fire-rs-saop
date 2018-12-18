@@ -253,6 +253,10 @@ namespace SAOP {
             return Waypoint3d{x, y, new_z, dir};
         }
 
+        Waypoint3d with_z(double new_z) const {
+            return Waypoint3d{x, y, new_z, dir};
+        }
+
         Waypoint3d rotate(double relative_angle) const {
             return Waypoint3d{x, y, z, dir + relative_angle};
         }
