@@ -85,10 +85,19 @@ namespace SAOP {
                 fm_ctrl_entity_parameter.value = "true";
                 fm_ctrl_set_entity_parameters.params.push_back(fm_ctrl_entity_parameter);
 
+                auto ap_ctrl_set_entity_parameters = IMC::SetEntityParameters();
+                ap_ctrl_set_entity_parameters.name = "Autopilot";
+                ap_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
+                auto ap_ctrl_entity_parameter = IMC::EntityParameter();
+                ap_ctrl_entity_parameter.name = "Ardupilot Tracker";
+                ap_ctrl_entity_parameter.value = "false";
+                ap_ctrl_set_entity_parameters.params.push_back(ap_ctrl_entity_parameter);
+
                 auto start_actions = IMC::MessageList<IMC::Message>();
                 start_actions.push_back(fm_ctrl_set_entity_parameters);
                 start_actions.push_back(h_ctrl_set_entity_parameters);
                 start_actions.push_back(p_ctrl_set_entity_parameters);
+                start_actions.push_back(ap_ctrl_set_entity_parameters);
 
                 return start_actions;
             };
