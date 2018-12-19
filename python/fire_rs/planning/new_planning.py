@@ -184,7 +184,7 @@ class UAVModels:
 
     @staticmethod
     def x8(unit: str = "00"):
-        return UAV("-".join(("x8", unit)), 17., 30. / 180. * np.pi * .25, 6. / 180. * np.pi)
+        return UAV("-".join(("x8", unit)), 17., 20. / 180. * np.pi, 6. / 180. * np.pi)
 
     @staticmethod
     def slow_x8(unit: str = "00"):
