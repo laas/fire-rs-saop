@@ -24,6 +24,10 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# import pandas to workaround issue when pandas is imported after some other libraries
+# https://github.com/pandas-dev/pandas/issues/23040
+import pandas  
+
 import datetime
 import logging
 import threading

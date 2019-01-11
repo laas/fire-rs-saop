@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# import pandas to workaround issue when pandas is imported after some other libraries
+# https://github.com/pandas-dev/pandas/issues/23040
+import pandas
+
 import datetime
 import logging
 import re

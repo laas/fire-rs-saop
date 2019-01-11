@@ -24,6 +24,10 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# import pandas to workaround issue when pandas is imported after some other libraries
+# https://github.com/pandas-dev/pandas/issues/23040
+import pandas  
+
 import collections
 import datetime
 import logging
@@ -134,6 +138,7 @@ class HMIModel:
             self.wildfire_map_observed = serialization.geodata_from_raster_msg(
                 wildfire_map_observed_msg.raster,
                 "ignition")
+            self.wildfire_map_observed.data['ignition'] = self.wildfire_map_observed.data['ignition']*60.
             self.wildfire_map_observed = self.wildfire_map_observed.subset(
                 Area(self.elevation_map.x_offset,
                      self.elevation_map.x_offset + self.elevation_map.cell_width * self.elevation_map.max_x,
