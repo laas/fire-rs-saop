@@ -110,6 +110,18 @@ EVERYTHING_FUELMODEL_REMAP = {1: _C_FUEL, 2: _C_FUEL, 3: _C_FUEL, 4: _C_FUEL, 5:
                               41: _C_FUEL, 42: _C_FUEL, 43: _C_FUEL, 44: _C_FUEL, 48: _C_FUEL,
                               49: _C_FUEL, 50: _C_FUEL, 255: _C_FUEL}
 
+_C_SLOW_FUEL = 'SH2'  # Low Load Dry Climate Timber-Grass-Shrub
+SLOW_FUELMODEL_REMAP = {1: _C_SLOW_FUEL, 2: _C_SLOW_FUEL, 3: _C_SLOW_FUEL, 4: _C_SLOW_FUEL, 5: _C_SLOW_FUEL,
+                              6: _C_SLOW_FUEL, 7: _C_SLOW_FUEL, 8: _C_SLOW_FUEL, 9: _C_SLOW_FUEL, 10: _C_SLOW_FUEL,
+                              11: _C_SLOW_FUEL, 12: _C_SLOW_FUEL, 13: _C_SLOW_FUEL, 14: _C_SLOW_FUEL, 15: _C_SLOW_FUEL,
+                              16: _C_SLOW_FUEL, 17: _C_SLOW_FUEL, 18: _C_SLOW_FUEL, 19: _C_SLOW_FUEL, 20: _C_SLOW_FUEL,
+                              21: _C_SLOW_FUEL, 22: _C_SLOW_FUEL, 23: _C_SLOW_FUEL, 24: _C_SLOW_FUEL, 25: _C_SLOW_FUEL,
+                              26: _C_SLOW_FUEL, 27: _C_SLOW_FUEL, 28: _C_SLOW_FUEL, 29: _C_SLOW_FUEL, 30: _C_SLOW_FUEL,
+                              31: _C_SLOW_FUEL, 32: _C_SLOW_FUEL, 33: _C_SLOW_FUEL, 34: _C_SLOW_FUEL, 35: _C_SLOW_FUEL,
+                              36: _C_SLOW_FUEL, 37: _C_SLOW_FUEL, 38: _C_SLOW_FUEL, 39: _C_SLOW_FUEL, 40: _C_SLOW_FUEL,
+                              41: _C_SLOW_FUEL, 42: _C_SLOW_FUEL, 43: _C_SLOW_FUEL, 44: _C_SLOW_FUEL, 48: _C_SLOW_FUEL,
+                              49: _C_SLOW_FUEL, 50: _C_SLOW_FUEL, 255: _C_SLOW_FUEL}
+
 
 class World:
     """Class providing access to environment data."""
