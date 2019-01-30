@@ -331,7 +331,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
         gd = self._geodata if geodata is None else geodata
 
         igni = np.array(gd[layer])
-        igni[igni >= np.finfo(np.float64).max] = np.nan  # mask non ignited cells
+        igni[igni >= np.inf] = np.nan  # mask non ignited cells
 
         if time_range:
             igni[igni > time_range[1]] = time_range[1]
@@ -341,7 +341,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
         # Determine how many contour lines we are going to draw
         lim = (np.nanmin(igni), np.nanmax(igni))
-        igni[np.isnan(igni)] = np.finfo(np.float64).max
+        igni[np.isnan(igni)] = np.inf
         igni[igni > lim[1]] = lim[1]
         igni[igni < lim[0]] = lim[0]
         nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 10))
@@ -370,7 +370,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
         gd = self._geodata if geodata is None else geodata
 
         igni = np.array(gd[layer])
-        igni[igni >= np.finfo(np.float64).max] = np.nan  # mask non ignited cells
+        igni[igni >= np.inf] = np.nan  # mask non ignited cells
 
         if time_range:
             igni[igni > time_range[1]] = np.nan

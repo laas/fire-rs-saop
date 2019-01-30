@@ -50,7 +50,7 @@ from fire_rs.planning.display import plot_plan_with_background, TrajectoryDispla
 from fire_rs.planning.planning import FlightConf, Planner, PlanningEnvironment, SAOPPlannerConf, \
     UAVConf, VNSConfDB, Waypoint
 
-_DBL_MAX = np.finfo(np.float64).max
+_DBL_MAX = np.inf
 DISCRETE_ELEVATION_INTERVAL = 100
 
 _logger = logging.getLogger(__name__)

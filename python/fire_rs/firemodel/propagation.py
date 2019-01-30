@@ -159,7 +159,7 @@ class FirePropagation:
         self.environment = environment
         self._ignition_layer = ignition_layer
         # build internal data structure compose of three layers ['ignition', 'x_pred', 'y_pred']
-        self.prop_data = environment.raster.clone(fill_value=np.finfo(np.float64).max,
+        self.prop_data = environment.raster.clone(fill_value=np.inf,
                                                   dtype=[(self._ignition_layer, 'float64')])
         tmp2 = environment.raster.clone(fill_value=-1, dtype=[('x_pred', 'int32'),
                                                               ('y_pred', 'int32')])

@@ -129,10 +129,10 @@ class SituationAssessment:
             self._environment)  # type: ty.Optional[fire_rs.firemodel.propagation.FirePropagation]
 
         self._wildfire = self._environment.raster.clone(
-            fill_value=np.finfo(np.float64).max, dtype=[('ignition', 'float64')])
+            fill_value=np.inf, dtype=[('ignition', 'float64')])
 
         self._predicted_wildfire = self._environment.raster.clone(
-            fill_value=np.finfo(np.float64).max, dtype=[('ignition', 'float64')])
+            fill_value=np.inf, dtype=[('ignition', 'float64')])
         self._predicted_wildfire_timestamp = datetime.datetime.now()
 
         self._cells_on_fire = {}  # type: ty.MutableMapping[ty.Tuple[int, int],ty.Tuple[int, int, float]]

@@ -88,7 +88,7 @@ if __name__ == '__main__':
         print("frame {}".format(i))
 
         igni = np.array(fire.prop_data['ignition'])
-        igni[igni >= np.finfo(np.float64).max] = np.nan  # mask non ignited cells
+        igni[igni >= np.inf] = np.nan  # mask non ignited cells
         igni = igni.T / 60.  # To minutes
 
         # contour(X, Y, Z, N, **kwargs)
