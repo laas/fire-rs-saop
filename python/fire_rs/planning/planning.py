@@ -40,6 +40,19 @@ from fire_rs.geodata.geo_data import GeoData
 
 logger = logging.getLogger(__name__)
 
+###############################################################################
+import warnings
+
+warnings.simplefilter('always', DeprecationWarning)
+warnings.warn(
+    "The 'planning' module is deprecated, please use 'new_planning' instead",
+    category=DeprecationWarning,
+    stacklevel=2
+)
+warnings.simplefilter('default', DeprecationWarning)
+
+
+###############################################################################
 
 class VNSConfDB(Mapping):
     """VNS configuration DB for SAOP Planner.
