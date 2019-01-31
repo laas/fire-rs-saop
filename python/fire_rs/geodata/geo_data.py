@@ -55,18 +55,32 @@ class GeoData:
     """Container for geo-referenced raster data stored in a structured numpy array."""
 
     def __init__(self, array, x_offset, y_offset, cell_width, cell_height,
-                 projection: Union[int, osr.SpatialReference] = EPSG_RGF93_LAMBERT93):
+                 projection: Union[int, str, osr.SpatialReference] = EPSG_RGF93_LAMBERT93):
+        """Create a GeoData
+
+        projection can be an EPSG code (int), WKT (str) or osr.SpatialReference object"""
         assert cell_width > 0 and cell_height > 0, 'Origin must be on left-bottom'
         self.data = array  # type: 'np.array'
         self.x_offset = x_offset
         self.y_offset = y_offset
         self.cell_width = cell_width
         self.cell_height = cell_height
-        proj = projection
         if isinstance(projection, int):
+            self._projection_epsg = projection
             proj = osr.SpatialReference()
             proj.ImportFromEPSG(projection)  # default is EPSG:2154, the RGF93/Lambert-93 projection
-        self.projection = proj
+            self._projection = proj
+        elif isinstance(projection, osr.SpatialReference):
+            self._projection = projection
+            self._projection.AutoIdentifyEPSG()
+            self._projection_epsg = int(self._projection.GetAuthorityCode(None))
+        else:  # str
+            proj = osr.SpatialReference()
+            proj.ImportFromWkt(projection)
+            self._projection = proj
+            self._projection.AutoIdentifyEPSG()
+            self._projection_epsg = int(self._projection.GetAuthorityCode(None))
+
         self.max_x = array.shape[0]
         self.max_y = array.shape[1]
 
@@ -119,6 +133,14 @@ class GeoData:
         return self.data[item]
 
     @property
+    def projection(self):
+        return self._projection
+
+    @property
+    def projection_epsg(self):
+        return self._projection_epsg
+
+    @property
     def layers(self):
         return self.data.dtype.names
 
@@ -148,7 +170,7 @@ class GeoData:
         (xi_max, yi_max) = self.array_index(Point(area.xmax, area.ymax))
         ary = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1]
         return GeoData(ary, *self.coordinates(Cell(xi_min, yi_min)), self.cell_width,
-                       self.cell_height)
+                       self.cell_height, projection=self.projection)
 
     def array_index(self, coordinates: Point) -> Union[Cell, Tuple[int, int]]:
         (x, y) = coordinates
@@ -170,7 +192,7 @@ class GeoData:
         assert self.data.shape[1] == other.data.shape[1]
         combined_array = np.concatenate([self.data, other.data], axis=0)
         return GeoData(combined_array, self.x_offset, self.y_offset,
-                       self.cell_width, self.cell_height)
+                       self.cell_width, self.cell_height, projection=self.projection)
 
     def append_bottom(self, other: 'GeoData') -> 'GeoData':
         assert self.data.dtype == other.data.dtype
@@ -180,14 +202,14 @@ class GeoData:
         assert self.data.shape[0] == other.data.shape[0]
         combined_array = np.concatenate([self.data, other.data], axis=1)
         return GeoData(combined_array, self.x_offset, self.y_offset,
-                       self.cell_width, self.cell_height)
+                       self.cell_width, self.cell_height, projection=self.projection)
 
     def combine(self, other: 'GeoData') -> 'GeoData':
         assert self.data.shape == other.data.shape
         assert self.cell_width == other.cell_width and self.cell_height == other.cell_height
         combined_array = join_structured_arrays([self.data, other.data])
         return GeoData(combined_array, self.x_offset, self.y_offset,
-                       self.cell_width, self.cell_height)
+                       self.cell_width, self.cell_height, projection=self.projection)
 
     def split(self, x_splits: int, y_splits: int) -> List['GeoData']:
         if x_splits == 1:
@@ -196,7 +218,8 @@ class GeoData:
             res = []
             for ary in splet:
                 res.append(GeoData(ary, self.x_offset, curr_y_offset,
-                                   self.cell_width, self.cell_height))
+                                   self.cell_width, self.cell_height,
+                                   projection=self.projection))
                 curr_y_offset += res[-1].data.shape[1] * self.cell_height
             assert len(res) == x_splits * y_splits
             return res
@@ -208,7 +231,8 @@ class GeoData:
                 curr_x_offset = gd.x_offset
                 for ary in splet_on_x_y:
                     res.append(GeoData(ary, curr_x_offset, gd.y_offset,
-                                       self.cell_width, self.cell_height))
+                                       self.cell_width, self.cell_height,
+                                       projection=self.projection))
                     curr_x_offset += res[-1].data.shape[0] * self.cell_width
             assert len(res) == x_splits * y_splits
             return res
@@ -224,18 +248,19 @@ class GeoData:
         if data_array is None and fill_value is None:
             assert dtype is None
             return GeoData(self.data.copy(), self.x_offset, self.y_offset, self.cell_width,
-                           self.cell_height)
+                           self.cell_height, projection=self.projection)
         elif data_array is not None:
             assert fill_value is None
             # impose data-type if provided
             data_array = data_array if dtype is None else np.array(data_array, dtype=dtype)
             assert data_array.shape == self.data.shape, 'The passed array as a different shape'
             return GeoData(data_array, self.x_offset, self.y_offset, self.cell_width,
-                           self.cell_height)
+                           self.cell_height, projection=self.projection)
         else:
             assert fill_value is not None and dtype is not None
             d = np.full(self.data.shape, fill_value, dtype=dtype)
-            return GeoData(d, self.x_offset, self.y_offset, self.cell_width, self.cell_height)
+            return GeoData(d, self.x_offset, self.y_offset, self.cell_width, self.cell_height,
+                           projection=self.projection)
 
     def _get_plot_data(self, downscale):
         # axes with labels

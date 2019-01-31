@@ -305,7 +305,7 @@ class RasterTile:
             # returns the subarray
             subarray = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1]
             return GeoData(subarray, *self.raster_to_projected((xi_min, yi_min)),
-                           self.x_delta, self.y_delta)
+                           self.x_delta, self.y_delta, projection=self.geoprojection)
         else:  # our internal data structure is inversed on y-axis
             # get indexes of sub-array
             xi_min, yi_min = self.projected_to_raster((x_min, y_max))
@@ -313,7 +313,7 @@ class RasterTile:
             # returns the sub-array, inversed on the y-axis
             subarray = self.data[xi_min:xi_max + 1, yi_min:yi_max + 1][..., ::-1]
             return GeoData(subarray, *self.raster_to_projected((xi_min, yi_max)),
-                           self.x_delta, -self.y_delta)
+                           self.x_delta, -self.y_delta, projection=self.geoprojection)
 
     def raster_to_projected(self, loc):
         """Return the projected location of a pixel point in this tile."""

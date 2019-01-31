@@ -17,7 +17,8 @@ def ros_name_for(s: str):
 def raster_msg_from_geodata(geodata: GeoData, layer: str):
     return Raster(metadata=RasterMetaData(x_offset=geodata.x_offset, y_offset=geodata.y_offset,
                                           x_width=geodata.max_x, y_height=geodata.max_y,
-                                          cell_width=geodata.cell_width),
+                                          cell_width=geodata.cell_width,
+                                          epsg=geodata.projection_epsg),
                   data=geodata.data[layer].ravel())
 
 
@@ -32,7 +33,7 @@ def geodata_from_raster_msg(msg: Raster, layer: str):
     if layer == "elevation":
         array = array[..., ::-1]
     return GeoData(array, msg.metadata.x_offset, msg.metadata.y_offset, msg.metadata.cell_width,
-                   msg.metadata.cell_width)
+                   msg.metadata.cell_width, projection=msg.metadata.epsg)
 
 
 def saop_trajectories_from_plan_msg(msg: Plan) -> ty.Sequence[planning.Trajectory]:
