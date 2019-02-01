@@ -71,6 +71,8 @@ class SituationAssessmentNode:
                                                  queue_size=10, latch=True)
         self.pub_wildfire_obs = rospy.Publisher('wildfire', WildfireMap,
                                                 queue_size=10, latch=True)
+        self.pub_wildfire_real = rospy.Publisher('wildfire_real', WildfireMap,
+                                                 queue_size=10, latch=True)
         self.pub_elevation = rospy.Publisher('elevation', ElevationMap,
                                              queue_size=10, latch=True)
         # self.pub_surface_wind = rospy.Publisher('surface_wind', SurfaceWindMap,
@@ -111,6 +113,10 @@ class SituationAssessmentNode:
             raster=serialization.raster_msg_from_geodata(p, 'ignition'))
         self.pub_wildfire_pred.publish(pred)
         self.pub_wildfire_obs.publish(obs)
+
+        self.pub_wildfire_real.publish(WildfireMap(
+            header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
+            raster=serialization.raster_msg_from_geodata(p, 'ignition')))
 
         if self.sa.elevation_timestamp > self.last_elevation_timestamp:
             # pub_elevation is latching, don't bother other nodes with unnecessary elevation updates
