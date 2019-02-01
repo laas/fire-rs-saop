@@ -152,6 +152,11 @@ neighborhood = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1,
                 (2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]
 
 
+def empty_firemap(base_raster: GeoData, layer: str = "'ignition'") -> GeoData:
+    """Create an empty fire map from a base raster"""
+    return base_raster.clone(fill_value=np.inf, dtype=[(layer, 'float64')])
+
+
 class FirePropagation:
     """Class to compute and store fire propagation data."""
 
@@ -159,8 +164,7 @@ class FirePropagation:
         self.environment = environment
         self._ignition_layer = ignition_layer
         # build internal data structure compose of three layers ['ignition', 'x_pred', 'y_pred']
-        self.prop_data = environment.raster.clone(fill_value=np.inf,
-                                                  dtype=[(self._ignition_layer, 'float64')])
+        self.prop_data = empty_firemap(environment.raster, self._ignition_layer)
         tmp2 = environment.raster.clone(fill_value=-1, dtype=[('x_pred', 'int32'),
                                                               ('y_pred', 'int32')])
         self.prop_data = self.prop_data.combine(tmp2)
