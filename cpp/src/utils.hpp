@@ -48,8 +48,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 }
 
-/** Macro that test equality of to floating point number, disregarding rounding errors. */
+/** Macro that test equality of two floating point number, disregarding rounding errors. */
 #define ALMOST_EQUAL(x, y) (fabs((double) (x) - (double) (y)) < 0.000001)
+
+/** Macro that test equality of two floating point numbers up to an epsilon. */
+#define ALMOST_EQUAL_EPS(x, y, eps) (fabs((double) (x) - (double) (y)) < (double) (eps))
 
 /** Macro that test whether x >= y with tolerance to rounding errors. */
 #define ALMOST_GREATER_EQUAL(x, y) ((double) (x) >= ((double) (y) - 0.000001))

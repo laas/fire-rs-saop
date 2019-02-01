@@ -42,8 +42,8 @@ namespace SAOP {
     public:
         explicit GhostFireMapper(shared_ptr<FireData> environment_gt)
                 : _environment(environment_gt),
-                  _fire_map(GenRaster<T>(environment_gt->ignitions, std::numeric_limits<T>::quiet_NaN())),
-                  _observed(GenRaster<T>(environment_gt->ignitions, std::numeric_limits<T>::quiet_NaN())) {}
+                  _fire_map(GenRaster<T>(environment_gt->ignitions, std::numeric_limits<T>::infinity())),
+                  _observed(GenRaster<T>(environment_gt->ignitions, std::numeric_limits<T>::infinity())) {}
 
         GhostFireMapper(shared_ptr<FireData> environment_gt, GenRaster<T> firemap, GenRaster<T> observed)
                 : _environment(std::move(environment_gt)),

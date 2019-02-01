@@ -76,10 +76,10 @@ namespace SAOP {
         }
 
         /* Determine whether the UAV is turning*/
-        bool is_turning(const Waypoint3d& prev, const Waypoint3d& current) const {
+        bool is_turning(const Waypoint3d& prev, const    Waypoint3d& current, double epsilon=0.09) const {
             // r = dist(prev, current) / (current.dir - prev.dir)
             // roll = atan(v^2/(r*g))
-            return !ALMOST_EQUAL(prev.dir, current.dir);
+            return !ALMOST_EQUAL_EPS(prev.dir, current.dir, epsilon);
         }
 
         /** Returns the Dubins travel distance between the two waypoints. */
