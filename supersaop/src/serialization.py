@@ -14,15 +14,18 @@ def ros_name_for(s: str):
     return re.sub('[^a-zA-Z0-9_]', '_', s)
 
 
-def raster_msg_from_geodata(geodata: GeoData, layer: str):
+def raster_msg_from_geodata(geodata: GeoData, layer: str, invert=False):
+    array = geodata.data[layer]
+    if invert:
+        array = array[..., ::-1]
     return Raster(metadata=RasterMetaData(x_offset=geodata.x_offset, y_offset=geodata.y_offset,
                                           x_width=geodata.max_x, y_height=geodata.max_y,
                                           cell_width=geodata.cell_width,
                                           epsg=geodata.projection_epsg),
-                  data=geodata.data[layer].ravel())
+                  data=array.ravel())
 
 
-def geodata_from_raster_msg(msg: Raster, layer: str):
+def geodata_from_raster_msg(msg: Raster, layer: str, invert=False):
     """Deserialize a Raster msg into a GeoData object.
 
     if layer is "elevation", the raster is inverted
@@ -31,6 +34,8 @@ def geodata_from_raster_msg(msg: Raster, layer: str):
     array.resize((msg.metadata.x_width, msg.metadata.y_height))
     # FIXME (Workaround) invert elevation rasters as they are shown inverted in the GUI
     if layer == "elevation":
+        array = array[..., ::-1]
+    if invert:
         array = array[..., ::-1]
     return GeoData(array, msg.metadata.x_offset, msg.metadata.y_offset, msg.metadata.cell_width,
                    msg.metadata.cell_width, projection=msg.metadata.epsg)
