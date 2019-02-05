@@ -44,6 +44,7 @@ import numpy as np
 
 import fire_rs.firemodel.propagation
 
+import fire_rs.geodata.wildfire
 import fire_rs.geodata.geo_data as geo_data
 # import fire_rs.geodata.display as gdisplay
 import fire_rs.planning.new_planning as planning
@@ -100,6 +101,118 @@ class AreaGenerator:
 class SituationAssessment:
     """Evaluate the current state of a wildfire and provide fire perimeter forecasts"""
 
+    class ObservedWildfire:
+        """Store an observed wildfire map updatable from different sources"""
+
+        def __init__(self, elevation: fire_rs.geodata.geo_data.GeoData):
+            self._elevation = elevation
+            self.cells = {}
+            self.geodata = fire_rs.firemodel.propagation.empty_firemap(self._elevation)
+            self.last_updated = datetime.datetime.now()
+
+        def set_point_ignition(self, ig_pt: geo_data.TimedPoint):
+            """Set some position as on fire.
+
+            The current wildfire propagator is not reset.
+            """
+            c = self.geodata.array_index((ig_pt[0], ig_pt[1]))
+            self.set_cell_ignition((c[0], c[1], ig_pt[2]))
+
+        def set_cell_ignition(self, ig_cell: ty.Tuple[int, int, float]):
+            """Set some cell on fire
+            :param ig_cell: (x_cell, y_cell, time)
+            """
+            c = (ig_cell[0], ig_cell[1])
+            self.cells[c] = ig_cell[2]
+            self.geodata['ignition'][c] = ig_cell[2]
+            self.last_updated = datetime.datetime.now()
+
+        def clear_observation_cell(self, cell: ty.Tuple[int, int]):
+            """Clear some cell that was previously set on fire
+            :param cell: (x_cell, y_cell)
+            """
+            if cell in self.cells:
+                del self.cells[cell]
+            self.geodata['ignition'][cell] = np.inf
+
+    class WildfireCurrentAssessment:
+        """Evaluate the current state of a wildfire from observations"""
+
+        def __init__(self, environment: fire_rs.firemodel.propagation.Environment,
+                     observations: ty.MutableMapping[ty.Tuple[int, int], float],
+                     perimeter_time: ty.Optional[datetime.datetime]):
+            self._environment = environment
+            self._perimeter = None
+            self._interpolated = fire_rs.firemodel.propagation.empty_firemap(
+                self._environment.raster)
+            self._observations = observations
+
+            self.time = perimeter_time
+            self._oldest_obs_timestamp = None
+            self._newest_obs_timestamp = None
+
+            if self._observations:
+                self._oldest_obs_timestamp = min(*self._observations.values(), 2 ** 64 - 1)
+                self._newest_obs_timestamp = max(*self._observations.values(), 0.)
+                if not perimeter_time:
+                    self.time = datetime.datetime.fromtimestamp(self._newest_obs_timestamp)
+                self._interpolate()
+                self._compute_perimeter(self.time.timestamp())
+
+        @property
+        def geodata(self):
+            return self._interpolated
+
+        @property
+        def perimeter(self) -> ty.Optional[fire_rs.geodata.wildfire.Perimeter]:
+            return self._perimeter
+
+        def _interpolate(self):
+            """RBF interpolation"""
+            x, y = list(zip(*self._observations.keys()))
+            z = tuple(self._observations.values())
+            if len(z) > 1:
+                array = fire_rs.geodata.wildfire.interpolate(x, y, z, self._interpolated.data.shape,
+                                                             function='thin_plate')
+                # Filter out extrapolations, because they are not reliable!
+                array[array < self._oldest_obs_timestamp - 1] = np.inf
+                array[array > self._newest_obs_timestamp + 1] = np.inf
+                self._interpolated.data["ignition"] = array
+            else:
+                self._interpolated.data["ignition"][x, y] = z
+
+        def _compute_perimeter(self, threshold: float):
+            self._perimeter = fire_rs.geodata.wildfire.Perimeter(self._interpolated, threshold)
+            if len(self._perimeter.cells) < len(self._observations):
+                for k,v in self._observations.items():
+                    self._perimeter.cells[k] = v
+                    self._perimeter.array[k] = v
+
+
+    class WildfireFuturePropagation:
+        """Evaluate the future state of a wildfire from a known perimeter"""
+
+        def __init__(self, environment: fire_rs.firemodel.propagation.Environment,
+                     perimeter_cells: ty.Mapping[ty.Tuple[int, int], float],
+                     until: datetime.datetime):
+            self._environment = environment
+            self._perimeter_cells = perimeter_cells
+            self.fire_propagator = fire_rs.firemodel.propagation.FirePropagation(
+                self._environment)  # type: fire_rs.firemodel.propagation.FirePropagation
+            self.geodata = fire_rs.firemodel.propagation.empty_firemap(self._environment.raster)
+            self.until = until
+            self.time = datetime.datetime.now()
+            if self._perimeter_cells:
+                self._assess_until(self.until)
+
+        def _assess_until(self, until: datetime.datetime):
+            """Compute an expected wildfire up to some horizon"""
+            for c, t in self._perimeter_cells.items():
+                self.fire_propagator.set_ignition_cell((c[0], c[1], t))
+            self.fire_propagator.propagate(until.timestamp())
+            self.geodata = self.fire_propagator.ignitions()
+            self.time = datetime.datetime.now()
+
     def __init__(self, area, logger: logging.Logger, world_paths: ty.Optional[ty.Mapping] = None):
         """Initialize Situation Assessment.
 
@@ -123,19 +236,13 @@ class SituationAssessment:
             self.area, wind_speed=self._surface_wind[0], wind_dir=self._surface_wind[
                 1], world=world)  # type: ty.Optional[fire_rs.firemodel.propagation.Environment]
 
+        self._observed_wildfire = SituationAssessment.ObservedWildfire(self._environment.raster)
+        self._wildfire_current_assessment = SituationAssessment.WildfireCurrentAssessment(
+            self._environment, self._observed_wildfire.cells, datetime.datetime.now())
+        self._wildfire_future_propagation = SituationAssessment.WildfireFuturePropagation(
+            self._environment, {}, datetime.datetime.now())
+
         self._elevation_timestamp = datetime.datetime.now()
-
-        self._fire_propagation = fire_rs.firemodel.propagation.FirePropagation(
-            self._environment)  # type: ty.Optional[fire_rs.firemodel.propagation.FirePropagation]
-
-        self._wildfire = self._environment.raster.clone(
-            fill_value=np.inf, dtype=[('ignition', 'float64')])
-
-        self._predicted_wildfire = self._environment.raster.clone(
-            fill_value=np.inf, dtype=[('ignition', 'float64')])
-        self._predicted_wildfire_timestamp = datetime.datetime.now()
-
-        self._cells_on_fire = {}  # type: ty.MutableMapping[ty.Tuple[int, int],ty.Tuple[int, int, float]]
 
     @property
     def surface_wind(self):
@@ -153,24 +260,20 @@ class SituationAssessment:
     def area(self):
         return self._area
 
-    # @property
-    # def environment(self):
-    #     return self._environment
+    @property
+    def observed_wildfire(self):
+        """Fused observed wildfire"""
+        return self._observed_wildfire
 
     @property
     def wildfire(self):
-        """Copy of the expected fire propagation"""
-        return self._wildfire.clone()
+        """Estimated fire propagation in the present"""
+        return self._wildfire_current_assessment
 
     @property
     def predicted_wildfire(self):
-        """Expected fire propagation"""
-        return self._predicted_wildfire
-
-    @property
-    def predicted_wildfire_timestamp(self):
-        """Expected wildfire map timestamp"""
-        return self._predicted_wildfire_timestamp
+        """Expected fire propagation in the future"""
+        return self._wildfire_future_propagation
 
     @property
     def elevation(self):
@@ -182,53 +285,21 @@ class SituationAssessment:
         """Elevation map timestamp"""
         return self._elevation_timestamp
 
-    # def set_wildfire_map(self, to=None):
-    #     """Replace or reset the observed wildfire map.
-    #
-    #     The current wildfire propagator is also reset.
-    #     """
-    #     if to is None:
-    #         self._wildfire = self._environment.raster.clone(fill_value=np.finfo(np.float64).max,
-    #                                                         dtype=[('ignition', 'float64')])
-    #     else:
-    #         raise NotImplementedError()
-    #         # self._wildfire = map
-    #     self._fire_propagation = fire_rs.firemodel.propagation.FirePropagation(self._environment)
-
-    def set_point_onfire(self, ig_pt: geo_data.TimedPoint):
-        """Set some position as on fire.
-
-        The current wildfire propagator is not reset.
-        """
-        c = self._wildfire.array_index((ig_pt[0], ig_pt[1]))
-        self.set_cell_onfire((c[0], c[1], ig_pt[2]))
-
-    def set_cell_onfire(self, ig_cell: ty.Tuple[int, int, float]):
-        """Set some cell on fire
-        :param ig_cell: (x_cell, y_cell, time)
-        """
-        c = (ig_cell[0], ig_cell[1])
-        self._cells_on_fire[c] = ig_cell
-        self._wildfire['ignition'][c] = ig_cell[2]
-
-    def clear_cell_onfire(self, cell: ty.Tuple[int, int]):
-        """Clear some cell that was previously set on fire
-        :param cell: (x_cell, y_cell)
-        """
-        if cell in self._cells_on_fire:
-            del self._cells_on_fire[cell]
-        self._wildfire['ignition'][cell] = np.inf
+    def assess_current(self, time: ty.Optional[datetime.datetime] = None):
+        """Interpolate observed firemap"""
+        if time is None:
+            self.logger.info("Assessment of current wildfire state now")
+        else:
+            self.logger.info("Assessment of current wildfire state at time %s", str(time))
+        self._wildfire_current_assessment = SituationAssessment.WildfireCurrentAssessment(
+            self._environment, self._observed_wildfire.cells, perimeter_time=time)
 
     def assess_until(self, until: datetime.datetime):
         """Compute an expected wildfire simulation from initial observations."""
-        self.logger.info("Start fire propagation from until %s", until)
-        self._fire_propagation = fire_rs.firemodel.propagation.FirePropagation(self._environment)
-        for cf in self._cells_on_fire.values():
-            self._fire_propagation.set_ignition_cell(cf)
-        self._fire_propagation.propagate(until.timestamp())
-        self._predicted_wildfire = self._fire_propagation.ignitions()
-        self._predicted_wildfire_timestamp = datetime.datetime.now()
-        self.logger.info("Propagation ended")
+        self.logger.info("Assessment of future wildfire state from %s until %s",
+                         str(self._wildfire_current_assessment.time), str(until))
+        self._wildfire_future_propagation = SituationAssessment.WildfireFuturePropagation(
+            self._environment, self._wildfire_current_assessment.perimeter.cells, until)
 
 
 class ObservationPlanning:

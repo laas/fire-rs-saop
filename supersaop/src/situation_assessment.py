@@ -26,7 +26,7 @@
 
 # import pandas to workaround issue when pandas is imported after some other libraries
 # https://github.com/pandas-dev/pandas/issues/23040
-import pandas  
+import pandas
 
 import datetime
 import logging
@@ -69,14 +69,17 @@ class SituationAssessmentNode:
         self.pub_wildfire_pred = rospy.Publisher('wildfire_prediction',
                                                  PredictedWildfireMap,
                                                  queue_size=10, latch=True)
-        self.pub_wildfire_obs = rospy.Publisher('wildfire', WildfireMap,
-                                                queue_size=10, latch=True)
+        self.pub_wildfire_current = rospy.Publisher('wildfire', WildfireMap,
+                                                    queue_size=10, latch=True)
         self.pub_wildfire_real = rospy.Publisher('wildfire_real', WildfireMap,
                                                  queue_size=10, latch=True)
         self.pub_elevation = rospy.Publisher('elevation', ElevationMap,
                                              queue_size=10, latch=True)
         # self.pub_surface_wind = rospy.Publisher('surface_wind', SurfaceWindMap,
         #                                         queue_size=10, latch=True)
+
+        self.uavs = ('x8-02', 'x8-06')
+
 
         self.sub_mean_wind = rospy.Subscriber("mean_wind", MeanWindStamped, self.on_mean_wind)
         self.sub_propagate = rospy.Subscriber("propagate", PropagateCmd, self.on_propagate_cmd)
@@ -87,16 +90,17 @@ class SituationAssessmentNode:
 
     def propagate(self):
         with self.sa_lock:
+            # Assess current condition
+            self.sa.assess_current()
+            w = self.sa.wildfire.geodata
+            w_time = self.sa.wildfire.time
+
             until = datetime.datetime.fromtimestamp((rospy.Time.now() + self.horizon).to_sec())
             self.sa.assess_until(until)
 
-            # Current wildfire situation
-            w = self.sa.wildfire
-            w_time = datetime.datetime.now()
-
             # Future wildfire situation
-            p = self.sa.predicted_wildfire
-            p_time = self.sa.predicted_wildfire_timestamp
+            p = self.sa.predicted_wildfire.geodata
+            p_time = self.sa.predicted_wildfire.time
 
             self.emit_propagation(w, w_time, p, p_time, until)
 
@@ -104,19 +108,19 @@ class SituationAssessmentNode:
                          p_timestamp: datetime.datetime,
                          until: datetime.datetime):
         """Publish current situation assessment."""
-        obs = WildfireMap(
+        current = WildfireMap(
             header=rospy.Header(stamp=rospy.Time.from_sec(w_timestamp.timestamp())),
             raster=serialization.raster_msg_from_geodata(w, 'ignition'))
         pred = PredictedWildfireMap(
             header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
             last_valid=rospy.Time.from_sec(until.timestamp()),
             raster=serialization.raster_msg_from_geodata(p, 'ignition'))
+        # self.pub_wildfire_real.publish(pred)
         self.pub_wildfire_pred.publish(pred)
-        self.pub_wildfire_obs.publish(obs)
-
         self.pub_wildfire_real.publish(WildfireMap(
             header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
             raster=serialization.raster_msg_from_geodata(p, 'ignition')))
+        self.pub_wildfire_current.publish(current)
 
         if self.sa.elevation_timestamp > self.last_elevation_timestamp:
             # pub_elevation is latching, don't bother other nodes with unnecessary elevation updates
@@ -129,8 +133,14 @@ class SituationAssessmentNode:
             self.last_elevation_timestamp = self.sa.elevation_timestamp
 
         g = GeoDataDisplay.pyplot_figure(p)
-        g.draw_ignition_shade()
-        g.figure.savefig("fuego.svg")
+        g.draw_ignition_shade(with_colorbar=True)
+        g.figure.savefig("fuego_p.png")
+        g = GeoDataDisplay.pyplot_figure(w)
+        g.draw_ignition_shade(with_colorbar=True)
+        g.figure.savefig("fuego_w.png")
+        g = GeoDataDisplay.pyplot_figure(self.sa.wildfire.perimeter.geodata)
+        g.draw_ignition_shade(with_colorbar=True)
+        g.figure.savefig("fuego_per.png")
 
         rospy.loginfo("Wildfire propagation publishing ended")
 
@@ -154,7 +164,7 @@ class SituationAssessmentNode:
             rospy.loginfo("New fire location received (%s, %s) with time %s",
                           str(msg.x), str(msg.y),
                           str(datetime.datetime.fromtimestamp(msg.t.to_sec())))
-            self.sa.set_point_onfire((msg.x, msg.y, msg.t.to_sec()))
+            self.sa.observed_wildfire.set_point_ignition((msg.x, msg.y, msg.t.to_sec()))
             self.last_wildfire_update = datetime.datetime.now()
 
     # TODO: Service providing the current elevation map

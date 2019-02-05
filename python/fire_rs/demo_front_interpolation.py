@@ -61,7 +61,7 @@ the_world = g_environment.World(elevation_path=FIRERS_DEM_DATA,
                                 landcover_to_fuel_remap=g_environment.SLOW_FUELMODEL_REMAP)
 the_world.dem_wind_tile_split = 1
 
-area = ((2776825.0 - 1500, 2776825.0 + 1500), (2212175.0 - 1500, 2212175.0 + 3000))
+area = ((2776825.0 - 2500, 2776825.0 + 2500), (2212175.0 - 2500, 2212175.0 + 4500))
 ignition = TimedPoint(2776825.0, 2212175.0, 0)
 
 ################################################################################
@@ -71,7 +71,7 @@ fire_env = Environment(area, 5., np.pi/2, the_world)
 fire_prop = FirePropagation(fire_env)
 fire_prop.set_ignition_point(ignition)
 
-propagation_end_time = 30 * 60 * 60
+propagation_end_time = 60 * 60 * 60
 propagation_end_time = np.inf
 
 fire_prop.propagate(propagation_end_time)
@@ -101,33 +101,47 @@ firepoints[fire_prop.ignitions().array_index((ignition[0], ignition[1]))] = igni
 contours1 = skimage.measure.find_contours(firemap.data["ignition"], 10 * 60 * 60)
 contours2 = skimage.measure.find_contours(firemap.data["ignition"], 20 * 60 * 60)
 contours3 = skimage.measure.find_contours(firemap.data["ignition"], 30 * 60 * 60)
+contours4 = skimage.measure.find_contours(firemap.data["ignition"], 40 * 60 * 60)
+contours5 = skimage.measure.find_contours(firemap.data["ignition"], 50 * 60 * 60)
+contours6 = skimage.measure.find_contours(firemap.data["ignition"], 60 * 60 * 60)
 
 # Print contour as binary image
 comp_cycle = itertools.cycle([lambda x, y: x < y, lambda x, y: x > y])
 comp = next(comp_cycle)
-for i in [contours1, contours2, contours3]:
+for i in [contours1,  contours3,   contours5]:
     comp = next(comp_cycle)
     for contour in i:
         for pt_i in range(len(contour)):
-            if comp(pt_i, len(contour) / 3):
+            if comp(pt_i, len(contour) / 2):
                 continue
 
-            if pt_i % 10 == 0:
+            if pt_i % 1 == 0:
                 rr, cc = skimage.draw.line(*np.asarray(contour[pt_i - 1], dtype=int),
                                            *np.asarray(contour[pt_i], dtype=int))
                 fire_image[rr, cc] = firemap.data["ignition"][rr[0], cc[0]]
                 for r, c in zip(rr, cc):
                     firepoints[r, c] = firemap.data["ignition"][r, c]
 
+fig = plt.figure()
+ax = fig.gca()
+imag = ax.imshow(fire_image/60.)
+fig.colorbar(imag, ax=ax, shrink=0.65, aspect=20, format="%d minutes")
+fig.show()
+
 ################################################################################
 # Interpolate contour
 x, y = list(zip(*firepoints.keys()))
 z = tuple(firepoints.values())
-# function = 'thin_plate'
+function = 'thin_plate'
 # function = 'linear'
-function = 'multiquadric'
+# function = 'multiquadric'
+# function = 'cubic'
+function = lambda a: np.sin(a)
 
-zfun_smooth_rbf = scipy.interpolate.Rbf(x, y, z, function=function,
+# Wildland fire modeling with an Eulerian level set method and automated calibration
+# might give a clue of which kind of kernel function to use
+
+zfun_smooth_rbf = scipy.interpolate.Rbf(x, y, z, function=function, epsilon=10.,
                                         smooth=0)  # default smooth=0 for interpolation
 
 xi = np.linspace(0, firemap.data.shape[0] - 1, firemap.data.shape[0])
@@ -143,20 +157,21 @@ z_dense_smooth_rbf = z_dense_smooth_rbf.reshape(len(xi), len(yi))
 # Display interpolation
 fig = plt.figure()
 ax = fig.gca()
-levels = list(range(0, 50 * 60 * 60, 10 * 60 * 60))
+levels = list(range(0, 70 * 60 * 60, 10 * 60 * 60))
 ax.imshow(fire_image)
 c1 = ax.contour(z_dense_smooth_rbf, levels=levels)
 ax.clabel(c1)
 c2 = ax.contour(firemap.data["ignition"], levels=levels, alpha=0.6)
 # ax.imshow(z_dense_smooth_rbf - firemap.data["ignition"])
 ax.clabel(c2)
+ax.imshow(fire_image)
 fig.show()
 
 ################################################################################
 # Display error
 fig = plt.figure()
 ax = fig.gca()
-levels = list(range(0, 50 * 60, 10 * 60))
+levels = list(range(0, 70 * 60, 10 * 60))
 
 diferencia = z_dense_smooth_rbf - firemap.data["ignition"]
 # ax.imshow(firemap.data["ignition"])
