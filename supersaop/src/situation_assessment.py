@@ -80,6 +80,11 @@ class SituationAssessmentNode:
 
         self.uavs = ('x8-02', 'x8-06')
 
+        self.sub_firemap_obs_dict = {
+            uav: rospy.Subscriber(
+                "/".join(("uavs", serialization.ros_name_for(uav), 'wildfire_observed')),
+                WildfireMap, callback=self._on_wildfire_map_observed, callback_args=uav,
+                queue_size=10) for uav in self.uavs}
 
         self.sub_mean_wind = rospy.Subscriber("mean_wind", MeanWindStamped, self.on_mean_wind)
         self.sub_propagate = rospy.Subscriber("propagate", PropagateCmd, self.on_propagate_cmd)
@@ -134,13 +139,13 @@ class SituationAssessmentNode:
 
         g = GeoDataDisplay.pyplot_figure(p)
         g.draw_ignition_shade(with_colorbar=True)
-        g.figure.savefig("fuego_p.png")
+        g.figure.savefig("/home/rbailonr/fuego_pre.png")
         g = GeoDataDisplay.pyplot_figure(w)
         g.draw_ignition_shade(with_colorbar=True)
-        g.figure.savefig("fuego_w.png")
-        g = GeoDataDisplay.pyplot_figure(self.sa.wildfire.perimeter.geodata)
+        g.figure.savefig("/home/rbailonr/fuego_cur.png")
+        g = GeoDataDisplay.pyplot_figure(self.sa.observed_wildfire.geodata)
         g.draw_ignition_shade(with_colorbar=True)
-        g.figure.savefig("fuego_per.png")
+        g.figure.savefig("/home/rbailonr/fuego_obs.png")
 
         rospy.loginfo("Wildfire propagation publishing ended")
 
@@ -156,6 +161,16 @@ class SituationAssessmentNode:
             self.propagate()
         else:
             rospy.loginfo("Previous propagation has not ended")
+
+    def _on_wildfire_map_observed(self, msg: WildfireMap, uav: str):
+        with self.sa_lock:
+            local_firemap = serialization.geodata_from_raster_msg(msg.raster, "ignition")
+            g = GeoDataDisplay.pyplot_figure(local_firemap)
+            g.draw_ignition_shade(with_colorbar=True)
+            g.figure.savefig("local_firemap_"+str(uav)+".png")
+            rospy.loginfo("Local wildfire map received from %s", str(uav))
+            for cell in zip(*np.where(local_firemap.data["ignition"] < np.inf)):
+                self.sa.observed_wildfire.set_cell_ignition((*cell, local_firemap["ignition"][cell]))
 
     def on_wildfire_obs_point(self, msg: Timed2DPointStamped):
         # if SA is locked, new observations should be stored in a queue
