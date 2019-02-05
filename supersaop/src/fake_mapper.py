@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #  Copyright (c) 2019, CNRS-LAAS
 #  All rights reserved.
 #
