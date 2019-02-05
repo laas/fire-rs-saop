@@ -26,7 +26,7 @@
 
 # import pandas to workaround issue when pandas is imported after some other libraries
 # https://github.com/pandas-dev/pandas/issues/23040
-import pandas  
+import pandas
 
 import collections
 import datetime
@@ -83,6 +83,10 @@ class HMIModel:
         self.wildfire_map_updatable = True
         self.wildfire_map_drawable = True
 
+        self.wildfire_map_predicted = None  # type: ty.Optional[GeoData]
+        self.wildfire_map_predicted_updatable = True
+        self.wildfire_map_predicted_drawable = True
+
         self.wildfire_map_observed = None  # type: ty.Optional[GeoData]
         self.wildfire_map_observed_updatable = True
         self.wildfire_map_observed_drawable = True
@@ -125,7 +129,16 @@ class HMIModel:
                 GLib.idle_add(self._draw_geodatadisplay)
                 GLib.idle_add(self.gui.update_elevation_map)
 
-    def on_wildfire_map(self, wildfire_map_msg: PredictedWildfireMap):
+    def on_wildfire_map_predicted(self, wildfire_map_msg: PredictedWildfireMap):
+        if self.wildfire_map_predicted_updatable:
+            self.wildfire_map_predicted = serialization.geodata_from_raster_msg(
+                wildfire_map_msg.raster,
+                "ignition")
+            if self.gui is not None:
+                GLib.idle_add(self._draw_geodatadisplay)
+                GLib.idle_add(self.gui.update_wildfire_map_predicted)
+
+    def on_wildfire_map(self, wildfire_map_msg: WildfireMap):
         if self.wildfire_map_updatable:
             self.wildfire_map = serialization.geodata_from_raster_msg(wildfire_map_msg.raster,
                                                                       "ignition")
@@ -138,7 +151,8 @@ class HMIModel:
             self.wildfire_map_observed = serialization.geodata_from_raster_msg(
                 wildfire_map_observed_msg.raster,
                 "ignition")
-            self.wildfire_map_observed.data['ignition'] = self.wildfire_map_observed.data['ignition']*60.
+            self.wildfire_map_observed.data['ignition'] = self.wildfire_map_observed.data[
+                                                              'ignition'] * 60.
             self.wildfire_map_observed = self.wildfire_map_observed.subset(
                 Area(self.elevation_map.x_offset,
                      self.elevation_map.x_offset + self.elevation_map.cell_width * self.elevation_map.max_x,
@@ -147,7 +161,7 @@ class HMIModel:
                      ))
             if self.gui is not None:
                 GLib.idle_add(self._draw_geodatadisplay)
-                GLib.idle_add(self.gui.update_wildfire_map)
+                GLib.idle_add(self.gui.update_wildfire_map_observed)
 
     def on_uav_state(self, uav: str, vehicle_state_msg: VehicleState):
         if self.uav_state_updatable:
@@ -184,6 +198,9 @@ class HMIModel:
                 if self.wildfire_map_observed_drawable and self.wildfire_map_observed is not None:
                     # self.gdd.draw_ignition_contour(self.wildfire_map_observed, with_labels=True)
                     self.gdd.draw_ignition_shade(self.wildfire_map_observed, with_colorbar=False)
+                if self.wildfire_map_predicted_drawable and self.wildfire_map_predicted is not None:
+                    self.gdd.draw_ignition_contour(self.wildfire_map_predicted, with_labels=True)
+
                 if self.wildfire_map_drawable and self.wildfire_map is not None:
                     self.gdd.draw_ignition_contour(self.wildfire_map, with_labels=True)
                     # self.gdd.draw_ignition_shade(self.wildfire_map, with_colorbar=True)
@@ -234,8 +251,8 @@ class HMINode:
         self.sub_elevation_map = rospy.Subscriber("elevation", ElevationMap, self._on_elevation_map,
                                                   queue_size=10)
         self.sub_wildfire_map = rospy.Subscriber("wildfire_prediction", PredictedWildfireMap,
-                                                 self._on_wildfire_map, queue_size=10)
-        self.sub_wildfire_map = rospy.Subscriber("wildfire_prediction", PredictedWildfireMap,
+                                                 self._on_wildfire_map_predicted, queue_size=10)
+        self.sub_wildfire_map = rospy.Subscriber("wildfire", WildfireMap,
                                                  self._on_wildfire_map, queue_size=10)
 
         self.sub_uav_state_dict = {uav: rospy.Subscriber(
@@ -261,7 +278,11 @@ class HMINode:
         if self.hmi_model:
             self.hmi_model.on_elevation_map(msg)
 
-    def _on_wildfire_map(self, msg: PredictedWildfireMap):
+    def _on_wildfire_map_predicted(self, msg: PredictedWildfireMap):
+        if self.hmi_model:
+            self.hmi_model.on_wildfire_map_predicted(msg)
+
+    def _on_wildfire_map(self, msg: WildfireMap):
         if self.hmi_model:
             self.hmi_model.on_wildfire_map(msg)
 
@@ -438,7 +459,7 @@ class SAOPControlWindow(Gtk.Window):
         flowbox.add(elevation_toggle)
 
         def toggle_wildfire(button):
-            self.hmi_model.wildfire_map_drawable = button.get_active()
+            self.hmi_model.wildfire_map_predicted_drawable = button.get_active()
 
         wildfire_toggle = SAOPControlWindow._check_button_with_action("Wildfire", toggle_wildfire)
         flowbox.add(wildfire_toggle)
@@ -525,7 +546,13 @@ class SAOPControlWindow(Gtk.Window):
     def update_elevation_map(self):
         self._update_figure()
 
+    def update_wildfire_map_predicted(self):
+        self._update_figure()
+
     def update_wildfire_map(self):
+        self._update_figure()
+
+    def update_wildfire_map_observed(self):
         self._update_figure()
 
     def _update_figure(self):
