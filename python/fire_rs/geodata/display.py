@@ -403,7 +403,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
     def _add_ignition_shade_colorbar(self, shade, label: 'str'):
         cb = self._figure.colorbar(shade, ax=self.axes, shrink=0.65, aspect=20,
-                                   format=MinuteDateFormatter('%H:%M'))
+                                   format=MinuteDateFormatter('%d/%m/%y %H:%M'))
         cb.set_label(label)
         self._colorbars.append(cb)
 
