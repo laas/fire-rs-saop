@@ -152,7 +152,7 @@ neighborhood = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1,
                 (2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]
 
 
-def empty_firemap(base_raster: GeoData, layer: str = "'ignition'") -> GeoData:
+def empty_firemap(base_raster: GeoData, layer: str = "ignition") -> GeoData:
     """Create an empty fire map from a base raster"""
     return base_raster.clone(fill_value=np.inf, dtype=[(layer, 'float64')])
 
