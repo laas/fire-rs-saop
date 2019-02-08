@@ -86,6 +86,10 @@ class SituationAssessmentNode:
                 WildfireMap, callback=self._on_wildfire_map_observed, callback_args=uav,
                 queue_size=10) for uav in self.uavs}
 
+        self.sub_firemap_obs_alarm = rospy.Subscriber("wildfire_observed", WildfireMap,
+                                                      callback=self._on_wildfire_map_observed,
+                                                      callback_args="Alarm", queue_size=10)
+
         self.sub_mean_wind = rospy.Subscriber("mean_wind", MeanWindStamped, self.on_mean_wind)
         self.sub_propagate = rospy.Subscriber("propagate", PropagateCmd, self.on_propagate_cmd)
         self.sub_wildfire_point = rospy.Subscriber("wildfire_point", Timed2DPointStamped,
@@ -96,14 +100,14 @@ class SituationAssessmentNode:
     def propagate(self):
         with self.sa_lock:
             # Assess current condition
-            self.sa.assess_current()
+            rospy.loginfo("Assessment of current situation")
+            self.sa.assess_current(datetime.datetime.fromtimestamp(rospy.Time.now().to_sec()))
             w = self.sa.wildfire.geodata
             w_time = self.sa.wildfire.time
 
+            rospy.loginfo("Assessment of future situation")
             until = datetime.datetime.fromtimestamp((rospy.Time.now() + self.horizon).to_sec())
             self.sa.assess_until(until)
-
-            # Future wildfire situation
             p = self.sa.predicted_wildfire.geodata
             p_time = self.sa.predicted_wildfire.time
 
@@ -151,26 +155,28 @@ class SituationAssessmentNode:
 
     def on_mean_wind(self, msg: MeanWindStamped):
         with self.sa_lock:
-            rospy.loginfo("Mean wind set to %s km/h direction %s º)",
+            rospy.loginfo("Mean wind set to %s km/h direction %s °",
                           str(msg.speed), str(msg.direction / np.pi * 180))
             self.sa.set_surface_wind((msg.speed, msg.direction))
 
     def on_propagate_cmd(self, msg: PropagateCmd):
         if self.assessment_th is None:
-            rospy.loginfo("Doing wildfire propagation")
+            rospy.loginfo("Doing situation asessment")
             self.propagate()
         else:
-            rospy.loginfo("Previous propagation has not ended")
+            rospy.logwarn("Previous situation assessment action has not finished yet")
 
     def _on_wildfire_map_observed(self, msg: WildfireMap, uav: str):
         with self.sa_lock:
             local_firemap = serialization.geodata_from_raster_msg(msg.raster, "ignition")
             g = GeoDataDisplay.pyplot_figure(local_firemap)
             g.draw_ignition_shade(with_colorbar=True)
-            g.figure.savefig("local_firemap_"+str(uav)+".png")
+            g.figure.savefig("local_firemap_" + str(uav) + ".png")
             rospy.loginfo("Local wildfire map received from %s", str(uav))
+
             for cell in zip(*np.where(local_firemap.data["ignition"] < np.inf)):
-                self.sa.observed_wildfire.set_cell_ignition((*cell, local_firemap["ignition"][cell]))
+                self.sa.observed_wildfire.set_cell_ignition(
+                    (*cell, local_firemap["ignition"][cell]))
 
     def on_wildfire_obs_point(self, msg: Timed2DPointStamped):
         # if SA is locked, new observations should be stored in a queue
