@@ -43,7 +43,7 @@ class RealWildfire:
         self._current_time = self.start_timestamp
 
         # Pending ignitions
-        # type: ty.MutableMapping[datetime.datetime, ty.Tuple[int, int]]
+        # type: ty.MutableMapping[float, ty.Tuple[int, int]]
         self._pending_ignitions = {}
 
         self._perimeter = None
