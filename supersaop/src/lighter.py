@@ -24,14 +24,20 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 import numpy as np
 
 import rospy
 from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 
-from supersaop.msg import Timed2DPointStamped, PropagateCmd, MeanWindStamped
+import fire_rs.firemodel.propagation
+import fire_rs.geodata.wildfire
+
+import serialization
+
+from supersaop.msg import Timed2DPointStamped, PropagateCmd, MeanWindStamped, WildfireMap
+
+
 
 
 class LighterNode:
@@ -40,6 +46,8 @@ class LighterNode:
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
         self.pub_w = rospy.Publisher("wildfire_point", Timed2DPointStamped, queue_size=1,
                                      tcp_nodelay=True)
+        self.pub_wildfire_obs = rospy.Publisher("wildfire_observed", WildfireMap, queue_size=1,
+                                                tcp_nodelay=True)
         self.pub_wind = rospy.Publisher("mean_wind", MeanWindStamped, queue_size=1,
                                         tcp_nodelay=True)
         self.pub_p = rospy.Publisher("propagate", PropagateCmd, queue_size=1, tcp_nodelay=True)
@@ -50,6 +58,33 @@ class LighterNode:
 
         self.pub_w.publish(fire_pos)
         rospy.loginfo(fire_pos)
+
+    def propagate_and_set_fire_front(self, origin, origin_time: rospy.Time,
+                                     perimeter_time: rospy.Time,
+                                     environment: fire_rs.firemodel.propagation.Environment):
+        origin_pos = Timed2DPointStamped(header=Header(stamp=rospy.Time.now()), x=origin[0],
+                                         y=origin[1], t=origin_time)
+
+        fireprop = fire_rs.firemodel.propagation.propagate_from_points(
+            environment, fire_rs.firemodel.propagation.TimedPoint(*origin, origin_time.to_sec()))
+
+        firemap = fireprop.ignitions()
+
+        array, cells, contours = fire_rs.geodata.wildfire._compute_perimeter(
+            firemap, perimeter_time.to_sec())
+
+        # Publish ignition points
+        # initial alarm
+        self.pub_w.publish(origin_pos)
+        self.pub_w.publish(origin_pos)
+        rospy.loginfo(origin_pos)
+
+        wildfire_message = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
+                                       raster=serialization.raster_msg_from_geodata(
+                                           firemap.clone(data_array=array,
+                                                         dtype=firemap.data.dtype), 'ignition'))
+        self.pub_wildfire_obs.publish(wildfire_message)
+        rospy.loginfo(wildfire_message)
 
     def set_wind(self, wind_speed, wind_direction):
         wind = MeanWindStamped(header=Header(stamp=rospy.Time.now()), speed=wind_speed,
@@ -77,7 +112,48 @@ if __name__ == '__main__':
 
         location = rospy.get_param("~location", None)
         print(location)
-        if location == "porto":
+
+        location = "lab_1"
+        area = rospy.get_param("area")
+
+        world_paths = None
+        has_dem_dir = rospy.has_param("dem_dir")
+        has_landcover_dir = rospy.has_param("landcover_dir")
+        has_wind_dir = rospy.has_param("wind_dir")
+
+        if has_dem_dir and has_landcover_dir and has_wind_dir:
+            # Either all are defined ...
+            world_paths = {}
+            world_paths["elevation_path"] = rospy.get_param("dem_dir")
+            world_paths["landcover_path"] = rospy.get_param("landcover_dir")
+            world_paths["wind_path"] = rospy.get_param("wind_dir")
+        else:
+            # ... or none of them
+            if has_dem_dir or has_landcover_dir or has_wind_dir:
+                # This is an error
+                rospy.logerr("dem_dir, landcover_dir and wind_dir have to be defined all toghether "
+                             "or not be defined at all.")
+                rospy.signal_shutdown("Geographic data directories are not well defined")
+            else:
+                # data folders are implicitely defined
+                pass
+
+        if location == "lab_1":
+            environment = fire_rs.firemodel.propagation.Environment(
+                area, 5, 1 * np.pi / 4, fire_rs.geodata.environment.World(
+                    **world_paths,
+                    landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
+            actions = [
+                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
+                (w_starter.propagate_and_set_fire_front,
+                 ((2776829.0, 2212180.0),
+                  rospy.Time.now() - five_hours,
+                  rospy.Time.now(),
+                  environment)),
+                (w_starter.set_wind, (5, 1 * np.pi / 4)),
+                (w_starter.propagate, None)
+            ]
+        elif location == "porto":
             actions = [
                 (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
                 (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
@@ -87,8 +163,8 @@ if __name__ == '__main__':
             # Two fires around LIPA, one over the north, and the other on the south
             actions = [
                 # North fire
-                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - one_hour*3)),
-                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - one_hour*3)),
+                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - one_hour * 3)),
+                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - one_hour * 3)),
 
                 # South fire
                 (w_starter.set_on_fire, ((2776704.0, 2211865.0), rospy.Time.now() - two_hours)),
