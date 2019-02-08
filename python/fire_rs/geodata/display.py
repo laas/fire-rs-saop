@@ -336,7 +336,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
     def draw_ignition_contour(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'ignition',
                               time_range: 'Optional[Tuple[float, float]]' = None,
-                              with_labels: 'bool' = False, **kwargs):
+                              with_labels: 'bool' = False, n_fronts=None, **kwargs):
         gd = self._geodata if geodata is None else geodata
 
         igni = np.array(gd[layer])
@@ -353,7 +353,8 @@ class GeoDataDisplay(GeoDataDisplayBase):
         igni[np.isnan(igni)] = np.inf
         igni[igni > lim[1]] = lim[1]
         igni[igni < lim[0]] = lim[0]
-        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 10))
+        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 10)) if n_fronts is None \
+            else n_fronts
 
         if 'cmap' not in kwargs:
             kwargs['cmap'] = matplotlib.cm.YlOrRd

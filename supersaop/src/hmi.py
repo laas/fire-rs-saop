@@ -202,7 +202,10 @@ class HMIModel:
                     self.gdd.draw_ignition_contour(self.wildfire_map_predicted, with_labels=True)
 
                 if self.wildfire_map_drawable and self.wildfire_map is not None:
-                    self.gdd.draw_ignition_contour(self.wildfire_map, with_labels=True)
+                    self.gdd.draw_ignition_contour(
+                        self.wildfire_map, cmap="plasma", with_labels=True,
+                        n_fronts=1,
+                        time_range=(rospy.Time.now().to_sec() - 60, rospy.Time.now().to_sec() + 60))
                     # self.gdd.draw_ignition_shade(self.wildfire_map, with_colorbar=True)
                 if self.uav_state_drawable:
                     for uav_state, color in zip(self.uav_state_dict.values(),
@@ -459,7 +462,7 @@ class SAOPControlWindow(Gtk.Window):
         flowbox.add(elevation_toggle)
 
         def toggle_wildfire(button):
-            self.hmi_model.wildfire_map_predicted_drawable = button.get_active()
+            self.hmi_model.wildfire_map_drawable = button.get_active()
 
         wildfire_toggle = SAOPControlWindow._check_button_with_action("Wildfire", toggle_wildfire)
         flowbox.add(wildfire_toggle)
@@ -468,8 +471,15 @@ class SAOPControlWindow(Gtk.Window):
             self.hmi_model.wildfire_map_observed_drawable = button.get_active()
 
         wildfire_observed_toggle = SAOPControlWindow._check_button_with_action(
-            "Observed Wildfire", toggle_wildfire_observed)
+            "Observed wildfire", toggle_wildfire_observed)
         flowbox.add(wildfire_observed_toggle)
+
+        def toggle_wildfire_predicted(button):
+            self.hmi_model.wildfire_map_predicted_drawable = button.get_active()
+
+        wildfire_predicted_toggle = SAOPControlWindow._check_button_with_action(
+            "Predicted wildfire", toggle_wildfire_predicted)
+        flowbox.add(wildfire_predicted_toggle)
 
         def toggle_uav(button):
             self.hmi_model.uav_state_drawable = button.get_active()
