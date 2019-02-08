@@ -265,6 +265,15 @@ class MinuteDateFormatter(matplotlib.dates.DateFormatter):
         return datetime.datetime.fromtimestamp(x * 60, None).strftime(self.fmt)
 
 
+class SecondDateFormatter(matplotlib.dates.DateFormatter):
+    """Format date from a timestamp in seconds"""
+
+    def __call__(self, x, pos=0):
+        # TZ should not be used, because ROS only work on localtime
+        # without any time zone consideration
+        return datetime.datetime.fromtimestamp(x, None).strftime(self.fmt)
+
+
 class GeoDataDisplay(GeoDataDisplayBase):
     """Draw GeoData information on a matplotlib figure.
     
