@@ -140,17 +140,17 @@ if __name__ == '__main__':
 
         if location == "lab_1":
             environment = fire_rs.firemodel.propagation.Environment(
-                area, 5, 1 * np.pi / 4, fire_rs.geodata.environment.World(
+                area, 2, 1 * np.pi / 4, fire_rs.geodata.environment.World(
                     **world_paths,
                     landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
             actions = [
                 (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
                 (w_starter.propagate_and_set_fire_front,
                  ((2776829.0, 2212180.0),
-                  rospy.Time.now() - five_hours,
+                  rospy.Time.now() - two_hours,
                   rospy.Time.now(),
                   environment)),
-                (w_starter.set_wind, (5, 1 * np.pi / 4)),
+                (w_starter.set_wind, (3, 1 * 3 * np.pi / 4)),
                 (w_starter.propagate, None)
             ]
         elif location == "porto":
@@ -194,7 +194,7 @@ if __name__ == '__main__':
                 (w_starter.set_on_fire, ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
                 (w_starter.propagate, None)]
 
-        r = rospy.Rate(1 / 2.)
+        r = rospy.Rate(1 / 3.)
 
         while actions:
             a = actions.pop(0)
