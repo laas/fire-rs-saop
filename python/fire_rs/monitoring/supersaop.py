@@ -170,13 +170,24 @@ class SituationAssessment:
         def _interpolate(self):
             """RBF interpolation"""
             x, y = list(zip(*self._observations.keys()))
-            z = tuple(self._observations.values())
+            z = np.array(list(self._observations.values()))
+
             if len(z) > 1:
+                # Normalise
+                z -= self._oldest_obs_timestamp
+                z /= self._newest_obs_timestamp - self._oldest_obs_timestamp
+
+                # Interpolate on normalised ignition time
                 array = fire_rs.geodata.wildfire.interpolate(x, y, z, self._interpolated.data.shape,
                                                              function='thin_plate')
+
+                # Denormalise
+                array *= self._newest_obs_timestamp - self._oldest_obs_timestamp
+                array += self._oldest_obs_timestamp
+
                 # Filter out extrapolations, because they are not reliable!
-                array[array < self._oldest_obs_timestamp - 1] = np.inf
-                array[array > self._newest_obs_timestamp + 1] = np.inf
+                array[array < self._oldest_obs_timestamp] = 0
+                array[array > self._newest_obs_timestamp] = np.inf
                 self._interpolated.data["ignition"] = array
             else:
                 self._interpolated.data["ignition"][x, y] = z
