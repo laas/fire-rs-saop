@@ -144,12 +144,15 @@ class SituationAssessmentNode:
         g = GeoDataDisplay.pyplot_figure(p)
         g.draw_ignition_shade(with_colorbar=True)
         g.figure.savefig("/home/rbailonr/fuego_pre.png")
+        g.close()
         g = GeoDataDisplay.pyplot_figure(w)
         g.draw_ignition_shade(with_colorbar=True)
         g.figure.savefig("/home/rbailonr/fuego_cur.png")
+        g.close()
         g = GeoDataDisplay.pyplot_figure(self.sa.observed_wildfire.geodata)
         g.draw_ignition_shade(with_colorbar=True)
         g.figure.savefig("/home/rbailonr/fuego_obs.png")
+        g.close()
 
         rospy.loginfo("Wildfire propagation publishing ended")
 

@@ -36,6 +36,7 @@ from std_msgs.msg import Header
 import fire_rs.simulation.fakefiremapper
 import fire_rs.planning.new_planning
 from fire_rs.geodata.geo_data import GeoData
+import fire_rs.geodata.display
 
 import serialization
 from supersaop.msg import Timed2DPointStamped, PropagateCmd, MeanWindStamped, VehicleState, \
@@ -113,6 +114,10 @@ class FakeMapperNode:
                 wf_msg = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
                                      raster=serialization.raster_msg_from_geodata(self.firemapper.firemap, 'ignition', invert=False))
                 self.pub_dict_firemap[uav_str].publish(wf_msg)
+                g = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(self.firemapper.firemap)
+                g.draw_ignition_shade(with_colorbar=True)
+                g.figure.savefig("/home/rbailonr/fuego_fakemapped.png")
+                g.close()
 
 
 if __name__ == '__main__':
