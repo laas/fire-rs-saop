@@ -124,6 +124,11 @@ class RealWildfire:
     def fire_map(self) -> fire_rs.geodata.geo_data.GeoData:
         return self._fire_map
 
+    def perimeter(self, threshold_time: ty.Union[datetime.datetime, float]):
+        t = threshold_time.timestamp() if isinstance(threshold_time,
+                                                     datetime.datetime) else threshold_time
+        return fire_rs.geodata.wildfire.Perimeter(self._fire_map, t)
+
 
 if __name__ == "__main__":
 
