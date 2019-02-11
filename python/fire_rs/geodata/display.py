@@ -225,6 +225,9 @@ class GeoDataDisplayBase:
         figure, axis = get_pyplot_figure_and_axis()
         return cls(figure, axis, geodata, frame=frame)
 
+    def close(self):
+        plt.close(self.figure)
+
     def clear_axis(self):
         self._axes.cla()
         # drawings and colorbar references must be cleared to prevent increasing memory usage
