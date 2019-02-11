@@ -149,16 +149,15 @@ class HMIModel:
     def on_wildfire_map_observed(self, uav: str, wildfire_map_observed_msg: WildfireMap):
         if self.wildfire_map_observed_updatable:
             self.wildfire_map_observed = serialization.geodata_from_raster_msg(
-                wildfire_map_observed_msg.raster,
-                "ignition")
+                wildfire_map_observed_msg.raster, "ignition", invert=True)
             self.wildfire_map_observed.data['ignition'] = self.wildfire_map_observed.data[
                                                               'ignition'] * 60.
-            self.wildfire_map_observed = self.wildfire_map_observed.subset(
-                Area(self.elevation_map.x_offset,
-                     self.elevation_map.x_offset + self.elevation_map.cell_width * self.elevation_map.max_x,
-                     self.elevation_map.y_offset,
-                     self.elevation_map.y_offset + self.elevation_map.cell_height * self.elevation_map.max_y
-                     ))
+            # self.wildfire_map_observed = self.wildfire_map_observed.subset(
+            #     Area(self.elevation_map.x_offset,
+            #          self.elevation_map.x_offset + self.elevation_map.cell_width * self.elevation_map.max_x,
+            #          self.elevation_map.y_offset,
+            #          self.elevation_map.y_offset + self.elevation_map.cell_height * self.elevation_map.max_y
+            #          ))
             if self.gui is not None:
                 GLib.idle_add(self._draw_geodatadisplay)
                 GLib.idle_add(self.gui.update_wildfire_map_observed)
