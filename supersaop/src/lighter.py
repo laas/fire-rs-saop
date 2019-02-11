@@ -24,20 +24,18 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import numpy as np
+import datetime
 
+import numpy as np
 import rospy
 from std_msgs.msg import Header
-from geometry_msgs.msg import Point
+from supersaop.msg import MeanWindStamped, PropagateCmd, Timed2DPointStamped, WildfireMap
 
 import fire_rs.firemodel.propagation
+import fire_rs.geodata.display
 import fire_rs.geodata.wildfire
-
+import fire_rs.simulation.wildfire
 import serialization
-
-from supersaop.msg import Timed2DPointStamped, PropagateCmd, MeanWindStamped, WildfireMap
-
-
 
 
 class LighterNode:
@@ -50,14 +48,31 @@ class LighterNode:
                                                 tcp_nodelay=True)
         self.pub_wind = rospy.Publisher("mean_wind", MeanWindStamped, queue_size=1,
                                         tcp_nodelay=True)
+
+        self.pub_wildfire_real = rospy.Publisher("real_wildfire", WildfireMap, queue_size=1,
+                                                 tcp_nodelay=True)
+
         self.pub_p = rospy.Publisher("propagate", PropagateCmd, queue_size=1, tcp_nodelay=True)
 
-    def set_on_fire(self, position, timestamp):
+    def notify_alarm_point(self, position, timestamp):
+        if callable(timestamp):
+            timestamp = timestamp()
         fire_pos = Timed2DPointStamped(header=Header(stamp=rospy.Time.now()), x=position[0],
                                        y=position[1], t=timestamp)
 
         self.pub_w.publish(fire_pos)
+        rospy.loginfo("Notify alarm point")
         rospy.loginfo(fire_pos)
+
+    def notify_alarm_map(self, firemap: fire_rs.geodata.geo_data.GeoData):
+        if callable(firemap):
+            firemap = firemap()
+        wildfire_message = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
+                                       raster=serialization.raster_msg_from_geodata(firemap,
+                                                                                    layer="ignition"))
+        self.pub_wildfire_obs.publish(wildfire_message)
+        rospy.loginfo("Notify alarm map")
+        rospy.loginfo(wildfire_message)
 
     def propagate_and_set_fire_front(self, origin, origin_time: rospy.Time,
                                      perimeter_time: rospy.Time,
@@ -86,12 +101,26 @@ class LighterNode:
         self.pub_wildfire_obs.publish(wildfire_message)
         rospy.loginfo(wildfire_message)
 
-    def set_wind(self, wind_speed, wind_direction):
+    def notify_wind(self, wind_speed, wind_direction):
         wind = MeanWindStamped(header=Header(stamp=rospy.Time.now()), speed=wind_speed,
                                direction=wind_direction)
 
         self.pub_wind.publish(wind)
+        rospy.loginfo("Notify wind")
         rospy.loginfo(wind)
+
+    def publish_real_fire(self, real_fire: fire_rs.simulation.wildfire.RealWildfire):
+        current_fire_msg = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
+                                       raster=serialization.raster_msg_from_geodata(
+                                           real_fire.fire_map, layer="ignition"))
+        self.pub_wildfire_real.publish(current_fire_msg)
+        rospy.loginfo("Publish real fire")
+        rospy.loginfo(current_fire_msg)
+
+        g = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(real_fire.fire_map)
+        g.draw_ignition_shade(with_colorbar=True)
+        g.figure.savefig("/home/rbailonr/fuego_ref.png")
+        g.close()
 
     def propagate(self):
         pcmd = PropagateCmd()
@@ -113,7 +142,7 @@ if __name__ == '__main__':
         location = rospy.get_param("~location", None)
         print(location)
 
-        location = "lab_1"
+        location = "lab_2"
         area = rospy.get_param("area")
 
         world_paths = None
@@ -144,55 +173,108 @@ if __name__ == '__main__':
                     **world_paths,
                     landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
             actions = [
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
+                (w_starter.notify_alarm_point,
+                 ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
                 (w_starter.propagate_and_set_fire_front,
                  ((2776829.0, 2212180.0),
                   rospy.Time.now() - two_hours,
                   rospy.Time.now(),
                   environment)),
-                (w_starter.set_wind, (3, 1 * 3 * np.pi / 4)),
+                (w_starter.notify_wind, (3, 1 * 3 * np.pi / 4)),
                 (w_starter.propagate, None)
             ]
-        elif location == "porto":
-            actions = [
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
-                (w_starter.propagate, None)]
+        elif location == "lab_2":
+            environment = fire_rs.firemodel.propagation.Environment(
+                area, 2, 1 * np.pi / 4, fire_rs.geodata.environment.World(
+                    **world_paths,
+                    landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
+            rw = fire_rs.simulation.wildfire.RealWildfire(
+                datetime.datetime.fromtimestamp((rospy.Time.now() - two_hours).to_sec()),
+                environment)
 
-        elif location == "porto_3":
-            # Two fires around LIPA, one over the north, and the other on the south
-            actions = [
-                # North fire
-                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - one_hour * 3)),
-                (w_starter.set_on_fire, ((2776958.0, 2212499.0), rospy.Time.now() - one_hour * 3)),
+            ignitions = [np.array([area[0][0] + (area[0][1] - area[0][0]) * 0.25,
+                                   area[1][0] + (area[1][1] - area[1][0]) * 0.25]),
+                         np.array([area[0][0] + (area[0][1] - area[0][0]) * 0.75,
+                                   area[1][0] + (area[1][1] - area[1][0]) * 0.75])
+                         ]
 
-                # South fire
-                (w_starter.set_on_fire, ((2776704.0, 2211865.0), rospy.Time.now() - two_hours)),
+            ignitions_cell = [rw.fire_map.array_index(p) for p in ignitions]
 
-                (w_starter.set_wind, (1, 1 * np.pi / 4)),
+            actions = [
+                (rw.ignite, (ignitions[0],)),
+                (rw.propagate, (datetime.timedelta(minutes=120.),)),
+                (rw.change_wind, (3, np.pi / 4)),
+                (rw.propagate, (datetime.timedelta(minutes=31.),)),
+                (rw.change_wind, (3, np.pi / 2)),
+                # (rw.ignite, (ignitions[1],)),
+                (rw.propagate, (datetime.timedelta(minutes=32.),)),
+                (rw.change_wind, (3, 0.)),
+                # (rw.propagate, (datetime.timedelta(minutes=33.),)),
+                # (rw.change_wind, (3, np.pi / 4)),
+                # (rw.propagate, (datetime.timedelta(minutes=34.),)),
+                # (rw.change_wind, (3, np.pi / 2)),
+                # (rw.propagate, (datetime.timedelta(minutes=35.),)),
+                (w_starter.notify_wind, (3., 0.)),
+                (w_starter.notify_alarm_point,
+                 (ignitions[0],
+                  lambda: rospy.Time.from_sec(rw.fire_map["ignition"][ignitions_cell[0]]))),
+                (w_starter.notify_alarm_map,
+                 (lambda: rw.perimeter(rospy.Time.now().to_sec()).geodata,)),
+                (w_starter.publish_real_fire, (rw,)),
+                (w_starter.propagate, None)
+            ]
 
-                (w_starter.propagate, None)]
-
-        elif location == "porto_2":
-            # Bigger fire around LIPA directed to the north-east
-            actions = [
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
-                (w_starter.set_wind, (1, 1 * np.pi / 4)),
-                (w_starter.propagate, None)]
-        elif location == "porto_1":
-            # Small fire around LIPA
-            actions = [
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
-                (w_starter.set_on_fire, ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
-                (w_starter.propagate, None)]
-        else:
-            # Default actions
-            actions = [
-                (w_starter.set_on_fire, ((483060.0, 6214074.0), rospy.Time.now() - one_hour)),
-                (w_starter.propagate, None),
-                (w_starter.set_on_fire, ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
-                (w_starter.propagate, None)]
+        # elif location == "porto":
+        #     actions = [
+        #         (w_starter.notify_alarm_point,
+        #          ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
+        #         (w_starter.notify_alarm_point,
+        #          ((2776829.0, 2212180.0), rospy.Time.now() - ten_hours)),
+        #         (w_starter.propagate, None)]
+        #
+        # elif location == "porto_3":
+        #     # Two fires around LIPA, one over the north, and the other on the south
+        #     actions = [
+        #         # North fire
+        #         (w_starter.notify_alarm_point,
+        #          ((2776958.0, 2212499.0), rospy.Time.now() - one_hour * 3)),
+        #         (w_starter.notify_alarm_point,
+        #          ((2776958.0, 2212499.0), rospy.Time.now() - one_hour * 3)),
+        #
+        #         # South fire
+        #         (w_starter.notify_alarm_point,
+        #          ((2776704.0, 2211865.0), rospy.Time.now() - two_hours)),
+        #
+        #         (w_starter.notify_wind, (1, 1 * np.pi / 4)),
+        #
+        #         (w_starter.propagate, None)]
+        #
+        # elif location == "porto_2":
+        #     # Bigger fire around LIPA directed to the north-east
+        #     actions = [
+        #         (w_starter.notify_alarm_point,
+        #          ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
+        #         (w_starter.notify_alarm_point,
+        #          ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
+        #         (w_starter.notify_wind, (1, 1 * np.pi / 4)),
+        #         (w_starter.propagate, None)]
+        # elif location == "porto_1":
+        #     # Small fire around LIPA
+        #     actions = [
+        #         (w_starter.notify_alarm_point,
+        #          ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
+        #         (w_starter.notify_alarm_point,
+        #          ((2776829.0, 2212180.0), rospy.Time.now() - five_hours)),
+        #         (w_starter.propagate, None)]
+        # else:
+        #     # Default actions
+        #     actions = [
+        #         (
+        #         w_starter.notify_alarm_point, ((483060.0, 6214074.0), rospy.Time.now() - one_hour)),
+        #         (w_starter.propagate, None),
+        #         (w_starter.notify_alarm_point,
+        #          ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
+        #         (w_starter.propagate, None)]
 
         r = rospy.Rate(1 / 3.)
 
