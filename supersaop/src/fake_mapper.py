@@ -111,7 +111,7 @@ class FakeMapperNode:
                 #                                        projection=self.elevation_map.projection)
 
                 wf_msg = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
-                                     raster=serialization.raster_msg_from_geodata(self.firemapper.firemap, 'ignition', invert=True))
+                                     raster=serialization.raster_msg_from_geodata(self.firemapper.firemap, 'ignition', invert=False))
                 self.pub_dict_firemap[uav_str].publish(wf_msg)
 
 
