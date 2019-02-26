@@ -98,19 +98,28 @@ def _compute_perimeter(wildfire: fire_rs.geodata.geo_data.GeoData, threshold: fl
     contours = skimage.measure.find_contours(wildfire.data[layer], threshold)
 
     for contour in contours:
-        prev_edge = contour[0]
-        for edge in contour[1:]:
-            if np.isnan(prev_edge).any() or np.isnan(edge).any():
-                continue
-            rr, cc = skimage.draw.line(*np.asarray(prev_edge, dtype=int),
-                                       *np.asarray(edge, dtype=int))
-            # Set perimeter in array format
-            array[rr, cc] = wildfire.data[layer][rr, cc]
-            # Set perimeter in dict format
-            for r, c in zip(rr, cc):
-                cells[r, c] = wildfire.data[layer][r, c]
+        rr, cc = skimage.draw.polygon_perimeter(contour[..., 0], contour[..., 1],
+                                                shape=wildfire.data.shape, clip=True)
+        # Set perimeter in array format
+        array[rr, cc] = wildfire.data[layer][rr, cc]
+        # Set perimeter in dict format
+        for r, c in zip(rr, cc):
+            cells[r, c] = wildfire.data[layer][r, c]
 
-            prev_edge = edge
+    # for contour in contours:
+    #     prev_edge = contour[0]
+    #     for edge in contour[1:]:
+    #         if np.isnan(prev_edge).any() or np.isnan(edge).any():
+    #             continue
+    #         rr, cc = skimage.draw.line(*np.asarray(prev_edge, dtype=int),
+    #                                    *np.asarray(edge, dtype=int))
+    #         # Set perimeter in array format
+    #         array[rr, cc] = wildfire.data[layer][rr, cc]
+    #         # Set perimeter in dict format
+    #         for r, c in zip(rr, cc):
+    #             cells[r, c] = wildfire.data[layer][r, c]
+    #
+    #         prev_edge = edge
 
     return array, cells, contours
 
