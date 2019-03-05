@@ -54,7 +54,7 @@ namespace SAOP {
                 : max_trials(max_trials),
                   select_arbitrary_trajectory(select_arbitrary_trajectory),
                   select_arbitrary_position(select_arbitrary_position) {
-            BOOST_LOG_TRIVIAL(info) << "OneInsertNbhd is inserting wapoints at " << default_height
+            BOOST_LOG_TRIVIAL(info) << "OneInsertNbhd is inserting waypoints at " << default_height
                                     << " above ground altitude";
         }
 
