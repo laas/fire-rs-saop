@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <valarray>
 #include <stdexcept>
+#include <unordered_set>
 
 #include <zlib.h>
 
@@ -462,7 +463,10 @@ namespace SAOP {
         template<typename GenRaster>
         static opt<std::vector<Cell>> segment_trace(const Segment3d& segment, const double view_width,
                                                     const double view_depth, const GenRaster& raster) {
-            std::vector<Cell> trace = {};
+            // FIXME: Remove this horrible opt<vector<Cell>> creation!!!
+//            std::vector<Cell> trace = {};
+
+            std::unordered_set<Cell, CellHash> trace_set = {};
 
             // computes visibility rectangle
             // the rectangle is placed right in front of the plane. Its width is given by the view width of the UAV
@@ -475,10 +479,10 @@ namespace SAOP {
             const double ssx = segment.start.x - cos(segment.start.dir) * view_depth / 2;
             const double ssy = segment.start.y - sin(segment.start.dir) * view_depth / 2;
 
-            const double ax = ssx + cos(segment.start.dir + M_PI / 2) * w / 2;
-            const double ay = ssy + sin(segment.start.dir + M_PI / 2) * w / 2;
-            const double bx = ssx - cos(segment.start.dir + M_PI / 2) * w / 2;
-            const double by = ssy - sin(segment.start.dir + M_PI / 2) * w / 2;
+            const double ax = ssx + cos(segment.start.dir + M_PI_2) * w / 2;
+            const double ay = ssy + sin(segment.start.dir + M_PI_2) * w / 2;
+            const double bx = ssx - cos(segment.start.dir + M_PI_2) * w / 2;
+            const double by = ssy - sin(segment.start.dir + M_PI_2) * w / 2;
             const double cx = ax + cos(segment.start.dir) * (l + view_depth);
             const double cy = ay + sin(segment.start.dir) * (l + view_depth);
             const double dx = bx + cos(segment.start.dir) * (l + view_depth);
@@ -500,19 +504,19 @@ namespace SAOP {
                                                    raster.y_offset + raster.y_height * raster.cell_width -
                                                    raster.cell_width / 2), raster.y_offset + raster.cell_width / 2);
 
-            // coordinates of where to start the search, centered on a cell
-            const size_t start_x = raster.x_coords(raster.x_index(min_x));
-            const size_t start_y = raster.y_coords(raster.y_index(min_y));
-
             // for each point possibly in the rectangle check if it is in the visible area and mark it as pending/visible when necessary
-            for (double ix = start_x; ix <= max_x; ix += raster.cell_width) {
-                for (double iy = start_y; iy <= max_y; iy += raster.cell_width) {
+            for (double ix = min_x; ix <= max_x; ix += raster.cell_width/2) {
+                for (double iy = min_y; iy <= max_y; iy += raster.cell_width/2) {
                     if (in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
                         // corresponding point in matrix coordinates
-                        trace.push_back(Cell{raster.x_index(ix), raster.y_index(iy)});
+                        if (raster.is_x_in(ix) && raster.is_y_in(iy)) {
+                            trace_set.insert(Cell{raster.x_index(ix), raster.y_index(iy)});
+                        }
                     }
                 }
             }
+
+            std::vector<Cell> trace = std::vector<Cell>(trace_set.begin(), trace_set.end());
 
             return trace;
         }
@@ -529,8 +533,8 @@ namespace SAOP {
             const double dot_ab_ab = dot(bx - ax, by - ay, bx - ax, by - ay);
             const double dot_ac_am = dot(cx - ax, cy - ay, x - ax, y - ay);
             const double dot_ac_ac = dot(cx - ax, cy - ay, cx - ax, cy - ay);
-            return 0 <= dot_ab_am && dot_ab_am <= dot_ab_ab &&
-                   0 <= dot_ac_am && dot_ac_am <= dot_ac_ac;
+            return (0 <= dot_ab_am) && (dot_ab_am <= dot_ab_ab) &&
+                    (0 <= dot_ac_am) && (dot_ac_am <= dot_ac_ac);
         }
     };
 }
