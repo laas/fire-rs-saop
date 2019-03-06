@@ -26,7 +26,7 @@
 
 __all__ = ['GeoDataDisplay', 'GeoDataDisplayBase', 'DisplayExtension', 'UAVDisplayExtension']
 
-from collections import Sequence
+from collections.abc import Sequence
 import datetime
 from typing import Optional, Tuple, Type, Union, Dict
 

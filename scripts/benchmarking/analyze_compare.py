@@ -39,7 +39,7 @@ import matplotlib.axes
 import numpy as np
 import pandas as pd
 
-from collections import OrderedDict
+from collections.abc import OrderedDict
 
 
 class BenchmarkRun:

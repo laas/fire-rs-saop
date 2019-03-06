@@ -31,7 +31,7 @@ import logging
 
 from typing import List, Tuple, Union
 
-from collections import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 

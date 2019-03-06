@@ -27,7 +27,8 @@ import json
 import logging
 import types
 import typing as t
-from collections import namedtuple, Mapping
+from collections import namedtuple
+from collections.abc import Mapping
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np

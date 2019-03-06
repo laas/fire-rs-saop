@@ -30,7 +30,8 @@ import random
 import time
 import types
 
-from collections import namedtuple, Sequence
+from collections import namedtuple
+from collections.abc import Sequence
 from typing import Optional, Tuple, Union
 
 import matplotlib
