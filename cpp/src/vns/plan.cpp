@@ -29,20 +29,31 @@ namespace SAOP {
 
     Plan::Plan(std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data, TimeWindow tw,
                std::vector<PositionTime> observed_previously)
-            : Plan("unnamed", Trajectories(traj_confs), fire_data, tw, std::move(observed_previously)) {}
+            : Plan("unnamed", Trajectories(traj_confs), fire_data, tw,
+                   std::move(observed_previously), GenRaster<double>(fire_data->ignitions, 1.)) {}
 
     Plan::Plan(std::string name, std::vector<TrajectoryConfig> traj_confs, shared_ptr<FireData> fire_data,
                TimeWindow tw, std::vector<PositionTime> observed_previously)
-            : Plan(name, Trajectories(traj_confs), fire_data, tw, observed_previously) {}
+            : Plan(name, Trajectories(traj_confs), fire_data, tw,
+                   observed_previously, GenRaster<double>(fire_data->ignitions, 1.)) {}
 
     Plan::Plan(std::string name, std::vector<Trajectory> trajectories, std::shared_ptr<FireData> fire_data,
                TimeWindow tw, std::vector<PositionTime> observed_previously)
-            : Plan(name, Trajectories(trajectories), fire_data, tw, observed_previously) {}
+            : Plan(name, Trajectories(trajectories), fire_data, tw,
+                   observed_previously, GenRaster<double>(fire_data->ignitions, 1.)) {}
 
-    Plan::Plan(std::string name, Trajectories trajectories, shared_ptr<FireData> fire_data, TimeWindow tw,
-               std::vector<PositionTime> observed_previously)
+    Plan::Plan(std::string name, std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data,
+               TimeWindow tw, GenRaster<double> utility) : Plan(name, Trajectories(traj_confs), fire_data, tw,
+                                                                {}, GenRaster<double>(fire_data->ignitions, 1.)) {}
+
+    Plan::Plan(std::string name, std::vector<Trajectory> trajectories, std::shared_ptr<FireData> fire_data,
+               TimeWindow tw, GenRaster<double> utility): Plan(std::move(name), Trajectories(trajectories), fire_data, tw,
+                                                               {}, std::move(utility)) {}
+
+    Plan::Plan(std::string name, Trajectories trajectories, std::shared_ptr<FireData> fire_data, TimeWindow tw,
+                   std::vector<PositionTime> observed_previously, GenRaster<double> utility)
             : time_window(tw), observed_previously(observed_previously), plan_name(name),
-              trajs(trajectories), fire_data(fire_data) {
+              trajs(trajectories), fire_data(fire_data), u_map(Utility(std::move(utility), fire_data)) {
         for (auto& t : trajectories) {
             ASSERT(t.conf().start_time >= time_window.start && t.conf().start_time <= time_window.end);
         }
@@ -70,7 +81,7 @@ namespace SAOP {
             }
         }
 
-        utility_cache_invalid = true;
+        u_map.reset(trajs);
     }
 
     json Plan::metadata() {
@@ -158,7 +169,7 @@ namespace SAOP {
         if (do_post_processing) {
             post_process();
         }
-        utility_cache_invalid = true;
+        u_map.reset(trajs);
     }
 
     void Plan::erase_segment(size_t traj_id, size_t at_index, bool do_post_processing) {
@@ -168,12 +179,12 @@ namespace SAOP {
         if (do_post_processing) {
             post_process();
         }
-        utility_cache_invalid = true;
+        u_map.reset(trajs);
     }
 
     void Plan::replace_segment(size_t traj_id, size_t at_index, const Segment3d& by_segment) {
         replace_segment(traj_id, at_index, 1, std::vector<Segment3d>({by_segment}));
-        utility_cache_invalid = true;
+        u_map.reset(trajs);
     }
 
     void
@@ -192,7 +203,7 @@ namespace SAOP {
         }
 
         post_process();
-        utility_cache_invalid = true;
+        u_map.reset(trajs);
     }
 
     void Plan::project_on_fire_front() {
@@ -206,14 +217,14 @@ namespace SAOP {
                     if (*projected != seg) {
                         // original is different than projection, replace it
                         traj.replace_segment(seg_id, *projected);
-                        utility_cache_invalid = true;
+                        u_map.reset(trajs);
                     }
                     seg_id++;
                 } else {
                     // segment has no projection, remove it
                     if (traj.can_modify(seg_id)) {
                         traj.erase_segment(seg_id);
-                        utility_cache_invalid = true;
+                        u_map.reset(trajs);
                     } else {
                         seg_id++;
                     }
@@ -235,7 +246,7 @@ namespace SAOP {
                 if (dubins_dist_to_next / euclidian_dist_to_next > 2.) {
                     // tight loop, erase next and stay on this segment to check for tight loops on the new next.
                     traj.erase_segment(seg_id + 1);
-                    utility_cache_invalid = true;
+                    u_map.reset(trajs);
                 } else {
                     // no loop detected, go to next
                     seg_id++;
@@ -244,118 +255,13 @@ namespace SAOP {
         }
     }
 
-    GenRaster<double> Plan::utility_comp_radial() const {
-        GenRaster<double> u_map = GenRaster<double>(fire_data->ignitions, numeric_limits<double>::signaling_NaN());
-        vector<PositionTime> done_obs = observations_full();
-        for (const PointTimeWindow& possible_obs : possible_observations) {
-            double min_dist = pow(MAX_INFORMATIVE_DISTANCE, 2);
-            // find the closest observation.
-            for (const PositionTime& obs : done_obs) {
-                min_dist = min(min_dist, possible_obs.pt.dist_squared(obs.pt));
-            }
-            // utility is based on the minimal distance to the observation and normalized such that
-            // utility = 0 if min_dist <= REDUNDANT_OBS_DIST
-            // utility = 1 if min_dist = (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST
-            // evolves linearly in between.
-            u_map.set(u_map.as_cell(possible_obs.pt),
-                      (max(sqrt(min_dist), REDUNDANT_OBS_DIST) - REDUNDANT_OBS_DIST) /
-                      (MAX_INFORMATIVE_DISTANCE - REDUNDANT_OBS_DIST));
-        }
-        return u_map;
-    }
-
-    GenRaster<double> Plan::utility_comp_propagation() const {
-        // Start with NaN utility everywhere
-        GenRaster<double> u_map = GenRaster<double>(fire_data->ignitions, numeric_limits<double>::signaling_NaN());
-
-        // Fill u_map observable cells with MAX_UTILITY
-        for (auto& obs : possible_observations) {
-            Cell obs_cell = u_map.as_cell(obs.pt);
-            u_map.set(obs_cell, MAX_UTILITY);
-        }
-
-        // Set-up a priority queue
-        auto time_cell_comp = [this](Cell a, Cell b) -> bool {
-            // Use "less" to get the lowset ignition time on top of the queue
-            return (*this).fire_data->ignitions(a) < (*this).fire_data->ignitions(b);
-        };
-        typedef std::priority_queue<Cell, vector<Cell>, decltype(time_cell_comp)> TimeCellPriorityQueue;
-        auto prop_q = TimeCellPriorityQueue(time_cell_comp, vector<Cell>());
-
-        // Utility map value is expressed in terms of utility to be recolted.
-        // 0 meaning then that all the utility has been acquired by the UAVs
-
-        // ugain_of_cell gives the utility value that has to be *substracted* from the U map.
-        // Returns max_utility if fdc is the maximum front duration (slow moving front not very interesting)
-        // and min_utility if fdc is the minimum front duration (fast moving front -> more interesing)
-        auto u_of_cell = [this](const Cell& c, double max_utility, double min_utility) {
-            double fdc = this->fire_data->front_duration(c);
-            double Mfd = this->fire_data->max_front_duration();
-            double mfd = this->fire_data->min_front_duration();
-
-            if (!isnan(fdc)) {
-                // fdc ~ mfd : u = MIN_UTILITY = 0
-                // fdc ~ Mfd : u = MAX_UTILITY = 1
-                return ((fdc - mfd) / (Mfd - mfd) * (max_utility - min_utility)) + min_utility;
-            } else {
-                return max_utility; // Let's say 1... There is no interest then on going there
-            }
-        };
-
-        // Init u_map and propagation queue with observed cells
-        for (const PositionTime& obs : observations_full()) {
-            Cell obs_cell = u_map.as_cell(obs.pt);
-            prop_q.push(obs_cell);
-
-            u_map.set(obs_cell, MIN_UTILITY);
-        }
-
-        double U_SPREAD_FACTOR = 1.;
-
-
-        // Propagate utility using BFS
-        // TODO: try DFS?
-        while (!prop_q.empty()) {
-            auto a_cell = prop_q.top();
-            prop_q.pop();
-
-            double a_u = 1 - (u_of_cell(a_cell, MAX_UTILITY - .1, MIN_UTILITY));
-            double U_INC = U_SPREAD_FACTOR * a_u;
-            auto neig_c = u_map.neighbor_cells(a_cell);
-            for (auto& n_cell: neig_c) {
-                // Discard not observable neighbors
-                if (isnan(u_map(n_cell))) { continue; }
-                // Do not go backwards in time
-                if (fire_data->ignitions(n_cell) < fire_data->ignitions(a_cell)) { continue; }
-                // Do not make utility worse in utility
-                if (u_map(n_cell) <= u_map(a_cell) + U_INC) { continue; }
-
-                // Apply utility degradation
-                if (n_cell.x == a_cell.x || n_cell.y == a_cell.y) {
-                    u_map.set(n_cell, u_map(a_cell) + U_INC);
-                } else {
-                    // If corner neighbor
-                    u_map.set(n_cell, u_map(a_cell) + U_INC * M_SQRT1_2);
-                }
-
-                if (u_map(n_cell) < MAX_UTILITY) {
-                    prop_q.push(n_cell);
-                } else {
-                    // Set utility to MAX_UTILITY and stop propagating from this cell
-                    u_map.set(n_cell, MAX_UTILITY);
-                }
-            }
-        }
-        return u_map;
-    }
-
     PReversibleTrajectoriesUpdate Plan::update(PReversibleTrajectoriesUpdate u, bool do_post_processing) {
 //        std::cout << *u << std::endl;
         PReversibleTrajectoriesUpdate rev = u->apply(trajs);
         if (do_post_processing) {
             post_process();
         }
-        utility_cache_invalid = true;
+        u_map.reset(trajs);
         return rev;
     }
 

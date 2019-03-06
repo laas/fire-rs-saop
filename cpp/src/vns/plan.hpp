@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <queue>
 #include <stack>
 
+#include "utility.hpp"
 #include "../core/trajectory.hpp"
 #include "../core/fire_data.hpp"
 #include "../core/raster.hpp"
@@ -53,14 +54,20 @@ namespace SAOP {
         Plan(std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data, TimeWindow tw,
              std::vector<PositionTime> observed_previously = {});
 
-        Plan(std::string name_id, std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data,
+        Plan(std::string name, std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data,
              TimeWindow tw, std::vector<PositionTime> observed_previously = {});
+
+        Plan(std::string name, std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data,
+             TimeWindow tw, GenRaster<double> utility);
 
         Plan(std::string name, std::vector<Trajectory> trajectories, std::shared_ptr<FireData> fire_data, TimeWindow tw,
              std::vector<PositionTime> observed_previously = {});
 
+        Plan(std::string name, std::vector<Trajectory> trajectories, std::shared_ptr<FireData> fire_data, TimeWindow tw,
+             GenRaster<double> utility);
+
         Plan(std::string name, Trajectories trajectories, std::shared_ptr<FireData> fire_data, TimeWindow tw,
-             std::vector<PositionTime> observed_previously);
+                     std::vector<PositionTime> observed_previously, GenRaster<double> utility);
 
         ~Plan() = default;
 
@@ -96,7 +103,7 @@ namespace SAOP {
         /* Replace plan firedata */
         void firedata(shared_ptr<FireData> fdata) {
             fire_data = std::move(fdata);
-            utility_cache_invalid = true;
+            u_map.reset(trajs);
         }
 
         /** Sum of all trajectory durations. */
@@ -106,17 +113,11 @@ namespace SAOP {
 
         /* Utility of the plan */
         double utility() const {
-            if (utility_cache_invalid) {
-                GenRaster<double> utility = utility_map();
-                auto accumulate_ignoring_nan = [](double a, double b) { return isnan(b) ? a : a + b; };
-                utility_cache = std::accumulate(utility.begin(), utility.end(), 0., accumulate_ignoring_nan);
-                utility_cache_invalid = false;
-            }
-            return utility_cache;
+           return u_map.utility();
         }
 
         GenRaster<double> utility_map() const {
-            return utility_comp_radial();
+            return u_map.utility_map();
         }
 
         size_t num_segments() const {
@@ -163,7 +164,7 @@ namespace SAOP {
         void post_process() {
             project_on_fire_front();
             smooth_trajectory();
-            utility_cache_invalid = true;
+            u_map.reset(trajs);
         }
 
         /** Make sure every segment makes an observation, i.e., that the picture will be taken when the fire in traversing the main cell.
@@ -187,31 +188,7 @@ namespace SAOP {
         std::string plan_name = "unnamed";
         Trajectories trajs;
         shared_ptr<FireData> fire_data;
-
-        /** Constants used for computed the cost associated to a pair of points.
-         * The cost is MAX_INDIVIDUAL_COST if the distance between two points
-         * is >= MAX_INFORMATIVE_DISTANCE. It is be 0 if the distance is 0 and scales linearly between the two. */
-        double MAX_INFORMATIVE_DISTANCE = 500.;
-
-        /** If a point is less than REDUNDANT_OBS_DIST aways from another observation, it useless to observe it.
-         * This is defined such that those point are in the visible area when pictured. */
-        double REDUNDANT_OBS_DIST = 50.;
-
-        /* Max and min utility values. Visited cells have MIN_UTILITY utility. */
-        double MAX_UTILITY = 1.;
-        double MIN_UTILITY = 0.;
-
-        mutable bool utility_cache_invalid = true;
-        mutable double utility_cache = 0.;
-
-        /** Utility map of the plan.
-         * The key idea is to sum the distance of all ignited points in the time window to their closest observation.
-         **/
-        GenRaster<double> utility_comp_radial() const;
-
-        /* Utility map of the plan
-         * This algorithm applies regressive utility gains to future ignited cells following the propagation graph.*/
-        GenRaster<double> utility_comp_propagation() const;
+        Utility u_map;
     };
 }
 

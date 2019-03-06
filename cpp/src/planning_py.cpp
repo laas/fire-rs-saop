@@ -486,6 +486,10 @@ PYBIND11_MODULE(uav_planning, m) {
                  py::arg("name"), py::arg("traj_confs"), py::arg("fire_data"), py::arg("flightwindow"))
             .def(py::init<std::string, std::vector<TrajectoryConfig>, shared_ptr<FireData>, TimeWindow>(),
                  py::arg("name"), py::arg("trajs"), py::arg("fire_data"), py::arg("flightwindow"))
+            .def(py::init<std::string, std::vector<TrajectoryConfig>, shared_ptr<FireData>, TimeWindow, GenRaster<double>>(),
+                 py::arg("name"), py::arg("trajs_confs"), py::arg("fire_data"), py::arg("flightwindow"), py::arg("utility"))
+            .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow, GenRaster<double>>(),
+                 py::arg("name"), py::arg("trajs"), py::arg("fire_data"), py::arg("flightwindow"), py::arg("utility"))
             /* TODO: Plan.trajectories() should be converted in an iterator instead of returning the internal trajectories vector*/
             .def("trajectories", [](Plan& self) { return Trajectories::get_internal_vector(self.trajectories()); })
             .def("name", &Plan::name)
