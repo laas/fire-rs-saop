@@ -48,6 +48,7 @@ from supersaop.msg import Euler, ElevationMap, PredictedWildfireMap, PropagateCm
     Timed2DPointStamped, PoseEuler
 
 from fire_rs.geodata.display import GeoDataDisplay
+from fire_rs.geodata.geo_data import GeoData
 from fire_rs.planning.display import TrajectoryDisplayExtension, plot_plan_trajectories
 from fire_rs.monitoring.supersaop import ObservationPlanning
 
@@ -96,6 +97,8 @@ class ObservationPlanningNode:
                                      rospy.Time.to_sec(plan_prototype.conf.flight_window[0]),
                                      rospy.Time.to_sec(plan_prototype.conf.flight_window[1])))
         saop_plan = self.op.compute_plan(planning_duration, vns_conf_name)
+        # utility_map = GeoData.from_cpp_raster(saop_plan.utility_map(), "utility")
+        # utility_map.write_to_file("/home/rbailonr/utility.tiff", "utility")
         self.publish_plan(plan_prototype, saop_plan)
 
     def publish_plan(self, plan_prototype: Plan, saop_plan):

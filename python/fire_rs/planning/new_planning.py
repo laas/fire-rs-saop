@@ -198,8 +198,8 @@ def make_fire_data(fire_map: GeoData, elevation_map: GeoData, fire_map_layer: st
                     elevation_map.as_cpp_raster(elevation_map_layer))
 
 
-def make_utility_map(firemap: GeoData, layer="ignition",
-                     output_layer="utility") -> GeoData:
+def make_utility_map(firemap: GeoData, flight_window: TimeWindow = TimeWindow(-np.inf, np.inf),
+                     layer="ignition", output_layer="utility") -> GeoData:
     """Compute a utility map from a wildfire map"""
     gradient = rate_of_spread_map(firemap, layer=layer, output_layer="ros")
     grad_array = gradient["ros"]
@@ -208,6 +208,7 @@ def make_utility_map(firemap: GeoData, layer="ignition",
     utility = 1 - (grad_array - np.nanmin(grad_array)) / (
             np.nanmax(grad_array) - np.nanmin(grad_array))
     utility[np.isnan(utility)] = 0.
+    utility[(firemap[layer] < flight_window.start) | (firemap[layer] > flight_window.end)] = 0.
 
     return firemap.clone(data_array=utility, dtype=[(output_layer, 'float64')])
 

@@ -310,10 +310,11 @@ class HMINode:
         self.pub_stop.publish(StopCmd(uav))
 
     def publish_plan_request(self, vns_conf: str, planning_duration: float,
-                             uavs: ty.Mapping[str, ty.Any]):
-
+                             uavs: ty.Mapping[str, ty.Any], mission_duration: float = 30 * 60):
+        rospy_now = rospy.Time.now()
         p_conf = PlanConf(name="A manual plan",
-                          flight_window=(rospy.Time.from_sec(.0), rospy.Time.from_sec(4294967295)))
+                          flight_window=(rospy_now - rospy.Duration(60 * 10),
+                                         rospy_now + rospy.Duration(int(mission_duration))))
         trajs = []
         for u_name, u_val in uavs.items():
             start_wp = PoseEuler(position=Point(*u_val["start"]["position"]),

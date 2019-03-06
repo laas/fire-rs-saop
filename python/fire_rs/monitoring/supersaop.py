@@ -404,7 +404,8 @@ class ObservationPlanning:
               traj_conf]
         f_data = planning.make_fire_data(self._wildfire_map, self._elevation)
         tw = planning.TimeWindow(*flight_window)
-        utility = planning.make_utility_map(self._wildfire_map, output_layer="utility")
+        utility = planning.make_utility_map(self._wildfire_map, flight_window=tw,
+                                            output_layer="utility")
         the_plan = planning.Plan(name, tc, f_data, tw, utility.as_cpp_raster("utility"))
         self._current_planner = planning.Planner(the_plan, {})
 
@@ -424,7 +425,8 @@ class ObservationPlanning:
                 planning.Waypoint(*m[0]), m[1], m[2]) for m in c[1]]) for c in trajs]
         f_data = planning.make_fire_data(self._wildfire_map, self._elevation)
         tw = planning.TimeWindow(*flight_window)
-        utility = planning.make_utility_map(self._wildfire_map, output_layer="utility")
+        utility = planning.make_utility_map(self._wildfire_map, flight_window=tw,
+                                            output_layer="utility")
         the_plan = planning.Plan(name, tr, f_data, tw, utility)
         self._current_planner = planning.Planner(the_plan, {})
 
