@@ -34,6 +34,7 @@ import numpy as np
 import fire_rs.uav_planning as up
 
 from fire_rs.geodata.geo_data import GeoData
+from fire_rs.geodata.wildfire import rate_of_spread_map
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +196,20 @@ def make_fire_data(fire_map: GeoData, elevation_map: GeoData, fire_map_layer: st
                    elevation_map_layer: str = 'elevation'):
     return FireData(fire_map.as_cpp_raster(fire_map_layer),
                     elevation_map.as_cpp_raster(elevation_map_layer))
+
+
+def make_utility_map(firemap: GeoData, layer="ignition",
+                     output_layer="utility") -> GeoData:
+    """Compute a utility map from a wildfire map"""
+    gradient = rate_of_spread_map(firemap, layer=layer, output_layer="ros")
+    grad_array = gradient["ros"]
+    grad_array[grad_array >= np.inf] = np.NaN
+
+    utility = 1 - (grad_array - np.nanmin(grad_array)) / (
+            np.nanmax(grad_array) - np.nanmin(grad_array))
+    utility[np.isnan(utility)] = 0.
+
+    return firemap.clone(data_array=utility, dtype=[(output_layer, 'float64')])
 
 
 class Planner:

@@ -139,3 +139,11 @@ def interpolate(x, y, z, shape, function='thin_plate') -> np.ndarray:
     dense_array = interpolator(*[x.flatten() for x in meshgrid])
 
     return dense_array.reshape(shape[0], shape[1])
+
+
+def rate_of_spread_map(firemap: fire_rs.geodata.geo_data.GeoData, layer="ignition",
+                       output_layer="ros") -> fire_rs.geodata.geo_data.GeoData:
+    """Compute the Rate of Spread from a wildfire_map"""
+    gradient = firemap.clone(data_array=np.linalg.norm(np.gradient(firemap[layer]), axis=0), dtype=[(output_layer, 'float64')])
+    return gradient
+
