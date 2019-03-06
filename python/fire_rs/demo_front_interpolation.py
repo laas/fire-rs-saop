@@ -134,14 +134,14 @@ x, y = list(zip(*firepoints.keys()))
 z = tuple(firepoints.values())
 function = 'thin_plate'
 # function = 'linear'
-# function = 'multiquadric'
+function = 'multiquadric'
 # function = 'cubic'
-function = lambda a: np.sin(a)
+# --function = lambda a: np.sin(a)
 
 # Wildland fire modeling with an Eulerian level set method and automated calibration
 # might give a clue of which kind of kernel function to use
 
-zfun_smooth_rbf = scipy.interpolate.Rbf(x, y, z, function=function, epsilon=10.,
+zfun_smooth_rbf = scipy.interpolate.Rbf(x, y, z, function=function, epsilon=None,
                                         smooth=0)  # default smooth=0 for interpolation
 
 xi = np.linspace(0, firemap.data.shape[0] - 1, firemap.data.shape[0])

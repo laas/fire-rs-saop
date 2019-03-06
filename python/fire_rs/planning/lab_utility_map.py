@@ -25,20 +25,27 @@
 import typing as ty
 import numpy as np
 import scipy.spatial
+import skimage.draw
 import itertools
 import matplotlib.pyplot as plt
 
 
 class UtilityMap:
 
-    def __init__(self, base_utility: ty.Tuple[int, int]):
+    def __init__(self, base_utility: np.ndarray):
         self.raster = base_utility
 
         self.observations = set()  # type: ty.Set[ty.Tuple[int, int]]
+        self.observations_rect = set()
 
     def add_observation(self, obs: ty.Tuple[int, int]):
         if obs not in self.observations:
             self.observations.add(obs)
+            # self.observations.append(np.array([obs[0], obs[1]]))
+
+    def add_rect(self, center: ty.Tuple[int, int], length: int, orient: float):
+        if (center, length, orient) not in self.observations_rect:
+            self.observations_rect.add((center, length, orient))
             # self.observations.append(np.array([obs[0], obs[1]]))
 
     def utility(self):
@@ -53,14 +60,38 @@ class UtilityMap:
         utility_map = np.copy(self.raster)
         obs_list = list(self.observations)
         min_dist = np.full(len(obs_list), np.inf)
+        #
+        # with np.nditer(utility_map, flags=['multi_index'], op_flags=["writeonly"]) as it:
+        #     for i in it:
+        #         if np.isnan(i):
+        #             continue
+        #         obs, obs_dist = find_closest(it.multi_index, obs_list)
+        #         i[...] = np.clip(
+        #             self.raster[it.multi_index] - self.raster[obs] * rbf(obs_dist), 0., 1.)
 
-        with np.nditer(utility_map, flags=['multi_index'], op_flags=["writeonly"]) as it:
-            for i in it:
-                if np.isnan(i):
-                    continue
-                obs, obs_dist = find_closest(it.multi_index, obs_list)
-                i[...] = np.clip(
-                    self.raster[it.multi_index] - self.raster[obs] * rbf(obs_dist), 0., 1.)
+        obs_rect_list = list(self.observations_rect)
+        w = width = 3
+
+        for (c, l, angle) in obs_rect_list:
+            front = (c[0] + l / 2 * np.cos(angle), c[1] + l / 2 * np.sin(angle))
+            back = (c[0] + l / 2 * np.cos(angle + np.pi), c[1] + l / 2 * np.sin(angle + np.pi))
+
+            front_left = (front[0] + w / 2 * np.cos(angle + np.pi / 2),
+                          front[1] + w / 2 * np.sin(angle + np.pi / 2))
+            front_right = (front[0] + w / 2 * np.cos(angle - np.pi / 2),
+                           front[1] + w / 2 * np.sin(angle - np.pi / 2))
+
+            back_right = (back[0] + w / 2 * np.cos(angle + np.pi / 2),
+                          back[1] + w / 2 * np.sin(angle + np.pi / 2))
+            back_left = (back[0] + w / 2 * np.cos(angle + 3 * np.pi / 2),
+                         back[1] + w / 2 * np.sin(angle + 3 * np.pi / 2))
+
+            coords = skimage.draw.polygon(
+                [front_left[0], front_right[0], back_left[0], back_right[0]],
+                [front_left[1], front_right[1], back_left[1], back_right[1]],
+                shape=utility_map.shape)
+
+            utility_map[coords] = 0.
 
         return utility_map
         #
@@ -100,7 +131,7 @@ if __name__ == "__main__":
                                                   landcover_to_fuel_remap=fire_rs.geodata.environment.SLOW_FUELMODEL_REMAP)
     the_world.dem_wind_tile_split = 1
 
-    area = ((2776825.0 - 2500, 2776825.0 + 2500), (2212175.0 - 2500, 2212175.0 + 4500))
+    area = ((2776825.0 - 1000, 2776825.0 + 1000), (2212175.0 - 1000, 2212175.0 + 1000))
     ignition = fire_rs.geodata.geo_data.TimedPoint(2776825.0, 2212175.0, 0)
 
     ################################################################################
@@ -111,32 +142,29 @@ if __name__ == "__main__":
     fire_prop.set_ignition_point(ignition)
 
     propagation_end_time = 60 * 60 * 60
-    propagation_end_time = np.inf
+    # propagation_end_time = np.inf
 
     fire_prop.propagate(propagation_end_time)
 
     firemap = fire_prop.ignitions()["ignition"]
     gradient_firemap = np.linalg.norm(np.gradient(firemap), axis=0)
 
-    utility_map = 1 - (gradient_firemap - np.nanmin(gradient_firemap)) / (
+    utility = 1 - (gradient_firemap - np.nanmin(gradient_firemap)) / (
             np.nanmax(gradient_firemap) - np.nanmin(gradient_firemap))
 
-    utility_map[firemap < 10 * 60 * 60] = 0.
-    utility_map[firemap > 20 * 60 * 60] = 0.
+    # utility_map[firemap < 10 * 60 * 60] = 0.
+    # utility_map[firemap > 20 * 60 * 60] = 0.
 
     # utility_map[...] = 1
     # utility_map[0:int(utility_map.shape[0]/2):1, ...] = 0.5
     import random
 
-    umap = UtilityMap(utility_map)
-    # for i in range(1):
-    #     umap.add_observation((random.randint(0, utility_map.shape[0] - 1),
-    #                           random.randint(0, utility_map.shape[1] - 1)))
-    umap.add_observation((100, 200))
+    umap = UtilityMap(utility)
     print(np.sum(umap.utility()))
-
-    umap = UtilityMap(utility_map)
-    umap.add_observation((50, 100))
+    for i in range(10):
+        umap.add_rect(
+            (random.randint(0, utility.shape[0] - 1), random.randint(0, utility.shape[1] - 1)),
+            random.random()*100., random.random() * 2 * np.pi)
     print(np.sum(umap.utility()))
 
     f = plt.figure()
@@ -151,7 +179,7 @@ if __name__ == "__main__":
 
     f = plt.figure()
     a = f.gca()
-    m = a.matshow(utility_map)
+    m = a.matshow(utility)
     f.colorbar(m)
     f.show()
     print("adiuos")

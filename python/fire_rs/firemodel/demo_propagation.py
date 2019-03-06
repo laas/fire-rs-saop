@@ -47,9 +47,10 @@ if __name__ == "__main__":
     # Figure terrain + ignition contour + ignition point
     gdd = GeoDataDisplay.pyplot_figure(env.raster.combine(fire.ignitions().slice(["ignition"])),
                                        frame=(0., 0.))
-    gdd.draw_elevation_shade(with_colorbar=False, cmap=matplotlib.cm.terrain)
-    gdd.draw_wind_quiver()
-    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.plasma)
+    # gdd.draw_elevation_shade(with_colorbar=False, cmap=matplotlib.cm.terrain)
+    # gdd.draw_wind_quiver()
+    gdd.draw_ignition_shade(cmap=matplotlib.cm.Reds)
+    gdd.draw_ignition_contour(with_labels=True,cmap=matplotlib.cm.plasma)
     gdd.draw_ignition_points(ignition_point)
 
     gdd.figure.show()
