@@ -59,6 +59,12 @@ namespace SAOP {
         }
     };
 
+    struct CellHash{
+        size_t operator()(const Cell &x) const{
+            return std::hash<int>()(x.x) ^ std::hash<int>()(x.y);
+        }
+    };
+
     template<typename T>
     struct GenRaster {
         std::vector<T> data;
