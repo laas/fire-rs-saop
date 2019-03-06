@@ -228,6 +228,40 @@ def generate_scenario_newsletter():
     return scenario
 
 
+def generate_scenario_utility_test():
+    # 2 by 2 km area
+    area = Area(480060.0, 482060.0, 6210074.0, 6212074.0)
+    uav_max_pitch_angle = 6. / 180. * np.pi  # aka gamma_max=0.11rad for 2m/s rate of climb and 18m/s cruise air speed
+    uav_speed = 18.  # m/s
+    uav_max_turn_rate = 32. * np.pi / 180 / 2  # Consider a more conservative turn rate
+    uav_bases = [Waypoint(area.xmin + 100, area.ymin + 100, 0., 0.)]
+
+    num_ignitions = 1
+    wind_speed = random.choice([5., 10., 15., 20.])  # 18 km/h, 36 km/h, 54 km/h, 72 km/h
+    wind_dir = random.choice([0., np.pi / 2, np.pi, 3 * np.pi / 4])
+    area_range = (area.xmax - area.xmin, area.ymax - area.ymin)
+    ignitions = [
+        TimedPoint(random.uniform(area.xmin + area_range[0] * .1, area.xmax - area_range[0] * .1),
+                   random.uniform(area.ymin + area_range[1] * .1, area.ymax - area_range[1] * .1),
+                   random.uniform(0, 3000))
+        for i in range(num_ignitions)]
+
+    # start once all fires are ignited
+    start = max([igni.time for igni in ignitions])
+
+    num_flights = 1
+    flights = []
+    for i in range(num_flights):
+        uav_start = random.uniform(start + 2500, start + 7500.)
+        max_flight_time = random.uniform(1000, 1500)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+
+    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
+                        wind_speed, wind_dir, ignitions, flights)
+    return scenario
+
+
 def generate_scenario_singlefire_singleuav_3d():
     # 9 by 7 km area
     area = Area(480060.0, 489060.0, 6210074.0, 6217074.0)
@@ -435,6 +469,7 @@ def generate_scenario():
 
 
 scenario_factory_funcs = {'default': generate_scenario,
+                          'utility_test': generate_scenario_utility_test,
                           'singlefire_singleuav': generate_scenario_singlefire_singleuav,
                           'singlefire_singleuav_shortrange': generate_scenario_singlefire_singleuav_shortrange,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
