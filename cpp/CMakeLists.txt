@@ -56,7 +56,8 @@ set(PLANNING_SOURCE_FILES
         src/vns/neighborhoods/smoothing.hpp
         src/vns/visibility.hpp
         src/vns/vns_interface.hpp
-        )
+        src/vns/utility.hpp
+        src/vns/utility.cpp)
 
 set(NEPTUSINTERFACE_SOURCE_FILES
         src/ext/coordinates.hpp
