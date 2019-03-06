@@ -63,11 +63,12 @@ namespace SAOP {
     struct GenRaster {
         std::vector<T> data;
 
-        const size_t x_width;
-        const size_t y_height;
-        const double x_offset;
-        const double y_offset;
-        const double cell_width;
+        // Metadata
+        size_t x_width;
+        size_t y_height;
+        double x_offset;
+        double y_offset;
+        double cell_width;
 
         GenRaster<T>(std::vector<T> data, size_t x_width, size_t y_height, double x_offset, double y_offset,
                      double cell_width) :
