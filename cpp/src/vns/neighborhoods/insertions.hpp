@@ -186,6 +186,14 @@ namespace SAOP {
                         // current segment is valid (i.e. successfully projected on fire front,
                         // create a candidate for it
 
+                        // Discard it if it is too close to another waypoint
+                        if (((*current_segment).start.as_point().dist(traj.segment(insert_loc-1).end.as_point()) <
+                             4 * traj.conf().uav.min_turn_radius()) ||
+                            ((*current_segment).end.as_point().dist(traj.segment(insert_loc+1).start.as_point()) <
+                             4 * traj.conf().uav.min_turn_radius())) {
+                            continue;
+                        }
+
                         const double additional_flight_time = traj.insertion_duration_cost(insert_loc,
                                                                                            *current_segment);
 
