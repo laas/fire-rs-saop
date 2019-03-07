@@ -505,8 +505,8 @@ namespace SAOP {
                                                    raster.cell_width / 2), raster.y_offset + raster.cell_width / 2);
 
             // for each point possibly in the rectangle check if it is in the visible area and mark it as pending/visible when necessary
-            for (double ix = min_x; ix <= max_x; ix += raster.cell_width/2) {
-                for (double iy = min_y; iy <= max_y; iy += raster.cell_width/2) {
+            for (double ix = min_x; ix <= max_x; ix += raster.cell_width / 2) {
+                for (double iy = min_y; iy <= max_y; iy += raster.cell_width / 2) {
                     if (in_rectangle(ix, iy, ax, ay, bx, by, cx, cy)) {
                         // corresponding point in matrix coordinates
                         if (raster.is_x_in(ix) && raster.is_y_in(iy)) {
@@ -534,7 +534,7 @@ namespace SAOP {
             const double dot_ac_am = dot(cx - ax, cy - ay, x - ax, y - ay);
             const double dot_ac_ac = dot(cx - ax, cy - ay, cx - ax, cy - ay);
             return (0 <= dot_ab_am) && (dot_ab_am <= dot_ab_ab) &&
-                    (0 <= dot_ac_am) && (dot_ac_am <= dot_ac_ac);
+                   (0 <= dot_ac_am) && (dot_ac_am <= dot_ac_ac);
         }
     };
 }

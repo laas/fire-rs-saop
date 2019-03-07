@@ -64,7 +64,7 @@ std::vector<std::pair<Position3dTime, Position3dTime>> Utility::straight_segment
 
     auto wp_time_pair = traj.sampled_with_time(50);
 
-    if(wp_time_pair.first.size() < 2 || wp_time_pair.first.size() != wp_time_pair.second.size()) {
+    if (wp_time_pair.first.size() < 2 || wp_time_pair.first.size() != wp_time_pair.second.size()) {
         return {};
     }
 
@@ -117,7 +117,8 @@ SAOP::GenRaster<double> SAOP::Utility::utility_impl_trace() const {
                     for (const auto& c: *trace) {
                         TimeWindow fire_tw = TimeWindow(fire_data->ignitions(c), fire_data->traversal_end(c));
                         /*Extract utility from the observed cells*/
-                        if (segment_tw.intersects(fire_tw) || segment_tw.contains(fire_tw) || fire_tw.contains(segment_tw)) {
+                        if (segment_tw.intersects(fire_tw) || segment_tw.contains(fire_tw) ||
+                            fire_tw.contains(segment_tw)) {
                             u_map.set(c, MIN_UTILITY);
                         }
                     }

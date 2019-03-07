@@ -187,9 +187,9 @@ namespace SAOP {
                         // create a candidate for it
 
                         // Discard it if it is too close to another waypoint
-                        if (((*current_segment).start.as_point().dist(traj.segment(insert_loc-1).end.as_point()) <
+                        if (((*current_segment).start.as_point().dist(traj.segment(insert_loc - 1).end.as_point()) <
                              4 * traj.conf().uav.min_turn_radius()) ||
-                            ((*current_segment).end.as_point().dist(traj.segment(insert_loc+1).start.as_point()) <
+                            ((*current_segment).end.as_point().dist(traj.segment(insert_loc + 1).start.as_point()) <
                              4 * traj.conf().uav.min_turn_radius())) {
                             continue;
                         }
