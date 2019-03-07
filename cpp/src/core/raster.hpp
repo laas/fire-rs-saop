@@ -60,9 +60,9 @@ namespace SAOP {
         }
     };
 
-    struct CellHash{
-        size_t operator()(const Cell &x) const{
-            return std::hash<int>()(x.x) ^ std::hash<int>()(x.y);
+    struct CellHash {
+        size_t operator()(const Cell& x) const noexcept {
+            return std::hash<size_t>()(x.x) ^ std::hash<size_t>()(x.y);
         }
     };
 
