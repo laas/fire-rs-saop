@@ -154,19 +154,19 @@ class GeoDataDisplayBase:
 
         if frame is None:
             self._frame = (
-                geodata.x_offset + geodata.cell_width, geodata.y_offset + geodata.cell_width)
+                geodata.x_offset + geodata.cell_width/2, geodata.y_offset + geodata.cell_width/2)
         else:
             self._frame = frame
 
         x = np.arange(geodata.max_x)
-        self._x_ticks = (x * geodata.cell_width) + geodata.x_offset
+        self._x_ticks = (x * geodata.cell_width) + geodata.x_offset + geodata.cell_width/2
         y = np.arange(geodata.max_y)
-        self._y_ticks = (y * geodata.cell_height) + geodata.y_offset
+        self._y_ticks = (y * geodata.cell_height) + geodata.y_offset + geodata.cell_width/2
 
         x_fmtr = EngOffsetFormatter(unit='m',
-                                    offset=-geodata.x_offset - geodata.cell_width + self._frame[0])
+                                    offset=-geodata.x_offset - geodata.cell_width/2 + self._frame[0])
         y_fmtr = EngOffsetFormatter(unit='m',
-                                    offset=-geodata.y_offset - geodata.cell_width + self._frame[1])
+                                    offset=-geodata.y_offset - geodata.cell_width/2 + self._frame[1])
         self._axes.xaxis.set_major_formatter(x_fmtr)
         self._axes.yaxis.set_major_formatter(y_fmtr)
 
@@ -237,9 +237,9 @@ class GeoDataDisplayBase:
         self._axes.set_xlabel("East")
         self._axes.set_ylabel("North")
         x_fmtr = EngOffsetFormatter(
-            unit='m', offset=-self._geodata.x_offset - self._geodata.cell_width + self._frame[0])
+            unit='m', offset=-self._geodata.x_offset - self._geodata.cell_width/2 + self._frame[0])
         y_fmtr = EngOffsetFormatter(
-            unit='m', offset=-self._geodata.y_offset - self._geodata.cell_width + self._frame[1])
+            unit='m', offset=-self._geodata.y_offset - self._geodata.cell_width/2 + self._frame[1])
         self._axes.xaxis.set_major_formatter(x_fmtr)
         self._axes.yaxis.set_major_formatter(y_fmtr)
 
