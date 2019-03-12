@@ -228,9 +228,11 @@ class HMIModel:
                 if self.elevation_map and self.elevation_map.drawable:
                     self.gdd.draw_elevation_shade(self.elevation_map.data)
                 if self.wildfire_map_observed and self.wildfire_map_observed.drawable:
-                    self.gdd.draw_ignition_shade(self.wildfire_map_observed.data, with_colorbar=False)
+                    self.gdd.draw_ignition_shade(self.wildfire_map_observed.data,
+                                                 with_colorbar=False)
                 if self.wildfire_map_predicted and self.wildfire_map_predicted.drawable:
-                    self.gdd.draw_ignition_contour(self.wildfire_map_predicted.data, with_labels=True)
+                    self.gdd.draw_ignition_contour(self.wildfire_map_predicted.data,
+                                                   with_labels=True)
                 if self.wildfire_map and self.wildfire_map.drawable:
                     self.gdd.draw_ignition_contour(
                         self.wildfire_map.data, cmap="plasma", with_labels=True,
@@ -257,11 +259,14 @@ class HMIModel:
         if self.node is not None:
             self.node.loiter(uav)
 
-    def plan_command(self, vns_conf: str, planning_duration: float, uavs: ty.Sequence[str]):
+    def plan_command(self, vns_conf: str, planning_duration: float, mission_duration: float,
+                     uavs: ty.Sequence[str], trajectory_duration: ty.Mapping[str, float]):
         if self.node is not None:
             uav_stuff = {uav: {"start": self.uav_state.data[uav],
                                "end": self.uav_state.data[uav]} for uav in uavs}
-            self.node.publish_plan_request(vns_conf, planning_duration, uav_stuff)
+            self.node.publish_plan_request(vns_conf, planning_duration, uav_stuff,
+                                           mission_duration=mission_duration,
+                                           uav_trajectory_duration=trajectory_duration)
 
     def stop_command(self, uav: str):
         if self.node is not None:
@@ -340,10 +345,13 @@ class HMINode:
         self.pub_stop.publish(StopCmd(uav))
 
     def publish_plan_request(self, vns_conf: str, planning_duration: float,
-                             uavs: ty.Mapping[str, ty.Any], mission_duration: float = 30 * 60):
+                             uavs: ty.Mapping[str, ty.Any], mission_duration: float = 10 * 60,
+                             uav_trajectory_duration=None):
+        if not uav_trajectory_duration:
+            uav_trajectory_duration = {}
         rospy_now = rospy.Time.now()
         p_conf = PlanConf(name="A manual plan",
-                          flight_window=(rospy_now - rospy.Duration(60 * 10),
+                          flight_window=(rospy_now - rospy.Duration(5 * 10),
                                          rospy_now + rospy.Duration(int(mission_duration))))
         trajs = []
         for u_name, u_val in uavs.items():
@@ -352,11 +360,13 @@ class HMINode:
             end_wp = PoseEuler(position=Point(*u_val["end"]["position"]),
                                orientation=Euler(*u_val["end"]["orientation"]))
 
+            max_duration = uav_trajectory_duration.get(u_name, 6000)
+
             t_conf = TrajectoryConf(name="-".join(("traj", u_name)), uav_model=u_name,
                                     start_wp=start_wp, end_wp=end_wp,
                                     start_time=rospy.Time.now() + rospy.Duration.from_sec(
                                         planning_duration),
-                                    max_duration=6000, wind=MeanWind(.0, .0))
+                                    max_duration=max_duration, wind=MeanWind(.0, .0))
             trajs.append(Trajectory(conf=t_conf, maneuvers=[]))
         p = Plan(header=Header(stamp=rospy.Time.now()), conf=p_conf, trajectories=trajs)
 
@@ -368,46 +378,94 @@ class HMINode:
 
 class PlanCreationWindow(Gtk.Dialog):
     def __init__(self, parent, uavs: ty.Sequence[str]):
-        Gtk.Dialog.__init__(self, title="New plan", parent=parent, modal=True,
+        Gtk.Dialog.__init__(self, title="New plan", transient_for=parent, modal=True,
                             destroy_with_parent=True, use_header_bar=True)
 
         self.set_default_size(150, 100)
+        self.set_resizable(False)
         self.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
         self.add_button(Gtk.STOCK_OK, Gtk.ResponseType.OK)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, border_width=12)
 
-        vnsconf_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, border_width=0)
-        vnsconf_label = Gtk.Label("VNS configuration")
+        conf_grid = Gtk.Grid(orientation=Gtk.Orientation.HORIZONTAL, column_spacing=12,
+                             row_spacing=6)
+
+        # VNS conf
+        vnsconf_label = Gtk.Label.new_with_mnemonic("VNS configuration:")
+        vnsconf_label.set_halign(Gtk.Align.END)
         self.vnsconf_entry = Gtk.Entry(text="demo")
-        vnsconf_box.pack_start(vnsconf_label, False, False, 0)
-        vnsconf_box.pack_start(self.vnsconf_entry, True, True, 0)
+        self.vnsconf_entry.set_hexpand(True)
 
-        duration_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, border_width=0)
-        duration_adjustment = Gtk.Adjustment(30, 5, 300, 1, 10, 0)
-        duration_label = Gtk.Label("Planning duration")
-        self.duration_entry = Gtk.SpinButton(text="demo")
-        self.duration_entry.set_adjustment(duration_adjustment)
-        duration_box.pack_start(duration_label, False, False, 0)
-        duration_box.pack_start(self.duration_entry, True, True, 0)
+        # Planning time
+        planning_duration_adjustment = Gtk.Adjustment(value=10, lower=5, upper=300,
+                                                      step_increment=1, page_increment=10,
+                                                      page_size=0)
+        planning_duration_label = Gtk.Label.new_with_mnemonic("Planning duration (s):")
+        planning_duration_label.set_halign(Gtk.Align.END)
+        self.planning_duration_entry = Gtk.SpinButton()
+        self.planning_duration_entry.set_hexpand(True)
+        self.planning_duration_entry.set_adjustment(planning_duration_adjustment)
+        self.planning_duration_entry.set_numeric(True)
 
-        flowbox = Gtk.FlowBox()
-        flowbox.set_valign(Gtk.Align.START)
-        flowbox.set_max_children_per_line(3)
-        flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        # Mission duration
+        mission_duration_adjustment = Gtk.Adjustment(value=300, lower=60, upper=3600,
+                                                     step_increment=30, page_increment=60,
+                                                     page_size=0)
+        mission_duration_label = Gtk.Label.new_with_mnemonic("Mission duration (s):")
+        mission_duration_label.set_halign(Gtk.Align.END)
+        self.mission_duration_entry = Gtk.SpinButton()
+        self.mission_duration_entry.set_hexpand(True)
+        self.mission_duration_entry.set_adjustment(mission_duration_adjustment)
+        self.mission_duration_entry.set_numeric(True)
 
-        # UAV Checkboxes
+        # UAV Checkbutton row
+        uav_enabled_label = Gtk.Label.new_with_mnemonic("UAVs enabled:")
+        uav_enabled_label.set_halign(Gtk.Align.END)
         self.uav_selection = {}
+        uav_checkbutton_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        uav_checkbutton_box.set_hexpand(True)
+        Gtk.StyleContext.add_class(uav_checkbutton_box.get_style_context(), "linked")
         for uav in uavs:
-            b = Gtk.CheckButton(uav)
-            b.props.active = True
-            self.uav_selection[uav] = True
+            b = Gtk.CheckButton.new_with_label(uav)
+            b.props.draw_indicator = False  # Display as a button
             b.connect("toggled", self._toggled_cb, uav)
-            flowbox.add(b)
+            b.set_active(True)
+            self.uav_selection[uav] = True
+            uav_checkbutton_box.pack_start(b, True, True, 0)
 
-        content.pack_start(vnsconf_box, False, False, 0)
-        content.pack_start(duration_box, False, False, 0)
-        content.pack_start(flowbox, False, False, 0)
+        # UAV option notebook
+        uav_conf_notebook = Gtk.Notebook()
+        uav_conf_notebook.set_scrollable(True)
+        self.uav_flight_duration_entry = {}
+        for uav in uavs:
+            page, wd = PlanCreationWindow.uav_conf_tab_content(uav)
+            self.uav_flight_duration_entry[uav] = wd["duration_entry"]
+            uav_conf_notebook.append_page(page, Gtk.Label.new_with_mnemonic(uav))
+
+        # Placement of widgets
+        conf_grid.attach(vnsconf_label, 0, 0, 1, 1)
+        conf_grid.attach_next_to(self.vnsconf_entry, vnsconf_label,
+                                 Gtk.PositionType.RIGHT, 1, 1)
+
+        conf_grid.attach_next_to(planning_duration_label, vnsconf_label,
+                                 Gtk.PositionType.BOTTOM, 1, 1)
+        conf_grid.attach_next_to(self.planning_duration_entry, planning_duration_label,
+                                 Gtk.PositionType.RIGHT, 1, 1)
+
+        conf_grid.attach_next_to(mission_duration_label, planning_duration_label,
+                                 Gtk.PositionType.BOTTOM, 1, 1)
+        conf_grid.attach_next_to(self.mission_duration_entry, mission_duration_label,
+                                 Gtk.PositionType.RIGHT, 1, 1)
+        if uavs:
+            conf_grid.attach_next_to(uav_enabled_label, mission_duration_label,
+                                     Gtk.PositionType.BOTTOM, 1, 1)
+            conf_grid.attach_next_to(uav_checkbutton_box, uav_enabled_label,
+                                     Gtk.PositionType.RIGHT, 1, 1)
+
+        content.pack_start(conf_grid, False, False, 0)
+        if uavs:
+            content.pack_start(uav_conf_notebook, False, False, 0)
 
         box = self.get_content_area()
         box.add(content)
@@ -418,7 +476,11 @@ class PlanCreationWindow(Gtk.Dialog):
 
     @property
     def selected_uavs(self):
-        return [filter(lambda x: self.uav_selection[x], self.uav_selection.keys())]
+        return list(filter(lambda x: self.uav_selection[x], self.uav_selection.keys()))
+
+    @property
+    def trajectory_duration(self):
+        return {k: self.uav_flight_duration_entry[k].get_value() for k in self.selected_uavs}
 
     @property
     def vns_conf(self):
@@ -426,7 +488,32 @@ class PlanCreationWindow(Gtk.Dialog):
 
     @property
     def planning_duration(self):
-        return self.duration_entry.get_value()
+        return self.planning_duration_entry.get_value()
+
+    @property
+    def mission_duration(self):
+        return self.mission_duration_entry.get_value()
+
+    @staticmethod
+    def uav_conf_tab_content(uav: str):
+        grid = Gtk.Grid(orientation=Gtk.Orientation.HORIZONTAL, column_spacing=12, row_spacing=6)
+        grid.set_border_width(12)
+        # Max flight duration
+        max_flight_duration_adjustement = Gtk.Adjustment(value=300, lower=60, upper=3600,
+                                                         step_increment=30, page_increment=60,
+                                                         page_size=0)
+        max_flight_duration_label = Gtk.Label.new_with_mnemonic("Max. flight duration (s):")
+        max_flight_duration_label.set_halign(Gtk.Align.END)
+        max_flight_duration_entry = Gtk.SpinButton()
+        max_flight_duration_entry.set_hexpand(True)
+        max_flight_duration_entry.set_adjustment(max_flight_duration_adjustement)
+        max_flight_duration_entry.set_numeric(True)
+
+        grid.attach(max_flight_duration_label, 0, 0, 1, 1)
+        grid.attach_next_to(max_flight_duration_entry, max_flight_duration_label,
+                            Gtk.PositionType.RIGHT, 1, 1)
+
+        return grid, {"duration_entry": max_flight_duration_entry}
 
 
 class SAOPControlWindow(Gtk.Window):
@@ -599,11 +686,22 @@ class SAOPControlWindow(Gtk.Window):
         self.hmi_model.propagate_command()
 
     def on_plan_clicked(self, button):
-        pdiag = PlanCreationWindow(self, self.hmi_model.known_uavs())
-        if pdiag.run() == Gtk.ResponseType.OK:
-            GLib.idle_add(self.hmi_model.plan_command, pdiag.vns_conf, pdiag.planning_duration,
-                          pdiag.uav_selection)
-        pdiag.destroy()
+        known_uavs = self.hmi_model.known_uavs()
+        if known_uavs:
+            pdiag = PlanCreationWindow(self, known_uavs)
+            if pdiag.run() == Gtk.ResponseType.OK:
+                GLib.idle_add(self.hmi_model.plan_command, pdiag.vns_conf, pdiag.planning_duration,
+                              pdiag.mission_duration,
+                              pdiag.uav_selection, pdiag.trajectory_duration)
+            pdiag.destroy()
+        else:
+            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                       Gtk.ButtonsType.OK, "No UAVs available for planning")
+            dialog.format_secondary_text(
+                "Wait for UAVs to be detected or check Neptus and Dune are running")
+            dialog.set_transient_for(self)
+            dialog.run()
+            dialog.destroy()
 
     def on_cancel_clicked(self, button):
         for uav in self.hmi_model.known_uavs():
