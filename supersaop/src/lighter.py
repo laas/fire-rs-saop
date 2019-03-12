@@ -142,7 +142,6 @@ if __name__ == '__main__':
         location = rospy.get_param("~location", None)
         print(location)
 
-        location = "lab_2"
         area = rospy.get_param("area")
 
         world_paths = None
@@ -183,13 +182,13 @@ if __name__ == '__main__':
                 (w_starter.notify_wind, (3, 1 * 3 * np.pi / 4)),
                 (w_starter.propagate, None)
             ]
-        elif location == "lab_2":
+        elif location == "lab_2_large":
             environment = fire_rs.firemodel.propagation.Environment(
                 area, 2, 1 * np.pi / 4, fire_rs.geodata.environment.World(
                     **world_paths,
                     landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
             rw = fire_rs.simulation.wildfire.RealWildfire(
-                datetime.datetime.fromtimestamp((rospy.Time.now() - two_hours).to_sec()),
+                datetime.datetime.fromtimestamp((rospy.Time.now() - one_hour*5).to_sec()),
                 environment)
 
             ignitions = [np.array([area[0][0] + (area[0][1] - area[0][0]) * 0.25,
@@ -204,13 +203,13 @@ if __name__ == '__main__':
                 (rw.ignite, (ignitions[0],)),
                 (rw.propagate, (datetime.timedelta(minutes=120.),)),
                 (rw.change_wind, (3, np.pi / 4)),
-                (rw.propagate, (datetime.timedelta(minutes=31.),)),
+                (rw.propagate, (datetime.timedelta(minutes=120.),)),
                 (rw.change_wind, (3, np.pi / 2)),
                 # (rw.ignite, (ignitions[1],)),
-                (rw.propagate, (datetime.timedelta(minutes=32.),)),
+                (rw.propagate, (datetime.timedelta(minutes=60.),)),
                 (rw.change_wind, (3, 0.)),
-                # (rw.propagate, (datetime.timedelta(minutes=33.),)),
-                # (rw.change_wind, (3, np.pi / 4)),
+                (rw.propagate, (datetime.timedelta(minutes=60.),)),
+                (rw.change_wind, (3, np.pi / 4)),
                 # (rw.propagate, (datetime.timedelta(minutes=34.),)),
                 # (rw.change_wind, (3, np.pi / 2)),
                 # (rw.propagate, (datetime.timedelta(minutes=35.),)),
@@ -280,6 +279,7 @@ if __name__ == '__main__':
 
         while actions:
             a = actions.pop(0)
+            print(a)
             if a[1] is not None:
                 a[0](*a[1])
             else:
