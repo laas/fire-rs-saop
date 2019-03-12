@@ -452,6 +452,7 @@ namespace SAOP {
 
             IMC::PlanSpecification plan_specification(const Trajectory& t);
 
+            IMC::PlanSpecification plan_specification(const Trajectory& t, std::string plan_id);
 
             void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);
 

@@ -107,69 +107,38 @@ namespace SAOP {
 
         IMC::PlanSpecification
         GCS::plan_specification(const Plan& saop_plan, size_t trajectory, std::string plan_id) {
-
             const auto& t = saop_plan.trajectories()[trajectory];
-
-            auto wp = t.as_waypoints();
-
-            // Remove bases
-            auto r_start = wp.begin();
-            size_t n_start = 0;
-            auto r_end = wp.end();
-            size_t n_end = t.size();
-            if (t.conf().start_position && wp.front() == *t.conf().start_position) {
-                r_start++;
-                n_start++;
-            }
-            if (t.conf().end_position && wp.back() == *t.conf().end_position) {
-                r_end--;
-                n_end--;
-            }
-            auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
-
-            double forward_dist = 0.;
-            for (auto& wp: wp_filtered) {
-                wp = wp.forward(forward_dist);
-                BOOST_LOG_TRIVIAL(info) << "Moving waypoints forward " << forward_dist << " meters";
-            }
-
-            std::vector<Waypoint3d> wp_wgs84;
-            switch (projected_coordinate_system_epsg) {
-                case EPSG_ETRS89_LAEA:
-                    wp_wgs84 = laea_to_world_coordinates(wp_filtered);
-                    break;
-                default:
-                    // If not ETRS89/LAEA, fallback to RGF93/Lambert93
-                    wp_wgs84 = lambert93_to_world_coordinates(wp_filtered);
-            }
-
-            std::vector<std::string> maneuver_names = {};
-
-            for (size_t man_id = n_start; man_id < n_end; ++man_id) {
-                maneuver_names.emplace_back(std::to_string(man_id));
-            }
-
-            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_names);
+            return plan_specification(t, std::move(plan_id));
         }
 
         IMC::PlanSpecification
         GCS::plan_specification(const Trajectory& t) {
+            return plan_specification(t, t.name());
+        }
+
+        IMC::PlanSpecification GCS::plan_specification(const Trajectory& t, std::string plan_id) {
             // epsg_pcs: EPSG code of trajectory waypoints projected coordinate system
-            auto wp = t.as_waypoints();
-            auto all_names = t.names();
+            const auto traj_as_wp_time_name = t.as_waypoints_time_name();
+            const auto& all_wp = std::get<0>(traj_as_wp_time_name);
+            const auto& all_times = std::get<1>(traj_as_wp_time_name);
+            const auto& all_names = std::get<2>(traj_as_wp_time_name);
 
             // Remove bases
-            auto r_start = wp.begin();
+            auto r_start = all_wp.begin();
             auto n_start = all_names.begin();
-            auto r_end = wp.end();
+            auto t_start = all_times.begin();
+            auto r_end = all_wp.end();
             auto n_end = all_names.end();
-            if (t.conf().start_position && wp.front() == *t.conf().start_position) {
+            auto t_end = all_times.end();
+            if (t.conf().start_position && all_wp.front() == *t.conf().start_position) {
                 r_start++;
                 n_start++;
+                t_start++;
             }
-            if (t.conf().end_position && wp.back() == *t.conf().end_position) {
+            if (t.conf().end_position && all_wp.back() == *t.conf().end_position) {
                 r_end--;
                 n_end--;
+                t_end--;
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
 
@@ -190,9 +159,9 @@ namespace SAOP {
             }
 
             std::vector<std::string> maneuver_names = std::vector<std::string>(n_start, n_end);
+            std::vector<double> maneuver_times = std::vector<double>(t_start, t_end);
 
-
-            return PlanSpecificationFactory::make_message(t.name(), wp_wgs84, maneuver_names);
+            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84,maneuver_times, maneuver_names);
         }
 
         void GCS::estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m) {
