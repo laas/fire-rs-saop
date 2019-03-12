@@ -179,6 +179,23 @@ namespace SAOP {
         return {waypoints, time};
     }
 
+    std::tuple<std::vector<Waypoint3d>, std::vector<double>, std::vector<std::string>> Trajectory::as_waypoints_time_name() const {
+        std::vector<Waypoint3d> waypoints = {};
+        std::vector<double> time = {};
+        std::vector<std::string> name = {};
+        for (auto i = 0ul; i < _maneuvers.size(); ++i) {
+            waypoints.push_back(_maneuvers[i].start);
+            time.push_back(_start_times[i]);
+            name.push_back(_man_names[i]);
+            if (_maneuvers[i].length > 0) {
+                waypoints.push_back(_maneuvers[i].end);
+                time.push_back(end_time(i));
+                name.push_back(_man_names[i] + "_end");
+            }
+        }
+        return {waypoints, time, name};
+    }
+
     std::vector<Waypoint3d> Trajectory::sampled(const double step_size) const {
         ASSERT(step_size > 0);
         std::vector<Waypoint3d> waypoints = as_waypoints();

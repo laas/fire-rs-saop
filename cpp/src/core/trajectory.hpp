@@ -370,6 +370,9 @@ namespace SAOP {
          * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
         std::pair<std::vector<Waypoint3d>, std::vector<double>> as_waypoints_with_time() const;
 
+        /* Returns the trajectory as a set of sequences of waypoints, time and maneuver names.*/
+        std::tuple<std::vector<Waypoint3d>, std::vector<double>, std::vector<std::string>> as_waypoints_time_name() const;
+
         /* Returns the trajectory as a set of waypoints.
          * If step_size < 0, only waypoints corresponding to start/end of segments are returned.
          * Otherwise, there will one waypoint every 'step_size' distance units of the path. */
