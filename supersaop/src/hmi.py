@@ -259,8 +259,8 @@ class HMIModel:
 
     def plan_command(self, vns_conf: str, planning_duration: float, uavs: ty.Sequence[str]):
         if self.node is not None:
-            uav_stuff = {uav: {"start": self.uav_state_dict[uav],
-                               "end": self.uav_state_dict[uav]} for uav in uavs}
+            uav_stuff = {uav: {"start": self.uav_state.data[uav],
+                               "end": self.uav_state.data[uav]} for uav in uavs}
             self.node.publish_plan_request(vns_conf, planning_duration, uav_stuff)
 
     def stop_command(self, uav: str):
