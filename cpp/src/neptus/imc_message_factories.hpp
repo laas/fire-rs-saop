@@ -38,6 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/PlanManeuver.hpp"
 #include "../../IMC/Spec/PlanSpecification.hpp"
 #include "../../IMC/Spec/PlanTransition.hpp"
+#include "../../IMC/Spec/ScheduledGoto.hpp"
 #include "../../IMC/Spec/SetEntityParameters.hpp"
 #include "../../IMC/Spec/WindSpeed.hpp"
 
@@ -141,6 +142,31 @@ namespace SAOP {
                 return make_message(1000, lat, lon, z, IMC::ZUnits::Z_HEIGHT,
                                     17.0, IMC::SpeedUnits::SUNITS_METERS_PS,
                                     0, 0, 0, "tuplelist");
+            };
+        };
+
+        class ScheduledGotoFactory {
+        public:
+            static IMC::ScheduledGoto make_message(double arrival_time, double lat, double lon, float z,
+                                                   uint8_t z_units, float travel_z, uint8_t travel_z_units,
+                                                   IMC::ScheduledGoto::DelayedBehaviorEnum delayed_behavior) {
+                auto maneuver_scheduled_goto = IMC::ScheduledGoto();
+                maneuver_scheduled_goto.arrival_time = arrival_time;
+                maneuver_scheduled_goto.lat = lat;
+                maneuver_scheduled_goto.lon = lon;
+                maneuver_scheduled_goto.z = z;
+                maneuver_scheduled_goto.z_units = z_units;
+                maneuver_scheduled_goto.travel_z = travel_z;
+                maneuver_scheduled_goto.travel_z_units = travel_z_units;
+                maneuver_scheduled_goto.delayed = delayed_behavior;
+
+                return maneuver_scheduled_goto;
+            };
+
+            static IMC::ScheduledGoto make_message(double arrival_time, double lat, double lon, float z,
+                                                   IMC::ScheduledGoto::DelayedBehaviorEnum delayed_behavior) {
+                return make_message(arrival_time, lat, lon, z, IMC::ZUnits::Z_HEIGHT, z, IMC::ZUnits::Z_HEIGHT,
+                                    delayed_behavior);
             };
         };
 
@@ -261,6 +287,32 @@ namespace SAOP {
 
                 return plan_spec;
             }
+
+            static IMC::PlanSpecification make_message(const std::string& name, const std::vector<Waypoint3d>& wgs_waypoints,
+                                                       const std::vector<double>& wp_times,
+                                                       const std::vector<std::string>& maneuver_names) {
+                ASSERT(!wgs_waypoints.empty());
+                ASSERT(wgs_waypoints.size() == maneuver_names.size());
+                ASSERT(wgs_waypoints.size() == wp_times.size());
+
+                auto pmx = IMC::MessageList<IMC::PlanManeuver>();
+
+                for (size_t i = 0; i != wgs_waypoints.size(); ++i) {
+                    auto man_gotox = SAOP::neptus::ScheduledGotoFactory::make_message(wp_times[i],
+                            wgs_waypoints[i].y, wgs_waypoints[i].x, static_cast<float>(wgs_waypoints[i].z),
+                            IMC::ScheduledGoto::DelayedBehaviorEnum::DBEH_RESUME);
+                    pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message(maneuver_names[i],
+                                                                                  man_gotox));
+                }
+
+                auto plan_spec = IMC::PlanSpecification();
+                plan_spec.plan_id = name;
+                plan_spec.start_man_id = maneuver_names[0];
+                plan_spec.maneuvers = pmx;
+                plan_spec.transitions = SequentialPlanTransitionListFactory::make_message(pmx);
+
+                return plan_spec;
+            }
         };
 
         class PlanDBFactory {
@@ -281,10 +333,11 @@ namespace SAOP {
 
             static IMC::PlanDB make_message(const std::string& name, std::vector<Waypoint3d> wgs84_waypoints) {
                 std::vector<std::string> maneuver_names = {};
-                for (size_t i = 0; i < wgs84_waypoints.size(); ++i){
+                for (size_t i = 0; i < wgs84_waypoints.size(); ++i) {
                     maneuver_names.emplace_back(std::to_string(i));
                 }
-                auto plan_spec = SAOP::neptus::PlanSpecificationFactory::make_message(name, wgs84_waypoints, maneuver_names);
+                auto plan_spec = SAOP::neptus::PlanSpecificationFactory::make_message(name, wgs84_waypoints,
+                                                                                      maneuver_names);
                 auto pdb = IMC::PlanDB();
                 pdb.type = IMC::PlanDB::TypeEnum::DBT_REQUEST;
                 pdb.op = IMC::PlanDB::OperationEnum::DBOP_SET;
