@@ -225,7 +225,7 @@ if __name__ == '__main__':
                 pass
         if not rospy.is_shutdown():
             sa = SituationAssessmentNode(area, world_paths=world_paths)
-            # rospy.spin()
+            rospy.spin()
             # # Memory profiling
             # import objgraph
             # r = rospy.Rate(0.1)
