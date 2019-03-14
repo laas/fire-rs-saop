@@ -106,16 +106,24 @@ class SituationAssessment:
 
         def __init__(self, elevation: fire_rs.geodata.geo_data.GeoData):
             self._elevation = elevation
-            self.cells = {}
-            self.geodata = fire_rs.firemodel.propagation.empty_firemap(self._elevation)
+            self._cells = {}
+            self._geodata = fire_rs.firemodel.propagation.empty_firemap(self._elevation)
             self.last_updated = datetime.datetime.now()
+
+        @property
+        def cells(self)-> ty.ItemsView:
+            return self._cells.items()
+
+        @property
+        def geodata(self) -> fire_rs.geodata.geo_data.GeoData:
+            return self._geodata.clone()
 
         def set_point_ignition(self, ig_pt: geo_data.TimedPoint):
             """Set some position as on fire.
 
             The current wildfire propagator is not reset.
             """
-            c = self.geodata.array_index((ig_pt[0], ig_pt[1]))
+            c = self._geodata.array_index((ig_pt[0], ig_pt[1]))
             self.set_cell_ignition((c[0], c[1], ig_pt[2]))
 
         def set_cell_ignition(self, ig_cell: ty.Tuple[int, int, float]):
@@ -123,17 +131,18 @@ class SituationAssessment:
             :param ig_cell: (x_cell, y_cell, time)
             """
             c = (ig_cell[0], ig_cell[1])
-            self.cells[c] = ig_cell[2]
-            self.geodata['ignition'][c] = ig_cell[2]
+            self._cells[c] = ig_cell[2]
+            self._geodata['ignition'][c] = ig_cell[2]
             self.last_updated = datetime.datetime.now()
 
         def clear_observation_cell(self, cell: ty.Tuple[int, int]):
             """Clear some cell that was previously set on fire
             :param cell: (x_cell, y_cell)
             """
-            if cell in self.cells:
-                del self.cells[cell]
-            self.geodata['ignition'][cell] = np.inf
+            if cell in self._cells:
+                del self._cells[cell]
+            self._geodata['ignition'][cell] = np.inf
+            self.last_updated = datetime.datetime.now()
 
     class WildfireCurrentAssessment:
         """Evaluate the current state of a wildfire from observations"""
@@ -281,7 +290,7 @@ class SituationAssessment:
 
         self._observed_wildfire = SituationAssessment.ObservedWildfire(self._environment.raster)
         self._wildfire_current_assessment = SituationAssessment.WildfireCurrentAssessment(
-            self._environment, self._observed_wildfire.cells, datetime.datetime.now())
+            self._environment, dict(self._observed_wildfire.cells), datetime.datetime.now())
         self._wildfire_future_propagation = SituationAssessment.WildfireFuturePropagation(
             self._environment, None, {},
             fire_rs.firemodel.propagation.empty_firemap(self._environment.raster),
@@ -337,7 +346,7 @@ class SituationAssessment:
         else:
             self.logger.info("Assessment of current wildfire state at time %s", str(time))
         self._wildfire_current_assessment = SituationAssessment.WildfireCurrentAssessment(
-            self._environment, self._observed_wildfire.cells, perimeter_time=time)
+            self._environment, dict(self._observed_wildfire.cells), perimeter_time=time)
 
     def assess_until(self, until: datetime.datetime):
         """Compute an expected wildfire simulation from initial observations."""
