@@ -260,13 +260,15 @@ class HMIModel:
             self.node.loiter(uav)
 
     def plan_command(self, vns_conf: str, planning_duration: float, mission_duration: float,
-                     uavs: ty.Sequence[str], trajectory_duration: ty.Mapping[str, float]):
+                     uavs: ty.Sequence[str], trajectory_duration: ty.Mapping[str, float],
+                     start_delay: float):
         if self.node is not None:
             uav_stuff = {uav: {"start": self.uav_state.data[uav],
                                "end": self.uav_state.data[uav]} for uav in uavs}
             self.node.publish_plan_request(vns_conf, planning_duration, uav_stuff,
                                            mission_duration=mission_duration,
-                                           uav_trajectory_duration=trajectory_duration)
+                                           uav_trajectory_duration=trajectory_duration,
+                                           start_delay=start_delay)
 
     def stop_command(self, uav: str):
         if self.node is not None:
@@ -346,13 +348,14 @@ class HMINode:
 
     def publish_plan_request(self, vns_conf: str, planning_duration: float,
                              uavs: ty.Mapping[str, ty.Any], mission_duration: float = 10 * 60,
-                             uav_trajectory_duration=None):
+                             uav_trajectory_duration=None, start_delay: float = 0):
         if not uav_trajectory_duration:
             uav_trajectory_duration = {}
         rospy_now = rospy.Time.now()
-        p_conf = PlanConf(name="A manual plan",
-                          flight_window=(rospy_now - rospy.Duration(5 * 10),
-                                         rospy_now + rospy.Duration(int(mission_duration))))
+        p_conf = PlanConf(
+            name="A manual plan",
+            flight_window=(rospy_now - rospy.Duration(5 * 10) + rospy.Duration(int(start_delay)),
+                           rospy_now + rospy.Duration(int(mission_duration))))
         trajs = []
         for u_name, u_val in uavs.items():
             start_wp = PoseEuler(position=Point(*u_val["start"]["position"]),
@@ -365,7 +368,7 @@ class HMINode:
             t_conf = TrajectoryConf(name="-".join(("traj", u_name)), uav_model=u_name,
                                     start_wp=start_wp, end_wp=end_wp,
                                     start_time=rospy.Time.now() + rospy.Duration.from_sec(
-                                        planning_duration),
+                                        planning_duration) + rospy.Duration(int(start_delay)),
                                     max_duration=max_duration, wind=MeanWind(.0, .0))
             trajs.append(Trajectory(conf=t_conf, maneuvers=[]))
         p = Plan(header=Header(stamp=rospy.Time.now()), conf=p_conf, trajectories=trajs)
@@ -409,7 +412,7 @@ class PlanCreationWindow(Gtk.Dialog):
         self.planning_duration_entry.set_numeric(True)
 
         # Mission duration
-        mission_duration_adjustment = Gtk.Adjustment(value=300, lower=60, upper=3600,
+        mission_duration_adjustment = Gtk.Adjustment(value=600, lower=60, upper=3600,
                                                      step_increment=30, page_increment=60,
                                                      page_size=0)
         mission_duration_label = Gtk.Label.new_with_mnemonic("Mission duration (s):")
@@ -418,6 +421,17 @@ class PlanCreationWindow(Gtk.Dialog):
         self.mission_duration_entry.set_hexpand(True)
         self.mission_duration_entry.set_adjustment(mission_duration_adjustment)
         self.mission_duration_entry.set_numeric(True)
+
+        # Mission start delay
+        mission_delay_adjustment = Gtk.Adjustment(value=0, lower=0, upper=3600,
+                                                  step_increment=10, page_increment=60,
+                                                  page_size=0)
+        mission_delay_label = Gtk.Label.new_with_mnemonic("Additional start delay (s):")
+        mission_delay_label.set_halign(Gtk.Align.END)
+        self.mission_delay_entry = Gtk.SpinButton()
+        self.mission_delay_entry.set_hexpand(True)
+        self.mission_delay_entry.set_adjustment(mission_delay_adjustment)
+        self.mission_delay_entry.set_numeric(True)
 
         # UAV Checkbutton row
         uav_enabled_label = Gtk.Label.new_with_mnemonic("UAVs enabled:")
@@ -457,8 +471,13 @@ class PlanCreationWindow(Gtk.Dialog):
                                  Gtk.PositionType.BOTTOM, 1, 1)
         conf_grid.attach_next_to(self.mission_duration_entry, mission_duration_label,
                                  Gtk.PositionType.RIGHT, 1, 1)
+
+        conf_grid.attach_next_to(mission_delay_label, mission_duration_label,
+                                 Gtk.PositionType.BOTTOM, 1, 1)
+        conf_grid.attach_next_to(self.mission_delay_entry, mission_delay_label,
+                                 Gtk.PositionType.RIGHT, 1, 1)
         if uavs:
-            conf_grid.attach_next_to(uav_enabled_label, mission_duration_label,
+            conf_grid.attach_next_to(uav_enabled_label, mission_delay_label,
                                      Gtk.PositionType.BOTTOM, 1, 1)
             conf_grid.attach_next_to(uav_checkbutton_box, uav_enabled_label,
                                      Gtk.PositionType.RIGHT, 1, 1)
@@ -494,12 +513,16 @@ class PlanCreationWindow(Gtk.Dialog):
     def mission_duration(self):
         return self.mission_duration_entry.get_value()
 
+    @property
+    def mission_start_delay(self):
+        return self.mission_delay_entry.get_value()
+
     @staticmethod
     def uav_conf_tab_content(uav: str):
         grid = Gtk.Grid(orientation=Gtk.Orientation.HORIZONTAL, column_spacing=12, row_spacing=6)
         grid.set_border_width(12)
         # Max flight duration
-        max_flight_duration_adjustement = Gtk.Adjustment(value=300, lower=60, upper=3600,
+        max_flight_duration_adjustement = Gtk.Adjustment(value=600, lower=60, upper=3600,
                                                          step_increment=30, page_increment=60,
                                                          page_size=0)
         max_flight_duration_label = Gtk.Label.new_with_mnemonic("Max. flight duration (s):")
@@ -691,8 +714,8 @@ class SAOPControlWindow(Gtk.Window):
             pdiag = PlanCreationWindow(self, known_uavs)
             if pdiag.run() == Gtk.ResponseType.OK:
                 GLib.idle_add(self.hmi_model.plan_command, pdiag.vns_conf, pdiag.planning_duration,
-                              pdiag.mission_duration,
-                              pdiag.uav_selection, pdiag.trajectory_duration)
+                              pdiag.mission_duration, pdiag.uav_selection,
+                              pdiag.trajectory_duration, pdiag.mission_start_delay)
             pdiag.destroy()
         else:
             dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
