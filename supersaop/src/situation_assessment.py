@@ -153,6 +153,7 @@ class SituationAssessmentNode:
         g.draw_ignition_shade(with_colorbar=True)
         g.figure.savefig("/home/rbailonr/fuego_obs.png")
         g.close()
+        del g
 
         rospy.loginfo("Wildfire propagation publishing ended")
 
@@ -175,6 +176,8 @@ class SituationAssessmentNode:
             g = GeoDataDisplay.pyplot_figure(local_firemap)
             g.draw_ignition_shade(with_colorbar=True)
             g.figure.savefig("local_firemap_" + str(uav) + ".png")
+            g.close()
+            del g
             rospy.loginfo("Local wildfire map received from %s", str(uav))
 
             for cell in zip(*np.where(local_firemap.data["ignition"] < np.inf)):
@@ -222,6 +225,14 @@ if __name__ == '__main__':
                 pass
         if not rospy.is_shutdown():
             sa = SituationAssessmentNode(area, world_paths=world_paths)
-            rospy.spin()
+            # rospy.spin()
+            # # Memory profiling
+            # import objgraph
+            # r = rospy.Rate(0.1)
+            # while not rospy.is_shutdown():
+            #     objgraph.show_refs([sa], filename='/home/rbailonr/sample-graph.png', max_depth=5)
+            #     with open("/home/rbailonr/typestats.txt", 'w') as f:
+            #         f.write(str(objgraph.typestats()))
+            #     r.sleep()
     except rospy.ROSInterruptException:
         pass
