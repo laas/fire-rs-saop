@@ -71,8 +71,8 @@ class SituationAssessmentNode:
                                                  queue_size=10, latch=True)
         self.pub_wildfire_current = rospy.Publisher('wildfire', WildfireMap,
                                                     queue_size=10, latch=True)
-        self.pub_wildfire_real = rospy.Publisher('wildfire_real', WildfireMap,
-                                                 queue_size=10, latch=True)
+        # self.pub_wildfire_real = rospy.Publisher('wildfire_real', WildfireMap,
+        #                                          queue_size=10, latch=True)
         self.pub_elevation = rospy.Publisher('elevation', ElevationMap,
                                              queue_size=10, latch=True)
         # self.pub_surface_wind = rospy.Publisher('surface_wind', SurfaceWindMap,
@@ -126,9 +126,9 @@ class SituationAssessmentNode:
             raster=serialization.raster_msg_from_geodata(p, 'ignition'))
         # self.pub_wildfire_real.publish(pred)
         self.pub_wildfire_pred.publish(pred)
-        self.pub_wildfire_real.publish(WildfireMap(
-            header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
-            raster=serialization.raster_msg_from_geodata(p, 'ignition')))
+        # self.pub_wildfire_real.publish(WildfireMap(
+        #     header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
+        #     raster=serialization.raster_msg_from_geodata(p, 'ignition')))
         self.pub_wildfire_current.publish(current)
 
         if self.sa.elevation_timestamp > self.last_elevation_timestamp:

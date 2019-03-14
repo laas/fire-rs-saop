@@ -45,6 +45,10 @@ from supersaop.msg import Timed2DPointStamped, PropagateCmd, MeanWindStamped, Ve
 
 class FakeMapperNode:
     def __init__(self, known_uavs: ty.Sequence[str]):
+
+        rospy.init_node("fake_mapper")
+        rospy.loginfo("Starting {}".format(self.__class__.__name__))
+
         self._known_uavs = known_uavs
 
         # type: ty.Mapping[str, rospy.Publisher]
@@ -58,7 +62,7 @@ class FakeMapperNode:
                                                   queue_size=10)
 
         # type: rospy.Subscriber
-        self.sub_real_wildfire_map = rospy.Subscriber("wildfire_real", ElevationMap,
+        self.sub_real_wildfire_map = rospy.Subscriber("real_wildfire", ElevationMap,
                                                       self._on_real_wildfire_map,
                                                       queue_size=10)
 
@@ -75,9 +79,6 @@ class FakeMapperNode:
 
         self.lock = threading.Lock()
 
-        rospy.init_node("fake_mapper")
-        rospy.loginfo("Starting {}".format(self.__class__.__name__))
-
     def _on_vehicle_state(self, msg: VehicleState, uav: str):
         with self.lock:
             if uav not in self.location_history:
@@ -91,10 +92,14 @@ class FakeMapperNode:
 
     def _on_elevation_map(self, elevation: ElevationMap):
         self.elevation_map = serialization.geodata_from_raster_msg(elevation.raster, "elevation")
+        rospy.loginfo("Elevation received")
+        rospy.loginfo(elevation.raster.metadata)
         self._reset_firemapper()
 
-    def _on_real_wildfire_map(self, wildfire: ElevationMap):
+    def _on_real_wildfire_map(self, wildfire: WildfireMap):
         self.real_wildfire_map = serialization.geodata_from_raster_msg(wildfire.raster, "ignition")
+        rospy.loginfo("Real wildfire received")
+        rospy.loginfo(wildfire.raster.metadata)
         self._reset_firemapper()
 
     def _reset_firemapper(self):
@@ -110,14 +115,20 @@ class FakeMapperNode:
                 self.firemapper.observe(list(zip(*wp_list)), fire_rs.planning.new_planning.UAVModels.get(uav_str))
                 # obs_fire_map = GeoData.from_cpp_raster(self.firemapper.firemap, "ignition",
                 #                                        projection=self.elevation_map.projection)
-
-                wf_msg = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
-                                     raster=serialization.raster_msg_from_geodata(self.firemapper.firemap, 'ignition', invert=False))
-                self.pub_dict_firemap[uav_str].publish(wf_msg)
-                g = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(self.firemapper.firemap)
+                fm = self.firemapper.firemap
+                om = self.firemapper.observed
+                print("map")
+                g = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(fm)
                 g.draw_ignition_shade(with_colorbar=True)
                 g.figure.savefig("/home/rbailonr/fuego_fakemapped.png")
                 g.close()
+                g = fire_rs.geodata.display.GeoDataDisplay.pyplot_figure(om)
+                g.draw_ignition_shade(with_colorbar=True)
+                g.figure.savefig("/home/rbailonr/fuego_fakeobserved.png")
+                g.close()
+                wf_msg = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
+                                     raster=serialization.raster_msg_from_geodata(fm, 'ignition', invert=False))
+                self.pub_dict_firemap[uav_str].publish(wf_msg)
 
 
 if __name__ == '__main__':
