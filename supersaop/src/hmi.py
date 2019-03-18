@@ -194,7 +194,6 @@ class HMIModel:
     def on_wildfire_map_observed(self, uav: str, wildfire_map_observed_msg: WildfireMap):
         gd = serialization.geodata_from_raster_msg(
             wildfire_map_observed_msg.raster, "ignition", invert=True)
-        gd['ignition'].data = gd.data['ignition'] * 60.
         self.wildfire_map_observed.data = gd
 
     def on_uav_state(self, uav: str, vehicle_state_msg: VehicleState):
