@@ -210,7 +210,7 @@ if __name__ == '__main__':
                 (rw.change_wind, (3, 0.)),
                 (rw.propagate, (datetime.timedelta(minutes=60.),)),
                 (rw.change_wind, (3, np.pi / 4)),
-                # (rw.propagate, (datetime.timedelta(minutes=34.),)),
+                (rw.propagate, (datetime.timedelta(minutes=500.),)),
                 # (rw.change_wind, (3, np.pi / 2)),
                 # (rw.propagate, (datetime.timedelta(minutes=35.),)),
                 (w_starter.notify_wind, (3., 0.)),
@@ -218,7 +218,9 @@ if __name__ == '__main__':
                  (ignitions[0],
                   lambda: rospy.Time.from_sec(rw.fire_map["ignition"][ignitions_cell[0]]))),
                 (w_starter.notify_alarm_map,
-                 (lambda: rw.perimeter(rospy.Time.now().to_sec()).geodata,)),
+                 (lambda: rw.perimeter(rospy.Time.now().to_sec() - 120 * 60).geodata,)),
+                (w_starter.notify_alarm_map,
+                 (lambda: rw.perimeter(rospy.Time.now().to_sec()-60*60).geodata,)),
                 (w_starter.publish_real_fire, (rw,)),
                 (w_starter.propagate, None)
             ]
@@ -275,7 +277,7 @@ if __name__ == '__main__':
         #          ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
         #         (w_starter.propagate, None)]
 
-        r = rospy.Rate(1 / 3.)
+        r = rospy.Rate(1 / 1.)
 
         while actions:
             a = actions.pop(0)
