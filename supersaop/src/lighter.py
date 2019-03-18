@@ -50,7 +50,7 @@ class LighterNode:
                                         tcp_nodelay=True)
 
         self.pub_wildfire_real = rospy.Publisher("real_wildfire", WildfireMap, queue_size=1,
-                                                 tcp_nodelay=True)
+                                                 tcp_nodelay=True, latch=True)
 
         self.pub_p = rospy.Publisher("propagate", PropagateCmd, queue_size=1, tcp_nodelay=True)
 
