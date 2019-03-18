@@ -111,7 +111,7 @@ class SituationAssessment:
             self.last_updated = datetime.datetime.now()
 
         @property
-        def cells(self)-> ty.ItemsView:
+        def cells(self) -> ty.ItemsView:
             return self._cells.items()
 
         @property
@@ -183,16 +183,19 @@ class SituationAssessment:
 
             if len(z) > 1:
                 # Normalise
-                z -= self._oldest_obs_timestamp
-                z /= self._newest_obs_timestamp - self._oldest_obs_timestamp
+
+                z_min = z.min()
+                z_max = z.max()
+                z -= z_min
+                z /= z_max - z_min
 
                 # Interpolate on normalised ignition time
                 array = fire_rs.geodata.wildfire.interpolate(x, y, z, self._interpolated.data.shape,
                                                              function='thin_plate')
 
                 # Denormalise
-                array *= self._newest_obs_timestamp - self._oldest_obs_timestamp
-                array += self._oldest_obs_timestamp
+                array *= z_max - z_min
+                array += z_min
 
                 # Filter out extrapolations, because they are not reliable!
                 time_span = self._newest_obs_timestamp - self._oldest_obs_timestamp
@@ -240,7 +243,7 @@ class SituationAssessment:
             # Mark burnt cells, so fire do not propagate over them again
             mask = np.where(
                 (self._current_firemap.data["ignition"] > 0) & (
-                            self._current_firemap.data["ignition"] < np.inf))
+                        self._current_firemap.data["ignition"] < np.inf))
             if self._perimeter:
                 mask = np.where(self._perimeter.area_array | np.isfinite(self._perimeter.array))
 

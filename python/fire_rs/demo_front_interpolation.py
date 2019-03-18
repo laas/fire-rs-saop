@@ -43,6 +43,7 @@ import scipy.interpolate
 
 import fire_rs.geodata.environment as g_environment
 import fire_rs.geodata.display as display
+import fire_rs.rbf
 
 from fire_rs.geodata.geo_data import GeoData
 from fire_rs.firemodel.propagation import Environment, FirePropagation, TimedPoint
@@ -66,7 +67,7 @@ ignition = TimedPoint(2776825.0, 2212175.0, 0)
 
 ################################################################################
 # Reference fire propagation
-fire_env = Environment(area, 5., np.pi/2, the_world)
+fire_env = Environment(area, 5., np.pi / 2, the_world)
 
 fire_prop = FirePropagation(fire_env)
 fire_prop.set_ignition_point(ignition)
@@ -98,17 +99,17 @@ firepoints = {}
 firepoints[fire_prop.ignitions().array_index((ignition[0], ignition[1]))] = ignition[2]
 
 # Create contour with scikit-image
-contours1 = skimage.measure.find_contours(firemap.data["ignition"], 10 * 60 * 60)
+contours1 = skimage.measure.find_contours(firemap.data["ignition"], 21 * 60 * 60)
 contours2 = skimage.measure.find_contours(firemap.data["ignition"], 20 * 60 * 60)
-contours3 = skimage.measure.find_contours(firemap.data["ignition"], 30 * 60 * 60)
+contours3 = skimage.measure.find_contours(firemap.data["ignition"], 22 * 60 * 60)
 contours4 = skimage.measure.find_contours(firemap.data["ignition"], 40 * 60 * 60)
-contours5 = skimage.measure.find_contours(firemap.data["ignition"], 50 * 60 * 60)
-contours6 = skimage.measure.find_contours(firemap.data["ignition"], 60 * 60 * 60)
+contours5 = skimage.measure.find_contours(firemap.data["ignition"], 41 * 60 * 60)
+contours6 = skimage.measure.find_contours(firemap.data["ignition"], 42 * 60 * 60)
 
 # Print contour as binary image
 comp_cycle = itertools.cycle([lambda x, y: x < y, lambda x, y: x > y])
 comp = next(comp_cycle)
-for i in [contours1,  contours3,   contours5]:
+for i in [contours1, contours2, contours3, contours4, contours5, contours6]:
     comp = next(comp_cycle)
     for contour in i:
         for pt_i in range(len(contour)):
@@ -124,7 +125,7 @@ for i in [contours1,  contours3,   contours5]:
 
 fig = plt.figure()
 ax = fig.gca()
-imag = ax.imshow(fire_image/60.)
+imag = ax.imshow(fire_image / 60.)
 fig.colorbar(imag, ax=ax, shrink=0.65, aspect=20, format="%d minutes")
 fig.show()
 
@@ -134,15 +135,15 @@ x, y = list(zip(*firepoints.keys()))
 z = tuple(firepoints.values())
 function = 'thin_plate'
 # function = 'linear'
-function = 'multiquadric'
+# function = 'multiquadric'
 # function = 'cubic'
 # --function = lambda a: np.sin(a)
 
 # Wildland fire modeling with an Eulerian level set method and automated calibration
 # might give a clue of which kind of kernel function to use
 
-zfun_smooth_rbf = scipy.interpolate.Rbf(x, y, z, function=function, epsilon=None,
-                                        smooth=0)  # default smooth=0 for interpolation
+zfun_smooth_rbf = fire_rs.rbf.Rbf(x, y, z, function=function, epsilon=0.1,
+                                  smooth=0)  # default smooth=0 for interpolation
 
 xi = np.linspace(0, firemap.data.shape[0] - 1, firemap.data.shape[0])
 yi = np.linspace(0, firemap.data.shape[1] - 1, firemap.data.shape[1])
@@ -176,11 +177,11 @@ levels = list(range(0, 70 * 60, 10 * 60))
 diferencia = z_dense_smooth_rbf - firemap.data["ignition"]
 # ax.imshow(firemap.data["ignition"])
 # 150 min is 200m for wind 5km/h in wind direction
-diff_image = ax.imshow(diferencia/60., cmap=matplotlib.cm.seismic, vmin=-150, vmax=150)
+diff_image = ax.imshow(diferencia / 60., cmap=matplotlib.cm.seismic, vmin=-150, vmax=150)
 cb = fig.colorbar(diff_image, ax=ax, shrink=0.65, aspect=20, format="%d minutes")
 cb.set_label("Interpolation error")
 ax.imshow(fire_image, cmap=matplotlib.cm.cool)
-c2 = ax.contour(firemap.data["ignition"]/60., levels=levels, cmap=matplotlib.cm.cool)
+c2 = ax.contour(firemap.data["ignition"] / 60., levels=levels, cmap=matplotlib.cm.cool)
 ax.clabel(c2)
 
 # ax.imshow(fire_image)
@@ -189,6 +190,7 @@ fig.show()
 ################################################################################
 # In 3D
 from mpl_toolkits.mplot3d import Axes3D
+
 fig = plt.figure()
 ax = fig.add_subplot(121, projection='3d')
 ax.plot_surface(*meshgrid, z_dense_smooth_rbf, color="blue")
@@ -197,7 +199,5 @@ fig.show()
 ax = fig.add_subplot(122, projection='3d')
 ax.plot_surface(*meshgrid, firemap.data["ignition"], color="red")
 fig.show()
-
-
 
 print("THE END")

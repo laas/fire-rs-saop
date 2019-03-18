@@ -25,11 +25,11 @@
 import typing as ty
 
 import numpy as np
-import scipy.interpolate
 import skimage.draw
 import skimage.measure
 
 import fire_rs.geodata.geo_data
+import fire_rs.rbf
 
 
 class Perimeter:
@@ -78,9 +78,10 @@ class Perimeter:
             if self._contour:
                 self._area_array = skimage.measure.grid_points_in_poly(self._wildfire.data.shape,
                                                                        self._contour[0])
-                for cont in self._contour[1:]:
-                    self._area_array += skimage.measure.grid_points_in_poly(
-                        self._wildfire.data.shape, cont)
+                if len(self._contour) > 1:
+                    for cont in self._contour[1:]:
+                        self._area_array += skimage.measure.grid_points_in_poly(
+                            self._wildfire.data.shape, cont)
         return self._area_array
 
 
@@ -130,7 +131,7 @@ def interpolate(x, y, z, shape, function='thin_plate') -> np.ndarray:
     # might give a clue of which kind of kernel function to use
 
     # default smooth=0 for interpolation
-    interpolator = scipy.interpolate.Rbf(x, y, z, function=function, smooth=0)
+    interpolator = fire_rs.rbf.Rbf(x, y, z, function=function, smooth=0, cond=10**-5)
 
     xi = np.linspace(0, shape[0] - 1, shape[0])
     yi = np.linspace(0, shape[1] - 1, shape[1])
