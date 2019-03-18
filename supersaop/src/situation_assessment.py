@@ -64,7 +64,7 @@ class SituationAssessmentNode:
         self.last_wildfire_update = datetime.datetime.min
         self.last_elevation_timestamp = datetime.datetime.min
 
-        self.horizon = rospy.Duration(secs=1 * 60 * 60)
+        self.horizon = rospy.Duration(secs=3 * 60 * 60)
 
         self.pub_wildfire_pred = rospy.Publisher('wildfire_prediction',
                                                  PredictedWildfireMap,
