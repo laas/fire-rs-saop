@@ -349,14 +349,14 @@ class GeoDataDisplay(GeoDataDisplayBase):
             igni[igni > time_range[1]] = time_range[1]
             igni[igni < time_range[0]] = time_range[0]
 
-        igni = igni.T / 60.  # To minutes
+        igni = igni.T
 
         # Determine how many contour lines we are going to draw
         lim = (np.nanmin(igni), np.nanmax(igni))
         igni[np.isnan(igni)] = np.inf
         igni[igni > lim[1]] = lim[1]
         igni[igni < lim[0]] = lim[0]
-        nfronts = int(np.clip(int((lim[1] - lim[0]) / 60) * 10, 3, 10)) if n_fronts is None \
+        nfronts = int(np.clip(int((lim[1] - lim[0]) / 3600) * 10, 3, 10)) if n_fronts is None \
             else n_fronts
 
         if 'cmap' not in kwargs:
@@ -374,7 +374,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
         # self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
         #                  fmt='%.0f')
         self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
-                         fmt=MinuteDateFormatter('%H:%M'))
+                         fmt=SecondDateFormatter('%H:%M'))
 
     def draw_ignition_shade(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'ignition',
                             time_range: 'Optional[Tuple[float, float]]' = None,
@@ -389,7 +389,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
             igni[igni > time_range[1]] = np.nan
             igni[igni < time_range[0]] = np.nan
 
-        igni = np.around(igni.T[::-1, ...] / 60., 0)  # Convert and clip to minutes
+        igni = np.around(igni.T[::-1, ...], 0)  # Convert and clip to exact seconds
 
         if 'vmin' not in kwargs:
             kwargs['vmin'] = np.nanmin(igni)
@@ -416,7 +416,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
 
     def _add_ignition_shade_colorbar(self, shade, label: 'str'):
         cb = self._figure.colorbar(shade, ax=self.axes, shrink=0.65, aspect=20,
-                                   format=MinuteDateFormatter('%d/%m/%y %H:%M'))
+                                   format=SecondDateFormatter('%d/%m/%y %H:%M'))
         cb.set_label(label)
         self._colorbars.append(cb)
 
