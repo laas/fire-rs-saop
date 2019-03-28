@@ -741,9 +741,16 @@ class NeptusBridge:
                             self._on_uav_state_report, self._on_firemap_report,
                             self._projected_cs_epsg)
 
-    def send_home(self, uav):
-        """ Tell a UAV to go home"""
-        raise NotImplementedError
+    def loiter(self, uav: str, plan_name: str, loiter_id: str,
+               center: ty.Tuple[float, float, float], radius: float, direction: int,
+               duration: float):
+        """Loiter somewhere"""
+        loiter = fire_rs.planning.new_planning.LoiterManeuver(
+            fire_rs.planning.new_planning.Circle(
+                fire_rs.planning.new_planning.Position(*center), radius),
+            fire_rs.planning.new_planning.CircularDirection(direction), duration)
+        print("uav"+str(uav))
+        self.gcs.loiter(plan_name, loiter, planning.UAVModels.get(uav).max_air_speed, uav)
 
     def start_trajectory(self, t: planning.Trajectory, uav: str) -> bool:
         """Execute a SAOP trajectory with neptus 'plan_id' using the vehicle 'uav'"""

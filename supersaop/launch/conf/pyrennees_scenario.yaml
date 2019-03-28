@@ -3,4 +3,10 @@ landcover_dir: "/home/rbailonr/firers_data/landcover/BDALTIV2_2-0_25M_TIF_LAMB93
 wind_dir: "/home/rbailonr/firers_data/wind/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17"
 coordinate_system: 2154  # Lambert93
 area: [[480060.0, 485060.0], [6211074.0, 6216074.0]]
+
 known_uavs: ["x8-02", "x8-06"]
+uavs:
+  x8_02:
+    base: [480560.0, 6211574.0]
+  x8_06:
+    base: [481060.0, 6211574.0]

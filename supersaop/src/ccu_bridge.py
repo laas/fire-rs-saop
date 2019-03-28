@@ -20,7 +20,7 @@ from geometry_msgs.msg import Point
 
 from supersaop.msg import ElevationMap, Euler, PoseEuler, PredictedWildfireMap, PropagateCmd, \
     Raster, RasterMetaData, WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, \
-    Plan, VehicleState, Velocity, TrajectoryState, StopCmd
+    Plan, VehicleState, Velocity, TrajectoryState, StopCmd, HomeCmd
 
 from fire_rs.geodata.display import GeoDataDisplay
 import fire_rs.geodata.geo_data as geo_data
@@ -90,6 +90,7 @@ class CCUBridgeNode:
         self.current_saop_plan = None
         self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
         self.sub_saop_plan = rospy.Subscriber("stop", StopCmd, self.on_stop_cmd, queue_size=10)
+        self.sub_saop_plan = rospy.Subscriber("go_home", HomeCmd, self.on_home_cmd, queue_size=10)
 
     def on_saop_plan(self, msg: Plan):
         t = serialization.saop_trajectories_from_plan_msg(msg)
@@ -99,6 +100,14 @@ class CCUBridgeNode:
 
     def on_stop_cmd(self, msg: StopCmd):
         self.ccu.stop_uav(msg.uav)
+
+    def on_home_cmd(self, msg: HomeCmd):
+        rospy.logwarn(msg)
+        uav = msg.uav.replace("_", "-")
+        self.ccu.loiter(uav, msg.plan_name, msg.loiter.id,
+                        (msg.loiter.center.position.x, msg.loiter.center.position.y,
+                         msg.loiter.center.position.z),
+                        msg.loiter.radius, msg.loiter.direction, msg.loiter.duration.to_sec())
 
     def on_uav_state_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:

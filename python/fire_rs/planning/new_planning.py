@@ -151,6 +151,14 @@ class SAOPPlannerConf(Mapping):
 
 Waypoint = up.Waypoint
 
+Position = up.Position
+
+CircularDirection = up.CircularDirection
+
+Circle = up.Circle
+
+LoiterManeuver = up.LoiterManeuver
+
 UAV = up.UAV
 
 TrajectoryConfig = up.TrajectoryConfig

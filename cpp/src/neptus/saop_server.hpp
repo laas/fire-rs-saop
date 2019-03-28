@@ -387,6 +387,9 @@ namespace SAOP {
             /* Start the last loaded PlanSpecification */
             bool start(std::string plan_id, std::string uav);
 
+            /* Perform a loiter maneuver */
+            bool loiter(std::string plan_id, LoiterManeuver loiter, double speed, std::string uav);
+
             /* Stop the plan currently being executed. */
             bool stop(std::string plan_id, std::string uav);
 
@@ -453,6 +456,8 @@ namespace SAOP {
             IMC::PlanSpecification plan_specification(const Trajectory& t);
 
             IMC::PlanSpecification plan_specification(const Trajectory& t, std::string plan_id);
+
+            IMC::PlanSpecification plan_specification(LoiterManeuver loiter, double speed, std::string plan_id);
 
             void estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m);
 

@@ -74,12 +74,12 @@ namespace SAOP {
             double yy;
             auto to_wp = std::vector<Waypoint3d>();
 
-            for (auto it = from_wp.begin(); it < from_wp.end();++it) {
+            for (auto it = from_wp.begin(); it < from_wp.end(); ++it) {
                 xx = it->x;
                 yy = it->y;
                 poCT->Transform(1, &xx, &yy); // Again Transform must succed
 
-                to_wp.emplace_back(Waypoint3d(xx/180*M_PI, yy/180*M_PI, it->z, it->dir));
+                to_wp.emplace_back(Waypoint3d(xx / 180 * M_PI, yy / 180 * M_PI, it->z, it->dir));
                 xx = 0;
                 yy = 0;
             }
@@ -96,6 +96,20 @@ namespace SAOP {
         /*Convert LAEA points to ETRS89 (lat, lon) coordinates*/
         static std::vector<Waypoint3d> laea_to_world_coordinates(const std::vector<Waypoint3d>& laea_wp) {
             return transform_coordinates(laea_wp, EPSG_ETRS89_LAEA, EPSG_ETRS89);
+        }
+
+        /*Convert LAEA points to ETRS89 (lat, lon) coordinates*/
+        static Position3d laea_to_world_coordinates(Position3d laea_position) {
+            return transform_coordinates(
+                    std::vector<Waypoint3d>({Waypoint3d(laea_position.x, laea_position.y, laea_position.z, 0.)}),
+                    EPSG_ETRS89_LAEA, EPSG_ETRS89)[0].as_point();
+        }
+
+        /*Convert Lambert93 points to WGS84 (lat, lon) coordinates*/
+        static Position3d lambert93_to_world_coordinates(Position3d laea_position) {
+            return transform_coordinates(
+                    std::vector<Waypoint3d>({Waypoint3d(laea_position.x, laea_position.y, laea_position.z, 0.)}),
+                    EPSG_RGF93_LAMBERT93, EPSG_RGF93)[0].as_point();
         }
     }
 }

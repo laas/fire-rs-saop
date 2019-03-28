@@ -339,6 +339,37 @@ PYBIND11_MODULE(uav_planning, m) {
                 return py::make_tuple(py::make_tuple(self.pt.x, self.pt.y, self.pt.z), self.time);
             });
 
+    py::class_<Circle>(m, "Circle")
+            .def(py::init<Position3d, double>(),
+                 py::arg("center"), py::arg("radius"))
+            .def_readonly("center", &Circle::center)
+            .def_readonly("radius", &Circle::radius)
+            .def("__repr__",
+                 [](const Circle& c) {
+                     std::stringstream repr;
+                     repr << "Circle(" << c.center << ", " << c.radius << ")";
+                     return repr.str();
+                 }
+            );
+
+    py::enum_<CircularDirection>(m, "CircularDirection")
+            .value("Clockwise", CircularDirection::Clockwise)
+            .value("CounterClockwise", CircularDirection::CounterClockwise);
+
+    py::class_<LoiterManeuver>(m, "LoiterManeuver")
+            .def(py::init<Circle, CircularDirection, double>(),
+                 py::arg("circle"), py::arg("direction"), py::arg("duration"))
+            .def_readonly("circle", &LoiterManeuver::circle)
+            .def_readonly("direction", &LoiterManeuver::direction)
+            .def_readonly("duration", &LoiterManeuver::duration)
+            .def("__repr__",
+                 [](const LoiterManeuver& p) {
+                     std::stringstream repr;
+                     repr << "LoiterManeuver(" << p.circle << ", " << static_cast<uint8_t>(p.direction) << ", " << p.duration << ")";
+                     return repr.str();
+                 }
+            );
+
     py::class_<TrajectoryManeuver>(m, "TrajectoryManeuver")
             .def(py::init<Segment3d, double, std::string>(), py::arg("segment"), py::arg("time"), py::arg("name"))
             .def(py::init<Waypoint3d, double, std::string>(), py::arg("waypoint"), py::arg("time"), py::arg("name"))

@@ -72,17 +72,17 @@ PYBIND11_MODULE(neptus_interface, m) {
     // Neptus interface
 
 
-    py::class_<neptus::IMCComm,
-            std::shared_ptr<neptus::IMCComm>>(m, "IMCComm")
-            .def(py::init())
-            .def("run", &neptus::IMCComm::run, py::call_guard<py::gil_scoped_release>());
+    py::class_ < neptus::IMCComm,
+            std::shared_ptr < neptus::IMCComm >> (m, "IMCComm")
+                    .def(py::init())
+                    .def("run", &neptus::IMCComm::run, py::call_guard<py::gil_scoped_release>());
 
-    py::class_<neptus::GCS, std::shared_ptr<neptus::GCS>>(m, "GCS")
-            .def(py::init<std::shared_ptr<neptus::IMCComm>>(), py::arg("imc"))
-            .def(py::init<std::shared_ptr<neptus::IMCComm>,
-                         std::function<void(neptus::TrajectoryExecutionReport)>,
-                         std::function<void(neptus::UAVStateReport)>,
-                         std::function<void(neptus::FireMapReport)>, int>(),
+    py::class_ < neptus::GCS, std::shared_ptr < neptus::GCS >> (m, "GCS")
+            .def(py::init < std::shared_ptr < neptus::IMCComm >> (), py::arg("imc"))
+            .def(py::init < std::shared_ptr < neptus::IMCComm > ,
+                 std::function < void(neptus::TrajectoryExecutionReport) > ,
+                 std::function < void(neptus::UAVStateReport) > ,
+                 std::function < void(neptus::FireMapReport) > , int > (),
                  py::arg("imc"), py::arg("ter_cb"), py::arg("usr_cb"), py::arg("fmr_cb"), py::arg("pcs_epsg"),
                  py::call_guard<py::gil_scoped_release>())
 
@@ -93,6 +93,10 @@ PYBIND11_MODULE(neptus_interface, m) {
                  py::arg("trajectory"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
             .def("start", (bool (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::start,
                  py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
+            .def("loiter",
+                 (bool (neptus::GCS::*)(std::string, LoiterManeuver, double, std::string)) &neptus::GCS::loiter,
+                 py::arg("plan_id"), py::arg("loiter"), py::arg("speed"), py::arg("uav"),
+                 py::call_guard<py::gil_scoped_release>())
             .def("load", (bool (neptus::GCS::*)(const Plan&, size_t, std::string, std::string)) &neptus::GCS::load,
                  py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
                  py::call_guard<py::gil_scoped_release>())

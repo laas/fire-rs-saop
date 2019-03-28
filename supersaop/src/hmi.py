@@ -51,11 +51,12 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 from supersaop.msg import ElevationMap, PredictedWildfireMap, PropagateCmd, Raster, RasterMetaData, \
     WildfireMap, MeanWindStamped, SurfaceWindMap, Timed2DPointStamped, VehicleState, PlanCmd, Plan, \
-    Trajectory, TrajectoryConf, PlanConf, PoseEuler, Euler, MeanWind, StopCmd
+    Trajectory, TrajectoryConf, PlanConf, PoseEuler, Euler, MeanWind, StopCmd, HomeCmd, Loiter
 
 from fire_rs.geodata.geo_data import GeoData, Area
 from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.planning.display import TrajectoryDisplayExtension, plot_trajectory, TRAJECTORY_COLORS
+from fire_rs.planning.new_planning import UAVModels
 
 import serialization
 
@@ -135,6 +136,9 @@ class HMIModel:
         self._last_uav_state_draw = datetime.datetime.min
         self.uav_state = FlaggedData("UAVs", self._uav_state_dict, updatable=True, drawable=True)
 
+        self.uav_bases = {}
+        self.uav_bases = FlaggedData("UAV bases", self.uav_bases, updatable=True, drawable=True)
+
         uav_trail_dict = {}  # type: ty.MutableMapping[str, collections.deque]
         self._uav_trail_count = 100
         self.uav_trail = FlaggedData("UAV trails", uav_trail_dict, updatable=True, drawable=True)
@@ -168,6 +172,10 @@ class HMIModel:
         self.wildfire_map_predicted.update_callback = the_cb
         self.wildfire_map_observed.update_callback = the_cb
         self.uav_state.update_callback = the_cb
+        self.uav_state.update_callback = the_cb
+
+    def set_uav_bases(self, uav_location_mapping: ty.Mapping[str, ty.Tuple[float, float]]):
+        self.uav_bases.data = uav_location_mapping
 
     def set_model_provider(self, hmi_node):
         """Set the HMI node retrieving information from ROS topics"""
@@ -198,6 +206,10 @@ class HMIModel:
 
     def on_uav_state(self, uav: str, vehicle_state_msg: VehicleState):
         if self.uav_state.updatable:
+            if uav not in self.uav_state.data:
+                # New uav detected
+                if self.gui is not None:
+                    GLib.idle_add(self.gui.on_new_uav, uav)
             self.uav_state.data[uav] = {"position": (vehicle_state_msg.position.x,
                                                      vehicle_state_msg.position.y,
                                                      vehicle_state_msg.position.z),
@@ -254,9 +266,10 @@ class HMIModel:
         if self.node is not None:
             self.node.propagate()
 
-    def loiter_command(self, uav: str):
+    def home_command(self, uav: ty.Optional[str]):
         if self.node is not None:
-            self.node.loiter(uav)
+            print(self.uav_bases.data)
+            self.node.go_home(uav)
 
     def plan_command(self, vns_conf: str, planning_duration: float, mission_duration: float,
                      uavs: ty.Sequence[str], trajectory_duration: ty.Mapping[str, float],
@@ -309,6 +322,8 @@ class HMINode:
         self.pub_initial_plan = rospy.Publisher("initial_plan", PlanCmd, queue_size=10)
         self.pub_stop = rospy.Publisher("stop", StopCmd, queue_size=10)
 
+        self.pub_home_cmd = rospy.Publisher("go_home", HomeCmd, queue_size=10)
+
     def _on_log(self, msg: Log):
         self.hmi_model.on_log(msg)
 
@@ -339,8 +354,21 @@ class HMINode:
     def propagate(self):
         self.pub_propagate.publish()
 
-    def loiter(self, uav: str):
-        raise NotImplementedError()
+    def go_home(self, uav: str):
+        plan_name = "".join(("home", serialization.ros_name_for(uav)))
+        uav_model = UAVModels.get(uav)
+        home_cmd = HomeCmd(header=Header(stamp=rospy.Time.now()),
+                           uav=serialization.ros_name_for(uav),
+                           plan_name=plan_name,
+                           loiter=Loiter(id=plan_name,
+                                         center=PoseEuler(
+                                             position=Point(*self.hmi_model.uav_bases.data[uav],
+                                                            200.),
+                                             orientation=Euler(0., 0., 0.)),
+                                         radius=uav_model.min_turn_radius,
+                                         direction=Loiter.DIRECTION_VDEP,
+                                         duration=rospy.Duration()))
+        self.pub_home_cmd.publish(home_cmd)
 
     def stop(self, uav: str):
         self.pub_stop.publish(StopCmd(uav))
@@ -554,6 +582,14 @@ class SAOPControlWindow(Gtk.Window):
         self.cancel_button = Gtk.Button(label="Stop")
         self.cancel_button.connect("clicked", self.on_cancel_clicked)
 
+        self.home_button = Gtk.Button(label="Go home")
+        self.home_button.connect("clicked", self.on_home_clicked, None)
+        self.home_button.set_sensitive(False)
+
+        self.home_more_button = Gtk.MenuButton.new()
+        self.home_more_button.set_direction(Gtk.ArrowType.UP)
+        self.home_more_button.set_use_popover(True)
+
         self.propagate_button = Gtk.Button(label="Propagate")
         self.propagate_button.connect("clicked", self.on_propagate_clicked)
 
@@ -561,6 +597,11 @@ class SAOPControlWindow(Gtk.Window):
         self.action_bar.pack_start(Gtk.Label("Plan:"))
         self.action_bar.pack_start(self.plan_button)
         self.action_bar.pack_start(self.cancel_button)
+        home_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        Gtk.StyleContext.add_class(home_box.get_style_context(), "linked")
+        home_box.pack_start(self.home_button, False, False, 0)
+        home_box.pack_start(self.home_more_button, False, False, 0)
+        self.action_bar.pack_start(home_box)
         self.action_bar.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
         self.action_bar.pack_start(Gtk.Label("Wildfire:"))
         self.action_bar.pack_start(self.propagate_button)
@@ -729,6 +770,27 @@ class SAOPControlWindow(Gtk.Window):
         for uav in self.hmi_model.known_uavs():
             self.hmi_model.stop_command(uav)
 
+    def on_home_clicked(self, button, uav: ty.Optional[str]):
+        # Go home
+        self.hmi_model.home_command(uav)
+
+    def on_new_uav(self, uav: str):
+        print("Go Home!")
+        if len(self.hmi_model.uav_state.data.keys()) < 1:
+            return
+        self.home_button.set_sensitive(True)
+        menu = Gtk.Menu()
+        for uav in [*self.hmi_model.uav_state.data.keys()]:
+            def cb(menu_item, u):
+                self.hmi_model.home_command(u)
+
+            mi = Gtk.MenuItem(label=uav)
+            mi.connect("activate", cb, uav)
+            mi.show()
+            menu.append(mi)
+        self.home_more_button.set_use_popover(True)
+        self.home_more_button.set_popup(menu)
+
 
 if __name__ == "__main__":
 
@@ -741,6 +803,7 @@ if __name__ == "__main__":
 
     # Model
     themodel = HMIModel()
+    themodel.set_uav_bases({"x8-06": (2776500.0, 2211500.0)})
 
     # View
     win = SAOPControlWindow(themodel)

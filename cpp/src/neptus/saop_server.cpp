@@ -161,7 +161,20 @@ namespace SAOP {
             std::vector<std::string> maneuver_names = std::vector<std::string>(n_start, n_end);
             std::vector<double> maneuver_times = std::vector<double>(t_start, t_end);
 
-            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84,maneuver_times, maneuver_names);
+            return PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_times, maneuver_names);
+        }
+
+        IMC::PlanSpecification GCS::plan_specification(LoiterManeuver loiter, double speed, std::string plan_id) {
+            switch (projected_coordinate_system_epsg) {
+                case EPSG_ETRS89_LAEA:
+                    loiter.circle.center = laea_to_world_coordinates(loiter.circle.center);
+                    break;
+                default:
+                    // If not ETRS89/LAEA, fallback to RGF93/Lambert93
+                    loiter.circle.center = lambert93_to_world_coordinates(loiter.circle.center);
+            }
+
+            return PlanSpecificationFactory::make_message(plan_id, loiter, speed);
         }
 
         void GCS::estimated_state_handler(std::unique_ptr<IMC::EstimatedState> m) {
@@ -413,6 +426,19 @@ namespace SAOP {
                 }
             }
             return false;
+        }
+
+        bool GCS::loiter(std::string plan_id, LoiterManeuver loiter, double speed, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return false;
+            }
+
+            return start(plan_specification(loiter, speed, plan_id), uav_addr);
         }
 
     }

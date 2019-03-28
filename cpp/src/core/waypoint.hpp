@@ -153,7 +153,17 @@ namespace SAOP {
         Position as_2d() const {
             return Position{x, y};
         }
+
+        friend std::ostream& operator<<(std::ostream& stream, const Position3d& s) {
+            return stream << "(" << s.x << ", " << s.y << ", " << s.z << ")";
+        }
     };
+
+    static void to_json(json& j, const Position3d& p) {
+        j = json{{"x", p.x},
+                 {"y", p.y},
+                 {"z", p.z}};
+    }
 
     struct Waypoint final {
         // order and length is important for compatibility with dubins.cpp, allowing to simply cast a Waypoint* to a double*
@@ -300,8 +310,8 @@ namespace SAOP {
                   length(length) {}
 
         Segment(const Position pt1, const Position pt2) : Segment(
-                Waypoint {pt1.x, pt1.y, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
-                Waypoint {pt2.x, pt2.y, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {}
+                Waypoint{pt1.x, pt1.y, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
+                Waypoint{pt2.x, pt2.y, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {}
 
         friend std::ostream& operator<<(std::ostream& stream, const Segment& s) {
             return stream << "<" << s.start << "--" << s.end << ", " << s.length << ">";
@@ -339,14 +349,14 @@ namespace SAOP {
                   length(xy_length), xy_length(xy_length) {}
 
         Segment3d(const Position3d& pt1, const Position3d& pt2)
-                : Segment3d(Waypoint3d {pt1.x, pt1.y, pt1.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
-                            Waypoint3d {pt2.x, pt2.y, pt2.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
+                : Segment3d(Waypoint3d{pt1.x, pt1.y, pt1.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
+                            Waypoint3d{pt2.x, pt2.y, pt2.z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
             ASSERT(ALMOST_EQUAL(start.z, end.z));
         }
 
         Segment3d(const Position& pt1, const Position& pt2, double z)
-                : Segment3d(Waypoint3d {pt1.x, pt1.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
-                            Waypoint3d {pt2.x, pt2.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
+                : Segment3d(Waypoint3d{pt1.x, pt1.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)},
+                            Waypoint3d{pt2.x, pt2.y, z, atan2(pt2.y - pt1.y, pt2.x - pt1.x)}) {
             ASSERT(ALMOST_EQUAL(start.z, end.z));
         }
 
@@ -397,6 +407,39 @@ namespace SAOP {
 
         Position3dTime(const Position3d& p, const double t) : pt(p), time(t) {};
     };
+
+    enum class CircularDirection : uint8_t {
+        Clockwise = 1,
+        CounterClockwise = 2
+    };
+
+    struct Circle final {
+        Position3d center;
+        double radius;
+
+        friend std::ostream& operator<<(std::ostream& stream, const Circle& s) {
+            return stream << "Circle(" << s.center << ", " << s.radius << ")";
+        }
+    };
+
+    struct LoiterManeuver final {
+        Circle circle;
+        CircularDirection direction;
+        double duration;
+    };
+
+    [[maybe_unused]]
+    static void to_json(json& j, const Circle& cir) {
+        j = json{{"center", cir.center},
+                 {"radius", cir.radius}};
+    }
+
+    [[maybe_unused]]
+    static void to_json(json& j, const LoiterManeuver& cir) {
+        j = json{{"circle",    cir.circle},
+                 {"direction", static_cast<uint8_t>(cir.direction)},
+                 {"duration",  cir.duration}};
+    }
 
     /* Intervals represented by this structure are of the form [a, b]
      * If a or b are +/- std::numeric_limits<T>::infinity() then they represent open bounds. */

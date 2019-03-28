@@ -194,10 +194,10 @@ namespace SAOP {
                 return maneuver_loiter;
             };
 
-            static IMC::Loiter make_message(double lat, double lon, float z, uint16_t duration,
+            static IMC::Loiter make_message(double lat, double lon, float z, uint16_t duration, float speed,
                                             float radius, IMC::Loiter::DirectionEnum direction) {
-                return make_message(1000, lat, lon, z, IMC::ZUnits::Z_HEIGHT,
-                                    duration, 17.0, IMC::SpeedUnits::SUNITS_METERS_PS,
+                return make_message(std::numeric_limits<uint16_t>::max(), lat, lon, z, IMC::ZUnits::Z_HEIGHT,
+                                    duration, speed, IMC::SpeedUnits::SUNITS_METERS_PS,
                                     IMC::Loiter::LoiterTypeEnum::LT_CIRCULAR, radius, 1, 1, direction, "tuplelist");
             };
         };
@@ -288,9 +288,10 @@ namespace SAOP {
                 return plan_spec;
             }
 
-            static IMC::PlanSpecification make_message(const std::string& name, const std::vector<Waypoint3d>& wgs_waypoints,
-                                                       const std::vector<double>& wp_times,
-                                                       const std::vector<std::string>& maneuver_names) {
+            static IMC::PlanSpecification
+            make_message(const std::string& name, const std::vector<Waypoint3d>& wgs_waypoints,
+                         const std::vector<double>& wp_times,
+                         const std::vector<std::string>& maneuver_names) {
                 ASSERT(!wgs_waypoints.empty());
                 ASSERT(wgs_waypoints.size() == maneuver_names.size());
                 ASSERT(wgs_waypoints.size() == wp_times.size());
@@ -299,8 +300,10 @@ namespace SAOP {
 
                 for (size_t i = 0; i != wgs_waypoints.size(); ++i) {
                     auto man_gotox = SAOP::neptus::ScheduledGotoFactory::make_message(wp_times[i],
-                            wgs_waypoints[i].y, wgs_waypoints[i].x, static_cast<float>(wgs_waypoints[i].z),
-                            IMC::ScheduledGoto::DelayedBehaviorEnum::DBEH_RESUME);
+                                                                                      wgs_waypoints[i].y,
+                                                                                      wgs_waypoints[i].x,
+                                                                                      static_cast<float>(wgs_waypoints[i].z),
+                                                                                      IMC::ScheduledGoto::DelayedBehaviorEnum::DBEH_RESUME);
                     pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message(maneuver_names[i],
                                                                                   man_gotox));
                 }
@@ -308,6 +311,27 @@ namespace SAOP {
                 auto plan_spec = IMC::PlanSpecification();
                 plan_spec.plan_id = name;
                 plan_spec.start_man_id = maneuver_names[0];
+                plan_spec.maneuvers = pmx;
+                plan_spec.transitions = SequentialPlanTransitionListFactory::make_message(pmx);
+
+                return plan_spec;
+            }
+
+            static IMC::PlanSpecification make_message(const std::string& name, LoiterManeuver loiter, double speed) {
+                ASSERT(!name.empty());
+
+                auto pmx = IMC::MessageList<IMC::PlanManeuver>();
+
+                auto man_loiter = SAOP::neptus::LoiterFactory::make_message(
+                        loiter.circle.center.y, loiter.circle.center.x, static_cast<float>(loiter.circle.center.z),
+                        static_cast<uint16_t>(loiter.duration), static_cast<float>(speed),
+                        static_cast<float>(loiter.circle.radius),
+                        static_cast<IMC::Loiter::DirectionEnum>(loiter.direction));
+                pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message(name, man_loiter));
+
+                auto plan_spec = IMC::PlanSpecification();
+                plan_spec.plan_id = name;
+                plan_spec.start_man_id = name;
                 plan_spec.maneuvers = pmx;
                 plan_spec.transitions = SequentialPlanTransitionListFactory::make_message(pmx);
 
