@@ -62,7 +62,6 @@ namespace SAOP {
             return _observed;
         }
 
-
         void observe(const Trajectory& traj) {
             auto wp_t = traj.as_waypoints_with_time();
             observed_fire(std::move(std::get<0>(wp_t)), std::move(std::get<1>(wp_t)), traj.conf().uav,
@@ -99,7 +98,7 @@ namespace SAOP {
             for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
                 if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
                     opt<std::vector<Cell>> ignited_cells =
-                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width(),
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, (*it_wp).forward(1.)}, uav.view_width(),
                                                          uav.view_depth(), fire);
                     if (ignited_cells) {
                         for (const auto& c: *ignited_cells) {
@@ -119,6 +118,7 @@ namespace SAOP {
         void observed_fire(const vector<Waypoint3d>& shot_wp_list,
                            const vector<double>& shot_time_list, const UAV& uav,
                            GenRaster<T>& fire_raster, GenRaster<T>& obs_raster) const {
+            // Observe the fire from each waypoint of the vector at the corresponding time individually.
             ASSERT(shot_wp_list.size() == shot_time_list.size());
 
             if (shot_wp_list.empty()) {
@@ -133,14 +133,14 @@ namespace SAOP {
             for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
                 if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
                     opt<std::vector<Cell>> ignited_cells =
-                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width(),
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, (*it_wp).forward(1.)}, uav.view_width(),
                                                          uav.view_depth(), obs_raster);
                     if (ignited_cells) {
                         for (const auto& c: *ignited_cells) {
-                            TimeWindow fire_time_window = TimeWindow{_environment->ignitions(c),
-                                                                     _environment->traversal_end(c)};
+                            TimeWindow fire_tw = TimeWindow{_environment->ignitions(c),
+                                                            _environment->traversal_end(c)};
                             obs_raster.set(c, *it_t); // Set the time the cell was observed
-                            if (fire_time_window.contains(*it_t)) {
+                            if (fire_tw.contains(*it_t)) {
                                 // Set the time the cell was observed ON FIRE
                                 fire_raster.set(c, *it_t);
                             }
@@ -166,7 +166,7 @@ namespace SAOP {
             for (; it_wp != shot_wp_list.end() - 1 || it_t != shot_time_list.end() - 1; ++it_wp, ++it_t) {
                 if (!uav.is_turning(*it_wp, *(it_wp + 1))) {
                     opt<std::vector<Cell>> ignited_cells =
-                            *RasterMapper::segment_trace(Segment3d{*it_wp, *(it_wp + 1)}, uav.view_width(),
+                            *RasterMapper::segment_trace(Segment3d{*it_wp, (*it_wp).forward(1.)}, uav.view_width(),
                                                          uav.view_depth(), _environment->ignitions);
                     if (ignited_cells) {
                         for (const auto& c: *ignited_cells) {
@@ -183,6 +183,7 @@ namespace SAOP {
             }
             return fire_cells;
         }
+
     private:
         shared_ptr<FireData> _environment;
         GenRaster<T> _fire_map;
