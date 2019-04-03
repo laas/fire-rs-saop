@@ -94,7 +94,7 @@ class MorseWildfireNode:
         rospy.init_node("morse_wildfire")
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
-        self.sub_predicted_wildfire = rospy.Subscriber("wildfire_prediction", PredictedWildfireMap,
+        self.sub_predicted_wildfire = rospy.Subscriber("real_wildfire", PredictedWildfireMap,
                                                        callback=self.on_predicted_wildfire,
                                                        queue_size=1)
         self.shared_wildfire_map = wildfire_res
@@ -108,7 +108,7 @@ class MorseWildfireNode:
 if __name__ == '__main__':
 
     address = ('localhost', 4000)
-    terrain_obj_name = "demo_fire"
+    terrain_obj_name = "elevation"
 
     wf = Resource()
     node = MorseWildfireNode(wf)

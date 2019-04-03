@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import datetime
+import os.path
 
 import numpy as np
 import rospy
@@ -39,7 +40,8 @@ import serialization
 
 
 class LighterNode:
-    def __init__(self):
+    def __init__(self, workdir: str):
+        self.workdir = workdir
         rospy.init_node("wildfire_starter")
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
         self.pub_w = rospy.Publisher("wildfire_point", Timed2DPointStamped, queue_size=1,
@@ -64,12 +66,19 @@ class LighterNode:
         rospy.loginfo("Notify alarm point")
         rospy.loginfo(fire_pos)
 
+    def save_dem_of_firemap(self, environment: fire_rs.firemodel.propagation.Environment):
+        environment.raster.write_to_file(os.path.join(self.workdir, "elevation.tif"), "elevation")
+
     def notify_alarm_map(self, firemap: fire_rs.geodata.geo_data.GeoData):
         if callable(firemap):
             firemap = firemap()
         wildfire_message = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
                                        raster=serialization.raster_msg_from_geodata(firemap,
                                                                                     layer="ignition"))
+        firemap.data["ignition"][firemap.data["ignition"] == np.inf] = 0
+        firemap.data["ignition"][firemap.data["ignition"].nonzero()] = 65535
+        firemap.write_to_image_file(os.path.join(self.workdir, "fire.png"), "ignition")
+
         self.pub_wildfire_obs.publish(wildfire_message)
         rospy.loginfo("Notify alarm map")
         rospy.loginfo(wildfire_message)
@@ -130,7 +139,7 @@ class LighterNode:
 
 if __name__ == '__main__':
     try:
-        w_starter = LighterNode()
+        w_starter = LighterNode("/home/rbailonr/")
         half_hour = rospy.Duration(secs=30 * 60)
         one_hour = rospy.Duration(secs=1 * 60 * 60)
         two_hours = rospy.Duration(secs=2 * 60 * 60)
@@ -200,6 +209,7 @@ if __name__ == '__main__':
             ignitions_cell = [rw.fire_map.array_index(p) for p in ignitions]
 
             actions = [
+                (w_starter.save_dem_of_firemap, ((environment,))),
                 (rw.ignite, (ignitions[0],)),
                 (rw.propagate, (datetime.timedelta(minutes=120.),)),
                 (rw.change_wind, (3, np.pi / 4)),
@@ -209,8 +219,8 @@ if __name__ == '__main__':
                 (rw.propagate, (datetime.timedelta(minutes=60.),)),
                 (rw.change_wind, (3, 0.)),
                 (rw.propagate, (datetime.timedelta(minutes=60.),)),
-                (rw.change_wind, (3, np.pi / 4)),
-                (rw.propagate, (datetime.timedelta(minutes=500.),)),
+                # (rw.change_wind, (3, np.pi / 4)),
+                # (rw.propagate, (datetime.timedelta(minutes=5000.),)),
                 # (rw.change_wind, (3, np.pi / 2)),
                 # (rw.propagate, (datetime.timedelta(minutes=35.),)),
                 (w_starter.notify_wind, (3., 0.)),
