@@ -33,7 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <pybind11/stl.h> // for conversions between c++ and python collections
 #include <pybind11/numpy.h> // support for numpy arrays
 
-#include "neptus/saop_to_dune.hpp"
 #include "neptus/imc_comm.hpp"
 #include "neptus/saop_server.hpp"
 
@@ -50,24 +49,6 @@ PYBIND11_MODULE(neptus_interface, m) {
     m.def("set_logger", [&m](py::object& logger) {
         SAOP::set_python_sink(logger);
     }, py::arg("logger").none(false), "Use a python logger as Boost::Log sink");
-
-    // Direct Dune interface
-
-    m.def("upload_plan", neptus::send_plan_to_dune, py::arg("ip"), py::arg("port"),
-          py::arg("plan"), py::arg("plan_id"), py::arg("segment_extension"), py::arg("sampled"));
-
-    m.def("start_plan", neptus::send_plan_start_request, py::arg("ip"), py::arg("port"),
-          py::arg("plan_id"));
-
-    m.def("set_wind", [](const std::string& ip, const std::string& port,
-                         float direction, float speed) {
-        neptus::DuneLink dl(ip, port);
-        auto wsm = neptus::WindSpeedFactory::make_message(direction, speed);
-        dl.send(wsm);
-    }, py::arg("ip"), py::arg("port"), py::arg("direction"), py::arg("speed"));
-
-    py::class_<neptus::DuneLink>(m, "DuneLink")
-            .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
 
     // Neptus interface
     py::class_<neptus::IMCComm, std::shared_ptr<neptus::IMCComm>>(m, "IMCComm")
