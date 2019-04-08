@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <vector>
 
 #include <boost/asio.hpp>
+#include <boost/bind.hpp>
 #include <boost/log/trivial.hpp>
 
 #include "../../IMC/Base/ByteBuffer.hpp"
@@ -62,8 +63,98 @@ namespace SAOP {
         typedef SharedQueue<std::unique_ptr<IMC::Message>> IMCMessageQueue;
 
         using boost::asio::ip::tcp;
+        using boost::asio::ip::udp;
 
-        class IMCTransportTCP {
+        class IMCTransport {
+        public:
+//            virtual ~IMCTransport() = 0;
+
+            virtual void run() = 0;
+
+            /* Set function the function to be called on message reception */
+            virtual void set_recv_handler(std::function<void(std::unique_ptr<IMC::Message>)> a_recv_handler) = 0;
+
+            virtual void send(std::unique_ptr<IMC::Message> message) = 0;
+
+            virtual bool is_ready() = 0;
+
+            virtual void stop() = 0;
+
+        };
+
+        class IMCTransportUDP : public IMCTransport {
+            boost::asio::io_service io_service;
+
+            std::function<void(std::unique_ptr<IMC::Message>)> recv_handler;
+            std::thread recv_thread;
+
+            udp::endpoint local_endpoint;
+            udp::socket recv_socket;
+            udp::endpoint recv_endpoint; // End point of the DUNE instance from which we recv messages
+
+            udp::endpoint remote_endpoint;
+            udp::socket send_socket;
+
+            std::array<uint8_t, 65535> recv_buffer = std::array<uint8_t, 65535>();
+
+            bool ready = false;
+
+        public:
+            explicit IMCTransportUDP(unsigned short port, std::string dst_ip, std::string dst_port)
+                    : recv_handler(nullptr),
+                      local_endpoint(udp::endpoint(udp::v4(), port)),
+                      recv_socket(udp::socket(io_service, local_endpoint)),
+                      send_socket(udp::socket(io_service, udp::v4())) {
+                udp::resolver resolver(io_service);
+                udp::resolver::query query(udp::v4(), dst_ip, dst_port);
+                remote_endpoint = *resolver.resolve(query);
+            }
+
+            ~IMCTransportUDP() {
+                io_service.stop();
+                recv_thread.join();
+            }
+
+            void run() override {
+                recv_thread = std::thread(std::bind(&IMCTransportUDP::recv_io_loop, this));
+            }
+
+            /* Set the function to be called on message reception */
+            void set_recv_handler(std::function<void(std::unique_ptr<IMC::Message>)> a_recv_handler) override {
+                recv_handler = std::move(a_recv_handler);
+            }
+
+            /* Enqueue message to be sent */
+            void send(std::unique_ptr<IMC::Message> message) override {
+                IMC::ByteBuffer serl_b = IMC::ByteBuffer(65535);
+                size_t n_bytes = IMC::Packet::serialize(message.get(), serl_b);
+                BOOST_LOG_TRIVIAL(debug) << "Send " << message->getName() << "(" << static_cast<uint>(message->getId())
+                                         << "): "
+                                         << "from (" << message->getSource() << ", "
+                                         << static_cast<uint>(message->getSourceEntity())
+                                         << ") " << "to (" << message->getDestination() << ", "
+                                         << static_cast<uint>(message->getDestinationEntity()) << ")";
+                send_socket.send_to(boost::asio::buffer(serl_b.getBuffer(), n_bytes), remote_endpoint);
+            }
+
+            bool is_ready() override {
+                return ready;
+            }
+
+            void stop() override {
+                io_service.stop();
+                recv_thread.join();
+            }
+
+        private:
+            void recv_io_loop();
+
+            void async_recv_from();
+
+            void handle_receive(const boost::system::error_code& error, std::size_t bytes_transferred);
+        };
+
+        class IMCTransportTCP : public IMCTransport {
             unsigned short port;
 
             std::function<void(std::unique_ptr<IMC::Message>)> recv_handler;
@@ -71,7 +162,7 @@ namespace SAOP {
 
             std::thread session_thread;
 
-            bool socket_connected;
+            bool socket_connected = false;
 
         public:
             explicit IMCTransportTCP(unsigned short port)
@@ -79,32 +170,37 @@ namespace SAOP {
 
             IMCTransportTCP(unsigned short port,
                             std::function<void(std::unique_ptr<IMC::Message>)> recv_handler)
-                    : port(port), recv_handler(std::move(recv_handler)), send_q(std::make_shared<IMCMessageQueue>()) {}
+                    : port(port), recv_handler(std::move(recv_handler)),
+                      send_q(std::make_shared<IMCMessageQueue>()) {}
 
             void loop();
 
-            void run();
+            void run() override;
 
             void session(std::shared_ptr<tcp::socket> sock);
 
             /* Set function the function to be called on message reception */
-            void set_recv_handler(std::function<void(std::unique_ptr<IMC::Message>)> a_recv_handler) {
+            void set_recv_handler(std::function<void(std::unique_ptr<IMC::Message>)> a_recv_handler) override {
                 recv_handler = std::move(a_recv_handler);
             }
 
             /* Enqueue message to be sent */
-            void send(std::unique_ptr<IMC::Message> message) {
+            void send(std::unique_ptr<IMC::Message> message) override {
                 send_q->push(std::move(message));
             }
 
-            bool is_ready() {
+            bool is_ready() override {
                 return socket_connected;
+            }
+
+            void stop() override {
+                // FIXME
             }
         };
 
         /* TODO: Enable shared_from_this ? */
         class IMCComm {
-            IMCTransportTCP tcp_server;
+            std::unique_ptr<IMCTransport> imc_transport;
             std::shared_ptr<IMCMessageQueue> recv_q;
             std::unordered_map<size_t, std::function<void(std::unique_ptr<IMC::Message>)>> message_bindings;
 
@@ -114,25 +210,46 @@ namespace SAOP {
 
         public:
             IMCComm() :
-                    tcp_server(IMCTransportTCP(8888)),
+                    imc_transport(std::unique_ptr<IMCTransport>(new IMCTransportTCP(8888))),
                     recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
                     thp(1) {}
 
-//            explicit IMCComm(IMCTransportTCP tcp_server) :
-//                    tcp_server(std::move(tcp_server)),
-//                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()) {}
+            explicit IMCComm(unsigned short port) :
+                    imc_transport(std::unique_ptr<IMCTransport>(new IMCTransportTCP(port))),
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
+                    thp(1) {}
+
+            IMCComm(unsigned short port, std::string dst_ip, std::string dst_port) :
+                    imc_transport(std::unique_ptr<IMCTransport>(new IMCTransportUDP(port, dst_ip, dst_port))),
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
+                    thp(1) {}
+
+            explicit IMCComm(std::unique_ptr<IMCTransport> transport) :
+                    imc_transport(std::move(transport)),
+                    recv_q(std::make_shared<SAOP::neptus::IMCMessageQueue>()),
+                    thp(1) {}
+
+//            static std::unique_ptr<IMCComm> using_tcp_transport(unsigned short port) {
+//                auto trans = std::unique_ptr<IMCTransport>(new IMCTransportTCP(port));
+//                return std::unique_ptr<IMCComm>(new IMCComm(std::move(trans)));
+//            }
+//
+//            static std::unique_ptr<IMCComm> udp_transport(unsigned short port, std::string dst_ip, std::string dst_port) {
+//                auto trans = std::unique_ptr<IMCTransport>(new IMCTransportUDP(port, dst_ip, dst_port));
+//                return std::unique_ptr<IMCComm>(new IMCComm(std::move(trans)));
+//            }
 
             void loop();
 
             void run();
 
             bool is_ready() {
-                return ready & tcp_server.is_ready();
+                return ready & imc_transport->is_ready();
             }
 
             /* Enqueue message to be sent */
             void send(std::unique_ptr<IMC::Message> message) {
-                tcp_server.send(std::move(message));
+                imc_transport->send(std::move(message));
             }
 
             /*Bind a message id to a handler function*/

@@ -690,7 +690,7 @@ class NeptusBridge:
         """
         self.logger = logger
 
-        self.imccomm = nifc.IMCComm()
+        self.imccomm = nifc.IMCComm(6020, "127.0.0.1", "6010")
         self.gcs = None
 
         self.uav_state = {}
@@ -749,7 +749,7 @@ class NeptusBridge:
             fire_rs.planning.new_planning.Circle(
                 fire_rs.planning.new_planning.Position(*center), radius),
             fire_rs.planning.new_planning.CircularDirection(direction), duration)
-        print("uav"+str(uav))
+        print("uav" + str(uav))
         self.gcs.loiter(plan_name, loiter, planning.UAVModels.get(uav).max_air_speed, uav)
 
     def start_trajectory(self, t: planning.Trajectory, uav: str) -> bool:

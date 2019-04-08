@@ -70,19 +70,18 @@ PYBIND11_MODULE(neptus_interface, m) {
             .def(py::init<std::string, std::string>(), py::arg("ip"), py::arg("port"));
 
     // Neptus interface
+    py::class_<neptus::IMCComm, std::shared_ptr<neptus::IMCComm>>(m, "IMCComm")
+            .def(py::init<unsigned short, std::string, std::string>(), py::arg("local_port"), py::arg("remote_ip"),
+                 py::arg("remote_port"), "IMC communication with dune vehicles using UDP")
+            .def(py::init<unsigned short>(), py::arg("remote_port"), "IMC communication with Neptus using TCP")
+            .def("run", &neptus::IMCComm::run, py::call_guard<py::gil_scoped_release>());
 
-
-    py::class_ < neptus::IMCComm,
-            std::shared_ptr < neptus::IMCComm >> (m, "IMCComm")
-                    .def(py::init())
-                    .def("run", &neptus::IMCComm::run, py::call_guard<py::gil_scoped_release>());
-
-    py::class_ < neptus::GCS, std::shared_ptr < neptus::GCS >> (m, "GCS")
-            .def(py::init < std::shared_ptr < neptus::IMCComm >> (), py::arg("imc"))
-            .def(py::init < std::shared_ptr < neptus::IMCComm > ,
-                 std::function < void(neptus::TrajectoryExecutionReport) > ,
-                 std::function < void(neptus::UAVStateReport) > ,
-                 std::function < void(neptus::FireMapReport) > , int > (),
+    py::class_<neptus::GCS, std::shared_ptr<neptus::GCS >>(m, "GCS")
+            .def(py::init<std::shared_ptr<neptus::IMCComm >>(), py::arg("imc"))
+            .def(py::init<std::shared_ptr<neptus::IMCComm>,
+                         std::function<void(neptus::TrajectoryExecutionReport)>,
+                         std::function<void(neptus::UAVStateReport)>,
+                         std::function<void(neptus::FireMapReport)>, int>(),
                  py::arg("imc"), py::arg("ter_cb"), py::arg("usr_cb"), py::arg("fmr_cb"), py::arg("pcs_epsg"),
                  py::call_guard<py::gil_scoped_release>())
 

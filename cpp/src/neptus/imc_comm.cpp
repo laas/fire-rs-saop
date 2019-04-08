@@ -65,10 +65,9 @@ namespace SAOP {
                     boost::system::error_code error;
                     size_t length = sock->read_some(boost::asio::buffer(bb.getBuffer(), bb.getSize()), error);
                     if (error == boost::asio::error::eof) {
-                        BOOST_LOG_TRIVIAL(info) << "Socket: " <<  error.message();
+                        BOOST_LOG_TRIVIAL(info) << "Socket: " << error.message();
                         break; // Connection closed cleanly by peer.
-                    }
-                    else if (error) {
+                    } else if (error) {
                         BOOST_LOG_TRIVIAL(error) << "Socket: " << error.message();
                         throw boost::system::system_error(error); // Some other error.
                     }
@@ -82,7 +81,8 @@ namespace SAOP {
                             if (recv_handler) {
                                 recv_handler(std::move(std::unique_ptr<IMC::Message>(hb)));
                             } else {
-                                BOOST_LOG_TRIVIAL(error) << "recv_handler not set. Received messages are being discarded.";
+                                BOOST_LOG_TRIVIAL(error)
+                                    << "recv_handler not set. Received messages are being discarded.";
                             }
                             // Advance buffer cursor past the end of serialized hb.
                             delta += ser_size;
@@ -95,10 +95,12 @@ namespace SAOP {
                     while (send_q->pop(m)) {
                         IMC::ByteBuffer serl_b = IMC::ByteBuffer(65535);
                         size_t n_bytes = IMC::Packet::serialize(m.get(), serl_b);
-                        BOOST_LOG_TRIVIAL(debug) << "Send " << m->getName() << "(" << static_cast<uint>(m->getId()) << "): "
-                                  << "from (" << m->getSource() << ", " << static_cast<uint>(m->getSourceEntity())
-                                  << ") " << "to (" << m->getDestination() << ", "
-                                  << static_cast<uint>(m->getDestinationEntity()) << ")";
+                        BOOST_LOG_TRIVIAL(debug) << "Send " << m->getName() << "(" << static_cast<uint>(m->getId())
+                                                 << "): "
+                                                 << "from (" << m->getSource() << ", "
+                                                 << static_cast<uint>(m->getSourceEntity())
+                                                 << ") " << "to (" << m->getDestination() << ", "
+                                                 << static_cast<uint>(m->getDestinationEntity()) << ")";
                         boost::asio::write(*sock, boost::asio::buffer(serl_b.getBuffer(), n_bytes));
                     }
                 }
@@ -110,8 +112,55 @@ namespace SAOP {
             socket_connected = false;
         }
 
+        void IMCTransportUDP::recv_io_loop() {
+            ready = true;
+            BOOST_LOG_TRIVIAL(info) << "Open UDP socket " << local_endpoint;
+            async_recv_from();
+            while (!io_service.stopped()) {
+                try {
+                    io_service.run();
+                } catch (const std::exception& e) {
+                    ready = false;
+                    BOOST_LOG_TRIVIAL(warning) << "IMCTransportUDP network error: " << e.what();
+                }
+            }
+            ready = false;
+            BOOST_LOG_TRIVIAL(info) << "IMCTransportUDP stopped";
+        }
+
+        void IMCTransportUDP::async_recv_from() {
+            recv_socket.async_receive_from(boost::asio::buffer(recv_buffer), recv_endpoint,
+                                           boost::bind(&IMCTransportUDP::handle_receive, this,
+                                                       boost::asio::placeholders::error,
+                                                       boost::asio::placeholders::bytes_transferred));
+        }
+
+        void IMCTransportUDP::handle_receive(const boost::system::error_code& error,
+                                             std::size_t bytes_transferred) {
+            if (!error) {
+                try {
+//                    BOOST_LOG_TRIVIAL(debug) << "datagram received from " << recv_endpoint;
+                    std::unique_ptr<IMC::Message> msg(IMC::Packet::deserialize(recv_buffer.data(), bytes_transferred));
+                    if (msg) {
+                        if (recv_handler) {
+                            recv_handler(std::move(msg));
+                        }
+                    } else {
+                        BOOST_LOG_TRIVIAL(error) << "handle_receive: Error parsing IMC message";
+                    }
+                }
+                catch (...) {
+                    BOOST_LOG_TRIVIAL(error) << "handle_receive: Unknown error while parsing IMC message";
+                }
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "handle_receive error: ", error.message();
+            }
+
+            async_recv_from();
+        }
+
         void IMCComm::loop() {
-            tcp_server.set_recv_handler(std::bind(&IMCComm::message_inbox, this, std::placeholders::_1));
+            imc_transport->set_recv_handler(std::bind(&IMCComm::message_inbox, this, std::placeholders::_1));
 
             // Demo HeartBeat handler
             bind<IMC::Heartbeat>([this](std::unique_ptr<IMC::Heartbeat> m) {
@@ -124,7 +173,7 @@ namespace SAOP {
                 this->send(std::move(answer));
             });
 
-            tcp_server.run();
+            imc_transport->run();
             message_dispatching_loop();
         }
 
@@ -141,12 +190,12 @@ namespace SAOP {
                         try {
                             auto hnld_fun = message_bindings.at(m->getId());
                             BOOST_LOG_TRIVIAL(debug) << "Process IMC message " << m->getName()
-                                      << "(" << static_cast<uint>(m->getId()) << "): "
-                                      << "from(" << m->getSource() << ", "
-                                      << static_cast<uint>(m->getSourceEntity()) << ") "
-                                      << "to(" << m->getDestination() << ", "
-                                      << static_cast<uint>(m->getDestinationEntity()) << ")"
-                                      << std::endl;
+                                                     << "(" << static_cast<uint>(m->getId()) << "): "
+                                                     << "from(" << m->getSource() << ", "
+                                                     << static_cast<uint>(m->getSourceEntity()) << ") "
+                                                     << "to(" << m->getDestination() << ", "
+                                                     << static_cast<uint>(m->getDestinationEntity()) << ")"
+                                                     << std::endl;
                             hnld_fun(std::move(m));
 //                            auto m_raw = m.get();
 //                            m.release();
@@ -157,11 +206,11 @@ namespace SAOP {
 //                            });
                         } catch (const std::out_of_range& e) {
                             BOOST_LOG_TRIVIAL(warning) << "Unhandled IMC message " << m->getName()
-                                      << "(" << static_cast<uint>(m->getId()) << "): "
-                                      << "from(" << m->getSource() << ", "
-                                      << static_cast<uint>(m->getSourceEntity()) << ") "
-                                      << "to(" << m->getDestination() << ", "
-                                      << static_cast<uint>(m->getDestinationEntity()) << ")";
+                                                       << "(" << static_cast<uint>(m->getId()) << "): "
+                                                       << "from(" << m->getSource() << ", "
+                                                       << static_cast<uint>(m->getSourceEntity()) << ") "
+                                                       << "to(" << m->getDestination() << ", "
+                                                       << static_cast<uint>(m->getDestinationEntity()) << ")";
                         }
                     }
                 }
@@ -171,6 +220,5 @@ namespace SAOP {
             }
             ready = false;
         }
-
     }
 }
