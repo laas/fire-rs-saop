@@ -56,6 +56,13 @@ class LighterNode:
 
         self.pub_p = rospy.Publisher("propagate", PropagateCmd, queue_size=1, tcp_nodelay=True)
 
+        self.pub_x8_06_wind = rospy.Publisher("/uavs/x8_06/windspeed", MeanWindStamped,
+                                              queue_size=1, tcp_nodelay=True)
+
+    def set_x8_06_wind(self, speed, direction):
+        self.pub_x8_06_wind.publish(MeanWindStamped(header=Header(stamp=rospy.Time.now()),
+                                                    speed=speed, direction=direction))
+
     def notify_alarm_point(self, position, timestamp):
         if callable(timestamp):
             timestamp = timestamp()
@@ -197,7 +204,7 @@ if __name__ == '__main__':
                     **world_paths,
                     landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
             rw = fire_rs.simulation.wildfire.RealWildfire(
-                datetime.datetime.fromtimestamp((rospy.Time.now() - one_hour*5).to_sec()),
+                datetime.datetime.fromtimestamp((rospy.Time.now() - one_hour * 5).to_sec()),
                 environment)
 
             ignitions = [np.array([area[0][0] + (area[0][1] - area[0][0]) * 0.25,
@@ -230,8 +237,9 @@ if __name__ == '__main__':
                 (w_starter.notify_alarm_map,
                  (lambda: rw.perimeter(rospy.Time.now().to_sec() - 120 * 60).geodata,)),
                 (w_starter.notify_alarm_map,
-                 (lambda: rw.perimeter(rospy.Time.now().to_sec()-60*60).geodata,)),
+                 (lambda: rw.perimeter(rospy.Time.now().to_sec() - 60 * 60).geodata,)),
                 (w_starter.publish_real_fire, (rw,)),
+                (w_starter.set_x8_06_wind, (3.0, 0.0)),
                 (w_starter.propagate, None)
             ]
 

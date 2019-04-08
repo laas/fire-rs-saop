@@ -414,6 +414,15 @@ namespace SAOP {
 
                 return ws;
             }
+
+            static std::unique_ptr<IMC::WindSpeed>
+            fill_message(std::unique_ptr<IMC::WindSpeed> m, float direction, float speed) {
+                m->direction = direction;
+                m->speed = speed;
+                m->turbulence = 0;
+
+                return m;
+            }
         };
     }
 }

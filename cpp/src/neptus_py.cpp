@@ -101,6 +101,8 @@ PYBIND11_MODULE(neptus_interface, m) {
                  py::call_guard<py::gil_scoped_release>())
             .def("stop", (bool (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::stop,
                  py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
+            .def("set_wind", &neptus::GCS::set_wind, py::arg("speed"), py::arg("direction"), py::arg("uav"),
+                 "Set the wind speed and direction (m/s, rad) for an uav")
             .def_property_readonly("available_vehicles", &neptus::GCS::available_vehicles)
             .def("is_ready", &neptus::GCS::is_ready);
 

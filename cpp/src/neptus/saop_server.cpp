@@ -441,6 +441,23 @@ namespace SAOP {
             return start(plan_specification(loiter, speed, plan_id), uav_addr);
         }
 
+        bool GCS::set_wind(double modulo, double direction, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return false;
+            }
+
+            auto ws_message = produce_unique<IMC::WindSpeed>(0, 0, uav_addr, 0xFF);
+            ws_message = WindSpeedFactory::fill_message(std::move(ws_message), remainder(-direction+M_PI_2, 2*M_PI), modulo);
+
+            BOOST_LOG_TRIVIAL(debug) << "Send " << ws_message->toString();
+            imc_comm->send(std::move(ws_message));
+        }
+
     }
 }
 #endif //PLANNING_CPP_SAOP_NEPTUS_H

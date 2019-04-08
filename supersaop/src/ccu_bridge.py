@@ -92,6 +92,12 @@ class CCUBridgeNode:
         self.sub_saop_plan = rospy.Subscriber("stop", StopCmd, self.on_stop_cmd, queue_size=10)
         self.sub_saop_plan = rospy.Subscriber("go_home", HomeCmd, self.on_home_cmd, queue_size=10)
 
+        self.sub_windspeed_dict = {
+            uav: rospy.Subscriber(
+                "/".join(("uavs", serialization.ros_name_for(uav), 'windspeed')),
+                MeanWindStamped, callback=self.on_wind_speed, callback_args=uav,
+                queue_size=10) for uav in self._known_uavs}
+
     def on_saop_plan(self, msg: Plan):
         t = serialization.saop_trajectories_from_plan_msg(msg)
         for traj in t:
@@ -108,6 +114,9 @@ class CCUBridgeNode:
                         (msg.loiter.center.position.x, msg.loiter.center.position.y,
                          msg.loiter.center.position.z),
                         msg.loiter.radius, msg.loiter.direction, msg.loiter.duration.to_sec())
+
+    def on_wind_speed(self, msg: MeanWindStamped, uav: str):
+        self.ccu.set_wind(msg.speed, msg.direction, uav)
 
     def on_uav_state_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:

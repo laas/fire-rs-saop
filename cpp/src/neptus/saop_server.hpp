@@ -393,6 +393,8 @@ namespace SAOP {
             /* Stop the plan currently being executed. */
             bool stop(std::string plan_id, std::string uav);
 
+            bool set_wind(double modulo, double direction, std::string uav);
+
             /* Return true if the connection with the GCS is available */
             bool is_ready() {
                 return imc_comm->is_ready();

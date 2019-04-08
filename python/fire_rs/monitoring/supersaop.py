@@ -775,6 +775,12 @@ class NeptusBridge:
             self.logger.warning("Stop %s failed", str(uav))
             return False
 
+    def set_wind(self, speed: float, direction: float, uav: str):
+        if self.gcs.set_wind(speed, direction, uav):
+            self.logger.info("Set wind for %s to %s", uav, str((speed, direction)))
+        else:
+            self.logger.error("Failed to set wind for %s to %s", uav, str((speed, direction)))
+
     def set_trajectory_state_callback(self, fn):
         """Function to be called each time a new Plan Control State is received.
         Keep it short as it blocks the delivery of other messages!!!
