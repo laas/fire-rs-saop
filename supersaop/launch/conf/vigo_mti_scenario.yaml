@@ -1,0 +1,14 @@
+dem_dir: "/home/rbailonr/firers_data_vigo/dem"
+landcover_dir: "/home/rbailonr/firers_data_vigo/landcover"
+wind_dir: "/home/rbailonr/firers_data_vigo/wind"
+coordinate_system: 3035  # LAEA
+area: [[2786284.0, 2792284.0], [2306526.0, 2312526.0]]
+
+known_uavs: ["x8-02", "x8-06"]
+uavs:
+  x8_02:
+    base: [2789284.0, 2309526.0]
+  x8_06:
+    base: [2789284.0, 2309526.0]
+
+# MTI coords:      2789284.40    2309526.03

@@ -330,6 +330,72 @@ namespace SAOP {
             }
         };
 
+
+        std::string serialized_plan(const Trajectory& t, std::string plan_id, uint16_t uav_addr = 0x0c10,
+                                          int projected_coordinate_system_epsg = EPSG_ETRS89_LAEA) {
+            // epsg_pcs: EPSG code of trajectory waypoints projected coordinate system
+            const auto traj_as_wp_time_name = t.as_waypoints_time_name();
+            const auto& all_wp = std::get<0>(traj_as_wp_time_name);
+            const auto& all_times = std::get<1>(traj_as_wp_time_name);
+            const auto& all_names = std::get<2>(traj_as_wp_time_name);
+
+            // Remove bases
+            auto r_start = all_wp.begin();
+            auto n_start = all_names.begin();
+            auto t_start = all_times.begin();
+            auto r_end = all_wp.end();
+            auto n_end = all_names.end();
+            auto t_end = all_times.end();
+            if (t.conf().start_position && all_wp.front() == *t.conf().start_position) {
+                r_start++;
+                n_start++;
+                t_start++;
+            }
+            if (t.conf().end_position && all_wp.back() == *t.conf().end_position) {
+                r_end--;
+                n_end--;
+                t_end--;
+            }
+            auto wp_filtered = std::vector<Waypoint3d>(r_start, r_end);
+
+            double forward_dist = 0.;
+            for (auto& wp: wp_filtered) {
+                wp = wp.forward(forward_dist);
+                BOOST_LOG_TRIVIAL(info) << "Moving waypoints forward " << forward_dist << " meters";
+            }
+
+            std::vector<Waypoint3d> wp_wgs84;
+            switch (projected_coordinate_system_epsg) {
+                case EPSG_ETRS89_LAEA:
+                    wp_wgs84 = laea_to_world_coordinates(wp_filtered);
+                    break;
+                default:
+                    // If not ETRS89/LAEA, fallback to RGF93/Lambert93
+                    wp_wgs84 = lambert93_to_world_coordinates(wp_filtered);
+            }
+
+            std::vector<std::string> maneuver_names = std::vector<std::string>(n_start, n_end);
+            std::vector<double> maneuver_times = std::vector<double>(t_start, t_end);
+
+            auto ps = PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_times,
+                                                                      maneuver_names);
+            auto pc_start = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
+            pc_start->type = IMC::PlanControl::TypeEnum::PC_REQUEST;
+            pc_start->op = IMC::PlanControl::OperationEnum::PC_START;
+            pc_start->request_id = 0;
+            pc_start->plan_id = ps.plan_id;
+            pc_start->arg = IMC::InlineMessage<IMC::Message>();
+            pc_start->arg.set(ps);
+
+            IMC::ByteBuffer bin_msg = IMC::ByteBuffer(192);
+            IMC::Packet::serialize(pc_start.get(), bin_msg);
+            std::stringstream ss;
+            ss << bin_msg;
+            std::string str_msg= ss.str();
+
+            return str_msg;
+        }
+
         /* Command and supervise plan execution */
         class GCS final {
         public:

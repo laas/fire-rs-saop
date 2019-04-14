@@ -54,6 +54,8 @@ class WildfireSensorNode:
         self.sub = self.client.add_subscriber(
             URI, str(SUB_PORT), libwden.Client.generate_topic_filter(MESSAGE_FILTER, SOURCE_FILTER))
 
+        self.pub_alarm_
+
     def receive(self):
         r = self.sub.receive()
         if r:

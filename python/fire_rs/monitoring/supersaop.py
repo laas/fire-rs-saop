@@ -690,7 +690,7 @@ class NeptusBridge:
         """
         self.logger = logger
 
-        self.imccomm = nifc.IMCComm(6020, "127.0.0.1", "6010")
+        self.imccomm = nifc.IMCComm(8888)
         self.gcs = None
 
         self.uav_state = {}
