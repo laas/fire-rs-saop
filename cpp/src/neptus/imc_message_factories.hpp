@@ -112,7 +112,7 @@ namespace SAOP {
                 pm.maneuver_id = maneuver_id;
                 pm.data = IMC::InlineMessage<IMC::Maneuver>();
                 pm.data.set(maneuver_message);
-                pm.start_actions = StartActionsFactory::make_message();
+                pm.start_actions = IMC::MessageList<IMC::Message>();
 
                 return pm;
             }

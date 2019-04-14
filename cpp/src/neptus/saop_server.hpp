@@ -388,7 +388,7 @@ namespace SAOP {
             pc_start->arg.set(ps);
 
             IMC::ByteBuffer bin_msg = IMC::ByteBuffer(192);
-            IMC::Packet::serialize(pc_start.get(), bin_msg);
+            IMC::Packet::serialize(&ps, bin_msg);
             std::stringstream ss;
             ss << bin_msg;
             std::string str_msg= ss.str();
