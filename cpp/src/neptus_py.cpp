@@ -54,10 +54,12 @@ PYBIND11_MODULE(neptus_interface, m) {
     m.def("demo1_serialize_plan", [&m](SAOP::Trajectory& t, uint16_t uav_addr = 0x0c10,
                                        int projected_coordinate_system_epsg = SAOP::neptus::EPSG_ETRS89_LAEA) {
         std::string s = neptus::serialized_plan(t, "mission", uav_addr,
-                                                    projected_coordinate_system_epsg);
+                                                projected_coordinate_system_epsg);
         return py::bytes(s);  // Return the data without transcoding
 
     }, py::arg("plan").none(false), py::arg("uav_addr"), py::arg("pcs"), "Get an IMC::PlanControl as bytes");
+
+    m.def("demo1_check_ack", &neptus::check_ack, py::arg("msg").none(false));
 
     // Neptus interface
     py::class_<neptus::IMCComm, std::shared_ptr<neptus::IMCComm>>(m, "IMCComm")

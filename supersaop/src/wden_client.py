@@ -136,12 +136,14 @@ def main():
             message = libwden.receive_message(subscriber)
 
             # Print message data
-            print("Incoming message (filtered): " + str(binascii.hexlify(message)))
-            print("Incoming message (utf8): " + str(message[11:].decode("utf-8")))
-            if message[11:13] == b"T\xfe":
-                print("ACK")
+            rospy.loginfo("Incoming message: %s", str(binascii.hexlify(message)))
+            print("Incoming message (payload) %s", str(message[10:]))
+            if message[10:12] == b"T\xfe":
+                rospy.loginfo("ACK: %s",
+                              str(fire_rs.neptus_interface.demo1_check_ack(message[11:])))
             else:
                 print("This is a position")
+                pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
             # TODO: decode alarm and PlanControl ACK
 
     def on_sub_plan(msg):
@@ -151,10 +153,9 @@ def main():
                 pass
                 # Convert to plan_spec and serialize respecting 192byte limit
                 # self.ccu.start_trajectory(traj, traj.conf.uav.name)
-                msg = "PlanControl".encode("utf-8")
                 msg = fire_rs.neptus_interface.demo1_serialize_plan(traj, 0x0c10, 3035)
-                print(msg)
-                print(len(msg))
+                rospy.loginfo("%s", msg)
+                rospy.loginfo("Length: %s", str(len(msg)))
                 libwden.send_message(
                     publisher,
                     MESSAGE_TYPE,
@@ -220,5 +221,5 @@ def main():
 
 
 if __name__ == "__main__":
-    input()
+    # input()
     main()

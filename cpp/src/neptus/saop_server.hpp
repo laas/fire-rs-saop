@@ -330,9 +330,22 @@ namespace SAOP {
             }
         };
 
+        bool check_ack(std::string message_bytes) {
+            try {
+                std::unique_ptr<IMC::Message> msg(IMC::Packet::deserialize(reinterpret_cast<const uint8_t*>(message_bytes.c_str()), message_bytes.size()));
+                if (msg->getId() == IMC::PlanControl::getIdStatic())
+                {
+                    auto pc = static_cast<IMC::PlanControl*>(msg.get());
+                    return pc->type == IMC::PlanControl::TypeEnum::PC_SUCCESS;
+                }
+                return false;
+            } catch (...) {
+                return false;
+            }
+        }
 
         std::string serialized_plan(const Trajectory& t, std::string plan_id, uint16_t uav_addr = 0x0c10,
-                                          int projected_coordinate_system_epsg = EPSG_ETRS89_LAEA) {
+                                    int projected_coordinate_system_epsg = EPSG_ETRS89_LAEA) {
             // epsg_pcs: EPSG code of trajectory waypoints projected coordinate system
             const auto traj_as_wp_time_name = t.as_waypoints_time_name();
             const auto& all_wp = std::get<0>(traj_as_wp_time_name);
@@ -378,7 +391,7 @@ namespace SAOP {
             std::vector<double> maneuver_times = std::vector<double>(t_start, t_end);
 
             auto ps = PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_times,
-                                                                      maneuver_names);
+                                                             maneuver_names);
             auto pc_start = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
             pc_start->type = IMC::PlanControl::TypeEnum::PC_REQUEST;
             pc_start->op = IMC::PlanControl::OperationEnum::PC_START;
@@ -391,7 +404,7 @@ namespace SAOP {
             IMC::Packet::serialize(&ps, bin_msg);
             std::stringstream ss;
             ss << bin_msg;
-            std::string str_msg= ss.str();
+            std::string str_msg = ss.str();
 
             return str_msg;
         }
