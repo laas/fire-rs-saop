@@ -86,20 +86,20 @@ class SupervisorNode:
         elif self.supervision_state == SupervisorNodeState.Planning:
             # switch to FireMonitoring
             rospy.loginfo("%s -> %s", self.supervision_state.name,
-                          SupervisorNodeState.FireMonitoring.name)
-            self.supervision_state = SupervisorNodeState.FireMonitoring
+                          SupervisorNodeState.Alarm_recv.name)
+            self.supervision_state = SupervisorNodeState.Alarm_recv
 
     def timer_callback(self, event):
         self.next_state()
 
     def _on_fire_alarm_recv(self, msg, who: str):
         if self.supervision_state == SupervisorNodeState.Alarm_recv:
-            self.timer = rospy.Timer(rospy.Duration(secs=1, nsecs=0), self.timer_callback,
+            self.timer = rospy.Timer(rospy.Duration(secs=0, nsecs=500000000), self.timer_callback,
                                      oneshot=True)
 
     def on_wildfire_prediction(self, msg: PredictedWildfireMap):
         if self.supervision_state == SupervisorNodeState.Propagation:
-            self.timer = rospy.Timer(rospy.Duration(secs=1, nsecs=0), self.timer_callback,
+            self.timer = rospy.Timer(rospy.Duration(secs=0, nsecs=500000000), self.timer_callback,
                                      oneshot=True)
 
     def request_demo1_plan(self):
@@ -120,13 +120,13 @@ class SupervisorNode:
                  conf=p_conf,
                  trajectories=[Trajectory(conf=t_conf, maneuvers=[])])
 
-        plan_command = PlanCmd(vns_conf="demo", planning_duration=2.0, plan_prototype=p)
+        plan_command = PlanCmd(vns_conf="demo", planning_duration=1.0, plan_prototype=p)
         self.pub_plan_request.publish(plan_command)
         rospy.loginfo(plan_command)
 
     def on_saop_plan(self, msg: Plan):
         if self.supervision_state == SupervisorNodeState.Planning:
-            self.timer = rospy.Timer(rospy.Duration(secs=1, nsecs=0), self.timer_callback,
+            self.timer = rospy.Timer(rospy.Duration(secs=0, nsecs=500000000), self.timer_callback,
                                      oneshot=True)
 
 

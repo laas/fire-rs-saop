@@ -58,9 +58,13 @@ DESTINATION_FILTER = b'\x33\x33\x33\x33'
 SOURCE_FILTER = b'\x22\x22\x22\x22'
 
 # Define message to publish
-MESSAGE_TYPE = b'\x00\x03'
-DESTINATION = b'\x33\x33\x33\x33'
-SOURCE = b'\x22\x22\x22\x22'
+MESSAGE_TYPE_LAAS = b'\x00\x03'
+MESSAGE_TYPE_UAV = b'\x00\x02'
+MESSAGE_TYPE_M2M = b'\x00\x01'
+
+UAV_ADDR = b'\x10\x00\x02\x01'
+FIRESENSOR_ADDR = b'\x22\x22\x22\x22'
+SAOP_ADDR = b'\x10\x00\x00\x01'
 NOTIFICATION = "Example message".encode('utf-8')
 
 
@@ -112,23 +116,17 @@ def main():
         rospy.loginfo("Notify alarm point")
         rospy.loginfo(fire_pos)
 
-    def wden_receive_task():
+    def wden_receive_uav_task():
         # Generate subscriber
         subscriber = libwden.gen_subscriber_wfilter(
             context,
             URI,
             PUB_PORT,
             libwden.generate_topic_filter(
-                message_filter=MESSAGE_TYPE_FILTER,
-                destination_filter=DESTINATION_FILTER,
-                source_filter=SOURCE_FILTER,
+                message_filter=MESSAGE_TYPE_UAV,
+                destination_filter=SAOP_ADDR,
+                source_filter=UAV_ADDR,
             )
-        )
-        # Without filtering, you'll receive your own messages too.
-        subscriber = libwden.gen_subscriber(
-            context,
-            URI,
-            PUB_PORT
         )
 
         while not rospy.is_shutdown():
@@ -137,14 +135,71 @@ def main():
 
             # Print message data
             rospy.loginfo("Incoming message: %s", str(binascii.hexlify(message)))
-            print("Incoming message (payload) %s", str(message[10:]))
+            # print("Incoming message (payload) %s", str(message[10:]))
             if message[10:12] == b"T\xfe":
                 rospy.loginfo("ACK: %s",
                               str(fire_rs.neptus_interface.demo1_check_ack(message[11:])))
             else:
-                print("This is a position")
-                pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
+                rospy.logwarn("Incorrect IMC::Message")
+                # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
             # TODO: decode alarm and PlanControl ACK
+
+    def wden_receive_firealarm_task():
+        # Generate subscriber
+        subscriber = libwden.gen_subscriber_wfilter(
+            context,
+            URI,
+            PUB_PORT,
+            libwden.generate_topic_filter(
+                message_filter=MESSAGE_TYPE_M2M,
+                destination_filter=SAOP_ADDR
+            )
+        )
+
+        while not rospy.is_shutdown():
+            # Wait for messages
+            message = libwden.receive_message(subscriber)
+
+            # Print message data
+            rospy.loginfo("Incoming message: %s", str(binascii.hexlify(message)))
+            # print("Incoming message (payload) %s", str(message[10:]))
+            rospy.loginfo("This is a position")
+            pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
+            # TODO: decode alarm
+
+    # def wden_receive_all_task():
+    #     # Generate subscriber
+    #     subscriber = libwden.gen_subscriber_wfilter(
+    #         context,
+    #         URI,
+    #         PUB_PORT,
+    #         libwden.generate_topic_filter(
+    #             message_filter=MESSAGE_TYPE_FILTER,
+    #             destination_filter=DESTINATION_FILTER,
+    #             source_filter=SOURCE_FILTER,
+    #         )
+    #     )
+    #     # Without filtering, you'll receive your own messages too.
+    #     subscriber = libwden.gen_subscriber(
+    #         context,
+    #         URI,
+    #         PUB_PORT
+    #     )
+    #
+    #     while not rospy.is_shutdown():
+    #         # Wait for messages
+    #         message = libwden.receive_message(subscriber)
+    #
+    #         # Print message data
+    #         rospy.loginfo("Incoming message: %s", str(binascii.hexlify(message)))
+    #         # print("Incoming message (payload) %s", str(message[10:]))
+    #         if message[10:12] == b"T\xfe":
+    #             rospy.loginfo("ACK: %s",
+    #                           str(fire_rs.neptus_interface.demo1_check_ack(message[11:])))
+    #         else:
+    #             print("This is a position")
+    #             pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
+    #         # TODO: decode alarm and PlanControl ACK
 
     def on_sub_plan(msg):
         t = serialization.saop_trajectories_from_plan_msg(msg)
@@ -158,16 +213,18 @@ def main():
                 rospy.loginfo("Length: %s", str(len(msg)))
                 libwden.send_message(
                     publisher,
-                    MESSAGE_TYPE,
-                    SOURCE,
-                    DESTINATION,
+                    MESSAGE_TYPE_UAV,
+                    SAOP_ADDR,
+                    UAV_ADDR,
                     msg)
 
     # Generate 0MQ context
     context = libwden.init_wden()
 
-    recv_th = threading.Thread(target=wden_receive_task, daemon=True)
-    recv_th.start()
+    recv_fa_th = threading.Thread(target=wden_receive_firealarm_task, daemon=True)
+    recv_uav_th = threading.Thread(target=wden_receive_uav_task, daemon=True)
+    recv_fa_th.start()
+    recv_uav_th.start()
 
     publisher = libwden.gen_publisher(context, URI, SUB_PORT)
 
