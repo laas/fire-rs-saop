@@ -162,16 +162,16 @@ namespace SAOP {
         void IMCComm::loop() {
             imc_transport->set_recv_handler(std::bind(&IMCComm::message_inbox, this, std::placeholders::_1));
 
-            // Demo HeartBeat handler
-            bind<IMC::Heartbeat>([this](std::unique_ptr<IMC::Heartbeat> m) {
-                auto answer = std::unique_ptr<IMC::Message>(
-                        IMC::Factory::produce(IMC::Factory::getIdFromAbbrev("Heartbeat")));
-                answer->setSource(0);
-                answer->setSourceEntity(0);
-                answer->setDestination(0xFFFF);
-                answer->setDestinationEntity(0xFF);
-                this->send(std::move(answer));
-            });
+//            // Demo HeartBeat handler
+//            bind<IMC::Heartbeat>([this](std::unique_ptr<IMC::Heartbeat> m) {
+//                auto answer = std::unique_ptr<IMC::Message>(
+//                        IMC::Factory::produce(IMC::Factory::getIdFromAbbrev("Heartbeat")));
+//                answer->setSource(0);
+//                answer->setSourceEntity(0);
+//                answer->setDestination(0xFFFF);
+//                answer->setDestinationEntity(0xFF);
+//                this->send(std::move(answer));
+//            });
 
             imc_transport->run();
             message_dispatching_loop();
