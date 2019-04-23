@@ -43,7 +43,7 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 
 # WDEN will listen on this address and ports
-URI = "tcp://192.168.255.1"
+URI = "tcp://192.168.255.3"
 # URI = "tcp://localhost"
 SUB_PORT = 4000
 PUB_PORT = 5000
