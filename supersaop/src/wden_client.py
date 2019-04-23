@@ -63,8 +63,8 @@ MESSAGE_TYPE_UAV = b'\x00\x02'
 MESSAGE_TYPE_M2M = b'\x00\x01'
 
 UAV_ADDR = b'\x10\x00\x02\x01'
-FIRESENSOR_ADDR = b'\x22\x22\x22\x22'
-SAOP_ADDR = b'\x10\x00\x00\x01'
+SAOP_ADDR = b'\x10\x00\x01\x01'
+GATEWAY_ADDR = b'\x10\x00\x00\x01'
 NOTIFICATION = "Example message".encode('utf-8')
 
 
@@ -123,7 +123,7 @@ def main():
             URI,
             PUB_PORT,
             libwden.generate_topic_filter(
-                message_filter=MESSAGE_TYPE_UAV,
+                message_filter=MESSAGE_TYPE_M2M,
                 destination_filter=SAOP_ADDR,
                 source_filter=UAV_ADDR,
             )
@@ -152,7 +152,8 @@ def main():
             PUB_PORT,
             libwden.generate_topic_filter(
                 message_filter=MESSAGE_TYPE_M2M,
-                destination_filter=SAOP_ADDR
+                destination_filter=SAOP_ADDR,
+                source_filter=GATEWAY_ADDR,
             )
         )
 
@@ -213,7 +214,7 @@ def main():
                 rospy.loginfo("Length: %s", str(len(msg)))
                 libwden.send_message(
                     publisher,
-                    MESSAGE_TYPE_UAV,
+                    MESSAGE_TYPE_M2M,
                     SAOP_ADDR,
                     UAV_ADDR,
                     msg)
