@@ -62,21 +62,21 @@ namespace SAOP {
         class StartActionsFactory {
         public:
             static IMC::MessageList<IMC::Message> make_message() {
-                auto h_ctrl_set_entity_parameters = IMC::SetEntityParameters();
-                h_ctrl_set_entity_parameters.name = "Height Control";
-                h_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
-                auto h_ctrl_entity_parameter = IMC::EntityParameter();
-                h_ctrl_entity_parameter.name = "Active";
-                h_ctrl_entity_parameter.value = "true";
-                h_ctrl_set_entity_parameters.params.push_back(h_ctrl_entity_parameter);
-
-                auto p_ctrl_set_entity_parameters = IMC::SetEntityParameters();
-                p_ctrl_set_entity_parameters.name = "Path Control";
-                p_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
-                auto p_ctrl_entity_parameter = IMC::EntityParameter();
-                p_ctrl_entity_parameter.name = "Use controller";
-                p_ctrl_entity_parameter.value = "true";
-                p_ctrl_set_entity_parameters.params.push_back(p_ctrl_entity_parameter);
+//                auto h_ctrl_set_entity_parameters = IMC::SetEntityParameters();
+//                h_ctrl_set_entity_parameters.name = "Height Control";
+//                h_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
+//                auto h_ctrl_entity_parameter = IMC::EntityParameter();
+//                h_ctrl_entity_parameter.name = "Active";
+//                h_ctrl_entity_parameter.value = "true";
+//                h_ctrl_set_entity_parameters.params.push_back(h_ctrl_entity_parameter);
+//
+//                auto p_ctrl_set_entity_parameters = IMC::SetEntityParameters();
+//                p_ctrl_set_entity_parameters.name = "Path Control";
+//                p_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
+//                auto p_ctrl_entity_parameter = IMC::EntityParameter();
+//                p_ctrl_entity_parameter.name = "Use controller";
+//                p_ctrl_entity_parameter.value = "true";
+//                p_ctrl_set_entity_parameters.params.push_back(p_ctrl_entity_parameter);
 
                 auto fm_ctrl_set_entity_parameters = IMC::SetEntityParameters();
                 fm_ctrl_set_entity_parameters.name = "FireMapper";
@@ -91,13 +91,13 @@ namespace SAOP {
                 ap_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
                 auto ap_ctrl_entity_parameter = IMC::EntityParameter();
                 ap_ctrl_entity_parameter.name = "Ardupilot Tracker";
-                ap_ctrl_entity_parameter.value = "false";
+                ap_ctrl_entity_parameter.value = "true";
                 ap_ctrl_set_entity_parameters.params.push_back(ap_ctrl_entity_parameter);
 
                 auto start_actions = IMC::MessageList<IMC::Message>();
                 start_actions.push_back(fm_ctrl_set_entity_parameters);
-                start_actions.push_back(h_ctrl_set_entity_parameters);
-                start_actions.push_back(p_ctrl_set_entity_parameters);
+//                start_actions.push_back(h_ctrl_set_entity_parameters);
+//                start_actions.push_back(p_ctrl_set_entity_parameters);
                 start_actions.push_back(ap_ctrl_set_entity_parameters);
 
                 return start_actions;
@@ -112,7 +112,7 @@ namespace SAOP {
                 pm.maneuver_id = maneuver_id;
                 pm.data = IMC::InlineMessage<IMC::Maneuver>();
                 pm.data.set(maneuver_message);
-                pm.start_actions = IMC::MessageList<IMC::Message>();
+                pm.start_actions = StartActionsFactory::make_message();
 
                 return pm;
             }

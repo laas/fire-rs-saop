@@ -63,8 +63,9 @@ MESSAGE_TYPE_UAV = b'\x00\x02'
 MESSAGE_TYPE_M2M = b'\x00\x01'
 
 UAV_ADDR = b'\x10\x00\x02\x01'
-SAOP_ADDR = b'\x10\x00\x01\x01'
+SAOP_ADDR = b'\x50\x00\x00\x01'
 GATEWAY_ADDR = b'\x10\x00\x00\x01'
+SENSOR_ADDR_MASK = b'\x10\x00\x01'  # 4th byte indicates a particular sensor
 NOTIFICATION = "Example message".encode('utf-8')
 
 
@@ -124,7 +125,7 @@ def main():
             PUB_PORT,
             libwden.generate_topic_filter(
                 message_filter=MESSAGE_TYPE_M2M,
-                destination_filter=SAOP_ADDR,
+                destination_filter=GATEWAY_ADDR,
                 source_filter=UAV_ADDR,
             )
         )
@@ -140,11 +141,20 @@ def main():
                 rospy.loginfo("ACK: %s",
                               str(fire_rs.neptus_interface.demo1_check_ack(message[11:])))
             else:
-                rospy.logwarn("Incorrect IMC::Message")
+                rospy.logwarn("Acknowledgement from UAV: %s", message[10:])
                 # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
             # TODO: decode alarm and PlanControl ACK
 
     def wden_receive_firealarm_task():
+
+        def decode_vigo_alarm(msg_bin: bytes):
+            i = 0  # decoding index
+            msg_str = msg_bin.decode("utf-8")
+            if not msg_str.startswith("@"):
+                return None
+            sensor_code = None
+
+
         # Generate subscriber
         subscriber = libwden.gen_subscriber_wfilter(
             context,
@@ -152,8 +162,8 @@ def main():
             PUB_PORT,
             libwden.generate_topic_filter(
                 message_filter=MESSAGE_TYPE_M2M,
-                destination_filter=SAOP_ADDR,
-                source_filter=GATEWAY_ADDR,
+                destination_filter=GATEWAY_ADDR,
+                source_filter=SENSOR_ADDR_MASK,
             )
         )
 
@@ -164,8 +174,8 @@ def main():
             # Print message data
             rospy.loginfo("Incoming message: %s", str(binascii.hexlify(message)))
             # print("Incoming message (payload) %s", str(message[10:]))
-            rospy.loginfo("This is a position")
-            pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
+            rospy.loginfo("This is a alarm")
+            # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500) # VIGO MTI
             # TODO: decode alarm
 
     # def wden_receive_all_task():
@@ -206,7 +216,6 @@ def main():
         t = serialization.saop_trajectories_from_plan_msg(msg)
         for traj in t:
             if traj.length() > 0.:
-                pass
                 # Convert to plan_spec and serialize respecting 192byte limit
                 # self.ccu.start_trajectory(traj, traj.conf.uav.name)
                 msg = fire_rs.neptus_interface.demo1_serialize_plan(traj, 0x0c10, 3035)
@@ -261,6 +270,7 @@ def main():
     alarm_pub = rospy.Publisher("wildfire_point", Timed2DPointStamped, queue_size=1)
     wind_pub = rospy.Publisher("mean_wind", MeanWindStamped, queue_size=1,
                                tcp_nodelay=True)
+    # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500) # VIGO MTI
     pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
     rospy.sleep(1.)
 

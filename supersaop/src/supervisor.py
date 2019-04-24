@@ -110,11 +110,11 @@ class SupervisorNode:
             position=Point(self.uav_bases["x8-06"][0], self.uav_bases["x8-06"][1], 400.0),
             orientation=Euler(.0, .0, .0))
 
-        p_conf = PlanConf(name="firers 1 plan",
+        p_conf = PlanConf(name="p",
                           flight_window=(rospy.Time.from_sec(.0), rospy.Time.from_sec(4294967295)))
-        t_conf = TrajectoryConf(name="firers 1 traj", uav_model="x8-06",
+        t_conf = TrajectoryConf(name="t", uav_model="x8-06",
                                 start_wp=start_wp, end_wp=end_wp,
-                                start_time=rospy.Time.now() + rospy.Duration.from_sec(60),
+                                start_time=rospy.Time.now() + rospy.Duration.from_sec(5),
                                 max_duration=300, wind=MeanWind(.0, .0))
         p = Plan(header=Header(stamp=rospy.Time.now()),
                  conf=p_conf,

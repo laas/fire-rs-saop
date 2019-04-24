@@ -371,6 +371,8 @@ namespace SAOP {
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_start+1);
 
+            std::cout << "Len wp_filtered "<< wp_filtered.size() << std::endl;
+
             double forward_dist = 0.;
             for (auto& wp: wp_filtered) {
                 wp = wp.forward(forward_dist);
