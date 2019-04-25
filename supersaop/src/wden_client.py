@@ -53,9 +53,9 @@ PUB_PORT = 5000
 #       - Message type filter
 #       - Message type filter + destination filter
 #       - Message type filter + destination filter + source filter
-MESSAGE_TYPE_FILTER = b'\x00\x03'
-DESTINATION_FILTER = b'\x33\x33\x33\x33'
-SOURCE_FILTER = b'\x22\x22\x22\x22'
+# MESSAGE_TYPE_FILTER = b'\x00\x03'
+# DESTINATION_FILTER = b'\x33\x33\x33\x33'
+# SOURCE_FILTER = b'\x22\x22\x22\x22'
 
 # Define message to publish
 MESSAGE_TYPE_LAAS = b'\x00\x03'
@@ -71,7 +71,7 @@ NOTIFICATION = "Example message".encode('utf-8')
 
 def main():
     def pub_alarm(posx, posy):
-        start_wind = (5.0, 1 * np.pi / 4)
+        start_wind = (5.0, np.pi / 2 + np.pi / 4)
         environment = fire_rs.firemodel.propagation.Environment(
             area, start_wind[0], start_wind[1], fire_rs.geodata.environment.World(
                 **world_paths,
@@ -142,7 +142,7 @@ def main():
                               str(fire_rs.neptus_interface.demo1_check_ack(message[11:])))
             else:
                 rospy.logwarn("Acknowledgement from UAV: %s", message[10:])
-                # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
+
             # TODO: decode alarm and PlanControl ACK
 
     def wden_receive_firealarm_task():
@@ -176,6 +176,7 @@ def main():
             # print("Incoming message (payload) %s", str(message[10:]))
             rospy.loginfo("This is a alarm")
             # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500) # VIGO MTI
+            pub_alarm(2802134.44 + 700, 2299388.43 + 700)
             # TODO: decode alarm
 
     # def wden_receive_all_task():
@@ -271,7 +272,7 @@ def main():
     wind_pub = rospy.Publisher("mean_wind", MeanWindStamped, queue_size=1,
                                tcp_nodelay=True)
     # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500) # VIGO MTI
-    pub_alarm(2786284.0 + 1500, 2306526.0 + 1500)
+    # pub_alarm(2802134.44 , 2299388.43)
     rospy.sleep(1.)
 
     # Publish product notification
