@@ -99,7 +99,7 @@ class SupervisorNode:
 
     def on_wildfire_prediction(self, msg: PredictedWildfireMap):
         if self.supervision_state == SupervisorNodeState.Propagation:
-            self.timer = rospy.Timer(rospy.Duration(secs=0, nsecs=500000000), self.timer_callback,
+            self.timer = rospy.Timer(rospy.Duration(secs=1, nsecs=0), self.timer_callback,
                                      oneshot=True)
 
     def request_demo1_plan(self):
