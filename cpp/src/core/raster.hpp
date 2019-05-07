@@ -108,14 +108,16 @@ namespace SAOP {
             // First two bytes are the magic code: 0xF13E big-endian
 
             static constexpr size_t header_size = sizeof(uint16_t) +  // magic number
+                                                  sizeof(uint16_t) + // SRSID
                                                   2 * sizeof(uint64_t) +  // offset
                                                   2 * sizeof(double) +  // size
-                                                  sizeof(double) +  // cell size
-                                                  sizeof(uint64_t); // uncompressed data size;
+                                                  sizeof(double);  // cell size
             if (encoded_raster.size() <= header_size) {
                 throw std::invalid_argument("Malformed raster");
             }
 
+            // TODO: Store the SRSID into the GenRaster object
+            uint64_t srsid;
             uint64_t x_width;
             uint64_t y_height;
             double x_offset;
@@ -133,7 +135,8 @@ namespace SAOP {
                 throw std::invalid_argument("Malformed raster");
             }
             raster_bin_it += sizeof(uint16_t);
-
+            srsid = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(uint64_t);
             x_width = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
             raster_bin_it += sizeof(uint64_t);
             y_height = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
@@ -145,8 +148,7 @@ namespace SAOP {
             cell_width = *reinterpret_cast<const double*>(&(*raster_bin_it));
             raster_bin_it += sizeof(double);
 
-            uncomp_data_size = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
-            raster_bin_it += sizeof(double);
+            uncomp_data_size = x_width + y_height * sizeof(double);
 
             std::vector<char> data_char = std::vector<char>(uncomp_data_size);
             size_t destlen = data_char.size();
