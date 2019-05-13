@@ -239,6 +239,45 @@ namespace SAOP {
             return binary_raster;
         }
 
+        /* Encode this raster as a binary sequence without compression. */
+        std::vector<char> encoded_uncompressed(uint64_t epsg_code) {
+            std::vector<char> binary_raster = std::vector<char>();
+
+            // Magic number
+            binary_raster.emplace_back(0xF1);
+            binary_raster.emplace_back(0x3E);
+
+            // SRSID
+            uint64_t srs_id = epsg_code;
+            GenRaster::serialize<uint64_t>(srs_id, binary_raster);
+
+            // x size
+            uint64_t x_size = x_width;
+            GenRaster::serialize<uint64_t>(x_size, binary_raster);
+
+            // y size
+            uint64_t y_size = y_height;
+            GenRaster::serialize<uint64_t>(y_size, binary_raster);
+
+            // x offset
+            double x_off = x_offset;
+            GenRaster::serialize<double>(x_off, binary_raster);
+
+            // y offset
+            double y_off = y_offset;
+            GenRaster::serialize<double>(y_off, binary_raster);
+
+            // cell width
+            double cell_w = cell_width;
+            GenRaster::serialize<double>(cell_w, binary_raster);
+
+            for (const auto& p : data) {
+                GenRaster::serialize<double>(p, binary_raster);
+            }
+
+            return binary_raster;
+        }
+
         void reset() {
             for (size_t i = 0; i < x_width * y_height; i++)
                 data[i] = 0;

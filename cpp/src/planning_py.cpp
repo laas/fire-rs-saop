@@ -228,7 +228,11 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("encoded", [](DRaster& self, uint64_t epsg_code) {
                 auto encoded = self.encoded(epsg_code);
                 return py::bytes(encoded.data(), encoded.size());
-                }, py::arg("epsg_code"));
+                }, py::arg("epsg_code"))
+            .def("encoded_uncompressed", [](DRaster& self, uint64_t epsg_code) {
+                auto encoded = self.encoded_uncompressed(epsg_code);
+                return py::bytes(encoded.data(), encoded.size());
+            }, py::arg("epsg_code"));
 
     py::class_<LRaster>(m, "LRaster")
             .def(py::init([](py::array_t<long, py::array::c_style | py::array::forcecast> arr,
