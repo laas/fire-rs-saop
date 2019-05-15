@@ -378,6 +378,9 @@ namespace SAOP {
             /* Send a request to Neptus to load a converted version of SAOP::Plan. */
             bool load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
+            /* Send a request to Neptus to load a converted version of SAOP::Plan. */
+            bool load(const Trajectory& t, std::string uav);
+
             /* Load and start a SAOP::Plan. */
             bool start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 

@@ -768,6 +768,17 @@ class NeptusBridge:
             self.logger.error("Start of mission %s failed for %s failed", t.name(), uav)
             return False
 
+    def load_trajectory(self, t: planning.Trajectory, uav: str) -> bool:
+        """Load a SAOP trajectory with neptus 'plan_id' for the vehicle 'uav'"""
+        command_r = self.gcs.load(t, uav)
+
+        if command_r:
+            self.logger.info("Mission %s for %s loaded", t.name(), uav)
+            return True
+        else:
+            self.logger.error("Load of mission %s for %s failed", t.name(), uav)
+            return False
+
     def stop_uav(self, uav):
         # Stop previous trajectory (if any)
         command_r = self.gcs.stop("", uav)

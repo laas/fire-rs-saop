@@ -293,6 +293,20 @@ namespace SAOP {
             return load(plan_specification(p, trajectory, plan_id), uav_addr);
         }
 
+
+        bool GCS::load(const Trajectory& t, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return false;
+            }
+
+            return load(plan_specification(t), uav_addr);
+        }
+
         bool GCS::start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
             uint16_t uav_addr = 0;
             auto uav_id_it = uav_addr_of.find(uav);

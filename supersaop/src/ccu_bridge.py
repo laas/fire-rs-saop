@@ -105,7 +105,7 @@ class CCUBridgeNode:
         t = serialization.saop_trajectories_from_plan_msg(msg)
         for traj in t:
             if traj.length() > 0.:
-                self.ccu.start_trajectory(traj, traj.conf.uav.name)
+                self.ccu.load_trajectory(traj, traj.conf.uav.name)
 
     def on_stop_cmd(self, msg: StopCmd):
         self.ccu.stop_uav(msg.uav)

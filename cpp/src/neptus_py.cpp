@@ -80,6 +80,8 @@ PYBIND11_MODULE(neptus_interface, m) {
             .def("load", (bool (neptus::GCS::*)(const Plan&, size_t, std::string, std::string)) &neptus::GCS::load,
                  py::arg("saop_plan"), py::arg("trajectory"), py::arg("plan_id"), py::arg("uav"),
                  py::call_guard<py::gil_scoped_release>())
+            .def("load", (bool (neptus::GCS::*)(const Trajectory&, std::string)) &neptus::GCS::load,
+                 py::arg("trajectory"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
             .def("stop", (bool (neptus::GCS::*)(std::string, std::string)) &neptus::GCS::stop,
                  py::arg("plan_id"), py::arg("uav"), py::call_guard<py::gil_scoped_release>())
             .def("set_wind", &neptus::GCS::set_wind, py::arg("speed"), py::arg("direction"), py::arg("uav"),
