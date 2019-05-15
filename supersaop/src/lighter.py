@@ -82,13 +82,14 @@ class LighterNode:
         wildfire_message = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
                                        raster=serialization.raster_msg_from_geodata(firemap,
                                                                                     layer="ignition"))
-        firemap.data["ignition"][firemap.data["ignition"] == np.inf] = 0
-        firemap.data["ignition"][firemap.data["ignition"].nonzero()] = 65535
-        firemap.write_to_image_file(os.path.join(self.workdir, "fire.png"), "ignition")
 
         self.pub_wildfire_obs.publish(wildfire_message)
         rospy.loginfo("Notify alarm map")
         rospy.loginfo(wildfire_message)
+
+        firemap.data["ignition"][firemap.data["ignition"] == np.inf] = 0
+        firemap.data["ignition"][firemap.data["ignition"].nonzero()] = 65535
+        firemap.write_to_image_file(os.path.join(self.workdir, "fire.png"), "ignition")
 
     def propagate_and_set_fire_front(self, origin, origin_time: rospy.Time,
                                      perimeter_time: rospy.Time,
