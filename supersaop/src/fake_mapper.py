@@ -62,7 +62,7 @@ class FakeMapperNode:
                                                   queue_size=10)
 
         # type: rospy.Subscriber
-        self.sub_real_wildfire_map = rospy.Subscriber("real_wildfire", ElevationMap,
+        self.sub_real_wildfire_map = rospy.Subscriber("real_wildfire", WildfireMap,
                                                       self._on_real_wildfire_map,
                                                       queue_size=10)
 
