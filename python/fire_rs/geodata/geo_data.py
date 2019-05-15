@@ -49,6 +49,8 @@ EPSG_RGF93_LAMBERT93 = 2154  # Lambert93 projected coordinate system (France)
 EPSG_RGF93 = 4171  # Lambert93 Geodetic coordinate system
 EPSG_ETRS89_LAEA = 3035  # Lambert Azimuthal Equal-Area projection (Europe)
 EPSG_ETRS89 = 4258  # European Terrestrial Reference System (Europe)
+EPSG_WGS84_UTM29N = 32629  # Lambert Azimuthal Equal-Area projection (Europe)
+EPSG_WGS84 = 4326  # European Terrestrial Reference System (Europe)
 
 
 class GeoData:

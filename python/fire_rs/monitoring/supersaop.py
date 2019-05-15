@@ -731,6 +731,9 @@ class NeptusBridge:
         elif projected_cs == geo_data.EPSG_ETRS89_LAEA:
             self._projected_cs_epsg = projected_cs
             self._geodetic_cs_epsg = geo_data.EPSG_ETRS89
+        elif projected_cs == geo_data.EPSG_WGS84_UTM29N:
+            self._projected_cs_epsg = projected_cs
+            self._geodetic_cs_epsg =geo_data.EPSG_WGS84
 
         self._coor_tran = _CoordinateTransformation(self._geodetic_cs_epsg, self._projected_cs_epsg)
 

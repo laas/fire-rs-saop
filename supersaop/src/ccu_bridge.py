@@ -44,6 +44,9 @@ class CCUBridgeNode:
             elif coordinate_system == geo_data.EPSG_RGF93_LAMBERT93:
                 # self.ccu.set_coordinate_system(geo_data.EPSG_RGF93_LAMBERT93, geo_data.EPSG_RGF93)
                 pass
+            elif coordinate_system == geo_data.EPSG_WGS84_UTM29N:
+                # self.ccu.set_coordinate_system(geo_data.EPSG_WGS84_UTM29N, geo_data.EPSG_WGS84)
+                pass
             else:
                 rospy.logfatal("Unknown coordinate system code '%s'", str(coordinate_system))
                 raise rospy.ROSInterruptException(

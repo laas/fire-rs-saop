@@ -153,6 +153,9 @@ namespace SAOP {
                 case EPSG_ETRS89_LAEA:
                     wp_wgs84 = laea_to_world_coordinates(wp_filtered);
                     break;
+                case EPSG_WGS84_UTM29N:
+                    wp_wgs84 = utm29n_to_world_coordinates(wp_filtered);
+                    break;
                 default:
                     // If not ETRS89/LAEA, fallback to RGF93/Lambert93
                     wp_wgs84 = lambert93_to_world_coordinates(wp_filtered);
@@ -166,8 +169,12 @@ namespace SAOP {
 
         IMC::PlanSpecification GCS::plan_specification(LoiterManeuver loiter, double speed, std::string plan_id) {
             switch (projected_coordinate_system_epsg) {
+
                 case EPSG_ETRS89_LAEA:
                     loiter.circle.center = laea_to_world_coordinates(loiter.circle.center);
+                    break;
+                case EPSG_WGS84_UTM29N:
+                    loiter.circle.center = utm29n_to_world_coordinates(loiter.circle.center);
                     break;
                 default:
                     // If not ETRS89/LAEA, fallback to RGF93/Lambert93
