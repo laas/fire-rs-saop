@@ -27,8 +27,8 @@ drone = RMax("drone")
 # The list of the main methods to manipulate your components
 # is here: http://www.openrobots.org/morse/doc/stable/user/builder_overview.html
 #drone.translate(485444.0, 6214440.0, 2500.0)
-drone.translate(2777077.015689464, 2212053.875751559, 500.)
-drone.rotate(0.0, 0.0, 0)
+drone.translate(536094.350191, 4571072.909879, 1050)
+drone.rotate(0.0, 0.0, 3.14159/2)
 
 # Add a motion controller
 # Check here the other available actuators:
@@ -73,9 +73,10 @@ ircam_pose.add_service('socket')
 drone.append(ircam_pose)
 
 # x,y,z:roll
-ircam.rotate(np.pi/2, -np.pi/2, 0.)
-ircam_pose.rotate(0, 0, 0)
-
+ircam.rotate(0, -np.pi/2, 0)
+ircam_pose.rotate(0, -np.pi/2, 0)
+#ircam.rotate(.0,.0, .0)
+#ircam_pose.rotate(.0, .0, .0)
 
 # To ease development and debugging, we add a socket interface to our robot.
 #
@@ -86,8 +87,8 @@ drone.add_default_interface('socket')
 # set 'fastmode' to True to switch to wireframe mode
 #env = Environment('land-1/trees', fastmode=False)
 workdir = os.getcwd()
-env = Environment(os.path.join(workdir, 'environment', 'porto_osm.blend'), fastmode=False)
-env.set_camera_location([0, 0, 2500])
+env = Environment(os.path.join(workdir, 'environment', 'porto_osm_utm.blend'), fastmode=False)
+env.set_camera_location([536094.350191, 4571072.909879, 1050])
 env.set_camera_clip(0.1, 3000)
 env.set_camera_speed(100)
-env.set_camera_rotation([0, 0, -np.pi])
+env.set_camera_rotation([0, 0, 0.])
