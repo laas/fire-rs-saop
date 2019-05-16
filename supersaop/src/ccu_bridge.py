@@ -127,13 +127,16 @@ class CCUBridgeNode:
 
     def on_wildifre_prediction(self, msg: PredictedWildfireMap):
         def create_drawable_contour(f_map: geo_data.GeoData, time_sec: float,
-                                    color: ty.Tuple[int, int, int]):
+                                    color: ty.Tuple[int, int, int], one_out_of:int=1):
             cur_perimeter = _compute_perimeter(firemap, time_sec)
+            count = 0
             if cur_perimeter[1]:  # cells
                 coor_tran = geo_data.CoordinateTransformation(firemap.projection_epsg,
                                                               geo_data.EPSG_WGS84)
                 polygon = []
                 for cell in cur_perimeter[2][0]:
+                    if count % one_out_of:
+                        continue
                     if not np.isnan(cell[0]) and not np.isnan(cell[1]):
                         pcs_point = firemap.coordinates(cell)
                         gcs_point = coor_tran.transform(*pcs_point)
@@ -142,13 +145,15 @@ class CCUBridgeNode:
                 return {"time": time_sec, "color": [255, 0, 0], "polygon": polygon}
 
         firemap = serialization.geodata_from_raster_msg(msg.raster, "ignition")
+        oof = 2
+        rospy.loginfo("Sending to Neptus %s out of %s point in contours", str(1), str(oof))
         # Colors from bright red to white, varying saturation: (255, x, x)
         desired_contours = [(rospy.Time.now().to_sec(), (255, 0, 0)),
                             (rospy.Time.now().to_sec() + 1800, (255, 170, 170)),
                             (rospy.Time.now().to_sec() + 3600, (255, 85, 85))]
         drawable_conts = []
         for d in desired_contours:
-            d_cont = create_drawable_contour(firemap, d[0], d[1])
+            d_cont = create_drawable_contour(firemap, d[0], d[1], oof)
             if d_cont:
                 drawable_conts.append(d_cont)
 
