@@ -425,6 +425,19 @@ class GeoData:
         return cls(array, x_orig, y_orig, x_delta, y_delta, projection=proj)
 
 
+class CoordinateTransformation:
+    def __init__(self, from_epsg: int, to_epsg: int):
+        self._s_srs = osr.SpatialReference()
+        self._s_srs.ImportFromEPSG(from_epsg)
+        self._t_srs = osr.SpatialReference()
+        self._t_srs.ImportFromEPSG(to_epsg)
+
+        self._transform = osr.CreateCoordinateTransformation(self._s_srs, self._t_srs)
+
+    def transform(self, x: float, y: float) -> Tuple[float, float]:
+        return self._transform.TransformPoint(x, y)
+
+
 def join_structured_arrays(arrays):
     """Efficient method to combine several structured arrays into a single one.
 

@@ -25,6 +25,7 @@
 import abc
 import itertools
 import functools
+import json
 import logging
 import queue
 import threading
@@ -690,7 +691,7 @@ class NeptusBridge:
         """
         self.logger = logger
 
-        self.imccomm = nifc.IMCComm(6020, "127.0.0.1", "6010")
+        self.imccomm = nifc.IMCComm(8888)
         self.gcs = None
 
         self.uav_state = {}
@@ -794,6 +795,14 @@ class NeptusBridge:
             self.logger.info("Set wind for %s to %s", uav, str((speed, direction)))
         else:
             self.logger.error("Failed to set wind for %s to %s", uav, str((speed, direction)))
+
+    def send_wildfire_contours(self, *drawable_contours):
+        if not drawable_contours:
+            self.logger.error("No contours to be sent")
+        else:
+            j_dict = {"wildfire_contours": drawable_contours}
+            json_str = json.dumps(j_dict)
+            self.gcs.send_device_data_text(json_str)
 
     def set_trajectory_state_callback(self, fn):
         """Function to be called each time a new Plan Control State is received.

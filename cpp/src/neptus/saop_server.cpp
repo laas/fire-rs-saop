@@ -479,6 +479,15 @@ namespace SAOP {
             imc_comm->send(std::move(ws_message));
         }
 
+        bool GCS::send_device_data_text(std::string text) {
+            auto ws_message = produce_unique<IMC::DevDataText>(0, 0, 0xFFF0, 0xFF);
+            ws_message->value = text;
+
+            BOOST_LOG_TRIVIAL(debug) << "Send " << ws_message->toString();
+            imc_comm->send(std::move(ws_message));
+            return true;
+        }
+
     }
 }
 #endif //PLANNING_CPP_SAOP_NEPTUS_H
