@@ -1,6 +1,6 @@
-dem_dir: "/home/rbailonr/firers_data_porto_utm/dem"
-landcover_dir: "/home/rbailonr/firers_data_porto_utm/landcover"
-wind_dir: "/home/rbailonr/firers_data_porto_utm/wind"
+dem_dir: "/home/rbailonr/firers_data_porto_utm/dem_10m"
+landcover_dir: "/home/rbailonr/firers_data_porto_utm/landcover_10m"
+wind_dir: "/home/rbailonr/firers_data_porto_utm/wind_10m"
 coordinate_system: 32629  # WGS 84 / UTM zone 29N
 area: [[535097.21, 537097.21], [4570080.09, 4572080.09]]
 
