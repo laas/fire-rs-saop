@@ -192,6 +192,7 @@ class CCUBridgeNode:
     def on_firemap_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:
             with self.dict_firemap_lock:
+                kwargs["firemap"].data["ignition"] = kwargs["firemap"].data["ignition"][..., ::-1]
                 firemap_msg = WildfireMap(
                     header=Header(stamp=rospy.Time.from_sec(kwargs['time'])),
                     raster=serialization.raster_msg_from_geodata(kwargs["firemap"], 'ignition'))
