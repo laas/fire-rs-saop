@@ -123,7 +123,7 @@ if __name__ == '__main__':
             if wf.is_ready():
                 m.set_wildfire_prediction_map(wf.get())
 
-    th = threading.Thread(target=update_map)
+    th = threading.Thread(target=update_map, daemon=True)
     th.start()
 
     try:
