@@ -148,7 +148,7 @@ namespace SAOP {
             cell_width = *reinterpret_cast<const double*>(&(*raster_bin_it));
             raster_bin_it += sizeof(double);
 
-            uncomp_data_size = x_width + y_height * sizeof(double);
+            uncomp_data_size = x_width * y_height * sizeof(double);
 
             std::vector<char> data_char = std::vector<char>(uncomp_data_size);
             size_t destlen = data_char.size();
