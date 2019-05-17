@@ -63,7 +63,7 @@ class MorseWildfire:
         self._update_fire_image(time)
 
         with tempfile.NamedTemporaryFile(suffix=".png", delete=True) as t_file:
-            skimage.io.imsave(t_file, self.fire_image)
+            skimage.io.imsave(t_file, np.transpose(self.fire_image, (1,0,2))[::-1,::1,...])
 
             if self.morse_conn is None or not self.morse_conn.is_up():
                 self.morse_conn = pymorse.Morse(*self.address)
