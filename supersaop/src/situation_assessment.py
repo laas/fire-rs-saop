@@ -152,6 +152,13 @@ class SituationAssessmentNode:
         g = GeoDataDisplay.pyplot_figure(self.sa.observed_wildfire.geodata)
         g.draw_ignition_shade(with_colorbar=True)
         g.figure.savefig("/home/rbailonr/fuego_obs.png")
+        # obs_cpp = self.sa.observed_wildfire.geodata.as_cpp_raster("ignition")
+        # obs_cpp_bytes = obs_cpp.encoded(3035)
+        # print("Compressed: ")
+        # print(obs_cpp_bytes.hex())
+        # obs_cpp_bytes = obs_cpp.encoded_uncompressed(3035)
+        # print("Uncompressed: ")
+        # print(obs_cpp_bytes.hex())
         g.close()
         del g
 
