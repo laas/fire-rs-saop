@@ -335,6 +335,8 @@ if __name__ == '__main__':
             else:
                 a[0]()
             r.sleep()
+        rospy.loginfo("Keeping alive...")
+        rospy.spin()
 
     except rospy.ROSInterruptException:
         pass
