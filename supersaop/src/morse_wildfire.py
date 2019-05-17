@@ -131,6 +131,7 @@ if __name__ == '__main__':
         rospy.sleep(1.)
         while not rospy.is_shutdown():
             try:
+                rospy.loginfo("Updating wildfire in morse")
                 m.update(rospy.Time.now().to_sec())
             except ConnectionError as e:
                 rospy.logerr(e)
