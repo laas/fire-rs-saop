@@ -224,7 +224,15 @@ PYBIND11_MODULE(uav_planning, m) {
             })
             .def_readonly("x_offset", &DRaster::x_offset)
             .def_readonly("y_offset", &DRaster::y_offset)
-            .def_readonly("cell_width", &DRaster::cell_width);
+            .def_readonly("cell_width", &DRaster::cell_width)
+            .def("encoded", [](DRaster& self, uint64_t epsg_code) {
+                auto encoded = self.encoded(epsg_code);
+                return py::bytes(encoded.data(), encoded.size());
+                }, py::arg("epsg_code"))
+            .def("encoded_uncompressed", [](DRaster& self, uint64_t epsg_code) {
+                auto encoded = self.encoded_uncompressed(epsg_code);
+                return py::bytes(encoded.data(), encoded.size());
+            }, py::arg("epsg_code"));
 
     py::class_<LRaster>(m, "LRaster")
             .def(py::init([](py::array_t<long, py::array::c_style | py::array::forcecast> arr,
@@ -236,7 +244,11 @@ PYBIND11_MODULE(uav_planning, m) {
             })
             .def_readonly("x_offset", &LRaster::x_offset)
             .def_readonly("y_offset", &LRaster::y_offset)
-            .def_readonly("cell_width", &LRaster::cell_width);
+            .def_readonly("cell_width", &LRaster::cell_width)
+            .def("encoded", [](DRaster& self, uint64_t epsg_code) {
+                auto encoded = self.encoded(epsg_code);
+                return py::bytes(encoded.data(), encoded.size());
+            }, py::arg("epsg_code"));
 
     py::class_<TimeWindow>(m, "TimeWindow")
             .def(py::init<const double, const double>(),

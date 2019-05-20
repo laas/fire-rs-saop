@@ -438,7 +438,7 @@ class PlanCreationWindow(Gtk.Dialog):
         self.vnsconf_entry.set_hexpand(True)
 
         # Planning time
-        planning_duration_adjustment = Gtk.Adjustment(value=10, lower=5, upper=300,
+        planning_duration_adjustment = Gtk.Adjustment(value=5, lower=5, upper=300,
                                                       step_increment=1, page_increment=10,
                                                       page_size=0)
         planning_duration_label = Gtk.Label.new_with_mnemonic("Planning duration (s):")
@@ -449,7 +449,7 @@ class PlanCreationWindow(Gtk.Dialog):
         self.planning_duration_entry.set_numeric(True)
 
         # Mission duration
-        mission_duration_adjustment = Gtk.Adjustment(value=600, lower=60, upper=3600,
+        mission_duration_adjustment = Gtk.Adjustment(value=150, lower=60, upper=3600,
                                                      step_increment=30, page_increment=60,
                                                      page_size=0)
         mission_duration_label = Gtk.Label.new_with_mnemonic("Mission duration (s):")

@@ -25,6 +25,7 @@
 import abc
 import itertools
 import functools
+import json
 import logging
 import queue
 import threading
@@ -731,6 +732,9 @@ class NeptusBridge:
         elif projected_cs == geo_data.EPSG_ETRS89_LAEA:
             self._projected_cs_epsg = projected_cs
             self._geodetic_cs_epsg = geo_data.EPSG_ETRS89
+        elif projected_cs == geo_data.EPSG_WGS84_UTM29N:
+            self._projected_cs_epsg = projected_cs
+            self._geodetic_cs_epsg =geo_data.EPSG_WGS84
 
         self._coor_tran = _CoordinateTransformation(self._geodetic_cs_epsg, self._projected_cs_epsg)
 
@@ -765,6 +769,17 @@ class NeptusBridge:
             self.logger.error("Start of mission %s failed for %s failed", t.name(), uav)
             return False
 
+    def load_trajectory(self, t: planning.Trajectory, uav: str) -> bool:
+        """Load a SAOP trajectory with neptus 'plan_id' for the vehicle 'uav'"""
+        command_r = self.gcs.load(t, uav)
+
+        if command_r:
+            self.logger.info("Mission %s for %s loaded", t.name(), uav)
+            return True
+        else:
+            self.logger.error("Load of mission %s for %s failed", t.name(), uav)
+            return False
+
     def stop_uav(self, uav):
         # Stop previous trajectory (if any)
         command_r = self.gcs.stop("", uav)
@@ -780,6 +795,14 @@ class NeptusBridge:
             self.logger.info("Set wind for %s to %s", uav, str((speed, direction)))
         else:
             self.logger.error("Failed to set wind for %s to %s", uav, str((speed, direction)))
+
+    def send_wildfire_contours(self, *drawable_contours):
+        if not drawable_contours:
+            self.logger.error("No contours to be sent")
+        else:
+            j_dict = {"wildfire_contours": drawable_contours}
+            json_str = json.dumps(j_dict)
+            self.gcs.send_device_data_text(json_str)
 
     def set_trajectory_state_callback(self, fn):
         """Function to be called each time a new Plan Control State is received.

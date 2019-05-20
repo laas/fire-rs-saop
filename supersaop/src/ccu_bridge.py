@@ -10,6 +10,7 @@ import re
 import threading
 import typing as ty
 
+import numpy as np
 import matplotlib
 
 matplotlib.use('Gtk3Agg')
@@ -24,6 +25,7 @@ from supersaop.msg import ElevationMap, Euler, PoseEuler, PredictedWildfireMap, 
 
 from fire_rs.geodata.display import GeoDataDisplay
 import fire_rs.geodata.geo_data as geo_data
+from fire_rs.geodata.wildfire import _compute_perimeter
 from fire_rs.monitoring.supersaop import NeptusBridge
 
 import serialization
@@ -43,6 +45,9 @@ class CCUBridgeNode:
                 pass
             elif coordinate_system == geo_data.EPSG_RGF93_LAMBERT93:
                 # self.ccu.set_coordinate_system(geo_data.EPSG_RGF93_LAMBERT93, geo_data.EPSG_RGF93)
+                pass
+            elif coordinate_system == geo_data.EPSG_WGS84_UTM29N:
+                # self.ccu.set_coordinate_system(geo_data.EPSG_WGS84_UTM29N, geo_data.EPSG_WGS84)
                 pass
             else:
                 rospy.logfatal("Unknown coordinate system code '%s'", str(coordinate_system))
@@ -92,6 +97,11 @@ class CCUBridgeNode:
         self.sub_saop_stop = rospy.Subscriber("stop", StopCmd, self.on_stop_cmd, queue_size=10)
         self.sub_saop_home = rospy.Subscriber("go_home", HomeCmd, self.on_home_cmd, queue_size=10)
 
+        self.sub_wildfire_pred = rospy.Subscriber('wildfire_prediction', PredictedWildfireMap,
+                                                  self.on_wildifre_prediction, queue_size=10)
+        self.sub_wildfire_current = rospy.Subscriber('wildfire', WildfireMap,
+                                                     self.on_wildfire_current, queue_size=10)
+
         self.sub_windspeed_dict = {
             uav: rospy.Subscriber(
                 "/".join(("uavs", serialization.ros_name_for(uav), 'windspeed')),
@@ -102,7 +112,7 @@ class CCUBridgeNode:
         t = serialization.saop_trajectories_from_plan_msg(msg)
         for traj in t:
             if traj.length() > 0.:
-                self.ccu.start_trajectory(traj, traj.conf.uav.name)
+                self.ccu.load_trajectory(traj, traj.conf.uav.name)
 
     def on_stop_cmd(self, msg: StopCmd):
         self.ccu.stop_uav(msg.uav)
@@ -115,8 +125,46 @@ class CCUBridgeNode:
                          msg.loiter.center.position.z),
                         msg.loiter.radius, msg.loiter.direction, msg.loiter.duration.to_sec())
 
+    def on_wildifre_prediction(self, msg: PredictedWildfireMap):
+        def create_drawable_contour(f_map: geo_data.GeoData, time_sec: float,
+                                    color: ty.Tuple[int, int, int], one_out_of:int=1):
+            cur_perimeter = _compute_perimeter(firemap, time_sec)
+            count = 0
+            if cur_perimeter[1]:  # cells
+                coor_tran = geo_data.CoordinateTransformation(firemap.projection_epsg,
+                                                              geo_data.EPSG_WGS84)
+                polygon = []
+                for cell in cur_perimeter[2][0]:
+                    if count % one_out_of:
+                        continue
+                    if not np.isnan(cell[0]) and not np.isnan(cell[1]):
+                        pcs_point = firemap.coordinates(cell)
+                        gcs_point = coor_tran.transform(*pcs_point)
+                        polygon.append({"lat": gcs_point[1], "lon": gcs_point[0]})
+            if polygon:
+                return {"time": time_sec, "color": color, "polygon": polygon}
+
+        firemap = serialization.geodata_from_raster_msg(msg.raster, "ignition")
+        oof = 2
+        rospy.loginfo("Sending to Neptus %s out of %s point in contours", str(1), str(oof))
+        # Colors from bright red to white, varying saturation: (255, x, x)
+        desired_contours = [(rospy.Time.now().to_sec(), (255, 0, 0)),
+                            (rospy.Time.now().to_sec() + 1800, (255, 170, 170)),
+                            (rospy.Time.now().to_sec() + 3600, (255, 85, 85))]
+        drawable_conts = []
+        for d in desired_contours:
+            d_cont = create_drawable_contour(firemap, d[0], d[1], oof)
+            if d_cont:
+                drawable_conts.append(d_cont)
+
+        self.ccu.send_wildfire_contours(*drawable_conts)
+
+    def on_wildfire_current(self, msg: WildfireMap):
+        pass
+
     def on_wind_speed(self, msg: MeanWindStamped, uav: str):
-        self.ccu.set_wind(msg.speed, msg.direction, uav)
+        pass
+        # self.ccu.set_wind(msg.speed, msg.direction, uav)
 
     def on_uav_state_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:
@@ -144,6 +192,7 @@ class CCUBridgeNode:
     def on_firemap_from_neptus(self, **kwargs):
         if kwargs['uav'] in self._known_uavs:
             with self.dict_firemap_lock:
+                kwargs["firemap"].data["ignition"] = kwargs["firemap"].data["ignition"][..., ::-1]
                 firemap_msg = WildfireMap(
                     header=Header(stamp=rospy.Time.from_sec(kwargs['time'])),
                     raster=serialization.raster_msg_from_geodata(kwargs["firemap"], 'ignition'))

@@ -108,14 +108,16 @@ namespace SAOP {
             // First two bytes are the magic code: 0xF13E big-endian
 
             static constexpr size_t header_size = sizeof(uint16_t) +  // magic number
+                                                  sizeof(uint16_t) + // SRSID
                                                   2 * sizeof(uint64_t) +  // offset
                                                   2 * sizeof(double) +  // size
-                                                  sizeof(double) +  // cell size
-                                                  sizeof(uint64_t); // uncompressed data size;
+                                                  sizeof(double);  // cell size
             if (encoded_raster.size() <= header_size) {
                 throw std::invalid_argument("Malformed raster");
             }
 
+            // TODO: Store the SRSID into the GenRaster object
+            uint64_t srsid;
             uint64_t x_width;
             uint64_t y_height;
             double x_offset;
@@ -133,7 +135,8 @@ namespace SAOP {
                 throw std::invalid_argument("Malformed raster");
             }
             raster_bin_it += sizeof(uint16_t);
-
+            srsid = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
+            raster_bin_it += sizeof(uint64_t);
             x_width = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
             raster_bin_it += sizeof(uint64_t);
             y_height = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
@@ -145,8 +148,7 @@ namespace SAOP {
             cell_width = *reinterpret_cast<const double*>(&(*raster_bin_it));
             raster_bin_it += sizeof(double);
 
-            uncomp_data_size = *reinterpret_cast<const uint64_t*>(&(*raster_bin_it));
-            raster_bin_it += sizeof(double);
+            uncomp_data_size = x_width * y_height * sizeof(double);
 
             std::vector<char> data_char = std::vector<char>(uncomp_data_size);
             size_t destlen = data_char.size();
@@ -173,6 +175,107 @@ namespace SAOP {
             }
             return GenRaster<T>(data, x_width, y_height, x_offset, y_offset, cell_width);
 //            return GenRaster<T>(2, 2, 1.0, 1.0, 5.0);
+        }
+
+        template<typename U>
+        static void serialize(const U& obj, std::vector<char>& buffer) {
+            char const* obj_begin = reinterpret_cast<char const*>(&obj);
+            std::copy(obj_begin, obj_begin + sizeof(U), std::back_inserter(buffer));
+        }
+
+        /* Encode this raster as a binary sequence. */
+        std::vector<char> encoded(uint64_t epsg_code) {
+            std::vector<char> binary_raster = std::vector<char>();
+
+            // Magic number
+            binary_raster.emplace_back(0xF1);
+            binary_raster.emplace_back(0x3E);
+
+            // SRSID
+            uint64_t srs_id = epsg_code;
+            GenRaster::serialize<uint64_t>(srs_id, binary_raster);
+
+            // x size
+            uint64_t x_size = x_width;
+            GenRaster::serialize<uint64_t>(x_size, binary_raster);
+
+            // y size
+            uint64_t y_size = y_height;
+            GenRaster::serialize<uint64_t>(y_size, binary_raster);
+
+            // x offset
+            double x_off = x_offset;
+            GenRaster::serialize<double>(x_off, binary_raster);
+
+            // y offset
+            double y_off = y_offset;
+            GenRaster::serialize<double>(y_off, binary_raster);
+
+            // cell width
+            double cell_w = cell_width;
+            GenRaster::serialize<double>(cell_w, binary_raster);
+
+            // Compress fire map data
+            unsigned long compressed_bound = compressBound(data.size());
+            std::vector<char> compressed_buff = std::vector<char>(compressed_bound);
+            int comp_res = compress(reinterpret_cast<unsigned char*>(compressed_buff.data()), &compressed_bound,
+                                    reinterpret_cast<unsigned char*>(data.data()), data.size() * sizeof(T));
+            if (comp_res != Z_OK) {
+                switch (comp_res) {
+                    case Z_MEM_ERROR:
+                        throw std::invalid_argument("zlib Z_MEM_ERROR");
+                    case Z_BUF_ERROR:
+                        throw std::invalid_argument("zlib Z_BUF_ERROR");
+                    case Z_DATA_ERROR:
+                        throw std::invalid_argument("zlib Z_DATA_ERROR");
+                    default:
+                        throw std::invalid_argument("unknown zlib error");
+                }
+
+            }
+
+            std::copy(compressed_buff.begin(), compressed_buff.begin() + compressed_bound,
+                      std::back_inserter(binary_raster));
+            return binary_raster;
+        }
+
+        /* Encode this raster as a binary sequence without compression. */
+        std::vector<char> encoded_uncompressed(uint64_t epsg_code) {
+            std::vector<char> binary_raster = std::vector<char>();
+
+            // Magic number
+            binary_raster.emplace_back(0xF1);
+            binary_raster.emplace_back(0x3E);
+
+            // SRSID
+            uint64_t srs_id = epsg_code;
+            GenRaster::serialize<uint64_t>(srs_id, binary_raster);
+
+            // x size
+            uint64_t x_size = x_width;
+            GenRaster::serialize<uint64_t>(x_size, binary_raster);
+
+            // y size
+            uint64_t y_size = y_height;
+            GenRaster::serialize<uint64_t>(y_size, binary_raster);
+
+            // x offset
+            double x_off = x_offset;
+            GenRaster::serialize<double>(x_off, binary_raster);
+
+            // y offset
+            double y_off = y_offset;
+            GenRaster::serialize<double>(y_off, binary_raster);
+
+            // cell width
+            double cell_w = cell_width;
+            GenRaster::serialize<double>(cell_w, binary_raster);
+
+            for (const auto& p : data) {
+                GenRaster::serialize<double>(p, binary_raster);
+            }
+
+            return binary_raster;
         }
 
         void reset() {

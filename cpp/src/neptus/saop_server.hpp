@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "../../IMC/Spec/PlanControl.hpp"
 #include "../../IMC/Spec/PlanControlState.hpp"
 #include "../../IMC/Spec/DevDataBinary.hpp"
+#include "../../IMC/Spec/DevDataText.hpp"
 
 #include "../ext/WGS84.hpp"
 
@@ -459,6 +460,9 @@ namespace SAOP {
             /* Send a request to Neptus to load a converted version of SAOP::Plan. */
             bool load(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
+            /* Send a request to Neptus to load a converted version of SAOP::Plan. */
+            bool load(const Trajectory& t, std::string uav);
+
             /* Load and start a SAOP::Plan. */
             bool start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav);
 
@@ -475,6 +479,8 @@ namespace SAOP {
             bool stop(std::string plan_id, std::string uav);
 
             bool set_wind(double modulo, double direction, std::string uav);
+
+            bool send_device_data_text(std::string text);
 
             /* Return true if the connection with the GCS is available */
             bool is_ready() {

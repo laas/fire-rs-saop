@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find supersaop)/launch/supersaop.launch">
+        <arg name="scenario" value="porto_utm_scenario.yaml"/>
+    </include>
+</launch>

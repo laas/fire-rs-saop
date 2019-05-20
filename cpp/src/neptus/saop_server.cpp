@@ -153,6 +153,9 @@ namespace SAOP {
                 case EPSG_ETRS89_LAEA:
                     wp_wgs84 = laea_to_world_coordinates(wp_filtered);
                     break;
+                case EPSG_WGS84_UTM29N:
+                    wp_wgs84 = utm29n_to_world_coordinates(wp_filtered);
+                    break;
                 default:
                     // If not ETRS89/LAEA, fallback to RGF93/Lambert93
                     wp_wgs84 = lambert93_to_world_coordinates(wp_filtered);
@@ -166,8 +169,12 @@ namespace SAOP {
 
         IMC::PlanSpecification GCS::plan_specification(LoiterManeuver loiter, double speed, std::string plan_id) {
             switch (projected_coordinate_system_epsg) {
+
                 case EPSG_ETRS89_LAEA:
                     loiter.circle.center = laea_to_world_coordinates(loiter.circle.center);
+                    break;
+                case EPSG_WGS84_UTM29N:
+                    loiter.circle.center = utm29n_to_world_coordinates(loiter.circle.center);
                     break;
                 default:
                     // If not ETRS89/LAEA, fallback to RGF93/Lambert93
@@ -284,6 +291,20 @@ namespace SAOP {
             }
 
             return load(plan_specification(p, trajectory, plan_id), uav_addr);
+        }
+
+
+        bool GCS::load(const Trajectory& t, std::string uav) {
+            uint16_t uav_addr = 0;
+            auto uav_id_it = uav_addr_of.find(uav);
+            if (uav_id_it != uav_addr_of.end()) {
+                uav_addr = uav_id_it->second;
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "UAV \"" << uav << "\" is unknown";
+                return false;
+            }
+
+            return load(plan_specification(t), uav_addr);
         }
 
         bool GCS::start(const Plan& p, size_t trajectory, std::string plan_id, std::string uav) {
@@ -456,6 +477,15 @@ namespace SAOP {
 
             BOOST_LOG_TRIVIAL(debug) << "Send " << ws_message->toString();
             imc_comm->send(std::move(ws_message));
+        }
+
+        bool GCS::send_device_data_text(std::string text) {
+            auto ws_message = produce_unique<IMC::DevDataText>(0, 0, 0xFFF0, 0xFF);
+            ws_message->value = text;
+
+            BOOST_LOG_TRIVIAL(debug) << "Send " << ws_message->toString();
+            imc_comm->send(std::move(ws_message));
+            return true;
         }
 
     }

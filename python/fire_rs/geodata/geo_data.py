@@ -49,6 +49,8 @@ EPSG_RGF93_LAMBERT93 = 2154  # Lambert93 projected coordinate system (France)
 EPSG_RGF93 = 4171  # Lambert93 Geodetic coordinate system
 EPSG_ETRS89_LAEA = 3035  # Lambert Azimuthal Equal-Area projection (Europe)
 EPSG_ETRS89 = 4258  # European Terrestrial Reference System (Europe)
+EPSG_WGS84_UTM29N = 32629  # Lambert Azimuthal Equal-Area projection (Europe)
+EPSG_WGS84 = 4326  # European Terrestrial Reference System (Europe)
 
 
 class GeoData:
@@ -421,6 +423,19 @@ class GeoData:
             array = array[..., ::-1].transpose()
 
         return cls(array, x_orig, y_orig, x_delta, y_delta, projection=proj)
+
+
+class CoordinateTransformation:
+    def __init__(self, from_epsg: int, to_epsg: int):
+        self._s_srs = osr.SpatialReference()
+        self._s_srs.ImportFromEPSG(from_epsg)
+        self._t_srs = osr.SpatialReference()
+        self._t_srs.ImportFromEPSG(to_epsg)
+
+        self._transform = osr.CreateCoordinateTransformation(self._s_srs, self._t_srs)
+
+    def transform(self, x: float, y: float) -> Tuple[float, float]:
+        return self._transform.TransformPoint(x, y)
 
 
 def join_structured_arrays(arrays):

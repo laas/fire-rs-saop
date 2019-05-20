@@ -1,0 +1,15 @@
+dem_dir: "/home/rbailonr/firers_data_porto_utm/dem_10m"
+landcover_dir: "/home/rbailonr/firers_data_porto_utm/landcover_10m"
+wind_dir: "/home/rbailonr/firers_data_porto_utm/wind_10m"
+coordinate_system: 32629  # WGS 84 / UTM zone 29N
+area: [[535097.21, 537097.21], [4570080.09, 4572080.09]]
+
+known_uavs: ["x8-02", "x8-06"]
+uavs:
+  x8_02:
+    base: [536097.21, 4571080.09]
+  x8_06:
+    base: [536097.21, 4571080.09]
+
+# LIPA coords: X 536097.21  Y 4571080.09
+# main DEM extent: 531097.21, 541097.21, 4566080.09, 4576080.09

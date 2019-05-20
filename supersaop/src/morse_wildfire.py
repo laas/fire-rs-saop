@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright (c) 2018, CNRS-LAAS
 # All rights reserved.
 #
@@ -38,7 +39,7 @@ from fire_rs.simulation.morse import MorseWildfire
 
 import serialization
 
-from supersaop.msg import Timed2DPointStamped, PredictedWildfireMap
+from supersaop.msg import Timed2DPointStamped, WildfireMap
 
 
 class Resource:
@@ -94,12 +95,12 @@ class MorseWildfireNode:
         rospy.init_node("morse_wildfire")
         rospy.loginfo("Starting {}".format(self.__class__.__name__))
 
-        self.sub_predicted_wildfire = rospy.Subscriber("real_wildfire", PredictedWildfireMap,
+        self.sub_predicted_wildfire = rospy.Subscriber("real_wildfire", WildfireMap,
                                                        callback=self.on_predicted_wildfire,
                                                        queue_size=1)
         self.shared_wildfire_map = wildfire_res
 
-    def on_predicted_wildfire(self, msg: PredictedWildfireMap):
+    def on_predicted_wildfire(self, msg: WildfireMap):
         rospy.loginfo("Wildfire map received")
         raster = serialization.geodata_from_raster_msg(msg.raster, "ignition")
         self.shared_wildfire_map.set(raster)
@@ -122,7 +123,7 @@ if __name__ == '__main__':
             if wf.is_ready():
                 m.set_wildfire_prediction_map(wf.get())
 
-    th = threading.Thread(target=update_map)
+    th = threading.Thread(target=update_map, daemon=True)
     th.start()
 
     try:
@@ -130,6 +131,7 @@ if __name__ == '__main__':
         rospy.sleep(1.)
         while not rospy.is_shutdown():
             try:
+                rospy.loginfo("Updating wildfire in morse")
                 m.update(rospy.Time.now().to_sec())
             except ConnectionError as e:
                 rospy.logerr(e)

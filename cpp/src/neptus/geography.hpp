@@ -40,6 +40,8 @@ namespace SAOP {
         static const int EPSG_RGF93 = 4171; // Equivalent in practice to WGS84
         static const int EPSG_ETRS89_LAEA = 3035;
         static const int EPSG_ETRS89 = 4258; // Equivalent in practice to WGS84
+        static const int EPSG_WGS84_UTM29N = 32629;
+        static const int EPSG_WGS84 = 4326; // Equivalent in practice to WGS84
 
         static std::vector<Waypoint3d> WGS84_waypoints(std::vector<Waypoint3d> waypoints,
                                                        Position origin, int utm_zone = 29,
@@ -98,11 +100,21 @@ namespace SAOP {
             return transform_coordinates(laea_wp, EPSG_ETRS89_LAEA, EPSG_ETRS89);
         }
 
+        static std::vector<Waypoint3d> utm29n_to_world_coordinates(const std::vector<Waypoint3d>& utm29n_wp) {
+            return transform_coordinates(utm29n_wp, EPSG_WGS84_UTM29N, EPSG_WGS84);
+        }
+
         /*Convert LAEA points to ETRS89 (lat, lon) coordinates*/
         static Position3d laea_to_world_coordinates(Position3d laea_position) {
             return transform_coordinates(
                     std::vector<Waypoint3d>({Waypoint3d(laea_position.x, laea_position.y, laea_position.z, 0.)}),
                     EPSG_ETRS89_LAEA, EPSG_ETRS89)[0].as_point();
+        }
+
+        static Position3d utm29n_to_world_coordinates(Position3d utm29n_position) {
+            return transform_coordinates(
+                    std::vector<Waypoint3d>({Waypoint3d(utm29n_position.x, utm29n_position.y, utm29n_position.z, 0.)}),
+                    EPSG_WGS84_UTM29N, EPSG_WGS84)[0].as_point();
         }
 
         /*Convert Lambert93 points to WGS84 (lat, lon) coordinates*/
