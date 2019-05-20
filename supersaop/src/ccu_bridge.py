@@ -142,7 +142,7 @@ class CCUBridgeNode:
                         gcs_point = coor_tran.transform(*pcs_point)
                         polygon.append({"lat": gcs_point[1], "lon": gcs_point[0]})
             if polygon:
-                return {"time": time_sec, "color": [255, 0, 0], "polygon": polygon}
+                return {"time": time_sec, "color": color, "polygon": polygon}
 
         firemap = serialization.geodata_from_raster_msg(msg.raster, "ignition")
         oof = 2
@@ -157,7 +157,7 @@ class CCUBridgeNode:
             if d_cont:
                 drawable_conts.append(d_cont)
 
-        self.ccu.send_wildfire_contours(drawable_conts)
+        self.ccu.send_wildfire_contours(*drawable_conts)
 
     def on_wildfire_current(self, msg: WildfireMap):
         pass
