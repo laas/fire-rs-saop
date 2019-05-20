@@ -67,7 +67,7 @@ namespace SAOP {
                 h_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
                 auto h_ctrl_entity_parameter = IMC::EntityParameter();
                 h_ctrl_entity_parameter.name = "Active";
-                h_ctrl_entity_parameter.value = "true";
+                h_ctrl_entity_parameter.value = "false";
                 h_ctrl_set_entity_parameters.params.push_back(h_ctrl_entity_parameter);
 
                 auto p_ctrl_set_entity_parameters = IMC::SetEntityParameters();
@@ -75,7 +75,7 @@ namespace SAOP {
                 p_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
                 auto p_ctrl_entity_parameter = IMC::EntityParameter();
                 p_ctrl_entity_parameter.name = "Use controller";
-                p_ctrl_entity_parameter.value = "true";
+                p_ctrl_entity_parameter.value = "false";
                 p_ctrl_set_entity_parameters.params.push_back(p_ctrl_entity_parameter);
 
                 auto fm_ctrl_set_entity_parameters = IMC::SetEntityParameters();
@@ -91,7 +91,7 @@ namespace SAOP {
                 ap_ctrl_set_entity_parameters.params = IMC::MessageList<IMC::EntityParameter>();
                 auto ap_ctrl_entity_parameter = IMC::EntityParameter();
                 ap_ctrl_entity_parameter.name = "Ardupilot Tracker";
-                ap_ctrl_entity_parameter.value = "false";
+                ap_ctrl_entity_parameter.value = "true";
                 ap_ctrl_set_entity_parameters.params.push_back(ap_ctrl_entity_parameter);
 
                 auto start_actions = IMC::MessageList<IMC::Message>();
