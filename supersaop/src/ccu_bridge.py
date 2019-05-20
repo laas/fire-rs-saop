@@ -94,8 +94,8 @@ class CCUBridgeNode:
 
         self.current_saop_plan = None
         self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
-        self.sub_saop_plan = rospy.Subscriber("stop", StopCmd, self.on_stop_cmd, queue_size=10)
-        self.sub_saop_plan = rospy.Subscriber("go_home", HomeCmd, self.on_home_cmd, queue_size=10)
+        self.sub_saop_stop = rospy.Subscriber("stop", StopCmd, self.on_stop_cmd, queue_size=10)
+        self.sub_saop_home = rospy.Subscriber("go_home", HomeCmd, self.on_home_cmd, queue_size=10)
 
         self.sub_wildfire_pred = rospy.Subscriber('wildfire_prediction', PredictedWildfireMap,
                                                   self.on_wildifre_prediction, queue_size=10)

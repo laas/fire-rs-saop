@@ -316,6 +316,12 @@ class HMINode:
                 WildfireMap, callback=self._on_wildfire_map_observed, callback_args=uav,
                 queue_size=10) for uav in self.uavs}
 
+        self.sub_windspeed_dict = {
+            uav: rospy.Subscriber(
+                "/".join(("uavs", serialization.ros_name_for(uav), 'windspeed')),
+                MeanWindStamped, callback=self._on_windspeed, callback_args=uav,
+                queue_size=10) for uav in self.uavs}
+
         self.sub_plan = rospy.Subscriber("plan", Plan, callback=self._on_plan, queue_size=10)
 
         self.pub_propagate = rospy.Publisher("propagate", PropagateCmd, queue_size=10)
@@ -342,6 +348,10 @@ class HMINode:
     def _on_wildfire_map_observed(self, msg: WildfireMap, uav: str):
         if self.hmi_model:
             self.hmi_model.on_wildfire_map_observed(uav, msg)
+
+    def _on_windspeed(self, msg: MeanWindStamped, uav: str):
+        # TODO: Do something with the wind speed
+        pass
 
     def _on_vehicle_state(self, msg: VehicleState, uav: str):
         if self.hmi_model:

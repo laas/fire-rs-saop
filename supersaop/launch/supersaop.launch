@@ -20,11 +20,10 @@
           respawn="true"/>
 
     <!-- Comming soon ! -->
-    <!--
-    <node pkg="supersaop"
-          type="supervisor.py"
-          name="supervisor"
-          output="screen"
-          respawn="true"/>
-     -->
+
+<!--    <node pkg="supersaop"-->
+<!--          type="supervisor.py"-->
+<!--          name="supervisor"-->
+<!--          output="screen"-->
+<!--          respawn="true"/>-->
 </launch>

@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find supersaop)/launch/supersaop.launch">
+        <arg name="scenario" value="vigo_seganosa_scenario.yaml"/>
+    </include>
+</launch>

@@ -205,7 +205,7 @@ if __name__ == '__main__':
                     **world_paths,
                     landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
             rw = fire_rs.simulation.wildfire.RealWildfire(
-                datetime.datetime.fromtimestamp((rospy.Time.now() - one_hour * 5).to_sec()),
+                datetime.datetime.fromtimestamp((rospy.Time.now() - one_hour * 3).to_sec()),
                 environment)
 
             ignitions = [np.array([area[0][0] + (area[0][1] - area[0][0]) * 0.25,
@@ -219,14 +219,14 @@ if __name__ == '__main__':
             actions = [
                 (w_starter.save_dem_of_firemap, ((environment,))),
                 (rw.ignite, (ignitions[0],)),
-                (rw.propagate, (datetime.timedelta(minutes=120.),)),
+                (rw.propagate, (datetime.timedelta(minutes=45.),)),
                 (rw.change_wind, (3, np.pi / 4)),
-                (rw.propagate, (datetime.timedelta(minutes=120.),)),
+                (rw.propagate, (datetime.timedelta(minutes=45.),)),
                 (rw.change_wind, (3, np.pi / 2)),
                 # (rw.ignite, (ignitions[1],)),
-                (rw.propagate, (datetime.timedelta(minutes=60.),)),
+                (rw.propagate, (datetime.timedelta(minutes=45.),)),
                 (rw.change_wind, (3, 0.)),
-                (rw.propagate, (datetime.timedelta(minutes=60.),)),
+                (rw.propagate, (datetime.timedelta(minutes=45.),)),
                 # (rw.change_wind, (3, np.pi / 4)),
                 # (rw.propagate, (datetime.timedelta(minutes=5000.),)),
                 # (rw.change_wind, (3, np.pi / 2)),
@@ -235,10 +235,10 @@ if __name__ == '__main__':
                 (w_starter.notify_alarm_point,
                  (ignitions[0],
                   lambda: rospy.Time.from_sec(rw.fire_map["ignition"][ignitions_cell[0]]))),
+                # (w_starter.notify_alarm_map,
+                #  (lambda: rw.perimeter(rospy.Time.now().to_sec() - 120 * 60).geodata,)),
                 (w_starter.notify_alarm_map,
-                 (lambda: rw.perimeter(rospy.Time.now().to_sec() - 120 * 60).geodata,)),
-                (w_starter.notify_alarm_map,
-                 (lambda: rw.perimeter(rospy.Time.now().to_sec() - 60 * 60).geodata,)),
+                 (lambda: rw.perimeter(rospy.Time.now().to_sec()).geodata,)),
                 (w_starter.publish_real_fire, (rw,)),
                 (w_starter.set_x8_06_wind, (3.0, 0.0)),
                 (w_starter.propagate, None)
@@ -273,6 +273,38 @@ if __name__ == '__main__':
                 (w_starter.set_x8_06_wind, (wind[0], wind[1])),
                 (w_starter.propagate, None)
             ]
+            
+        elif location == "vigo_mti":
+            start_wind = (2.0, 1 * np.pi / 4)
+            environment = fire_rs.firemodel.propagation.Environment(
+                area, start_wind[0], start_wind[1], fire_rs.geodata.environment.World(
+                    **world_paths,
+                    landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
+            rw = fire_rs.simulation.wildfire.RealWildfire(
+                datetime.datetime.fromtimestamp((rospy.Time.now() - five_hours).to_sec()),
+                environment)
+
+            ignitions = [np.array([area[0][0] + (area[0][1] - area[0][0]) * 0.2,
+                                   area[1][0] + (area[1][1] - area[1][0]) * 0.2]),
+                         ]
+
+            ignitions_cell = [rw.fire_map.array_index(p) for p in ignitions]
+
+            actions = [
+                (w_starter.save_dem_of_firemap, ((environment,))),
+                (rw.ignite, (ignitions[0],)),
+                (rw.propagate, (datetime.timedelta(minutes=60.),)),
+                (w_starter.notify_wind, (start_wind[0], start_wind[1])),
+                (w_starter.notify_alarm_point,
+                 (ignitions[0],
+                  lambda: rospy.Time.from_sec(rw.fire_map["ignition"][ignitions_cell[0]]))),
+                (w_starter.notify_alarm_map,
+                 (lambda: rw.perimeter(rospy.Time.now().to_sec() - 60 * 60).geodata,)),
+                (w_starter.propagate, None),
+                (w_starter.publish_real_fire, (rw,)),
+                (w_starter.set_x8_06_wind, (start_wind[0], start_wind[1])),
+            ]
+
         # elif location == "porto":
         #     actions = [
         #         (w_starter.notify_alarm_point,
@@ -325,7 +357,7 @@ if __name__ == '__main__':
         #          ((482060.0, 6213074.0), rospy.Time.now() - two_hours)),
         #         (w_starter.propagate, None)]
 
-        r = rospy.Rate(1 / 1.)
+        r = rospy.Rate(1 / 3.)
 
         while actions:
             a = actions.pop(0)
