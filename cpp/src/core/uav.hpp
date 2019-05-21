@@ -160,8 +160,8 @@ namespace SAOP {
         double _max_air_speed;
         double _min_turn_radius;
         double _max_pitch_angle; /* aka gamma_max */
-        double _view_width = 75;
-        double _view_depth = 50;
+        double _view_width = 100;
+        double _view_depth = 75;
 
         DubinsPath dubins_path(const Waypoint& origin, const Waypoint& target) const {
             DubinsPath path;
