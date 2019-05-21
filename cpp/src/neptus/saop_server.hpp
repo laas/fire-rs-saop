@@ -371,6 +371,8 @@ namespace SAOP {
                 t_end--;
             }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_start+1);
+            auto t_filtered = std::vector<double>(t_start, t_start+1);
+            auto name_filtered = std::vector<std::string>(n_start, n_start+1);
 
             std::cout << "Len wp_filtered "<< wp_filtered.size() << std::endl;
 
@@ -393,8 +395,7 @@ namespace SAOP {
             std::vector<std::string> maneuver_names = std::vector<std::string>(n_start, n_end);
             std::vector<double> maneuver_times = std::vector<double>(t_start, t_end);
 
-            auto ps = PlanSpecificationFactory::make_message(plan_id, wp_wgs84, maneuver_times,
-                                                             maneuver_names);
+            auto ps = PlanSpecificationFactory::make_message(plan_id, wp_wgs84, t_filtered, name_filtered);
             auto pc_start = produce_unique<IMC::PlanControl>(0, 0, uav_addr, 0xFF);
             pc_start->type = IMC::PlanControl::TypeEnum::PC_REQUEST;
             pc_start->op = IMC::PlanControl::OperationEnum::PC_START;
