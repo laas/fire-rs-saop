@@ -71,14 +71,14 @@ NOTIFICATION = "Example message".encode('utf-8')
 
 def main():
     def pub_alarm(posx, posy):
-        start_wind = (5.0, np.pi / 2 + np.pi / 4)
+        start_wind = (3.0, 3 * np.pi / 2)
         environment = fire_rs.firemodel.propagation.Environment(
             area, start_wind[0], start_wind[1], fire_rs.geodata.environment.World(
                 **world_paths,
                 landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
         rw = fire_rs.simulation.wildfire.RealWildfire(
             datetime.datetime.fromtimestamp(
-                (rospy.Time.now() - rospy.Duration.from_sec(60 * 30)).to_sec()),
+                (rospy.Time.now() - rospy.Duration.from_sec(15 * 60)).to_sec()),
             environment)
 
         ignitions = [(posx, posy), ]
@@ -87,8 +87,8 @@ def main():
 
         rw.ignite((posx, posy))
         rospy.loginfo("ignite %s", str((posx, posy)))
-        rw.propagate(datetime.timedelta(minutes=60.))
-        rospy.loginfo("propagate 60 min")
+        rw.propagate(datetime.timedelta(minutes=180.))
+        rospy.loginfo("propagate 180 min")
         wind = MeanWindStamped(header=Header(stamp=rospy.Time.now()), speed=start_wind[0],
                                direction=start_wind[1])
         wind_pub.publish(wind)
@@ -102,7 +102,7 @@ def main():
                                            layer="ignition"))
 
         map_pub.publish(wildfire_message)
-        rospy.loginfo("Notify alarm map at 30 min")
+        rospy.loginfo("Notify alarm map at 15 min")
         rospy.loginfo(wildfire_message)
 
         firemap.data["ignition"][firemap.data["ignition"] == np.inf] = 0
@@ -154,7 +154,6 @@ def main():
                 return None
             sensor_code = None
 
-
         # Generate subscriber
         subscriber = libwden.gen_subscriber_wfilter(
             context,
@@ -176,7 +175,9 @@ def main():
             # print("Incoming message (payload) %s", str(message[10:]))
             rospy.loginfo("This is a alarm")
             # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500) # VIGO MTI
-            pub_alarm(2802134.44 + 700, 2299388.43 + 700)
+            # pub_alarm(2802134.44 + 700, 2299388.43 + 700) # VIGO SEGANOSA
+
+            pub_alarm(536043.0, 4570950.0)  # PORTO LIPA
             # TODO: decode alarm
 
     # def wden_receive_all_task():
@@ -273,6 +274,7 @@ def main():
                                tcp_nodelay=True)
     # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500) # VIGO MTI
     # pub_alarm(2802134.44 , 2299388.43)
+    pub_alarm(536043.0, 4570950.0)  # PORTO LIPA
     rospy.sleep(1.)
 
     # Publish product notification
