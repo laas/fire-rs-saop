@@ -65,6 +65,7 @@ class SupervisorNode:
         self.sub_wildfire_precition = rospy.Subscriber("wildfire_prediction", PredictedWildfireMap,
                                                        self.on_wildfire_prediction)
         self.sub_saop_plan = rospy.Subscriber("plan", Plan, self.on_saop_plan, queue_size=10)
+        self.pub_plan = rospy.Publisher("plan", Plan, queue_size=10)
 
         self.supervision_state = SupervisorNodeState.Alarm_recv
         self.timer = None
@@ -104,10 +105,10 @@ class SupervisorNode:
 
     def request_demo1_plan(self):
         start_wp = PoseEuler(
-            position=Point(self.uav_bases["x8-06"][0], self.uav_bases["x8-06"][1], 400.0),
+            position=Point(536043.0, 4570950.0, 280.0),
             orientation=Euler(.0, .0, .0))
         end_wp = PoseEuler(
-            position=Point(self.uav_bases["x8-06"][0], self.uav_bases["x8-06"][1], 400.0),
+            position=Point(536043.0, 4570950.0, 280.0),
             orientation=Euler(.0, .0, .0))
 
         p_conf = PlanConf(name="p",
@@ -116,13 +117,14 @@ class SupervisorNode:
                                 start_wp=start_wp, end_wp=end_wp,
                                 start_time=rospy.Time.now() + rospy.Duration.from_sec(5),
                                 max_duration=300, wind=MeanWind(.0, .0))
+        maneuver = Maneuver("w", rospy.Time.now() + rospy.Duration.from_sec(7),
+                                          PoseEuler(position=Point(536043.0, 4570950.0, 280.0),
+                                                    orientation=Euler(.0, .0, .0)))
         p = Plan(header=Header(stamp=rospy.Time.now()),
                  conf=p_conf,
-                 trajectories=[Trajectory(conf=t_conf, maneuvers=[])])
+                 trajectories=[Trajectory(conf=t_conf, maneuvers=[maneuver])])
 
-        plan_command = PlanCmd(vns_conf="demo", planning_duration=1.0, plan_prototype=p)
-        self.pub_plan_request.publish(plan_command)
-        rospy.loginfo(plan_command)
+        self.pub_plan.publish(p)
 
     def on_saop_plan(self, msg: Plan):
         if self.supervision_state == SupervisorNodeState.Planning:
