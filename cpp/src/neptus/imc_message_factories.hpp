@@ -96,8 +96,8 @@ namespace SAOP {
 
                 auto start_actions = IMC::MessageList<IMC::Message>();
                 start_actions.push_back(fm_ctrl_set_entity_parameters);
-                start_actions.push_back(h_ctrl_set_entity_parameters);
-                start_actions.push_back(p_ctrl_set_entity_parameters);
+    //                start_actions.push_back(h_ctrl_set_entity_parameters);
+//                start_actions.push_back(p_ctrl_set_entity_parameters);
                 start_actions.push_back(ap_ctrl_set_entity_parameters);
 
                 return start_actions;
