@@ -299,11 +299,10 @@ namespace SAOP {
                 auto pmx = IMC::MessageList<IMC::PlanManeuver>();
 
                 for (size_t i = 0; i != wgs_waypoints.size(); ++i) {
-                    auto man_gotox = SAOP::neptus::ScheduledGotoFactory::make_message(wp_times[i],
+                    auto man_gotox = SAOP::neptus::GotoFactory::make_message(
                                                                                       wgs_waypoints[i].y,
                                                                                       wgs_waypoints[i].x,
-                                                                                      static_cast<float>(wgs_waypoints[i].z),
-                                                                                      IMC::ScheduledGoto::DelayedBehaviorEnum::DBEH_RESUME);
+                                                                                      static_cast<float>(wgs_waypoints[i].z));
                     pmx.push_back(SAOP::neptus::PlanManeuverFactory::make_message(maneuver_names[i],
                                                                                   man_gotox));
                 }
