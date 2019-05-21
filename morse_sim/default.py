@@ -27,7 +27,7 @@ drone = RMax("drone")
 # The list of the main methods to manipulate your components
 # is here: http://www.openrobots.org/morse/doc/stable/user/builder_overview.html
 #drone.translate(485444.0, 6214440.0, 2500.0)
-drone.translate(536094.350191, 4571072.909879, 1050)
+drone.translate(536779.0, 4571816.0, 200)
 drone.rotate(0.0, 0.0, 3.14159/2)
 
 # Add a motion controller
