@@ -483,7 +483,7 @@ namespace SAOP {
             auto ws_message = produce_unique<IMC::DevDataText>(0, 0, 0xFFF0, 0xFF);
             ws_message->value = text;
 
-            BOOST_LOG_TRIVIAL(debug) << "Send " << ws_message->toString();
+//            BOOST_LOG_TRIVIAL(debug) << "Send " << ws_message->toString();
             imc_comm->send(std::move(ws_message));
             return true;
         }
