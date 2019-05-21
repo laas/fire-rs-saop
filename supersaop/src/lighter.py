@@ -307,6 +307,37 @@ if __name__ == '__main__':
                 (w_starter.set_x8_06_wind, (wind[0], wind[1])),
                 (w_starter.propagate, None)
             ]
+        elif location == "demo2-3":
+            # Scenario MONITOR 30 later
+            wind = (3, 3 * np.pi / 2)
+            environment = fire_rs.firemodel.propagation.Environment(
+                area, wind[0], wind[1], fire_rs.geodata.environment.World(
+                    **world_paths,
+                    landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
+            rw = fire_rs.simulation.wildfire.RealWildfire(
+                datetime.datetime.fromtimestamp((rospy.Time.now() - one_hour*1.5).to_sec()),
+                environment)
+
+            ignitions = [np.array([536043.0, 4570950.0])]
+
+            ignitions_cell = [rw.fire_map.array_index(p) for p in ignitions]
+
+            actions = [
+                (w_starter.save_dem_of_firemap, ((environment,))),
+                (rw.ignite, (ignitions[0],)),
+                (rw.propagate, (datetime.timedelta(minutes=180.),)),
+                (w_starter.notify_wind, (wind[0], wind[1])),
+                (w_starter.notify_alarm_point,
+                 (ignitions[0],
+                  lambda: rospy.Time.from_sec(rw.fire_map["ignition"][ignitions_cell[0]]))),
+                (w_starter.notify_alarm_map,
+                 (lambda: rw.perimeter(rospy.Time.now().to_sec() - 15 * 60).geodata,)),
+                # (w_starter.notify_alarm_map,
+                #  (lambda: rw.perimeter(rospy.Time.now().to_sec() - 60 * 60).geodata,)),
+                (w_starter.publish_real_fire, (rw,)),
+                (w_starter.set_x8_06_wind, (wind[0], wind[1])),
+                (w_starter.propagate, None)
+            ]
             
         elif location == "vigo_mti":
             start_wind = (2.0, 1 * np.pi / 4)
