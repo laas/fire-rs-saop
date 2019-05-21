@@ -360,16 +360,16 @@ namespace SAOP {
             auto r_end = all_wp.end();
             auto n_end = all_names.end();
             auto t_end = all_times.end();
-            if (t.conf().start_position && all_wp.front() == *t.conf().start_position) {
-                r_start++;
-                n_start++;
-                t_start++;
-            }
-            if (t.conf().end_position && all_wp.back() == *t.conf().end_position) {
-                r_end--;
-                n_end--;
-                t_end--;
-            }
+//            if (t.conf().start_position && all_wp.front() == *t.conf().start_position) {
+//                r_start++;
+//                n_start++;
+//                t_start++;
+//            }
+//            if (t.conf().end_position && all_wp.back() == *t.conf().end_position) {
+//                r_end--;
+//                n_end--;
+//                t_end--;
+//            }
             auto wp_filtered = std::vector<Waypoint3d>(r_start, r_start+1);
             auto t_filtered = std::vector<double>(t_start, t_start+1);
             auto name_filtered = std::vector<std::string>(n_start, n_start+1);
