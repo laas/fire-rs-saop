@@ -220,6 +220,10 @@ def make_utility_map(firemap: GeoData, flight_window: TimeWindow = TimeWindow(-n
 
     return firemap.clone(data_array=utility, dtype=[(output_layer, 'float64')])
 
+def make_flat_utility_map(firemap: GeoData, flight_window: TimeWindow = TimeWindow(-np.inf, np.inf),
+                     layer="ignition", output_layer="utility") -> GeoData:
+    """Create a constant utility map"""
+    return firemap.clone(fill_value=1., dtype=[(output_layer, 'float64')])
 
 class Planner:
     """Make a multi-UAV observation mission form an initial plan or improve an existing plan"""
