@@ -275,8 +275,13 @@ class HMIModel:
                      uavs: ty.Sequence[str], trajectory_duration: ty.Mapping[str, float],
                      start_delay: float):
         if self.node is not None:
-            uav_stuff = {uav: {"start": self.uav_state.data[uav],
-                               "end": self.uav_state.data[uav]} for uav in uavs}
+            uav_stuff = {uav: {"start": {
+                "position": [self.uav_bases.data[uav][0], self.uav_bases.data[uav][1],
+                             self.uav_state.data[uav]["position"][2]], "orientation": [0., 0., 0.]},
+                               "end": {"position": [self.uav_bases.data[uav][0],
+                                                    self.uav_bases.data[uav][1],
+                                                    self.uav_state.data[uav]["position"][2]],
+                                       "orientation": [0., 0., 0.]}} for uav in uavs}
             self.node.publish_plan_request(vns_conf, planning_duration, uav_stuff,
                                            mission_duration=mission_duration,
                                            uav_trajectory_duration=trajectory_duration,
@@ -449,7 +454,7 @@ class PlanCreationWindow(Gtk.Dialog):
         self.planning_duration_entry.set_numeric(True)
 
         # Mission duration
-        mission_duration_adjustment = Gtk.Adjustment(value=150, lower=60, upper=3600,
+        mission_duration_adjustment = Gtk.Adjustment(value=90, lower=60, upper=3600,
                                                      step_increment=30, page_increment=60,
                                                      page_size=0)
         mission_duration_label = Gtk.Label.new_with_mnemonic("Mission duration (s):")
@@ -559,7 +564,7 @@ class PlanCreationWindow(Gtk.Dialog):
         grid = Gtk.Grid(orientation=Gtk.Orientation.HORIZONTAL, column_spacing=12, row_spacing=6)
         grid.set_border_width(12)
         # Max flight duration
-        max_flight_duration_adjustement = Gtk.Adjustment(value=600, lower=60, upper=3600,
+        max_flight_duration_adjustement = Gtk.Adjustment(value=90, lower=60, upper=3600,
                                                          step_increment=30, page_increment=60,
                                                          page_size=0)
         max_flight_duration_label = Gtk.Label.new_with_mnemonic("Max. flight duration (s):")
@@ -813,7 +818,7 @@ if __name__ == "__main__":
 
     # Model
     themodel = HMIModel()
-    themodel.set_uav_bases({"x8-06": (2776500.0, 2211500.0)})
+    themodel.set_uav_bases({"x8-06": (536097.41, 4571178.58)})
 
     # View
     win = SAOPControlWindow(themodel)
