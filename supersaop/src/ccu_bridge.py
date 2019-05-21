@@ -149,8 +149,8 @@ class CCUBridgeNode:
         rospy.loginfo("Sending to Neptus %s out of %s point in contours", str(1), str(oof))
         # Colors from bright red to white, varying saturation: (255, x, x)
         desired_contours = [(rospy.Time.now().to_sec(), (255, 0, 0)),
-                            (rospy.Time.now().to_sec() + 1800, (255, 170, 170)),
-                            (rospy.Time.now().to_sec() + 3600, (255, 85, 85))]
+                            (rospy.Time.now().to_sec() + 1800, (255, 85, 85)),
+                            (rospy.Time.now().to_sec() + 3600, (255, 170, 170))]
         drawable_conts = []
         for d in desired_contours:
             d_cont = create_drawable_contour(firemap, d[0], d[1], oof)
