@@ -78,7 +78,7 @@ def main():
                 landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
         rw = fire_rs.simulation.wildfire.RealWildfire(
             datetime.datetime.fromtimestamp(
-                (rospy.Time.now() - rospy.Duration.from_sec(15 * 60)).to_sec()),
+                (rospy.Time.now() - rospy.Duration.from_sec(10 * 60)).to_sec()),
             environment)
 
         ignitions = [(posx, posy), ]
@@ -87,8 +87,8 @@ def main():
 
         rw.ignite((posx, posy))
         rospy.loginfo("ignite %s", str((posx, posy)))
-        rw.propagate(datetime.timedelta(minutes=180.))
-        rospy.loginfo("propagate 180 min")
+        rw.propagate(datetime.timedelta(minutes=60.))
+        rospy.loginfo("propagate 60 min")
         wind = MeanWindStamped(header=Header(stamp=rospy.Time.now()), speed=start_wind[0],
                                direction=start_wind[1])
         wind_pub.publish(wind)
