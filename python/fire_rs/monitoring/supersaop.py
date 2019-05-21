@@ -230,7 +230,7 @@ class SituationAssessment:
             self.geodata = fire_rs.firemodel.propagation.empty_firemap(self._environment.raster)
             self.until = until
             self.time = datetime.datetime.now()
-            if self._perimeter:
+            if self._perimeter or self._pending_ignitions:
                 self._assess_until(self.until)
 
         def _assess_until(self, until: datetime.datetime):
@@ -349,16 +349,29 @@ class SituationAssessment:
             self.logger.info("Assessment of current wildfire state now")
         else:
             self.logger.info("Assessment of current wildfire state at time %s", str(time))
-        self._wildfire_current_assessment = SituationAssessment.WildfireCurrentAssessment(
-            self._environment, dict(self._observed_wildfire.cells), perimeter_time=time)
+        try:
+            self._wildfire_current_assessment = SituationAssessment.WildfireCurrentAssessment(
+                self._environment, dict(self._observed_wildfire.cells), perimeter_time=time)
+        except IndexError as e:
+            self.logger.warning(e)
+            self.logger.warning("Cannot make assessment")
+            self._wildfire_current_assessment = None
 
     def assess_until(self, until: datetime.datetime):
         """Compute an expected wildfire simulation from initial observations."""
-        self.logger.info("Assessment of future wildfire state from %s until %s",
-                         str(self._wildfire_current_assessment.time), str(until))
-        self._wildfire_future_propagation = SituationAssessment.WildfireFuturePropagation(
-            self._environment, self._wildfire_current_assessment.perimeter, {},
-            self._wildfire_current_assessment.geodata, until)
+        if self._wildfire_current_assessment is not None:
+            self.logger.info("Assessment of future wildfire state from %s until %s",
+                             str(self._wildfire_current_assessment.time), str(until))
+            self._wildfire_future_propagation = SituationAssessment.WildfireFuturePropagation(
+                self._environment, self._wildfire_current_assessment.perimeter, {},
+                self._wildfire_current_assessment.geodata, until)
+        else:
+            self.logger.info("Assessment of future wildfire state from until %s", str(until))
+            if not self._observed_wildfire.cells:
+                pass
+            self._wildfire_future_propagation = SituationAssessment.WildfireFuturePropagation(
+                self._environment, None, dict(self._observed_wildfire.cells),
+                self._observed_wildfire.geodata, until)
 
 
 class ObservationPlanning:
@@ -734,7 +747,7 @@ class NeptusBridge:
             self._geodetic_cs_epsg = geo_data.EPSG_ETRS89
         elif projected_cs == geo_data.EPSG_WGS84_UTM29N:
             self._projected_cs_epsg = projected_cs
-            self._geodetic_cs_epsg =geo_data.EPSG_WGS84
+            self._geodetic_cs_epsg = geo_data.EPSG_WGS84
 
         self._coor_tran = _CoordinateTransformation(self._geodetic_cs_epsg, self._projected_cs_epsg)
 

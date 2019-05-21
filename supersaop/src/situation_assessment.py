@@ -102,8 +102,11 @@ class SituationAssessmentNode:
             # Assess current condition
             rospy.loginfo("Assessment of current situation")
             self.sa.assess_current(datetime.datetime.fromtimestamp(rospy.Time.now().to_sec()))
-            w = self.sa.wildfire.geodata
-            w_time = self.sa.wildfire.time
+            w = None
+            w_time = None
+            if self.sa.wildfire:
+                w = self.sa.wildfire.geodata
+                w_time = self.sa.wildfire.time
 
             rospy.loginfo("Assessment of future situation")
             until = datetime.datetime.fromtimestamp((rospy.Time.now() + self.horizon).to_sec())
@@ -117,9 +120,11 @@ class SituationAssessmentNode:
                          p_timestamp: datetime.datetime,
                          until: datetime.datetime):
         """Publish current situation assessment."""
-        current = WildfireMap(
-            header=rospy.Header(stamp=rospy.Time.from_sec(w_timestamp.timestamp())),
-            raster=serialization.raster_msg_from_geodata(w, 'ignition'))
+        current = None
+        if w:
+            current = WildfireMap(
+                header=rospy.Header(stamp=rospy.Time.from_sec(w_timestamp.timestamp())),
+                raster=serialization.raster_msg_from_geodata(w, 'ignition'))
         pred = PredictedWildfireMap(
             header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
             last_valid=rospy.Time.from_sec(until.timestamp()),
@@ -129,7 +134,8 @@ class SituationAssessmentNode:
         # self.pub_wildfire_real.publish(WildfireMap(
         #     header=rospy.Header(stamp=rospy.Time.from_sec(p_timestamp.timestamp())),
         #     raster=serialization.raster_msg_from_geodata(p, 'ignition')))
-        self.pub_wildfire_current.publish(current)
+        if current:
+            self.pub_wildfire_current.publish(current)
 
         if self.sa.elevation_timestamp > self.last_elevation_timestamp:
             # pub_elevation is latching, don't bother other nodes with unnecessary elevation updates
@@ -145,10 +151,11 @@ class SituationAssessmentNode:
         g.draw_ignition_shade(with_colorbar=True)
         g.figure.savefig("/home/rbailonr/fuego_pre.png")
         g.close()
-        g = GeoDataDisplay.pyplot_figure(w)
-        g.draw_ignition_shade(with_colorbar=True)
-        g.figure.savefig("/home/rbailonr/fuego_cur.png")
-        g.close()
+        if w:
+            g = GeoDataDisplay.pyplot_figure(w)
+            g.draw_ignition_shade(with_colorbar=True)
+            g.figure.savefig("/home/rbailonr/fuego_cur.png")
+            g.close()
         g = GeoDataDisplay.pyplot_figure(self.sa.observed_wildfire.geodata)
         g.draw_ignition_shade(with_colorbar=True)
         g.figure.savefig("/home/rbailonr/fuego_obs.png")
