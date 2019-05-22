@@ -43,7 +43,7 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 
 # WDEN will listen on this address and ports
-URI = "tcp://192.168.255.3"
+URI = "tcp://192.168.255.1"
 # URI = "tcp://localhost"
 SUB_PORT = 4000
 PUB_PORT = 5000
@@ -62,7 +62,7 @@ MESSAGE_TYPE_LAAS = b'\x00\x03'
 MESSAGE_TYPE_UAV = b'\x00\x02'
 MESSAGE_TYPE_M2M = b'\x00\x01'
 
-UAV_ADDR = b'\x10\x00\x02\x01'
+UAV_ADDR = b'\x10\x00\x03\x01'
 SAOP_ADDR = b'\x50\x00\x00\x01'
 GATEWAY_ADDR = b'\x10\x00\x00\x01'
 SENSOR_ADDR_MASK = b'\x10\x00\x01'  # 4th byte indicates a particular sensor
@@ -221,14 +221,16 @@ def main():
                 # Convert to plan_spec and serialize respecting 192byte limit
                 # self.ccu.start_trajectory(traj, traj.conf.uav.name)
                 msg = fire_rs.neptus_interface.demo1_serialize_plan(traj, 0x0c10, 3035)
-                rospy.loginfo("%s", msg)
+                rospy.loginfo("%s", binascii.hexlify(msg))
                 rospy.loginfo("Length: %s", str(len(msg)))
-                libwden.send_message(
-                    publisher,
-                    MESSAGE_TYPE_M2M,
-                    SAOP_ADDR,
-                    UAV_ADDR,
-                    msg)
+                for i in range(10):
+                    rospy.loginfo("Msg to WDEN %s: %s", str(i), binascii.hexlify(msg[0:20]))
+                    libwden.send_message(
+                        publisher,
+                        MESSAGE_TYPE_M2M,
+                        SAOP_ADDR,
+                        UAV_ADDR,
+                        msg[0:20])
 
     # Generate 0MQ context
     context = libwden.init_wden()
@@ -287,7 +289,6 @@ def main():
         #     SOURCE,
         #     DESTINATION,
         #     NOTIFICATION)
-
         r.sleep()
 
 
