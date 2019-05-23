@@ -105,10 +105,10 @@ class SupervisorNode:
 
     def request_demo1_plan(self):
         start_wp = PoseEuler(
-            position=Point(536043.0, 4570950.0, 280.0),
+            position=Point(536010.0, 4570910.0, 280.0),
             orientation=Euler(.0, .0, .0))
         end_wp = PoseEuler(
-            position=Point(536043.0, 4570950.0, 280.0),
+            position=Point(536010.0, 4570910.0, 280.0),
             orientation=Euler(.0, .0, .0))
 
         p_conf = PlanConf(name="p",
@@ -118,7 +118,7 @@ class SupervisorNode:
                                 start_time=rospy.Time.now() + rospy.Duration.from_sec(5),
                                 max_duration=300, wind=MeanWind(.0, .0))
         maneuver = Maneuver("w", rospy.Time.now() + rospy.Duration.from_sec(7),
-                                          PoseEuler(position=Point(536043.0, 4570950.0, 280.0),
+                                          PoseEuler(position=Point(536010.0, 4570910.0, 280.0),
                                                     orientation=Euler(.0, .0, .0)))
         p = Plan(header=Header(stamp=rospy.Time.now()),
                  conf=p_conf,
