@@ -87,8 +87,8 @@ def main():
 
         rw.ignite((posx, posy))
         rospy.loginfo("ignite %s", str((posx, posy)))
-        rw.propagate(datetime.timedelta(minutes=60.))
-        rospy.loginfo("propagate 60 min")
+        rw.propagate(datetime.timedelta(minutes=90.))
+        rospy.loginfo("propagate 90 min")
         wind = MeanWindStamped(header=Header(stamp=rospy.Time.now()), speed=start_wind[0],
                                direction=start_wind[1])
         wind_pub.publish(wind)
@@ -102,8 +102,15 @@ def main():
                                            layer="ignition"))
 
         map_pub.publish(wildfire_message)
+        wildfire_real_message = WildfireMap(header=rospy.Header(stamp=rospy.Time.now()),
+                                       raster=serialization.raster_msg_from_geodata(
+                                           rw.fire_map,
+                                           layer="ignition"))
         rospy.loginfo("Notify alarm map at 15 min")
         rospy.loginfo(wildfire_message)
+        pub_wildfire_real.publish(wildfire_real_message)
+        rospy.loginfo(wildfire_real_message)
+
 
         firemap.data["ignition"][firemap.data["ignition"] == np.inf] = 0
         firemap.data["ignition"][firemap.data["ignition"].nonzero()] = 65535
@@ -223,14 +230,14 @@ def main():
                 msg = fire_rs.neptus_interface.demo1_serialize_plan(traj, 0x0c10, 3035)
                 rospy.loginfo("%s", binascii.hexlify(msg))
                 rospy.loginfo("Length: %s", str(len(msg)))
-                for i in range(10):
-                    rospy.loginfo("Msg to WDEN %s: %s", str(i), binascii.hexlify(msg[0:20]))
-                    libwden.send_message(
-                        publisher,
-                        MESSAGE_TYPE_M2M,
-                        SAOP_ADDR,
-                        UAV_ADDR,
-                        msg[0:20])
+                # for i in range(10):
+                #     rospy.loginfo("Msg to WDEN %s: %s", str(i), binascii.hexlify(msg[0:20]))
+                #     libwden.send_message(
+                #         publisher,
+                #         MESSAGE_TYPE_M2M,
+                #         SAOP_ADDR,
+                #         UAV_ADDR,
+                #         msg[0:20])
 
     # Generate 0MQ context
     context = libwden.init_wden()
@@ -274,12 +281,23 @@ def main():
     alarm_pub = rospy.Publisher("wildfire_point", Timed2DPointStamped, queue_size=1)
     wind_pub = rospy.Publisher("mean_wind", MeanWindStamped, queue_size=1,
                                tcp_nodelay=True)
+    pub_wildfire_real = rospy.Publisher("real_wildfire", WildfireMap, queue_size=1,
+                                             tcp_nodelay=True, latch=True)
     # pub_alarm(2786284.0 + 1500, 2306526.0 + 1500) # VIGO MTI
     # pub_alarm(2802134.44 , 2299388.43)
     pub_alarm(536043.0, 4570950.0)  # PORTO LIPA
     rospy.sleep(1.)
 
     # Publish product notification
+    # msg = b"UAV plan"
+    # for i in range(10):
+    #     rospy.loginfo("Msg to WDEN %s: %s", str(i), binascii.hexlify(msg))
+    #     libwden.send_message(
+    #         publisher,
+    #         MESSAGE_TYPE_M2M,
+    #         SAOP_ADDR,
+    #         UAV_ADDR,
+    #         msg)
     r = rospy.Rate(10.)
     while not rospy.is_shutdown():
         # Publish notification
