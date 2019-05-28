@@ -22,14 +22,14 @@ A C++ library (___libsaop___) implementing:
  
 And a ROS pacakge (___supersaop___) for real time execution of SAOP with real or simulated UAVs in a real or synthetic wildfire scenario.
 
-## Running SAOP
+## Using SAOP
 [![Build Status](https://travis-ci.org/laas/fire-rs-saop.svg?branch=master)](https://travis-ci.org/laas/fire-rs-saop)
 ### Requirements
 
-A GNU/Linux operating system with:
+The core functions of FireRS SAOP require running a GNU/Linux operating system (Ubuntu 18.04 or Fedora 29 recommended) with:
 
  - cmake
- - a C++11 compiler (at least)
+ - a C++11 compiler (or later)
  - Boost
  - python 3.5
  - Cython
@@ -45,20 +45,19 @@ A GNU/Linux operating system with:
     * pybind11
     * pytz
     * scikit-image
-    * ...
+    * scipy
 
-Optionally:
+Optionally, for the real time execution:
 
- - [Neptus](https://github.com/lsts/neptus) and [Dune](https://github.com/lsts/dune) for UAV simulation and plan execution
+ - [ROS](http://www.ros.org/) (if installing from source, only the *ROS-Comm* variant is needed)
+ - [Neptus](https://github.com/lsts/neptus) and [Dune](https://github.com/lsts/dune) 
 
-The file `docker/Dockerfile` contains all the steps require to retrieve all dependencies on an Ubuntu 16.04 distribution.
-
-pybind11 is present as a submodule of the current repository. To retrieve it:
+*pybind11 is present as a submodule of the current repository. To retrieve it:*
 
     git submodule init
     git submodule update
 
-### On your system
+### Local build
 
 Just do `make build`.
 
@@ -69,7 +68,7 @@ In detail, targets for the Makefile are:
 - `build-testing`: compile including *libsaop* tests with debugging symbols in the build
 - `autobuild`: recompile the project each time a source file is changed (requires "when-changed")
 - `benchmark`: Create a random fire scenario and benchmark observation plan search.
-- `doc`: generate *libsaop* python interface html documentation
+- `doc`: generate *libsaop* python interface html documentation (needs *sphinx*)
 - `clean`: remove the build folder and python artifacts
 - `test-python`: run all python unit tests
 - `test-cpp`: run unittests specific to the C++ module only
@@ -91,6 +90,7 @@ This process will:
 
 ### On Docker
 
+The file `docker/Dockerfile` contains all the steps require to retrieve most of the dependencies on an Ubuntu 16.04 distribution.
 
 A Dockerfile is provided to set up an environment with windninja and all python dependencies.
 
