@@ -1,16 +1,26 @@
 # FireRS Situation Assessment and Observation Planning
 
-FireRS Situation Assessment and Observation Planning (SAOP) is composed of several python modules:
+*FireRS Situation Assessment and Observation Planning (SAOP)* is composed of several python packages:
 
- - *geodata*: geographic and environmental data manipulation
- - *firemodel*: wildfire propagation
- - *planning*: high-level interface for UAV planning
+ - ```fire_rs.geodata```: geographic and environmental data manipulation
+ - ```fire_rs.firemodel```: wildfire propagation
+ - ```fire_rs.planning```: high-level interface for UAV planning
+ - ```fire_rs.monitoring```: high-level functionalities of the wildfire monitoring mission 
+ - ```fire_rs.simulation```: create and control a synthetic wildfire in the Morse robotic simulator
+ 
+   *Those can be found in the ```python``` directory.*
 
-and a C++ library (_libsaop_) with python interfaces:
-
- - *uav_planning*: UAV planning core algorithms
- - *neptus*: Communication with [Neptus command and control infrastructure](https://github.com/lsts/neptus)
- - *firemapping*: Wildfire mapping algorithms
+A C++ library (___libsaop___) implementing:
+ - A VNS-based observation planning algorithm for wildfire monitoring.
+ - The communication with [Neptus](https://github.com/LSTS/neptus) and [Dune](https://github.com/LSTS/dune) software for the operation of unmmaned vehicles.
+ - A trivial wildfire mapping algorithm.
+ 
+   The functionality provided by _libsaop_ is also exposed trough three python interfaces:
+   - *uav_planning*: Core planning algorithm
+   - *neptus*: Communication with Neptus and Dune
+   - *firemapping*: mapping algorithms
+ 
+And a ROS pacakge (___supersaop___) for real time execution of SAOP with real or simulated UAVs in a real or synthetic wildfire scenario.
 
 ## Running SAOP
 [![Build Status](https://travis-ci.org/laas/fire-rs-saop.svg?branch=master)](https://travis-ci.org/laas/fire-rs-saop)
