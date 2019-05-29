@@ -49,7 +49,7 @@ The core functions of FireRS SAOP require running a GNU/Linux operating system (
 
 Optionally, for the real time execution:
 
- - [ROS](http://www.ros.org/) (if installing from source, only the *ROS-Comm* variant is needed)
+ - [ROS](http://www.ros.org/)
  - [Neptus](https://github.com/lsts/neptus) and [Dune](https://github.com/lsts/dune) 
 
 *pybind11 is present as a submodule of the current repository. To retrieve it:*
@@ -109,6 +109,8 @@ This process will:
 ### On Docker
 
 The file `docker/Dockerfile` contains all the steps require to retrieve most of the dependencies on an Ubuntu 16.04 distribution.
+
+__#Note: The docker container is currently not fully updated#__
 
 A Dockerfile is provided to set up an environment with windninja and all python dependencies.
 
