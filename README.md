@@ -56,6 +56,24 @@ Optionally, for the real time execution:
 
     git submodule init
     git submodule update
+    
+#### Geographic data
+
+On top of the software requierements, some geographic data are needed in order to propagate a fire in the area of your choice.
+You should set an environment variable ```FIRERS_DATA``` containing the path to a folder with 3 folders inside following this structure:
+
+ - ```firers_data/```
+   - ```dem/```
+   - ```landcover/```
+   - ```wind/```
+
+Some sample files can be found in: .
+For using SAOP in other regions you have to acquire the corresponding DEM and lancover maps for the area.
+*(A good source for Europe are the European Digital Elevation Model (EU-DEM) and Corine Land Cover (CLC) 2006)*
+
+Additionally, an environment variable ```WINDNINJA_CLI_PATH``` should be set to the path where the windninja executable can be found. 
+Windninja will be creating files in the ```wind``` folder as needed with the local wind for the DEMs in the ```dem``` folder. 
+
 
 ### Local build
 
