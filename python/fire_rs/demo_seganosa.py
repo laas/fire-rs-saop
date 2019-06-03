@@ -29,6 +29,8 @@ import datetime
 import logging
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.cm
 
 import fire_rs.geodata.environment as g_environment
