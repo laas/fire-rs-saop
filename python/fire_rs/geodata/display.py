@@ -447,6 +447,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
             kwargs['edgecolor'] = 'black'
         if 'marker' not in kwargs:
             kwargs['marker'] = 'o'
+        kwargs["zorder"] = GeoDataDisplayBase.FOREGROUND_OVERLAY_LAYER
 
         return self._draw_scatter(ignition_points, **kwargs)
 
