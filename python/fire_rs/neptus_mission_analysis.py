@@ -65,6 +65,7 @@ if __name__ == "__main__":
 
     es2 = es.reindex(es.index.append(pd.Index(new_ts)).sort_values())
     es3 = es2.interpolate(method="time")
+    es3 = es3[~es3.index.duplicated()]
     es4 = es3.reindex(pd.Index(new_ts))
     logger.info("Writing UAV poses to %s" % args.result_file[0])
     es4.index = new_ts_float
