@@ -6,6 +6,8 @@
 # When invoked with 'start', the container will be started to give a bash prompt in the container
 
 DOCKER_DIR="$(realpath $(dirname ${BASH_SOURCE[0]}))"
+# FireRS SAOP root dir is this script parent. It replaces the code already present in the container
+ROOT_DIR="$(realpath $(dirname ${DOCKER_DIR}))"
 
 # X11 authorization stuff
 XSOCK=/tmp/.X11-unix
@@ -16,8 +18,10 @@ xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
 CONTAINER_NAME='fire-rs-saop'
 
 CONTAINER_START_CMD="docker run -it --user=saop:saop --cap-add=SYS_PTRACE \
---volume ${FIRERS_DATA}:/home/saop/data:z --env DISPLAY=${DISPLAY} \
---volume=$XSOCK:$XSOCK:rw --volume=$XAUTH:$XAUTH:rw --env="XAUTHORITY=${XAUTH}" \
+--volume=${ROOT_DIR}:/home/saop/code:z \
+--volume=${FIRERS_DATA}:/home/saop/data:z \
+--env="DISPLAY=${DISPLAY}" --env="XAUTHORITY=${XAUTH}" \
+--volume=$XSOCK:$XSOCK:rw --volume=$XAUTH:$XAUTH:rw \
 ${CONTAINER_NAME}"
 
 USER_UID="$(id -u)"
@@ -40,7 +44,8 @@ case $1 in
         ;;
     'start'|'')
         echo "Running container ${CONTAINER_NAME} using:"
-        echo "{FIRERS_DATA} as data directory (mapped to /home/saop/data)"
+        echo "  ${ROOT_DIR} as source directory (mapped to /home/saop/code)"
+        echo "  ${FIRERS_DATA} as data directory (mapped to /home/saop/data)"
         echo ""
         echo ${CONTAINER_START_CMD}
         eval ${CONTAINER_START_CMD}
