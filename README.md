@@ -22,14 +22,31 @@ A C++ library (___libsaop___) implementing:
  
 And a ROS pacakge (___supersaop___) for real time execution of SAOP with real or simulated UAVs in a real or synthetic wildfire scenario.
 
-## Using SAOP
-[![Build Status](https://travis-ci.org/laas/fire-rs-saop.svg?branch=master)](https://travis-ci.org/laas/fire-rs-saop)
-### Requirements
+## SAOP environment setup
 
-The core functions of FireRS SAOP require running a GNU/Linux operating system (Ubuntu 18.04 or Fedora 29 recommended) with:
+### 1. On Docker
+The easiest way to start with SAOP is using docker.
+
+To build the container:
+
+    ./docker/run.bash build
+
+The file `docker/Dockerfile` contains all the steps to build a SAOP-ready Ubuntu 18.04 image.
+
+To start a shell in the container with the the code repository and the data repository mounted:
+
+    ./docker/run.bash start
+
+The `/docker/run.bash` is the recommended way to build and run the SAOP docker container as it sets up some X11 bindings from the host.
+
+### 2. Local software requirements
+
+_(If you are using docker, skip this section and continue with **Geographic data**)_
+
+The core functions of FireRS SAOP require running a GNU/Linux operating system (Ubuntu 18.04 and Fedora 29 tested) with:
 
  - cmake
- - a C++11 compiler (or later)
+ - a C++11 compiler
  - Boost
  - python 3.5
  - Cython
@@ -42,22 +59,33 @@ The core functions of FireRS SAOP require running a GNU/Linux operating system (
     * joblib
     * matplotlib
     * numpy
+    * pandas
     * pybind11
     * pytz
     * scikit-image
     * scipy
 
-Optionally, for the real time execution:
+Using Ubuntu, run as *root*:
 
- - [ROS](http://www.ros.org/)
- - [Neptus](https://github.com/lsts/neptus) and [Dune](https://github.com/lsts/dune) 
+    apt install g++ cmake python3 cython3 python3-gdal python3-setuptools\
+    python3-pip python3-affine python3-tz python3-pandas python3-numpy\
+    python3-matplotlib libboost-all-dev libgdal-dev
+    
+    pip3 install pybind11 joblib scikit-image scipy
 
 *pybind11 is present as a submodule of the current repository. To retrieve it:*
 
     git submodule init
     git submodule update
     
-#### Geographic data
+#### 3.1 Real time execution  requirements
+
+Optionally, for the real time execution:
+
+ - [ROS](http://www.ros.org/)
+ - [Neptus](https://github.com/lsts/neptus) and [Dune](https://github.com/lsts/dune) 
+    
+### 3. Geographic data
 
 On top of the software requierements, some geographic data are needed in order to propagate a fire in the area of your choice.
 You should set an environment variable ```FIRERS_DATA``` containing the path to a folder with 3 folders inside following this structure:
@@ -71,11 +99,12 @@ Some sample files can be found in: .
 For using SAOP in other regions you have to acquire the corresponding DEM and lancover maps for the area.
 *(A good source for Europe are the European Digital Elevation Model (EU-DEM) and Corine Land Cover (CLC) 2006)*
 
-Additionally, an environment variable ```WINDNINJA_CLI_PATH``` should be set to the path where the windninja executable can be found. 
+Additionally, an environment variable ```WINDNINJA_CLI_PATH``` should be set to the path where the windninja executable can be found.
+windninja_s 
 Windninja will be creating files in the ```wind``` folder as needed with the local wind for the DEMs in the ```dem``` folder. 
 
-
-### Local build
+## Building saop
+[![Build Status](https://travis-ci.org/laas/fire-rs-saop.svg?branch=master)](https://travis-ci.org/laas/fire-rs-saop)
 
 Just do `make build`.
 
@@ -105,22 +134,6 @@ This process will:
  - build a C++ backend with python bindings
  - build the Cython modules in `python/`
  - ensure that the produced artifacts are located in the `python/` source directory so that the python scripts can be invoke in straightforward manner.
-
-### On Docker
-
-The file `docker/Dockerfile` contains all the steps require to retrieve most of the dependencies on an Ubuntu 16.04 distribution.
-
-__#Note: The docker container is currently not fully updated#__
-
-A Dockerfile is provided to set up an environment with windninja and all python dependencies.
-
-To build the container:
-
-    ./docker/run.sh build
-
-To start a shell in the container with the the code repository and the data repository mounted:
-
-    ./docker/run.sh [start]
 
 ### License and citations
 
