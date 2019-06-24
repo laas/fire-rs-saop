@@ -39,14 +39,14 @@ logger = logging.getLogger(__name__)
 # Set default data folders as the one given in the environment variable $FIRERS_DATA or
 # to Rafael's home if not set
 # TODO: check whether it is useful/desirable to keep the internal folder
-DEFAULT_FIRERS_DATA_FOLDER = os.environ['FIRERS_DATA'] \
-    if 'FIRERS_DATA' in os.environ else '/home/rbailonr/firers_data'
-DEFAULT_FIRERS_DEM_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER,
-                                       'dem/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
-DEFAULT_FIRERS_WIND_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER,
-                                        'wind/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
-DEFAULT_FIRERS_LANDCOVER_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER,
-                                             'landcover/BDALTIV2_2-0_25M_TIF_LAMB93-IGN69_D031_2016-11-17')
+DEFAULT_FIRERS_DATA_FOLDER = None
+if 'FIRERS_DATA' in os.environ:
+    DEFAULT_FIRERS_DATA_FOLDER = os.environ['FIRERS_DATA']
+else:
+    raise FileNotFoundError("The FIRERS_DATA environment variable must be set.")
+DEFAULT_FIRERS_DEM_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, 'dem')
+DEFAULT_FIRERS_WIND_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, 'wind')
+DEFAULT_FIRERS_LANDCOVER_DATA = os.path.join(DEFAULT_FIRERS_DATA_FOLDER, 'landcover')
 
 CORINELANDCOVER_TO_FUELMODEL_REMAP = {1: 'NB1', 2: 'NB1', 3: 'NB1', 4: 'NB1', 5: 'NB1',
                                       6: 'NB1', 7: 'NB1', 8: 'NB1', 9: 'NB1', 10: 'NB1', 11: 'NB1',
