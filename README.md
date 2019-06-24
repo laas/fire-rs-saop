@@ -95,7 +95,7 @@ You should set an environment variable ```FIRERS_DATA``` containing the path to 
    - ```landcover/```
    - ```wind/```
 
-Some sample files can be found in: .
+Some sample files can be found in: [https://github.com/laas/fire-rs-data](https://github.com/laas/fire-rs-data).
 For using SAOP in other regions you have to acquire the corresponding DEM and lancover maps for the area.
 *(A good source for Europe are the European Digital Elevation Model (EU-DEM) and Corine Land Cover (CLC) 2006)*
 
