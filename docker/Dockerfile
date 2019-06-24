@@ -53,10 +53,6 @@ RUN groupadd ${USER_GROUP:+-g} ${USER_GROUP} saop \
 USER saop
 
 ENV WINDNINJA_CLI_PATH ${WINDNINJA_CLI_PREFIX}/bin
-
-# set data directory, this directory needs to be mounted with actual data
-ENV FIRERS_DATA /home/saop/data
-
 ENV PYTHONPATH ${PYTHONPATH}:/home/saop/code/python
 
 # code directory, needs to be mounted to the the root of of the git repository
@@ -64,6 +60,12 @@ WORKDIR /home/saop
 
 # For building font cache required by matplotlib
 RUN python3 -c "import matplotlib.pyplot as plt"
+
+# Clone fire-rs-data
+RUN git clone https://github.com/laas/fire-rs-data.git data
+
+# Set data directory to a known dataset
+ENV FIRERS_DATA /home/saop/data/porto_utm/25m
 
 # Clone fire-rs-saop and init pybind11 submodule
 RUN git clone https://github.com/laas/fire-rs-saop.git code

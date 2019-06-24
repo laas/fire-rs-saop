@@ -13,7 +13,7 @@ before_install:
 - git clone ssh://git@redmine.laas.fr/laas/users/simon/fire-rs/fire-rs-data.git data/ &>/dev/null
 - docker pull rafael1193/fire-rs-saop
 - docker run -d -it --user=${USER_ID}:${GROUP_ID} --name saop -v `pwd`:/home/saop/code:z
-  -v `pwd`/data/hautegaronne_lambert93:/home/saop/data:z rafael1193/fire-rs-saop
+  -v `pwd`/data/porto_utm/25m:/home/saop/data:z rafael1193/fire-rs-saop
 - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/sh -c "mkdir build-debug &&
   cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4"
 script:
