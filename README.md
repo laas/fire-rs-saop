@@ -164,4 +164,4 @@ This process will:
 
 If you use fire-rs-saop in a scientific publication, we would appreciate citations to:
 
- - Rafael Bailon-Ruiz, Arthur Bit-Monnot, Simon Lacroix. **Planning to Monitor Wildfires with a Fleet of UAVs**, *2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*, Oct 2018, Madrid, Spain. DOI: [10.1109/IROS.2018.8593859](https://doi.org/10.1109/IROS.2018.8593859)
+ - Rafael Bailon-Ruiz, Arthur Bit-Monnot, Simon Lacroix. [**Planning to Monitor Wildfires with a Fleet of UAVs**](https://hal.laas.fr/hal-01852176), *2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*, Oct 2018, Madrid, Spain. DOI: [10.1109/IROS.2018.8593859](https://doi.org/10.1109/IROS.2018.8593859)
