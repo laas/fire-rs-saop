@@ -67,7 +67,7 @@ if __name__ == '__main__':
     uav_max_pitch_angle = 6. / 180. * np.pi
     wind = up.WindVector(5, 0)
     no_wind = up.WindVector(0, 0)
-    a_uav = up.UAV(uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+    a_uav = up.UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
 
     wp_s, wp_e = up.Waypoint(0, 0, 0, 0), up.Waypoint(100, 0, 0, 0)
     seg = up.Segment(wp_s, wp_e)
