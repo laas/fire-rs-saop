@@ -22,12 +22,18 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import datetime
+import pickle
+import os
+import argparse
+import joblib
+import json
+import sys
 import json
 import logging
 import numpy as np
 import os
 import random
-import time
 import types
 
 from collections import namedtuple
@@ -42,6 +48,7 @@ import matplotlib.colors
 import matplotlib.pyplot
 
 import fire_rs.uav_planning as up
+import fire_rs.geodata.environment
 
 from fire_rs.firemodel import propagation
 from fire_rs.geodata.display import GeoDataDisplay
@@ -59,6 +66,7 @@ _logger.setLevel(logging.DEBUG)
 
 
 class Scenario:
+    """Benchmark scenario"""
 
     def __init__(self, area: ((float, float), (float, float)),
                  wind_speed: float,
@@ -96,18 +104,16 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     env = PlanningEnvironment(scenario.area, wind_speed=scenario.wind_speed,
                               wind_dir=scenario.wind_direction,
                               planning_elevation_mode=output_options_planning['elevation_mode'],
-                              discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL)
+                              discrete_elevation_interval=DISCRETE_ELEVATION_INTERVAL,
+                              world=fire_rs.geodata.environment.World(
+                                  landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
 
     # Propagate fires in the environment
-    prop = propagation.propagate_from_points(env, scenario.ignitions,
-                                             until=scenario.time_window_end + 60 * 10)
+    propagation_end_time = scenario.time_window_end + 60 * 10
+    _logger.debug("Propagating fire ignitions %s until %s", str(scenario.ignitions),
+                  str(propagation_end_time))
+    prop = propagation.propagate_from_points(env, scenario.ignitions, until=propagation_end_time)
     ignitions = prop.ignitions()
-
-    # Propagation was running more time than desired in order to reduce edge effect.
-    # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next
-    # 10-minute mark (minus 1). This makes color bar ranges and fire front contour plots nicer
-    ignitions['ignition'][ignitions['ignition'] > \
-                          int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
 
     # Transform altitude of UAV bases from agl (above ground level) to absolute
     for f in scenario.flights:
@@ -135,6 +141,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     res = pl.compute_plan(instance_name)
     plan = res.final_plan()
 
+    # Propagation was running more time than desired in order to reduce edge effect.
+    # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next
+    # 10-minute mark (minus 1). This makes color bar ranges and fire front contour plots nicer
+    ignitions['ignition'][ignitions['ignition'] > \
+                          int(scenario.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
     # Representation of unburned cells using max double is not suitable for display,
     # so those values must be converted to NaN
     ignitions_nan = ignitions['ignition'].copy()
@@ -166,7 +177,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
         import json
         parsed = json.loads(res.metadata())
         parsed["benchmark_id"] = instance_name
-        parsed["date"] = time.strftime("%Y-%m-%d--%H:%M:%S")
+        parsed["date"] = datetime.datetime.now().isoformat()
         metadata_file.write(json.dumps(parsed, indent=4))
 
     matplotlib.pyplot.close(geodatadisplay.axes.get_figure())
@@ -468,6 +479,89 @@ def generate_scenario_lambert93():
     return scenario
 
 
+def generate_scenario_dozens():
+    """A dozen UAVs monitoring a dozen fires"""
+    # 9 by 7 km area
+    area = Area(532000.0, 540000.0, 4567000.0, 4575000.0)
+    uav_speed = 18.  # m/s
+    uav_max_pitch_angle = 6. / 180. * np.pi
+    uav_max_turn_rate = 32. * np.pi / 180
+    uav_bases = [  # four corners of the map
+        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmin + 100, area.ymax - 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymax - 100, 0, 0)
+    ]
+
+    wind_speed = random.uniform(5., 10.)  # wind speed in [10,20] km/h
+    wind_dir = random.random() * 2 * np.pi
+    num_ignitions = random.randint(1, 10)
+
+    # Calculate a safe area for the ignitions
+    ignitions = [TimedPoint(random.uniform(area.xmin + 100, area.xmax - 100),
+                            random.uniform(area.ymin + 100, area.ymax - 100),
+                            random.uniform(0, 6000))
+                 for i in range(num_ignitions)]
+
+    # start once all fires are ignited
+    start = max([igni.time for igni in ignitions])
+
+    num_flights = random.randint(5, 10)
+    flights = []
+    for i in range(num_flights):
+        uav_start = random.uniform(start + 3999., start + 4000.)
+        max_flight_time = random.uniform(500, 1200)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+
+    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
+                        wind_speed, wind_dir, ignitions, flights)
+    return scenario
+
+
+def generate_scenario_big_fire():
+    """A dozen UAVs monitoring a dozen fires"""
+    # 9 by 7 km area
+    area = Area(532000.0, 540000.0, 4567000.0, 4575000.0)
+    uav_speed = 18.  # m/s
+    uav_max_pitch_angle = 6. / 180. * np.pi
+    uav_max_turn_rate = 32. * np.pi / 180
+    uav_bases = [  # four corners of the map
+        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmin + 100, area.ymax - 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymin + 100, 0, 0),
+        Waypoint(area.xmax - 100, area.ymax - 100, 0, 0)
+    ]
+
+    wind_speed = random.uniform(1., 2.)  # wind speed in [10,20] km/h
+    wind_dir = random.random() * 2 * np.pi
+    num_ignitions = random.randint(1, 1)
+
+    # Calculate a safe area for the ignitions
+    allowed_range_x = (area.xmax - area.xmin) * 0.25
+    allowed_range_y = (area.ymax - area.ymin) * 0.25
+    ignitions = [TimedPoint(random.uniform(area.xmin + allowed_range_x, area.xmax - allowed_range_x),
+                            random.uniform(area.ymin + allowed_range_y, area.ymax - allowed_range_y),
+                            random.uniform(0, 0))
+                 for i in range(num_ignitions)]
+
+    # start once all fires are ignited
+    start = max([igni.time for igni in ignitions])
+
+    num_flights = random.randint(1, 5)
+    flights = []
+    for i in range(num_flights):
+        uav_start = random.uniform(start + 50000., start + 50000.)
+        max_flight_time = random.uniform(500, 1200)
+        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
+        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+
+    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
+                        wind_speed, wind_dir, ignitions, flights)
+    return scenario
+
+
+
 def generate_scenario():
     # 9 by 7 km area
     area = Area(532000.0, 540000.0, 4567000.0, 4575000.0)
@@ -506,6 +600,8 @@ def generate_scenario():
 
 
 scenario_factory_funcs = {'default': generate_scenario,
+                          'dozen': generate_scenario_dozens,
+                          'big_fire': generate_scenario_big_fire,
                           'default_lambert93': generate_scenario_lambert93,
                           'utility_test': generate_scenario_utility_test,
                           'singlefire_singleuav': generate_scenario_singlefire_singleuav,
@@ -519,91 +615,7 @@ scenario_factory_funcs = {'default': generate_scenario,
 vns_configurations = VNSConfDB.demo_db()
 
 
-def main():
-    import pickle
-    import os
-    import argparse
-    import joblib
-    import json
-    import sys
-
-    from fire_rs.geodata.environment import DEFAULT_FIRERS_DATA_FOLDER
-
-    class JsonReadAction(argparse.Action):
-
-        def __call__(self, parser, namespace, values, option_string=None):
-            try:
-                vnsconf = json.load(values)
-                setattr(namespace, self.dest, vnsconf)
-            except json.JSONDecodeError as err:
-                raise argparse.ArgumentError(self, err)
-
-    # CLI argument parsing
-    FROMFILE_PREFIX_CHARS = '@'
-    parser = argparse.ArgumentParser(
-        prog='benchmark.py', fromfile_prefix_chars=FROMFILE_PREFIX_CHARS,
-        epilog="The arguments that start with `" + FROMFILE_PREFIX_CHARS + \
-               "' will be treated as files, and will be replaced by the arguments they contain.")
-    parser.add_argument("--name",
-                        help="name of the benchmark. The resulting folder name will be prefixed by 'benchmark_'.",
-                        choices=scenario_factory_funcs.keys())
-    parser.add_argument("--folder",
-                        help="Name of the folder in which benchmarks are to be saved.",
-                        default=DEFAULT_FIRERS_DATA_FOLDER)
-    parser.add_argument("--background", nargs='+',
-                        help="List of background layers for the output figures, from bottom to top.",
-                        choices=['elevation_shade', 'elevation_planning_shade', 'ignition_shade',
-                                 'observedcells', 'ignition_contour', 'wind_quiver', 'utilitymap'],
-                        default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
-    parser.add_argument("--foreground", nargs='+',
-                        help="List of plan information foreground layers for the output figures",
-                        choices=['trajectory_solid', 'arrows', 'bases'],
-                        default=['trajectory_solid', 'arrows', 'bases'])
-    parser.add_argument('--colorbar', dest='colorbar', action='store_true',
-                        help="Display colorbars")
-    parser.add_argument('--no-colorbar', dest='colorbar', action='store_false',
-                        help="Display colorbars")
-    parser.set_defaults(colorbar=True)
-    parser.add_argument("--format",
-                        help="Format of the output figures",
-                        choices=['png', 'svg', 'eps', 'pdf'],
-                        default='png')
-    parser.add_argument("--vns-conf", action=JsonReadAction, type=argparse.FileType('r'),
-                        help="Load VNS configurations from a JSON file. The full path must be used.")
-    parser.add_argument("--vns",
-                        help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
-                        default='demo')
-    parser.add_argument("--elevation",
-                        help="Source of elevation considered by the planning algorithm",
-                        choices=['flat', 'dem', 'discrete'],
-                        default='dem')
-    parser.add_argument("--dpi",
-                        help="Resolution of the output figures",
-                        type=int,
-                        default=150)
-    parser.add_argument("--size", nargs=2,
-                        help="Size (in inches) of the output figures",
-                        type=int,
-                        default=(15, 10))
-    parser.add_argument("--instance",
-                        help="Runs a particular benchmark instance",
-                        type=int,
-                        default=None)
-    parser.add_argument("--snapshots", action="store_true",
-                        help="Save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
-                        default=False)
-    parser.add_argument("--parallel",
-                        help="Set the number of threads to be used for parallel processing.",
-                        type=int,
-                        default=1)
-    parser.add_argument("--wait", action="store_true",
-                        help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
-    parser.add_argument("--n_scenarios",
-                        help="Number of scenarios to generate. (Only used if generation is needed)",
-                        type=int,
-                        default=40)
-    args = parser.parse_args()
-
+def run_command(args):
     # Use TeX fonts when the output format is eps or pdf
     # When this is active, matplotlib drawing is slower
     if args.format == 'eps' or args.format == 'pdf':
@@ -626,64 +638,39 @@ def main():
     output_options['planning']['discrete_elevation_interval'] = \
         DISCRETE_ELEVATION_INTERVAL if args.elevation == 'discrete' else 0
 
-    # benchmark folder handling
-    benchmark_name = args.name
-    benchmark_name_full = "benchmark"
-    if benchmark_name:
-        benchmark_name_full = "_".join([benchmark_name_full, str(benchmark_name)])
-    benchmark_dir = os.path.join(args.folder, benchmark_name_full)
-    if not os.path.exists(benchmark_dir):
-        os.makedirs(benchmark_dir)
-
     # Scenario loading / generation
-    scenarios_file = os.path.join(benchmark_dir, "scenarios.dump")
-    if not os.path.exists(scenarios_file):
-        scenario_generator = scenario_factory_funcs['default']
-        if benchmark_name in scenario_factory_funcs:
-            scenario_generator = scenario_factory_funcs[benchmark_name]
-        scenarios = [scenario_generator() for i in range(args.n_scenarios)]
-        pickle.dump(scenarios, open(scenarios_file, "wb"))
-    else:
-        scenarios = pickle.load(open(scenarios_file, "rb"))
+    scenarios = pickle.load(open(os.path.join(args.scenario, 'scenario'), 'rb'))
 
     # Current date and time string
-    run_id = time.strftime("%Y-%m-%d--%H:%M:%S")
+    run_id = datetime.datetime.now().isoformat()
 
     # Current run folder
-    run_dir = os.path.join(benchmark_dir, run_id)
+    run_dir = os.path.join(args.scenario, run_id)
     if not os.path.exists(run_dir):
         os.makedirs(run_dir)
 
-    # Setup logging for this benchmark run
-    log_formatter = logging.Formatter(
-        '%(asctime)-23s %(levelname)s [0x%(thread)x:%(name)s]: %(message)s')
+        # Setup logging for this benchmark run
+        log_formatter = logging.Formatter(
+            '%(asctime)-23s %(levelname)s [0x%(thread)x:%(name)s]: %(message)s')
 
-    # Set configuration for the default logger (inherited by others)
-    root_logger = logging.getLogger()
-    # Print INFO level messages
-    log_stdout_hldr = logging.StreamHandler(sys.stdout)
-    log_stdout_hldr.setLevel(logging.INFO)
-    log_stdout_hldr.setFormatter(log_formatter)
-    root_logger.addHandler(log_stdout_hldr)
-    # Log everithing to file
-    log_file_hldr = logging.FileHandler(os.path.join(run_dir, ".".join((run_id, "log"))))
-    log_file_hldr.setFormatter(log_formatter)
-    log_file_hldr.setLevel(logging.NOTSET)
-    root_logger.addHandler(log_file_hldr)
+        # Set configuration for the default logger (inherited by others)
+        root_logger = logging.getLogger()
+        # Print INFO level messages
+        log_stdout_hldr = logging.StreamHandler(sys.stdout)
+        log_stdout_hldr.setLevel(logging.INFO)
+        log_stdout_hldr.setFormatter(log_formatter)
+        root_logger.addHandler(log_stdout_hldr)
+        # Log everithing to file
+        log_file_hldr = logging.FileHandler(os.path.join(run_dir, ".".join((run_id, "log"))))
+        log_file_hldr.setFormatter(log_formatter)
+        log_file_hldr.setLevel(logging.NOTSET)
+        root_logger.addHandler(log_file_hldr)
 
-    # Use a child logger in SAOP c++ library
-    up.set_logger(_logger.getChild("uav_planning"))
+        # Use a child logger in SAOP c++ library
+        up.set_logger(_logger.getChild("uav_planning"))
 
-    # Log command line arguments
-    _logger.info(' '.join(sys.argv))
-
-    if benchmark_name:
-        _logger.info("Using benchmark scenario %s in %s", benchmark_name, benchmark_dir)
-    else:
-        _logger.info("Using default benchmark scenario in %s", benchmark_dir)
-
-    if args.wait:
-        input("Press enter to continue...")
+    _logger.info("Using benchmark scenario %s", args.scenario)
+    _logger.info("Saving results in %s", run_dir)
 
     if args.instance is not None:
         to_run = [(args.instance, scenarios[args.instance])]
@@ -696,6 +683,118 @@ def main():
                                        snapshots=args.snapshots,
                                        output_options_planning=output_options['planning'],
                                        vns_name=args.vns) for i, s in to_run)
+
+
+def create_command(args):
+    # Scenario loading / generation
+    if not os.path.exists(args.output):
+        os.makedirs(args.output)
+    _logger.info("Using factory %s to create %d scenario instances in %s", args.factory,
+                 args.n_scenarios, args.output)
+    scenario_generator = scenario_factory_funcs[args.factory]
+    scenarios = [scenario_generator() for i in range(args.n_scenarios)]
+    with open(os.path.join(args.output, 'scenario'), 'wb+') as scenario_f:
+        pickle.dump(scenarios, scenario_f)
+
+
+def main():
+    class JsonReadAction(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            try:
+                vnsconf = json.load(values)
+                setattr(namespace, self.dest, vnsconf)
+            except json.JSONDecodeError as err:
+                raise argparse.ArgumentError(self, err)
+
+    # CLI argument parsing
+    FROMFILE_PREFIX_CHARS = '@'
+    parser = argparse.ArgumentParser(
+        prog='benchmark.py', fromfile_prefix_chars=FROMFILE_PREFIX_CHARS,
+        epilog="The arguments that start with `" + FROMFILE_PREFIX_CHARS + \
+               "' will be treated as files, and will be replaced by the arguments they contain.")
+    parser.add_argument("--wait", action="store_true",
+                        help="Wait for user input before start. Useful to hold the execution while attaching to a debugger")
+
+    subparsers = parser.add_subparsers(dest='sub_command', help='Available sub-commands')
+
+    # create the parser for the "create" command
+    parser_create = subparsers.add_parser('create', help='Create a benchmark scenario')
+    parser_create.add_argument('factory',
+                               help="Name of the benchmark scenario factory.",
+                               choices=scenario_factory_funcs.keys())
+    parser_create.add_argument('output', help="Scenario output directory", )
+    parser_create.add_argument("--n_scenarios",
+                               help="Number of scenario instances to generate",
+                               type=int,
+                               default=40)
+
+    # create the parser for the "run" command
+    parser_run = subparsers.add_parser('run', help='Run a benchmark scenario')
+
+    parser_run.add_argument("scenario",
+                            help="Scenario directory")
+    parser_run.add_argument("--background", nargs='+',
+                            help="List of background layers for the output figures, from bottom to top.",
+                            choices=['elevation_shade', 'elevation_planning_shade',
+                                     'ignition_shade',
+                                     'observedcells', 'ignition_contour', 'wind_quiver',
+                                     'utilitymap'],
+                            default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
+    parser_run.add_argument("--foreground", nargs='+',
+                            help="List of plan information foreground layers for the output figures",
+                            choices=['trajectory_solid', 'arrows', 'bases'],
+                            default=['trajectory_solid', 'arrows', 'bases'])
+    parser_run.add_argument('--colorbar', dest='colorbar', action='store_true',
+                            help="Display colorbars")
+    parser_run.add_argument('--no-colorbar', dest='colorbar', action='store_false',
+                            help="Display colorbars")
+    parser_run.set_defaults(colorbar=True)
+    parser_run.add_argument("--format",
+                            help="Format of the output figures",
+                            choices=['png', 'svg', 'eps', 'pdf'],
+                            default='png')
+    parser_run.add_argument("--vns-conf", action=JsonReadAction, type=argparse.FileType('r'),
+                            help="Load VNS configurations from a JSON file. The full path must be used.")
+    parser_run.add_argument("--vns",
+                            help="Select a VNS configuration, among the default ones or from the file specified in --vns-conf.",
+                            default='demo')
+    parser_run.add_argument("--elevation",
+                            help="Source of elevation considered by the planning algorithm",
+                            choices=['flat', 'dem', 'discrete'],
+                            default='dem')
+    parser_run.add_argument("--dpi",
+                            help="Resolution of the output figures",
+                            type=int,
+                            default=150)
+    parser_run.add_argument("--size", nargs=2,
+                            help="Size (in inches) of the output figures",
+                            type=int,
+                            default=(15, 10))
+    parser_run.add_argument("--instance",
+                            help="Runs a particular benchmark instance",
+                            type=int,
+                            default=None)
+    parser_run.add_argument("--snapshots", action="store_true",
+                            help="Save snapshots of the plan after every improvement. Beware, this option will slowdown the simulation and consume lots of memory",
+                            default=False)
+    parser_run.add_argument("--parallel",
+                            help="Set the number of threads to be used for parallel processing.",
+                            type=int,
+                            default=1)
+    args = parser.parse_args()
+
+    if args.wait:
+        input("Press enter to continue...")
+
+    # Log command line arguments
+    _logger.info(' '.join(sys.argv))
+
+    if args.sub_command == 'create':
+        create_command(args)
+    elif args.sub_command == 'run':
+        run_command(args)
+    else:
+        parser
 
 
 if __name__ == '__main__':
