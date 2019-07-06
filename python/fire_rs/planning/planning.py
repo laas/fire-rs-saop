@@ -229,8 +229,8 @@ class PlanningEnvironment(Environment):
     """Propagation environment with optional discrete elevation only for planning """
 
     def __init__(self, area, wind_speed, wind_dir, planning_elevation_mode: 'str' = 'dem',
-                 discrete_elevation_interval: 'int' = 0, flat_altitude=0.):
-        super().__init__(area, wind_speed, wind_dir)
+                 discrete_elevation_interval: 'int' = 0, flat_altitude=0., world=None):
+        super().__init__(area, wind_speed, wind_dir, world=world)
 
         self.planning_elevation_mode = planning_elevation_mode
         self.discrete_elevation_interval = discrete_elevation_interval
