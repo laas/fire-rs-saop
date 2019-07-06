@@ -373,7 +373,7 @@ class GeoDataDisplay(GeoDataDisplayBase):
     def _add_ignition_contour_labels(self, firecont):
         # self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
         #                  fmt='%.0f')
-        self.axes.clabel(firecont, inline=True, inline_spacing=1, linewidth=2, fontsize='smaller',
+        self.axes.clabel(firecont, inline=True, inline_spacing=1, fontsize='smaller',
                          fmt=SecondDateFormatter('%H:%M'))
 
     def draw_ignition_shade(self, geodata: 'Optional[GeoData]' = None, layer: 'str' = 'ignition',
