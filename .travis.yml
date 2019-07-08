@@ -18,7 +18,7 @@ before_install:
   cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4"
 script:
 - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c
-  "python3 python/fire_rs/planning/benchmark.py create default ./test_scenario --n-scenarios 4"
+  "python3 python/fire_rs/planning/benchmark.py create default ./test_scenario --n-instances 4"
 - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c
   "python3 python/fire_rs/planning/benchmark.py run ./test_scenario --elevation=flat --instance=0"
 - docker exec --user=${USER_ID}:${GROUP_ID} saop /bin/bash -c

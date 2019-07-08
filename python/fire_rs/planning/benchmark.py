@@ -689,9 +689,9 @@ def create_command(args):
     if not os.path.exists(args.output):
         os.makedirs(args.output)
     _logger.info("Using factory %s to create %d scenario instances in %s", args.factory,
-                 args.n_scenarios, args.output)
+                 args.n_instances, args.output)
     scenario_generator = scenario_factory_funcs[args.factory]
-    scenarios = [scenario_generator() for i in range(args.n_scenarios)]
+    scenarios = [scenario_generator() for i in range(args.n_instances)]
     with open(os.path.join(args.output, 'scenario'), 'wb+') as scenario_f:
         pickle.dump(scenarios, scenario_f)
 
@@ -722,7 +722,7 @@ def main():
                                help="Name of the benchmark scenario factory.",
                                choices=scenario_factory_funcs.keys())
     parser_create.add_argument('output', help="Scenario output directory", )
-    parser_create.add_argument("--n-scenarios",
+    parser_create.add_argument("--n-instances",
                                help="Number of scenario instances to generate",
                                type=int,
                                default=40)
