@@ -561,7 +561,6 @@ def generate_scenario_big_fire():
     return scenario
 
 
-
 def generate_scenario():
     # 9 by 7 km area
     area = Area(532000.0, 540000.0, 4567000.0, 4575000.0)
@@ -723,7 +722,7 @@ def main():
                                help="Name of the benchmark scenario factory.",
                                choices=scenario_factory_funcs.keys())
     parser_create.add_argument('output', help="Scenario output directory", )
-    parser_create.add_argument("--n_scenarios",
+    parser_create.add_argument("--n-scenarios",
                                help="Number of scenario instances to generate",
                                type=int,
                                default=40)
