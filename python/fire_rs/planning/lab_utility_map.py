@@ -119,7 +119,7 @@ if __name__ == "__main__":
     import fire_rs.geodata.geo_data
     import fire_rs.firemodel.propagation
 
-    FIRERS_DATA_FOLDER = '/home/rbailonr/firers_data_porto'
+    FIRERS_DATA_FOLDER = '/home/rbailonr/src/fire-rs-data-private/porto_laea'
     FIRERS_DEM_DATA = os.path.join(FIRERS_DATA_FOLDER, 'dem')
     FIRERS_WIND_DATA = os.path.join(FIRERS_DATA_FOLDER, 'wind')
     FIRERS_LANDCOVER_DATA = os.path.join(FIRERS_DATA_FOLDER, 'landcover')
