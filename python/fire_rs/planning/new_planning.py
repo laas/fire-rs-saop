@@ -220,10 +220,12 @@ def make_utility_map(firemap: GeoData, flight_window: TimeWindow = TimeWindow(-n
 
     return firemap.clone(data_array=utility, dtype=[(output_layer, 'float64')])
 
+
 def make_flat_utility_map(firemap: GeoData, flight_window: TimeWindow = TimeWindow(-np.inf, np.inf),
                      layer="ignition", output_layer="utility") -> GeoData:
     """Create a constant utility map"""
     return firemap.clone(fill_value=1., dtype=[(output_layer, 'float64')])
+
 
 class Planner:
     """Make a multi-UAV observation mission form an initial plan or improve an existing plan"""
@@ -233,8 +235,8 @@ class Planner:
         self.current_plan = initial_plan
         self.vns_conf = vns_conf
 
-        self._save_improvements = False
-        self._save_every = 0
+        self.save_improvements = False
+        self.save_every = 0
 
     def update_fire_data(self, fire_map: GeoData, elevation_map: GeoData,
                          fire_map_layer: str = 'ignition', elevation_map_layer: str = 'elevation'):
@@ -242,11 +244,11 @@ class Planner:
         self.current_plan.firedata(
             make_fire_data(fire_map, elevation_map, fire_map_layer, elevation_map_layer))
 
-    def compute_plan(self, planning_duration: float, after_time=.0,
+    def compute_plan(self, planning_duration: float = None, after_time=.0,
                      frozen_trajectories: ty.Sequence[str] = ()) -> up.SearchResult:
         """Improve the current plan using a VNS planner"""
-        planning_conf = SAOPPlannerConf(self.vns_conf, planning_duration, self._save_improvements,
-                                        self._save_every)
+        planning_conf = SAOPPlannerConf(self.vns_conf, planning_duration, self.save_improvements,
+                                        self.save_every)
 
         # Call the C++ library that calculates the plan
         res = up.plan_vns(self.current_plan, json.dumps(dict(planning_conf)), after_time,

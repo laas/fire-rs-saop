@@ -35,8 +35,7 @@ import numpy as np
 
 import fire_rs.geodata.display as gdd
 from fire_rs.geodata.geo_data import GeoData
-from fire_rs.planning.planning import Planner
-import fire_rs.uav_planning as up
+from fire_rs.planning.new_planning import Plan
 
 logger = logging.getLogger(__name__)
 
@@ -409,8 +408,7 @@ def plot_plan_trajectories(plan, geodatadisplay, layers: 'List[str]',
                         color=color, label=label)
 
 
-def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, output_options_plot,
-                              plan: 'Union[str, int]' = 'final'):
+def plot_plan_with_background(plan: Plan, geodatadisplay: gdd, time_range, output_options_plot):
     """Plot a plan trajectories with background geographic information in a geodata display."""
     # Draw background layers
     for layer in output_options_plot['background']:
@@ -424,12 +422,13 @@ def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, ou
             geodatadisplay.draw_ignition_shade(
                 with_colorbar=output_options_plot.get('colorbar', True))
         elif layer == 'observedcells':
-            geodatadisplay.TrajectoryDisplayExtension.draw_observation_map(
-                planner.expected_observed_map(layer_name="expected_observed"),
-                layer='expected_observed', color='green', alpha=0.9)
-            geodatadisplay.TrajectoryDisplayExtension.draw_observation_map(
-                planner.expected_ignited_map(layer_name="expected_ignited"),
-                layer='expected_ignited', color='red', alpha=0.9)
+            raise NotImplementedError()
+            # geodatadisplay.TrajectoryDisplayExtension.draw_observation_map(
+            #     planner.expected_observed_map(layer_name="expected_observed"),
+            #     layer='expected_observed', color='green', alpha=0.9)
+            # geodatadisplay.TrajectoryDisplayExtension.draw_observation_map(
+            #     planner.expected_ignited_map(layer_name="expected_ignited"),
+            #     layer='expected_ignited', color='red', alpha=0.9)
         elif layer == 'ignition_contour':
             try:
                 geodatadisplay.draw_ignition_contour(with_labels=True)
@@ -438,8 +437,9 @@ def plot_plan_with_background(planner: 'Planner', geodatadisplay, time_range, ou
         elif layer == 'wind_quiver':
             geodatadisplay.draw_wind_quiver()
         elif layer == 'utilitymap':
-            geodatadisplay.TrajectoryDisplayExtension.draw_utility_shade(
-                geodata=planner.utility_map('utility'), layer='utility', vmin=0., vmax=1.)
+            raise NotImplementedError()
+            # geodatadisplay.TrajectoryDisplayExtension.draw_utility_shade(
+            #     geodata=planner.utility_map('utility'), layer='utility', vmin=0., vmax=1.)
 
-    plot_plan_trajectories(planner.search_result.plan(plan), geodatadisplay,
-                           layers=output_options_plot["foreground"], time_range=time_range)
+    plot_plan_trajectories(plan, geodatadisplay, layers=output_options_plot["foreground"],
+                           time_range=time_range)

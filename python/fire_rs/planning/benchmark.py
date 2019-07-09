@@ -34,7 +34,7 @@ import logging
 import numpy as np
 import os
 import random
-import types
+import typing as ty
 
 from collections import namedtuple
 from collections.abc import Sequence
@@ -48,6 +48,7 @@ import matplotlib.colors
 import matplotlib.pyplot
 
 import fire_rs.uav_planning as up
+import fire_rs.firemodel.propagation
 import fire_rs.geodata.environment
 
 from fire_rs.firemodel import propagation
@@ -55,8 +56,9 @@ from fire_rs.geodata.display import GeoDataDisplay
 from fire_rs.geodata.geo_data import TimedPoint, Area
 from fire_rs.geodata.geo_data import Point as GeoData_Point
 from fire_rs.planning.display import plot_plan_with_background, TrajectoryDisplayExtension
-from fire_rs.planning.planning import FlightConf, Planner, PlanningEnvironment, SAOPPlannerConf, \
-    UAVConf, VNSConfDB, Waypoint
+from fire_rs.planning.new_planning import TrajectoryConfig,\
+    UAV, VNSConfDB, Waypoint, FireData, make_fire_data, WindVector, TimeWindow,\
+    make_flat_utility_map, Plan, Planner, UAVModels
 
 _DBL_MAX = np.inf
 DISCRETE_ELEVATION_INTERVAL = 100
@@ -65,24 +67,91 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
 
 
+class FlightConf:
+
+    def __init__(self, name: str, uav: UAV, start_time: float, max_flight_time: float,
+                 base_waypoint: 'Waypoint',
+                 finalbase_waypoint: 'Optional[Waypoint]' = None,
+                 wind: 'Tuple[float, float]' = (0., 0.)):
+        assert start_time > 0
+        self.uav = uav  # type: UAV
+        self.base_waypoint = base_waypoint  # type: Waypoint
+        # type: Optional[Waypoint]
+        self.finalbase_waypoint = finalbase_waypoint if finalbase_waypoint else base_waypoint
+        self.start_time = start_time  # type: float
+        self.wind = wind
+        self.name = name
+        self.max_flight_time = max_flight_time
+
+    def as_cpp(self):
+        return TrajectoryConfig(self.uav, self.base_waypoint,
+                                self.finalbase_waypoint, self.start_time,
+                                self.max_flight_time,
+                                WindVector(self.wind[0], self.wind[1]))
+
+    def __repr__(self):
+        return "".join(("FlightConf(",
+                        "name=", repr(self.name), ",",
+                        "uav=", repr(self.uav), ",",
+                        "start_time=", repr(self.start_time), ",",
+                        "max_flight_time=", repr(self.max_flight_time), ",",
+                        "base_waypoint=", repr(self.base_waypoint), ",",
+                        "finalbase_waypoint=", repr(self.finalbase_waypoint), ",",
+                        "wind=", repr(self.wind), ")"))
+
+
+class PlanningEnvironment(fire_rs.firemodel.propagation.Environment):
+    """Propagation environment with optional discrete elevation only for planning """
+
+    def __init__(self, area, wind_speed, wind_dir, planning_elevation_mode: 'str' = 'dem',
+                 discrete_elevation_interval: 'int' = 0, flat_altitude=0., world=None):
+        super().__init__(area, wind_speed, wind_dir, world=world)
+
+        self.planning_elevation_mode = planning_elevation_mode
+        self.discrete_elevation_interval = discrete_elevation_interval
+
+        self._flat_altitude = flat_altitude
+
+        elev_planning = None
+
+        if self.planning_elevation_mode == 'flat':
+            elev_planning = self.raster.clone(fill_value=flat_altitude,
+                                              dtype=[('elevation_planning', 'float64')])
+        elif self.planning_elevation_mode == 'dem':
+            elev_planning = self.raster.clone(data_array=self.raster["elevation"],
+                                              dtype=[('elevation_planning', 'float64')])
+        elif self.planning_elevation_mode == 'discrete':
+            a = self.raster.data['elevation'] + self.discrete_elevation_interval
+            b = np.fmod(self.raster.data['elevation'], self.discrete_elevation_interval)
+            elev_planning = self.raster.clone(data_array=a - b,
+                                              dtype=[('elevation_planning', 'float64')])
+        else:
+            elev_planning = self.raster.clone(data_array=self.raster["elevation"],
+                                              dtype=[('elevation_planning', 'float64')])
+            raise ValueError("".join(["Wrong planning_elevation_mode '",
+                                      self.planning_elevation_mode, "'"]))
+
+        self.raster = self.raster.combine(elev_planning)
+
+
 class Scenario:
     """Benchmark scenario"""
 
-    def __init__(self, area: ((float, float), (float, float)),
+    def __init__(self, area: ty.Tuple[ty.Tuple[float, float], ty.Tuple[float, float]],
                  wind_speed: float,
                  wind_direction: float,
-                 ignitions: [TimedPoint],
-                 flights: [FlightConf]):
+                 ignitions: ty.Sequence[TimedPoint],
+                 flights: ty.Sequence[FlightConf]):
         self.area = area  # type: Area
         self.wind_speed = wind_speed  # type: float
         self.wind_direction = wind_direction  # type: float
         assert len(ignitions) > 0
-        self.ignitions = ignitions  # type: [TimedPoint]
+        self.ignitions = ignitions  # type: ty.Sequence[TimedPoint]
         assert len(flights) > 0
-        self.flights = flights  # type: [FlightConf]
+        self.flights = flights  # type: ty.Sequence[FlightConf]
 
-        self.time_window_start = np.inf
-        self.time_window_end = -np.inf
+        self.time_window_start = np.inf  # type: float
+        self.time_window_end = -np.inf  # type: float
         for flight in flights:
             self.time_window_start = min(self.time_window_start, flight.start_time - 180)
             self.time_window_end = max(self.time_window_end,
@@ -92,7 +161,7 @@ class Scenario:
         return "".join(["Scenario(area=", repr(self.area), ", wind_speed=", repr(self.wind_speed),
                         ", wind_direction=", repr(self.wind_direction), ", ignitions=",
                         repr(self.ignitions),
-                        ", flights=", repr(self.flights), ")"])
+                        ", traj_conf=", repr(self.flights), ")"])
 
 
 def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict,
@@ -119,11 +188,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     for f in scenario.flights:
         base_h = 0.  # If flat, start at the default segment insertion h
         if output_options_planning['elevation_mode'] != 'flat':
-            base_h = base_h + env.raster["elevation"][env.raster.array_index((f.base_waypoint[0],
-                                                                              f.base_waypoint[1]))]
+            base_h = base_h + env.raster["elevation"][env.raster.array_index((f.base_waypoint.x,
+                                                                              f.base_waypoint.y))]
         # The new WP is (old_x, old_y, old_z + elevation[old_x, old_y], old_dir)
-        f.base_waypoint = Waypoint(f.base_waypoint[0], f.base_waypoint[1], base_h,
-                                   f.base_waypoint[3])
+        f.base_waypoint = Waypoint(f.base_waypoint.x, f.base_waypoint.y, base_h,
+                                   f.base_waypoint.dir)
 
     conf = {
         'min_time': scenario.time_window_start,
@@ -134,12 +203,26 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     }
     conf['vns']['configuration_name'] = vns_name
 
-    # Call the planner
-    pl = Planner(env, ignitions, scenario.flights, SAOPPlannerConf((scenario.time_window_start,
-                                                                    scenario.time_window_end),
-                                                                   vns_configurations[vns_name]))
-    res = pl.compute_plan(instance_name)
-    plan = res.final_plan()
+    # Define the flight window
+    flight_window = TimeWindow(scenario.time_window_start, scenario.time_window_end)
+
+    # Create utility map
+    utility = make_flat_utility_map(ignitions, flight_window, layer='ignition', output_layer='utility')
+
+    # Make a FireData object
+    fire_data = make_fire_data(ignitions, env.raster, elevation_map_layer='elevation_planning')
+
+    # Create an initial plan
+    initial_plan = Plan(instance_name, [f.as_cpp() for f in scenario.flights], fire_data,
+                        flight_window,utility.as_cpp_raster('utility'))
+
+    # Set up a Planner object from the initial Plan
+    pl = Planner(initial_plan, vns_configurations[vns_name])
+    pl.save_improvements = snapshots
+    pl.save_every = 0
+
+    search_result = pl.compute_plan()
+    final_plan = search_result.final_plan()
 
     # Propagation was running more time than desired in order to reduce edge effect.
     # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next
@@ -157,7 +240,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions), frame=(0, 0))
     geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
 
-    plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
+    plot_plan_with_background(final_plan, geodatadisplay, (first_ignition, last_ignition),
                               output_options_plot)
 
     # Save the picture
@@ -169,13 +252,13 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
                                              bbox_inches='tight')
 
     # Log planned trajectories metadata
-    for i, t in enumerate(plan.trajectories()):
+    for i, t in enumerate(final_plan.trajectories()):
         _logger.debug("traj #{} duration: {} / {}".format(i, t.duration(), t.conf.max_flight_time))
 
     # save metadata to file
     with open(os.path.join(save_directory, instance_name + ".json"), "w") as metadata_file:
         import json
-        parsed = json.loads(res.metadata())
+        parsed = json.loads(search_result.metadata())
         parsed["benchmark_id"] = instance_name
         parsed["date"] = datetime.datetime.now().isoformat()
         metadata_file.write(json.dumps(parsed, indent=4))
@@ -183,11 +266,11 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     matplotlib.pyplot.close(geodatadisplay.axes.get_figure())
 
     # If intermediate plans are available, save them
-    for i in range(len(res.intermediate_plans)):
+    for i, plan in enumerate(search_result.intermediate_plans):
         geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions))
         geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
-        plot_plan_with_background(pl, geodatadisplay, (first_ignition, last_ignition),
-                                  output_options_plot, plan=i)
+        plot_plan_with_background(plan, geodatadisplay, (first_ignition, last_ignition),
+                                  output_options_plot)
 
         i_plan_dir = os.path.join(save_directory, instance_name)
         if not os.path.exists(i_plan_dir):
@@ -202,7 +285,7 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
                                                  bbox_inches='tight')
         matplotlib.pyplot.close(geodatadisplay.axes.get_figure())
 
-    del res
+    del search_result
 
 
 def generate_scenario_newsletter():
@@ -231,8 +314,9 @@ def generate_scenario_newsletter():
     for i in range(num_flights):
         uav_start = start + 3000
         max_flight_time = 450
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -265,8 +349,9 @@ def generate_scenario_utility_test():
     for i in range(num_flights):
         uav_start = random.uniform(start + 2500, start + 7500.)
         max_flight_time = random.uniform(1000, 1500)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -299,8 +384,9 @@ def generate_scenario_singlefire_singleuav_3d():
     for i in range(num_flights):
         uav_start = random.uniform(start + 2500, start + 7500.)
         max_flight_time = random.uniform(1000, 1500)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -333,8 +419,9 @@ def generate_scenario_singlefire_singleuav_shortrange():
     for i in range(num_flights):
         uav_start = random.uniform(start + 5000, start + 7000.)
         max_flight_time = random.uniform(500, 1000)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -365,82 +452,13 @@ def generate_scenario_singlefire_singleuav():
     for i in range(num_flights):
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(1000, 1500)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
     return scenario
-
-
-def generate_windy_scenario():
-    # 9 by 7 km area
-    area = Area(480000.0, 485000.0, 6210000.0, 6215000.0)
-    uav_bases = [  # four corners of the map
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0)
-    ]
-
-    wind_speed = 5.  # in m/s
-    wind_dir = 0.  # random.random() * 2 * np.pi
-    num_ignitions = random.randint(1, 4)
-    ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax),
-                            random.uniform(area.ymin, area.ymax),
-                            random.uniform(0, 3000))
-                 for i in range(num_ignitions)]
-
-    # start once all fires are ignited
-    start = max([igni.time for igni in ignitions])
-
-    num_flights = random.randint(1, 4)
-    flights = []
-    for i in range(num_flights):
-        uav_start = random.uniform(start + 3000, start + 3001.)
-        uav = UAVConf.x8()
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
-                                  (wind_speed * np.cos(wind_dir), wind_speed * np.sin(wind_dir))))
-
-    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
-                        wind_speed, wind_dir, ignitions, flights)
-    return scenario
-
-
-def generate_nowind_scenario():
-    # 9 by 7 km area
-    area = Area(480000.0, 485000.0, 6210000.0, 6215000.0)
-    uav_bases = [  # four corners of the map
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0),
-        Waypoint(area.xmin + 100, area.ymin + 100, 0, 0)
-    ]
-
-    wind_speed = 5.  # in m/s
-    wind_dir = 0.  # random.random() * 2 * np.pi
-    num_ignitions = random.randint(1, 4)
-    ignitions = [TimedPoint(random.uniform(area.xmin, area.xmax),
-                            random.uniform(area.ymin, area.ymax),
-                            random.uniform(0, 3000))
-                 for i in range(num_ignitions)]
-
-    # start once all fires are ignited
-    start = max([igni.time for igni in ignitions])
-
-    num_flights = random.randint(1, 4)
-    flights = []
-    for i in range(num_flights):
-        uav_start = random.uniform(start + 6000, start + 6001.)
-        uav = UAVConf.x8()
-        uav.max_flight_time /= 6;
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases), None,
-                                  (0., 0.)))
-
-    scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
-                        0., 0., ignitions, flights)
-    return scenario
-
 
 def generate_scenario_lambert93():
     # 9 by 7 km area
@@ -471,8 +489,9 @@ def generate_scenario_lambert93():
     for i in range(num_flights):
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(500, 1200)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -511,8 +530,9 @@ def generate_scenario_dozens():
     for i in range(num_flights):
         uav_start = random.uniform(start + 3999., start + 4000.)
         max_flight_time = random.uniform(500, 1200)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -540,10 +560,11 @@ def generate_scenario_big_fire():
     # Calculate a safe area for the ignitions
     allowed_range_x = (area.xmax - area.xmin) * 0.25
     allowed_range_y = (area.ymax - area.ymin) * 0.25
-    ignitions = [TimedPoint(random.uniform(area.xmin + allowed_range_x, area.xmax - allowed_range_x),
-                            random.uniform(area.ymin + allowed_range_y, area.ymax - allowed_range_y),
-                            random.uniform(0, 0))
-                 for i in range(num_ignitions)]
+    ignitions = [
+        TimedPoint(random.uniform(area.xmin + allowed_range_x, area.xmax - allowed_range_x),
+                   random.uniform(area.ymin + allowed_range_y, area.ymax - allowed_range_y),
+                   random.uniform(0, 0))
+        for i in range(num_ignitions)]
 
     # start once all fires are ignited
     start = max([igni.time for igni in ignitions])
@@ -553,8 +574,9 @@ def generate_scenario_big_fire():
     for i in range(num_flights):
         uav_start = random.uniform(start + 50000., start + 50000.)
         max_flight_time = random.uniform(500, 1200)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -590,8 +612,9 @@ def generate_scenario():
     for i in range(num_flights):
         uav_start = random.uniform(start, start + 4000.)
         max_flight_time = random.uniform(500, 1200)
-        uav = UAVConf("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle, max_flight_time)
-        flights.append(FlightConf(uav, uav_start, random.choice(uav_bases)))
+        name = " ".join(("UAV", str(i)))
+        uav = UAV("x8-06", uav_speed, uav_max_turn_rate, uav_max_pitch_angle)
+        flights.append(FlightConf(name, uav, uav_start, max_flight_time, random.choice(uav_bases)))
 
     scenario = Scenario(((area.xmin, area.xmax), (area.ymin, area.ymax)),
                         wind_speed, wind_dir, ignitions, flights)
@@ -606,9 +629,7 @@ scenario_factory_funcs = {'default': generate_scenario,
                           'singlefire_singleuav': generate_scenario_singlefire_singleuav,
                           'singlefire_singleuav_shortrange': generate_scenario_singlefire_singleuav_shortrange,
                           'singlefire_singleuav_3d': generate_scenario_singlefire_singleuav_3d,
-                          'newsletter': generate_scenario_newsletter,
-                          'windy_scenario': generate_windy_scenario,
-                          'nowind_scenario': generate_nowind_scenario,
+                          'newsletter': generate_scenario_newsletter
                           }
 
 vns_configurations = VNSConfDB.demo_db()
@@ -636,6 +657,7 @@ def run_command(args):
     output_options['planning']['elevation_mode'] = args.elevation
     output_options['planning']['discrete_elevation_interval'] = \
         DISCRETE_ELEVATION_INTERVAL if args.elevation == 'discrete' else 0
+    # output_options['data']['save_rasters'] = args.save_rasters
 
     # Scenario loading / generation
     scenarios = pickle.load(open(os.path.join(args.scenario, 'scenario'), 'rb'))
@@ -676,12 +698,13 @@ def run_command(args):
     else:
         to_run = enumerate(scenarios)
 
-    joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5) \
+    joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5)\
         (joblib.delayed(run_benchmark)(s, run_dir, str(i),
                                        output_options_plot=output_options['plot'],
                                        snapshots=args.snapshots,
                                        output_options_planning=output_options['planning'],
-                                       vns_name=args.vns) for i, s in to_run)
+                                       vns_name=args.vns)\
+         for i, s in to_run)
 
 
 def create_command(args):
@@ -780,6 +803,10 @@ def main():
                             help="Set the number of threads to be used for parallel processing.",
                             type=int,
                             default=1)
+    parser_run.add_argument('--save-rasters', dest='save_rasters', action='store_true',
+                            help="Save all the rasters generated during the benchmark.")
+    parser_run.add_argument('--no-save-rasters', dest='save_rasters', action='store_false',
+                            help="Do not save any of the rasters generated during the benchmark.")
     args = parser.parse_args()
 
     if args.wait:

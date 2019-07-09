@@ -403,7 +403,20 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_readonly("y", &Waypoint3d::y)
             .def_readonly("z", &Waypoint3d::z)
             .def_readonly("dir", &Waypoint3d::dir)
-            .def("__repr__", &Waypoint3d::to_string);
+            .def("__repr__", &Waypoint3d::to_string)
+            .def(py::pickle(
+                    [](const Waypoint3d &self) { // __getstate__
+                        /* Return a tuple that fully encodes the state of the object */
+                        return py::make_tuple(self.x, self.y, self.z, self.dir);
+                    },
+                    [](py::tuple t) { // __setstate__
+                        if (t.size() != 4)
+                            throw std::runtime_error("Invalid Waypoint3d state");
+
+                        Waypoint3d w(t[0].cast<double>(), t[1].cast<double>(), t[2].cast<double>(), t[3].cast<double>());
+                        return w;
+                    }
+            ));
 
     py::class_<Waypoint>(m, "Waypoint2d")
             .def(py::init<const double, const double, const double>(),
@@ -420,7 +433,20 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_property_readonly("y", &WindVector::y)
             .def("dir", &WindVector::dir)
             .def("speed", &WindVector::modulo)
-            .def("__repr__", &WindVector::to_string);
+            .def("__repr__", &WindVector::to_string)
+            .def(py::pickle(
+                    [](const WindVector &self) { // __getstate__
+                        /* Return a tuple that fully encodes the state of the object */
+                        return py::make_tuple(self.x(), self.y());
+                    },
+                    [](py::tuple t) { // __setstate__
+                        if (t.size() != 2)
+                            throw std::runtime_error("Invalid WindVector state");
+
+                        WindVector w(t[0].cast<double>(), t[1].cast<double>());
+                        return w;
+                    }
+            ));
 
     py::class_<Segment3d>(m, "Segment")
             .def(py::init<const Waypoint3d, const double>())
@@ -431,7 +457,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def("__repr__", &Segment3d::to_string);
 
     py::class_<UAV>(m, "UAV")
-            .def(py::init<std::string, const double, const double, const double>())
+            .def(py::init<std::string, const double, const double, const double>(),
+                    py::arg("name"), py::arg("max_air_speed"), py::arg("max_angular_velocity"), py::arg("max_pitch_angle"))
             .def_property_readonly("name", &UAV::name)
             .def_property_readonly("min_turn_radius", &UAV::min_turn_radius)
             .def_property_readonly("max_air_speed", &UAV::max_air_speed)
@@ -460,7 +487,21 @@ PYBIND11_MODULE(uav_planning, m) {
                  (std::vector<Waypoint3d> (UAV::*)(const Waypoint3d&, const Waypoint3d&, const WindVector&,
                                                    double) const)
                          &UAV::path_sampling_airframe, py::arg("origin"), py::arg("destination"), py::arg("wind"),
-                 py::arg("step_size"));
+                 py::arg("step_size"))
+            .def(py::pickle(
+                    [](const UAV &self) { // __getstate__
+                        /* Return a tuple that fully encodes the state of the object */
+                        return py::make_tuple(self.name(), self.max_air_speed(),
+                                self.max_angular_velocity(), self.max_pitch_angle());
+                    },
+                    [](py::tuple t) { // __setstate__
+                        if (t.size() != 4)
+                            throw std::runtime_error("Invalid UAV state");
+
+                        UAV u(t[0].cast<std::string>(), t[1].cast<double>(), t[2].cast<double>(), t[3].cast<double>());
+                        return u;
+                    }
+            ));
 
     py::class_<Trajectory>(m, "Trajectory")
             .def(py::init<const TrajectoryConfig&>())
@@ -522,7 +563,23 @@ PYBIND11_MODULE(uav_planning, m) {
             .def_static("build", [](UAV uav, double start_time, double max_flight_time) -> TrajectoryConfig {
                             return TrajectoryConfig(uav, start_time, max_flight_time);
                         }, "Constructor", py::arg("uav"), py::arg("start_time") = 0,
-                        py::arg("max_flight_time") = std::numeric_limits<double>::max());
+                        py::arg("max_flight_time") = std::numeric_limits<double>::max())
+            .def(py::pickle(
+                    [](const TrajectoryConfig &self) { // __getstate__
+                        /* Return a tuple that fully encodes the state of the object */
+                        return py::make_tuple(self.id_unique, self.uav, self.start_time, self.start_position,
+                                              self.end_position, self.max_flight_time, self.wind);
+                    },
+                    [](py::tuple t) { // __setstate__
+                        if (t.size() != 7)
+                            throw std::runtime_error("Invalid TrajectoryConfig state");
+
+                        TrajectoryConfig tc(t[0].cast<std::string>(), t[1].cast<UAV>(), t[2].cast<Waypoint3d>(),
+                                            t[3].cast<Waypoint3d>(), t[4].cast<double>(), t[5].cast<double>(),
+                                            t[6].cast<WindVector>());
+                        return tc;
+                    }
+            ));
 
     py::class_<Plan>(m, "Plan")
             .def(py::init<std::string, std::vector<Trajectory>, shared_ptr<FireData>, TimeWindow>(),

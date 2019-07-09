@@ -130,6 +130,22 @@ namespace SAOP {
                   end_position(std::move(end_position)),
                   max_flight_time(max_flight_time),
                   wind(wind) {}
+
+        /*Used for python pickle support*/
+        TrajectoryConfig(std::string name,
+                         UAV uav,
+                         opt<Waypoint3d> start_position,
+                         opt<Waypoint3d> end_position,
+                         double start_time,
+                         double max_flight_time,
+                         WindVector wind)
+                : id_unique(std::move(name)),
+                  uav(uav),
+                  start_time(start_time),
+                  start_position(start_position),
+                  end_position(end_position),
+                  max_flight_time(max_flight_time),
+                  wind(wind) {}
     };
 
     class Trajectory {
