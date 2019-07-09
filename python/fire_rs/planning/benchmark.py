@@ -35,6 +35,7 @@ import numpy as np
 import os
 import random
 import typing as ty
+import pytz
 
 from collections import namedtuple
 from collections.abc import Sequence
@@ -50,15 +51,15 @@ import matplotlib.pyplot
 import fire_rs.uav_planning as up
 import fire_rs.firemodel.propagation
 import fire_rs.geodata.environment
+import fire_rs.geodata.geo_data
 
 from fire_rs.firemodel import propagation
 from fire_rs.geodata.display import GeoDataDisplay
-from fire_rs.geodata.geo_data import TimedPoint, Area
-from fire_rs.geodata.geo_data import Point as GeoData_Point
+from fire_rs.geodata.geo_data import TimedPoint, Area, GeoData
 from fire_rs.planning.display import plot_plan_with_background, TrajectoryDisplayExtension
 from fire_rs.planning.new_planning import TrajectoryConfig,\
     UAV, VNSConfDB, Waypoint, FireData, make_fire_data, WindVector, TimeWindow,\
-    make_flat_utility_map, Plan, Planner, UAVModels
+    make_utility_map, Plan, Planner, UAVModels
 
 _DBL_MAX = np.inf
 DISCRETE_ELEVATION_INTERVAL = 100
@@ -131,7 +132,7 @@ class PlanningEnvironment(fire_rs.firemodel.propagation.Environment):
             raise ValueError("".join(["Wrong planning_elevation_mode '",
                                       self.planning_elevation_mode, "'"]))
 
-        self.raster = self.raster.combine(elev_planning)
+        self.raster = self.raster.combine(elev_planning)  # type: fire_rs.geodata.geo_data.GeoData
 
 
 class Scenario:
@@ -164,9 +165,10 @@ class Scenario:
                         ", traj_conf=", repr(self.flights), ")"])
 
 
-def run_benchmark(scenario, save_directory, instance_name, output_options_plot: dict,
-                  output_options_planning: dict,
-                  snapshots, vns_name, plot=False):
+def run_benchmark(scenario: Scenario, save_directory: str, instance_name: str,
+                  output_options_plot: ty.Mapping[str, ty.Any],
+                  output_options_planning: ty.Mapping[str, ty.Any],
+                  snapshots: bool, vns_name: str, output_options_data: ty.Mapping[str, ty.Any]):
     _logger.info("Starting benchmark instance %s", instance_name)
 
     # Fetch scenario environment data with additional elevation mode for planning
@@ -207,14 +209,14 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     flight_window = TimeWindow(scenario.time_window_start, scenario.time_window_end)
 
     # Create utility map
-    utility = make_flat_utility_map(ignitions, flight_window, layer='ignition', output_layer='utility')
+    utility = make_utility_map(ignitions, flight_window, layer='ignition', output_layer='utility')
 
     # Make a FireData object
     fire_data = make_fire_data(ignitions, env.raster, elevation_map_layer='elevation_planning')
 
     # Create an initial plan
     initial_plan = Plan(instance_name, [f.as_cpp() for f in scenario.flights], fire_data,
-                        flight_window,utility.as_cpp_raster('utility'))
+                        flight_window, utility.as_cpp_raster('utility'))
 
     # Set up a Planner object from the initial Plan
     pl = Planner(initial_plan, vns_configurations[vns_name])
@@ -250,6 +252,28 @@ def run_benchmark(scenario, save_directory, instance_name, output_options_plot: 
     geodatadisplay.axes.get_figure().set_size_inches(*output_options_plot.get('size', (15, 10)))
     geodatadisplay.axes.get_figure().savefig(filepath, dpi=output_options_plot.get('dpi', 150),
                                              bbox_inches='tight')
+
+    # Save rasters
+    if output_options_data['save_rasters']:
+        raster_data_dir = os.path.join(save_directory, instance_name + "_data")
+        if not os.path.exists(raster_data_dir):
+            os.makedirs(raster_data_dir)
+        env.raster.write_to_file(os.path.join(raster_data_dir, ".".join(
+            ("_".join((instance_name, "elevation_planning")), 'tif'))), 'elevation_planning')
+        env.raster.write_to_file(os.path.join(raster_data_dir, ".".join(
+            ("_".join((instance_name, "wind_velocity")), 'tif'))), 'wind_velocity')
+        env.raster.write_to_file(os.path.join(raster_data_dir, ".".join(
+            ("_".join((instance_name, "wind_angle")), 'tif'))), 'wind_angle')
+        prop.ignitions().write_to_file(
+            os.path.join(raster_data_dir, ".".join(("_".join((instance_name, "ignition")), 'tif'))),
+            'ignition', nodata=np.inf)
+        utility.write_to_file(os.path.join(raster_data_dir, ".".join(
+            ("_".join((instance_name, "utility_initial")), 'tif'))), 'utility')
+        u_map = GeoData.from_cpp_raster(final_plan.utility_map(), "utility", projection=utility.projection)
+        u_map.write_to_file(os.path.join(raster_data_dir, ".".join(
+            ("_".join((instance_name, "utility_final")), 'tif'))), 'utility')
+
+    # print([o.as_tuple() for o in final_plan.observations()])
 
     # Log planned trajectories metadata
     for i, t in enumerate(final_plan.trajectories()):
@@ -647,7 +671,7 @@ def run_command(args):
         vns_configurations = VNSConfDB(args.vns_conf)
 
     # Set-up output options
-    output_options = {'plot': {}, 'planning': {}, }
+    output_options = {'plot': {}, 'planning': {}, 'data': {}}
     output_options['plot']['background'] = args.background
     output_options['plot']['foreground'] = args.foreground
     output_options['plot']['format'] = args.format
@@ -657,13 +681,13 @@ def run_command(args):
     output_options['planning']['elevation_mode'] = args.elevation
     output_options['planning']['discrete_elevation_interval'] = \
         DISCRETE_ELEVATION_INTERVAL if args.elevation == 'discrete' else 0
-    # output_options['data']['save_rasters'] = args.save_rasters
+    output_options['data']['save_rasters'] = args.save_rasters
 
     # Scenario loading / generation
     scenarios = pickle.load(open(os.path.join(args.scenario, 'scenario'), 'rb'))
 
     # Current date and time string
-    run_id = datetime.datetime.now().isoformat()
+    run_id = datetime.datetime.now(pytz.timezone('UTC')).isoformat()
 
     # Current run folder
     run_dir = os.path.join(args.scenario, run_id)
@@ -703,7 +727,8 @@ def run_command(args):
                                        output_options_plot=output_options['plot'],
                                        snapshots=args.snapshots,
                                        output_options_planning=output_options['planning'],
-                                       vns_name=args.vns)\
+                                       vns_name=args.vns,
+                                       output_options_data=output_options['data'])\
          for i, s in to_run)
 
 
