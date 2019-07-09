@@ -25,6 +25,7 @@
 from collections import namedtuple
 from functools import reduce
 
+import typing as ty
 import gdal
 import numpy as np
 from typing import List, Tuple, Union
@@ -318,11 +319,12 @@ class GeoData:
             file = parameterized_filename % layer
             self.write_to_file(file, layer)
 
-    def write_to_file(self, filename: str, layer_name=None):
+    def write_to_file(self, filename: str, layer_name: ty.Optional[str] = None,
+                      nodata: ty.Optional[float] = None):
         """Writes to GeoTiff file.
 
-        If a layer_name is provided, then only the corresponding layer will be written, otherwise the GeoTiff file
-        will contain all layers."""
+        If a layer_name is provided, then only the corresponding layer will be written,
+        otherwise the GeoTiff file will contain all layers."""
         layers = self.data.dtype.names if layer_name is None else [layer_name]
 
         if self.cell_height < 0:
@@ -346,6 +348,8 @@ class GeoData:
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
         for i, layer in enumerate(layers):
             outband = out_raster.GetRasterBand(i + 1)
+            if nodata is not None:
+                outband.SetNoDataValue(nodata)
             outband.WriteArray(data[layer])
             outband.SetDescription(
                 layer)  # apparently not visible in QGIS, maybe there is a better alternative
