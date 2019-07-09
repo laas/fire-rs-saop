@@ -5,6 +5,7 @@
 ----------------------------------
 
 .. automodule:: fire_rs.geodata.basemap
+    :special-members: __init__
     :members:
     :undoc-members:
     :private-members:
@@ -13,6 +14,7 @@
 ------------------------------------
 
 .. automodule:: fire_rs.geodata.elevation
+    :special-members: __init__
     :members:
     :undoc-members:
     :private-members:
@@ -21,6 +23,7 @@
 ------------------------------------
 
 .. automodule:: fire_rs.geodata.landcover
+    :special-members: __init__
     :members:
     :undoc-members:
     :private-members:
@@ -29,6 +32,7 @@
 -------------------------------
 
 .. automodule:: fire_rs.geodata.wind
+    :special-members: __init__
     :members:
     :undoc-members:
     :private-members:
@@ -37,6 +41,7 @@
 --------------------------------------
 
 .. automodule:: fire_rs.geodata.environment
+    :special-members: __init__
     :members:
     :undoc-members:
     :private-members:      
@@ -45,6 +50,7 @@
 -----------------------------------
 
 .. automodule:: fire_rs.geodata.geo_data
+    :special-members: __init__
     :members:
     :undoc-members:
 ..    :private-members:
@@ -53,6 +59,7 @@
 -----------------------------------
 
 .. automodule:: fire_rs.geodata.display
+    :special-members: __init__
     :members:
     :undoc-members:
     :private-members:

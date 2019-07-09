@@ -53,7 +53,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'fire_rs'
-copyright = u'2018, CNRS/LAAS'
+copyright = u'2018-2019, CNRS/LAAS'
 author = u'Rafael Bailon-Ruiz'
 
 # The version info for the project you're documenting, acts as replacement for
