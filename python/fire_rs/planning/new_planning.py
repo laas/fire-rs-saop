@@ -224,7 +224,9 @@ def make_utility_map(firemap: GeoData, flight_window: TimeWindow = TimeWindow(-n
 def make_flat_utility_map(firemap: GeoData, flight_window: TimeWindow = TimeWindow(-np.inf, np.inf),
                      layer="ignition", output_layer="utility") -> GeoData:
     """Create a constant utility map"""
-    return firemap.clone(fill_value=1., dtype=[(output_layer, 'float64')])
+    utility = firemap.clone(fill_value=1., dtype=[(output_layer, 'float64')])
+    utility[output_layer][(firemap[layer] < flight_window.start) | (firemap[layer] > flight_window.end)] = 0.
+    return utility
 
 
 class Planner:
