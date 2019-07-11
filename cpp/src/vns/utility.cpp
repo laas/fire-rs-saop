@@ -35,7 +35,7 @@ double SAOP::Utility::utility() const {
 
 }
 
-SAOP::GenRaster<double> SAOP::Utility::utility_map() const {
+GenRaster<double> SAOP::Utility::utility_map() const {
     if (utility_map_cache) {
         return *utility_map_cache;
     }
@@ -43,7 +43,7 @@ SAOP::GenRaster<double> SAOP::Utility::utility_map() const {
     return *utility_map_cache;
 }
 
-SAOP::GenRaster<double> SAOP::Utility::initial_utility() const {
+GenRaster<double> SAOP::Utility::initial_utility() const {
     return base_utility;
 }
 
@@ -98,7 +98,8 @@ std::vector<std::pair<Position3dTime, Position3dTime>> Utility::straight_segment
 }
 
 SAOP::GenRaster<double> SAOP::Utility::utility_impl_trace() const {
-    auto u_map = base_utility;
+    GenRaster<double> u_map(std::vector<double>(base_utility.data), base_utility.x_width, base_utility.y_height,
+                            base_utility.x_offset, base_utility.y_offset, base_utility.cell_width);
     if (trajectories) {
         for (const auto& traj : *trajectories) {
             /* Identify straight portions of trajectory */

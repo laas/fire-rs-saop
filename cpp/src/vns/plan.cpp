@@ -44,7 +44,7 @@ namespace SAOP {
 
     Plan::Plan(std::string name, std::vector<TrajectoryConfig> traj_confs, std::shared_ptr<FireData> fire_data,
                TimeWindow tw, GenRaster<double> utility) : Plan(name, Trajectories(traj_confs), fire_data, tw,
-                                                                {}, GenRaster<double>(fire_data->ignitions, 1.)) {}
+                                                                {}, std::move(utility)) {}
 
     Plan::Plan(std::string name, std::vector<Trajectory> trajectories, std::shared_ptr<FireData> fire_data,
                TimeWindow tw, GenRaster<double> utility): Plan(std::move(name), Trajectories(trajectories), fire_data, tw,

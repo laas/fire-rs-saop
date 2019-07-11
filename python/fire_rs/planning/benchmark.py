@@ -210,13 +210,14 @@ def run_benchmark(scenario: Scenario, save_directory: str, instance_name: str,
 
     # Create utility map
     utility = make_utility_map(ignitions, flight_window, layer='ignition', output_layer='utility')
+    utility_cpp = utility.as_cpp_raster('utility')
 
     # Make a FireData object
     fire_data = make_fire_data(ignitions, env.raster, elevation_map_layer='elevation_planning')
 
     # Create an initial plan
     initial_plan = Plan(instance_name, [f.as_cpp() for f in scenario.flights], fire_data,
-                        flight_window, utility.as_cpp_raster('utility'))
+                        flight_window, utility_cpp)
 
     # Set up a Planner object from the initial Plan
     pl = Planner(initial_plan, vns_configurations[vns_name])
@@ -267,10 +268,13 @@ def run_benchmark(scenario: Scenario, save_directory: str, instance_name: str,
         prop.ignitions().write_to_file(
             os.path.join(raster_data_dir, ".".join(("_".join((instance_name, "ignition")), 'tif'))),
             'ignition', nodata=np.inf)
-        utility.write_to_file(os.path.join(raster_data_dir, ".".join(
+        u_initial_map = GeoData.from_cpp_raster(initial_plan.utility_map(), "utility",
+                                                projection=utility.projection)
+        u_initial_map.write_to_file(os.path.join(raster_data_dir, ".".join(
             ("_".join((instance_name, "utility_initial")), 'tif'))), 'utility')
-        u_map = GeoData.from_cpp_raster(final_plan.utility_map(), "utility", projection=utility.projection)
-        u_map.write_to_file(os.path.join(raster_data_dir, ".".join(
+        u_final_map = GeoData.from_cpp_raster(final_plan.utility_map(), "utility",
+                                              projection=utility.projection)
+        u_final_map.write_to_file(os.path.join(raster_data_dir, ".".join(
             ("_".join((instance_name, "utility_final")), 'tif'))), 'utility')
 
     # print([o.as_tuple() for o in final_plan.observations()])
