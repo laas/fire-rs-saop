@@ -1,6 +1,8 @@
 # FireRS Situation Assessment and Observation Planning
 
-*FireRS Situation Assessment and Observation Planning (SAOP)* is composed of several python packages:
+*FireRS Situation Assessment and Observation Planning (SAOP)* is a software for planning, execution and supervision of wildfire monitoring missions with a fleets of UAVs.
+
+FireRS SAOP is composed of several python packages:
 
  - ```fire_rs.geodata```: geographic and environmental data manipulation
  - ```fire_rs.firemodel```: wildfire propagation
