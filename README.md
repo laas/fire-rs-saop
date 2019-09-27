@@ -22,7 +22,7 @@ A C++ library (___libsaop___) implementing:
    - *neptus*: Communication with Neptus and Dune
    - *firemapping*: mapping algorithms
  
-And a ROS pacakge (___supersaop___) for real time execution of SAOP with real or simulated UAVs in a real or synthetic wildfire scenario.
+And a ROS package (___supersaop___) for real time execution of SAOP with real or simulated UAVs in a real or synthetic wildfire scenario.
 
 ## SAOP environment setup
 
