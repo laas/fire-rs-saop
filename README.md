@@ -14,7 +14,7 @@ FireRS SAOP is composed of several python packages:
 
 A C++ library (___libsaop___) implementing:
  - A VNS-based observation planning algorithm for wildfire monitoring.
- - The communication with [Neptus](https://github.com/LSTS/neptus) and [Dune](https://github.com/LSTS/dune) software for the operation of unmmaned vehicles.
+ - The communication with [Neptus](https://github.com/LSTS/neptus) and [Dune](https://github.com/LSTS/dune) software for the operation of unmanned vehicles.
  - A trivial wildfire mapping algorithm.
  
    The functionality provided by _libsaop_ is also exposed trough three python interfaces:
