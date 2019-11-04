@@ -346,6 +346,7 @@ class GeoData:
         driver = gdal.GetDriverByName('GTiff')
         out_raster = driver.Create(filename, cols, rows, len(layers), gdal.GDT_Float64)
         out_raster.SetGeoTransform((origin_x, self.cell_width, 0, origin_y, 0, cell_height))
+        # out_raster.SetMetadata({'COMPRESSION': 'LZW', 'INTERLEAVE': 'BAND'}, 'IMAGE_STRUCTURE')
         for i, layer in enumerate(layers):
             outband = out_raster.GetRasterBand(i + 1)
             if nodata is not None:

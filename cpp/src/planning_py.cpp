@@ -449,6 +449,7 @@ PYBIND11_MODULE(uav_planning, m) {
             ));
 
     py::class_<Segment3d>(m, "Segment")
+            .def(py::init<const Waypoint3d&>())
             .def(py::init<const Waypoint3d, const double>())
             .def(py::init<const Waypoint3d, const Waypoint3d>())
             .def_readonly("start", &Segment3d::start)
@@ -507,6 +508,8 @@ PYBIND11_MODULE(uav_planning, m) {
             .def(py::init<const TrajectoryConfig&>())
             .def(py::init<TrajectoryConfig, const std::vector<TrajectoryManeuver>&>())
             .def_property_readonly("conf", &Trajectory::conf)
+            .def("insert_segment", (void (Trajectory::*)(const Segment3d&, size_t)) &Trajectory::insert_segment,
+                 py::arg("seg"), py::arg("at_index"))
             .def("name", &Trajectory::name)
             .def("start_time", (double (Trajectory::*)() const) &Trajectory::start_time)
             .def("start_time", (double (Trajectory::*)(size_t) const) &Trajectory::start_time, py::arg("segment_index"))

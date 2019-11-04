@@ -151,6 +151,8 @@ class SAOPPlannerConf(Mapping):
 
 Waypoint = up.Waypoint
 
+Segment = up.Segment
+
 Position = up.Position
 
 CircularDirection = up.CircularDirection
