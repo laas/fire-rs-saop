@@ -66,5 +66,6 @@ setup(
         #     undef_macros=['NDEBUG'],  # enable assertions in compiled C++ code
         # ),
     ],
-    cmdclass={'build_ext': build_ext}
+    cmdclass={'build_ext': build_ext},
+    include_package_data=True
 )
