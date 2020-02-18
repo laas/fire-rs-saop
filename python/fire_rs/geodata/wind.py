@@ -26,6 +26,7 @@ import logging
 import os
 import subprocess
 import itertools
+import shutil
 
 import numpy as np
 
@@ -39,9 +40,15 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DEM_TILE_SPLIT = 4
 
 WINDNINJA_CLI_PATH = os.environ['WINDNINJA_CLI_PATH'] \
-    if 'WINDNINJA_CLI_PATH' in os.environ else '/home/rbailonr/bin/windninja_cli'
+    if 'WINDNINJA_CLI_PATH' in os.environ else None
+if not WINDNINJA_CLI_PATH:
+    p = shutil.which("WindNinja_cli")
+    if p:
+        WINDNINJA_CLI_PATH = os.path.dirname(p)
+    else:
+        WINDNINJA_CLI_PATH = ""
 if not os.path.exists(os.path.join(WINDNINJA_CLI_PATH, 'WindNinja_cli')):
-    raise FileNotFoundError("$WINDNINJA_CLI_PATH is not defined correctly")
+    raise FileNotFoundError("WindNinja_cli can not be found. Please set $WINDNINJA_CLI_PATH.")
 
 
 def geo_angle_to_trigo_angle(angles):
