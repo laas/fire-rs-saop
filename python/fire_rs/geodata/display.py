@@ -274,6 +274,9 @@ class SecondDateFormatter(matplotlib.dates.DateFormatter):
     def __call__(self, x, pos=0):
         # TZ should not be used, because ROS only work on localtime
         # without any time zone consideration
+        # WARNING: If the fire start is not dated,
+        # the displayed hour will be off by the current timezone
+        # timestamp "0.000000" is shown 1:00 in France (2:00 in summer)
         return datetime.datetime.fromtimestamp(x, None).strftime(self.fmt)
 
 
