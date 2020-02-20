@@ -167,14 +167,20 @@ class SituationAssessment:
                 if not perimeter_time:
                     self.time = datetime.datetime.fromtimestamp(self._newest_obs_timestamp)
                 self._interpolate()
-                self._compute_perimeter(self.time.timestamp())
+                try:
+                    self._compute_perimeter(self.time.timestamp())
+                except Exception as e:
+                    self._perimeter = None
 
         @property
         def geodata(self):
+            """Interpolated Wildfire map"""
             return self._interpolated
 
         @property
         def perimeter(self) -> ty.Optional[fire_rs.geodata.wildfire.Perimeter]:
+            if not self._perimeter:
+                self._compute_perimeter(self.time.timestamp())
             return self._perimeter
 
         def _interpolate(self):
@@ -200,11 +206,16 @@ class SituationAssessment:
 
                 # Filter out extrapolations, because they are not reliable!
                 time_span = self._newest_obs_timestamp - self._oldest_obs_timestamp
-                array[array < self._oldest_obs_timestamp - time_span / 2] = 0
-                array[array > self._newest_obs_timestamp + time_span / 2] = np.inf
+                # array[array < self._oldest_obs_timestamp-0.1*time_span] = 0
+                array[array > self._newest_obs_timestamp+0.05*time_span] = np.inf
                 self._interpolated.data["ignition"] = array
             else:
                 self._interpolated.data["ignition"][x, y] = z
+
+        def compute_perimeter(self):
+            """Compute the perimeter if it has not been computed before"""
+            if not self._perimeter:
+                self._compute_perimeter(self.time.timestamp())
 
         def _compute_perimeter(self, threshold: float):
             self._perimeter = fire_rs.geodata.wildfire.Perimeter(self._interpolated, threshold)
