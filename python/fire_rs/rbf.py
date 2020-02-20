@@ -241,8 +241,8 @@ class Rbf(object):
         #  to save on the object returned.
         for item, value in kwargs.items():
             setattr(self, item, value)
-
-        self.nodes, res, rnk, s = linalg.lstsq(self.A, self.di, self.cond)
+        #self.nodes_lstsq, res, rnk, s = linalg.lstsq(self.A, self.di, self.cond)
+        self.nodes= linalg.solve(self.A, self.di)
 
     @property
     def A(self):
