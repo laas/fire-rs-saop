@@ -24,6 +24,7 @@
 
 import typing as ty
 
+import cv2
 import numpy as np
 import skimage.draw
 import skimage.measure
@@ -282,3 +283,33 @@ class WildfireGraph:
                 if self.geodata.data[self._ignition_layer][next_cell] < np.inf:
                     coord = next_cell
         return coord
+
+
+def warp_firemap(gd: fire_rs.geodata.geo_data.GeoData, orig: ty.Sequence[ty.Tuple[int, int]],
+                 dest: ty.Sequence[ty.Tuple[int, int]],
+                 layer: str = "ignition"):
+    array = _warp_image(gd[layer], orig, dest)
+    new_gd = fire_rs.firemodel.propagation.empty_firemap(gd, layer=layer)
+    new_gd.data["ignition"] = array
+    return new_gd
+
+
+def _warp_image(array: np.ndarray, orig: ty.Sequence[ty.Tuple[int, int]],
+                dest: ty.Sequence[ty.Tuple[int, int]]) -> np.ndarray:
+    newarray = array.copy()
+    newarray = newarray.T  # opencv convention on columns and rows is inverted
+    newarray_min = newarray.min()
+    newarray_max = newarray.max()
+    newarray = (newarray - newarray_min) / (newarray_max - newarray_min)
+    orig_p = np.array(orig, np.int32)
+    orig_p = orig_p.reshape(1, -1, 2)  # Don't ask why. https://stackoverflow.com/a/47114049
+    dest_p = np.array(dest, np.int32)
+    dest_p = dest_p.reshape(1, -1, 2)  # Don't ask why. https://stackoverflow.com/a/47114049
+    good_matches = [cv2.DMatch(p, p, 0) for p in range(len(orig))]
+    tps = cv2.createThinPlateSplineShapeTransformer(60.0)  # Relax strict interpolation condition
+    tps.estimateTransformation(dest_p, orig_p, good_matches)
+    warped = None
+    warped = tps.warpImage(newarray, warped, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, np.inf)
+    warped = warped * (newarray_max - newarray_min) + newarray_min
+    warped = warped.T
+    return warped

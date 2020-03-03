@@ -52,11 +52,13 @@ The core functions of FireRS SAOP require running a GNU/Linux operating system (
  - Boost
  - python 3.5
  - Cython
+ - OpenCV
  - [pybind11](https://github.com/pybind/pybind11/)
  - gdal
  - [windninja](https://github.com/firelab/windninja)
  - The following python packages:
     * affine
+    * cv2
     * GDAL
     * joblib
     * matplotlib
@@ -71,7 +73,8 @@ Using Ubuntu, run as *root*:
 
     apt install g++ cmake python3 cython3 python3-gdal python3-setuptools\
     python3-pip python3-affine python3-tz python3-pandas python3-numpy\
-    python3-matplotlib libboost-all-dev libgdal-dev
+    python3-matplotlib libboost-all-dev libgdal-dev libopencv-shape\
+    python3-opencv
     
     pip3 install pybind11 joblib scikit-image scipy
 

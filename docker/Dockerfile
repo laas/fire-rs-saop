@@ -29,7 +29,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 ## install SAOP dependencies
 RUN apt-get install -y g++ gdb cmake python3 cython3 python3-gdal python3-setuptools\
  python3-pip python3-affine python3-tz python3-pandas python3-numpy python3-matplotlib ffmpeg\
-    clang libboost-all-dev libgdal-dev
+ clang libboost-all-dev libgdal-dev libopencv-shape python3-opencv
 
 RUN pip3 install pybind11
 RUN pip3 install joblib
