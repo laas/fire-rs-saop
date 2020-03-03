@@ -132,7 +132,7 @@ def interpolate(x, y, z, shape, function='thin_plate') -> np.ndarray:
     # might give a clue of which kind of kernel function to use
 
     # default smooth=0 for interpolation
-    interpolator = fire_rs.rbf.Rbf(x, y, z, function=function, smooth=0, cond=10**-5)
+    interpolator = fire_rs.rbf.Rbf(x, y, z, function=function, smooth=0, cond=10 ** -5)
 
     xi = np.linspace(0, shape[0] - 1, shape[0])
     yi = np.linspace(0, shape[1] - 1, shape[1])
@@ -146,7 +146,8 @@ def interpolate(x, y, z, shape, function='thin_plate') -> np.ndarray:
 def rate_of_spread_map(firemap: fire_rs.geodata.geo_data.GeoData, layer="ignition",
                        output_layer="ros") -> fire_rs.geodata.geo_data.GeoData:
     """Compute the Rate of Spread from a wildfire_map"""
-    gradient = firemap.clone(data_array=np.linalg.norm(np.gradient(firemap[layer]), axis=0), dtype=[(output_layer, 'float64')])
+    gradient = firemap.clone(data_array=np.linalg.norm(np.gradient(firemap[layer]), axis=0),
+                             dtype=[(output_layer, 'float64')])
     return gradient
 
 
