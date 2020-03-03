@@ -100,13 +100,17 @@ def _compute_perimeter(wildfire: fire_rs.geodata.geo_data.GeoData, threshold: fl
     contours = skimage.measure.find_contours(wildfire.data[layer], threshold)
 
     for contour in contours:
-        rr, cc = skimage.draw.polygon_perimeter(contour[..., 0], contour[..., 1],
-                                                shape=wildfire.data.shape, clip=True)
-        # Set perimeter in array format
-        array[rr, cc] = wildfire.data[layer][rr, cc]
-        # Set perimeter in dict format
-        for r, c in zip(rr, cc):
-            cells[r, c] = wildfire.data[layer][r, c]
+        try:
+            rr, cc = skimage.draw.polygon_perimeter(contour[..., 0], contour[..., 1],
+                                                    shape=wildfire.data.shape, clip=True)
+            # Set perimeter in array format
+            array[rr, cc] = wildfire.data[layer][rr, cc]
+            # Set perimeter in dict format
+            for r, c in zip(rr, cc):
+                cells[r, c] = wildfire.data[layer][r, c]
+        except IndexError as e:
+            pass # Ignore contour if it contains NaN (polygon_perimeter throws IndexError)
+
 
     # for contour in contours:
     #     prev_edge = contour[0]
