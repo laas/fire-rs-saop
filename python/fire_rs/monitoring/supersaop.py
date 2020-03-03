@@ -224,6 +224,72 @@ class SituationAssessment:
             #         self._perimeter.cells[k] = v
             #         self._perimeter.array[k] = v
 
+    class WildfireCurrentFusionAssessment:
+        """Evaluate the current state of a wildfire by fusing a forecast with actual observations"""
+
+        def __init__(self, environment: fire_rs.firemodel.propagation.Environment,
+                     observations: ty.MutableMapping[ty.Tuple[int, int], float],
+                     predicted_firemap: fire_rs.geodata.geo_data.GeoData,
+                     perimeter_time: ty.Optional[datetime.datetime]):
+            self._environment = environment
+            self._predicted_firemap = predicted_firemap
+            self._perimeter = None
+            self._assessment = fire_rs.firemodel.propagation.empty_firemap(
+                self._environment.raster)
+            self._observations = observations
+
+            self._assessment_debug_data
+
+            self.time = perimeter_time
+            self._oldest_obs_timestamp = None
+            self._newest_obs_timestamp = None
+
+            if self._observations:
+                self._oldest_obs_timestamp = min(*self._observations.values(), 2 ** 64 - 1)
+                self._newest_obs_timestamp = max(*self._observations.values(), 0.)
+                if not perimeter_time:
+                    self.time = datetime.datetime.fromtimestamp(self._newest_obs_timestamp)
+                self._warping()
+                try:
+                    self._compute_perimeter(self.time.timestamp())
+                except Exception as e:
+                    self._perimeter = None
+
+        @property
+        def geodata(self):
+            """Interpolated Wildfire map"""
+            return self._assessment
+
+        @property
+        def perimeter(self) -> ty.Optional[fire_rs.geodata.wildfire.Perimeter]:
+            if not self._perimeter:
+                self._compute_perimeter(self.time.timestamp())
+            return self._perimeter
+
+        def _warping(self):
+            """Make an assessment by thin-plate spline warping"""
+
+            # Find cell in the predited wildfire map with the same ignition time as in the
+            # observed cells
+            wg = fire_rs.geodata.wildfire.WildfireGraph(self._predicted_firemap)
+            corresponding_cells_in_forecast = [wg.find_parent_or_child_of_time(
+                cell, time) for cell, time in self._observations.items()]
+
+            observed_cell_list = list(self._observations.keys())
+            warped_map = fire_rs.geodata.wildfire.warp_firemap(
+                self._predicted_firemap, corresponding_cells_in_forecast, observed_cell_list)
+
+            self._assessment.data["ignition"] = warped_map.data["ignition"]
+
+        def compute_perimeter(self):
+            """Compute the perimeter if it has not been computed before"""
+            if not self._perimeter:
+                self._compute_perimeter(self.time.timestamp())
+
+        def _compute_perimeter(self, threshold: float):
+            self._perimeter = fire_rs.geodata.wildfire.Perimeter(self._assessment,
+                                                                 threshold)
+
     class WildfireFuturePropagation:
         """Evaluate the future state of a wildfire from a known perimeter"""
 
