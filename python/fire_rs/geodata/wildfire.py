@@ -148,3 +148,137 @@ def rate_of_spread_map(firemap: fire_rs.geodata.geo_data.GeoData, layer="ignitio
     gradient = firemap.clone(data_array=np.linalg.norm(np.gradient(firemap[layer]), axis=0), dtype=[(output_layer, 'float64')])
     return gradient
 
+
+class WildfireGraph:
+    """Computation of the propagation graph and end of ignition from a wildfire map"""
+    IGNITION_END = 'ignition_end'
+    PROP_X = 'prop_x'
+    PROP_Y = 'prop_y'
+    PROP_DIR = 'prop_dir'
+
+    def __init__(self, firemap: fire_rs.geodata.geo_data.GeoData, ignition_layer: str = 'ignition',
+                 ignition_end_layer: str = IGNITION_END, prop_x_layer: str = PROP_X,
+                 prop_y_layer: str = PROP_Y, prop_dir_layer: str = PROP_DIR):
+        self._ignition_layer = ignition_layer
+        self._ignition_end_layer = ignition_end_layer
+        self._prop_x_layer = prop_x_layer
+        self._prop_y_layer = prop_y_layer
+        self._prop_dir_layer = prop_dir_layer
+        self.geodata = firemap.clone(fill_value=0,
+                                     dtype=[(ignition_layer, 'float64'),
+                                            ('ignition_end', 'float64'),
+                                            ('prop_x', 'int8'),
+                                            ('prop_y', 'int8'),
+                                            ('prop_dir', 'float64')])
+        self.geodata.data[ignition_layer] = firemap.data[ignition_layer]
+        grad = np.gradient(self.geodata.data[ignition_layer])
+        self.geodata.data[prop_dir_layer] = np.arctan2(grad[1], grad[0])
+        self.geodata.data[prop_x_layer] = np.array(
+            np.round(np.cos(self.geodata.data[prop_dir_layer])), np.int)
+        self.geodata.data[prop_y_layer] = np.array(
+            np.round(np.sin(self.geodata.data[prop_dir_layer])), np.int)
+        self.geodata.data[ignition_end_layer] = WildfireGraph._compute_traversal_end(
+            self.geodata.data[ignition_layer])
+
+    @staticmethod
+    def _compute_propagation_direction(fire_array: np.array):
+        def default_ignition(x, y, dx, dy):
+            if x == 0 and dx < 0:
+                return fire_array[x, y]
+            if x + dx >= fire_array.shape[0]:
+                return fire_array[x, y]
+            if y == 0 and dy < 0:
+                return fire_array[x, y]
+            if y + dy >= fire_array.shape[1]:
+                return fire_array[x, y]
+            if fire_array[x + dx, y + dy] < np.inf:
+                return fire_array[x + dx, y + dy]
+            else:
+                return fire_array[x, y]
+
+        prop_delta_x = np.zeros_like(fire_array, np.int)
+        prop_delta_y = np.zeros_like(fire_array, np.int)
+        prop_dir = np.zeros_like(fire_array)
+
+        for x in range(0, fire_array.shape[0]):
+            for y in range(0, fire_array.shape[1]):
+                if fire_array[x, y] < np.inf:
+                    ign = lambda dx, dy: default_ignition(x, y, dx, dy)
+                    prop_delta_x[x, y] = ign(1, -1) + 2 * ign(1, 0) + ign(1, 1) - ign(-1,
+                                                                                      -1) - 2 * ign(
+                        -1, 0) - ign(-1, 1)
+                    prop_delta_y[x, y] = ign(1, 1) + 2 * ign(0, 1) + ign(-1, 1) - ign(1,
+                                                                                      -1) - 2 * ign(
+                        0, -1) - ign(-1, -1)
+                    prop_dir = np.arctan2(prop_delta_y[x, y], prop_delta_x[x, y])
+
+        return prop_delta_x, prop_delta_y, prop_dir
+
+    @staticmethod
+    def _compute_traversal_end(fire_array: np.ndarray):
+        """Compute the ignition end time for each cell.
+
+        The ignition end time is the latest ignition time among all neighbor cells."""
+        end = np.zeros_like(fire_array) * np.inf
+
+        for x in range(0, fire_array.shape[0]):
+            for y in range(0, fire_array.shape[1]):
+                if fire_array[x, y] < np.inf:
+                    max_neighbor = 0.0
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            if (dx == 0 and dy == 0) or (x == 0 and dx < 0) or (
+                                    x + dx >= fire_array.shape[0]) or (y == 0 and dy < 0) or (
+                                    y + dy >= fire_array.shape[1]):
+                                continue
+                            if fire_array[x + dx, y + dy] < np.inf:
+                                max_neighbor = max(max_neighbor, fire_array[x + dx, y + dy])
+                    if max_neighbor <= fire_array[x, y]:
+                        # propagation_border
+                        end[x, y] = fire_array[x, y] + 180  # assume 3 minutes
+                    else:
+                        end[x, y] = max_neighbor
+                else:
+                    end[x, y] = fire_array[x, y]
+        return end
+
+    def find_parent_or_child_of_time(self, start_cell: fire_rs.geodata.geo_data.Cell, time: float):
+        """Find an ignited cell at 'time' in the propagation graph starting from 'start_cell'
+
+        This function similar to the c++ planning 'project on firefront' algorithm.
+        """
+
+        coord = start_cell
+        found = False
+        while not found:
+            if self.geodata.data[self._ignition_layer][coord] <= time and time < \
+                    self.geodata.data[self._ignition_end_layer][coord]:
+                found = True
+            else:
+                uphill_cell = (coord[0] + self.geodata.data[self._prop_x_layer][coord],
+                               coord[1] + self.geodata.data[self._prop_y_layer][coord])
+                downhill_cell = (coord[0] - self.geodata.data[self._prop_x_layer][coord],
+                                 coord[1] - self.geodata.data[self._prop_y_layer][coord])
+                if uphill_cell[0] == downhill_cell[0] and uphill_cell[1] == downhill_cell[1]:
+                    # Extrema reached
+                    coord = uphill_cell
+                    found = True
+                next_cell = downhill_cell if self.geodata.data[self._ignition_layer][
+                                                 coord] > time else uphill_cell
+
+                if (next_cell[0] < 0 or next_cell[0] >
+                    self.geodata.data[self._ignition_layer].shape[0] - 1) and (
+                        next_cell[1] < 0 or next_cell[1] >
+                        self.geodata.data[self._ignition_layer].shape[1] - 1):
+                    found = True
+                if (next_cell == downhill_cell) and (
+                        self.geodata.data[self._ignition_layer][next_cell] >
+                        self.geodata.data[self._ignition_layer][coord]) or (
+                        next_cell == uphill_cell) and (
+                        self.geodata.data[self._ignition_layer][next_cell] <
+                        self.geodata.data[self._ignition_layer][coord]):
+                    # Extrema reached
+                    found = True
+                if self.geodata.data[self._ignition_layer][next_cell] < np.inf:
+                    coord = next_cell
+        return coord
