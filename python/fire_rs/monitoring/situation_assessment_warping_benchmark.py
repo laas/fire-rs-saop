@@ -38,10 +38,11 @@ import logging
 import os
 import sys
 import typing as ty
+import json
 
 import pytz
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib
 import matplotlib.cm
 import matplotlib.figure
 import matplotlib.patches
@@ -61,6 +62,7 @@ from fire_rs.monitoring.supersaop import SituationAssessment
 
 from fire_rs.geodata.geo_data import GeoData
 from fire_rs.geodata.wildfire import WildfireGraph, warp_firemap, Perimeter
+from fire_rs.geodata.wildfire import _warp_image
 from fire_rs.firemodel.propagation import Environment, FirePropagation, TimedPoint
 
 from itertools import tee, islice, chain
@@ -90,9 +92,16 @@ THE_WORLD = g_environment.World(elevation_path=FIRERS_DEM_DATA,
                                 landcover_to_fuel_remap=g_environment.EVERYTHING_FUELMODEL_REMAP)
 THE_WORLD.dem_wind_tile_split = 1
 time_start = datetime.datetime(2020, 1, 1, 0, 0, 0, 0)
-ignition_center = TimedPoint(2776825.0, 2212175.0, time_start.timestamp())
+ignition_center = TimedPoint(2776812.5, 2212112.5, time_start.timestamp())
 area_default = ((ignition_center[0] - 2500, ignition_center[0] + 1500),
                 (ignition_center[1] - 1500, ignition_center[1] + 2500))
+
+
+def draw_connecting_arrows(ax, observed_cell_list, corresponding_cells_in_prediction, **kwargs):
+    for s, e in zip(observed_cell_list, corresponding_cells_in_prediction):
+        # ax.arrow(e[0], e[1], s[0] - e[0], s[1] - e[1], **kwargs)
+        ax.annotate("", xy=(s[0], s[1]), xytext=(e[0], e[1]), arrowprops=dict(arrowstyle="->"),
+                    **kwargs)
 
 
 def create_wildfire_propagation(area, ignition: ty.Sequence[TimedPoint], wind_speed=1.,
@@ -185,7 +194,7 @@ def add_custom_legend(gdd: display.GeoDataDisplay, colors, labels):
     patches = [matplotlib.patches.Patch(color=colors[i], label=labels[i]) for i in
                range(len(colors))]
     # put those patched as legend-handles into the legend
-    gdd.figure.legend(handles=patches)
+    gdd.axes.legend(handles=patches, loc="best")
 
 
 def perform_situation_assessment(fire_prop_env: Environment,
@@ -193,7 +202,7 @@ def perform_situation_assessment(fire_prop_env: Environment,
                                  predicted_firemap: GeoData,
                                  desired_perimeter: float):
     """Find an interpolation function that reconstructs the evolution of the fire
-    given current and histroic partial information."""
+    given current and historic partial information."""
     c_ass_wf = SituationAssessment.WildfireCurrentFusionAssessment(
         fire_prop_env, observations_dict,
         perimeter_time=datetime.datetime.fromtimestamp(desired_perimeter))
@@ -213,11 +222,11 @@ def fig_fire_predicted(corresponding_cells_in_prediction, prediction_propagation
                        time) -> display.GeoDataDisplay:
     gdd = display.GeoDataDisplay.pyplot_figure(prediction_propagation.ignitions(), frame=(0., 0.))
     gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.viridis)
-    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.cool,
+    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.Reds,
                               time_range=(0, time))
-    gdd.axes.scatter(*zip(*(prediction_propagation.prop_data.coordinates(c) for c in
-                            corresponding_cells_in_prediction)), label="predicted (from)",
-                     c='green')
+    # gdd.axes.scatter(*zip(*(prediction_propagation.prop_data.coordinates(c) for c in
+    #                         corresponding_cells_in_prediction)), label="predicted (from)",
+    #                  c='C0')
     return gdd
 
 
@@ -225,37 +234,50 @@ def fig_fire_observed(observed_cell_list,
                       observation_propagation, time) -> display.GeoDataDisplay:
     gdd = display.GeoDataDisplay.pyplot_figure(observation_propagation.ignitions(), frame=(0., 0.))
     gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.plasma)
-    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.cool,
+    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.Reds,
                               time_range=(0, time))
     gdd.axes.scatter(
         *zip(*(observation_propagation.prop_data.coordinates(c) for c in observed_cell_list)),
-        label="observed (to)", c='red')
+        label="observed (to)", c='C1')
     return gdd
 
 
 def fig_fire_warped(corresponding_cells_in_prediction, observed_cell_list, warped_map,
-                    observation_propagation, time) -> display.GeoDataDisplay:
+                    observation_propagation, time,
+                    connection_arrows=False) -> display.GeoDataDisplay:
     gdd = display.GeoDataDisplay.pyplot_figure(warped_map, frame=(0., 0.))
     gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.magma)
-    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.cool,
+    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.Reds,
                               time_range=(0, time))
+
+    pred_cells = list((observation_propagation.prop_data.coordinates(c) for c in
+                       corresponding_cells_in_prediction))
+    obs_cells = list((observation_propagation.prop_data.coordinates(c) for c in
+                      observed_cell_list))
+    if connection_arrows:
+        draw_connecting_arrows(gdd.axes, obs_cells, pred_cells)
+
     gdd.axes.scatter(*zip(*(observation_propagation.prop_data.coordinates(c) for c in
                             corresponding_cells_in_prediction)), label="predicted (from)",
-                     c='green')
+                     c='C0')
     gdd.axes.scatter(
         *zip(*(observation_propagation.prop_data.coordinates(c) for c in observed_cell_list)),
-        label="observed (to)", c='red')
+        label="observed (to)", c='C1')
     return gdd
 
 
 def fig_warp_deformation(warped_map, corresponding_cells_in_prediction,
-                         observed_cell_list) -> matplotlib.figure.Figure:
-    fig = plt.figure(111)
+                         observed_cell_list, connection_arrows=False) -> matplotlib.figure.Figure:
+    fig = matplotlib.pyplot.figure()
     ax = fig.gca()
     ax.matshow(warped_map["ignition"].T)
-    ax.scatter(*zip(*observed_cell_list), label="observed (to)")
+    if connection_arrows:
+        draw_connecting_arrows(ax, observed_cell_list, corresponding_cells_in_prediction)
     ax.scatter(*zip(*corresponding_cells_in_prediction), label="predicted (from)")
-    fig.legend(loc='lower left')
+    ax.scatter(*zip(*observed_cell_list), label="observed (to)")
+    ax.set_xlim((0, warped_map["ignition"].shape[1]))
+    ax.set_ylim((0, warped_map["ignition"].shape[0]))
+    ax.legend(loc='lower left')
     return fig
 
 
@@ -267,7 +289,8 @@ def difference_area_perimeters(base_propagation, perimeter1_cells, perimeter2_ce
         gd1.data[cell] = 1
     for cell, time in perimeter2_cells.items():
         gd2.data[cell] = 1
-    flood_initial_cell = (flood_initial_cell[1], base_propagation.prop_data.data.shape[0]-flood_initial_cell[0])
+    flood_initial_cell = (
+        flood_initial_cell[1], base_propagation.prop_data.data.shape[0] - flood_initial_cell[0])
     surface1 = flood(gd1, flood_initial_cell, connectivity=1)
     surface2 = flood(gd2, flood_initial_cell, connectivity=1)
     area1 = np.count_nonzero(
@@ -307,10 +330,12 @@ def create_logger(file_path: ty.Optional[str]):
     return _logger
 
 
-if __name__ == "__main__":
-    benchmark_id = run_id = datetime.datetime.now(pytz.timezone('UTC')).isoformat()
-
-    output_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output", benchmark_id)
+def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
+              prediction_propagation, observation_propagation, observation_passes,
+              image_format="pdf", include_start_point_in_assessment=True,
+              checker_board_path: ty.Optional[str] = None, observation_sparsity_step=1,
+              connection_arrows=False):
+    output_path = os.path.join(output_base_folder, benchmark_id)
 
     if not os.path.exists(output_path):
         # logger.info("Output path did not exist previoulsy. Making it...")
@@ -318,40 +343,23 @@ if __name__ == "__main__":
     logger = create_logger(os.path.join(output_path, "output.log"))
     logger.info("Output path: {}".format(output_path))
 
-    image_format = "png"
     if image_format == 'eps' or image_format == 'pdf':
         matplotlib.rcParams['font.family'] = 'sans-serif'
         matplotlib.rcParams['text.usetex'] = True
+    matplotlib.rcParams["axes.autolimit_mode"] = 'round_numbers'
+
     save_fig_options = {'dpi': 200, 'bbox_inches': 'tight'}
     PROPAGATION_PLOT_NAME = ".".join(("predicted_fire", image_format))
-    OBSERVED_PLOT_NAME = ".".join(("observed_fire", image_format))
+    OBSERVED_PLOT_NAME = ".".join(("real_truth", image_format))
     ASSESSMENT_PLOT_NAME = ".".join(("assessment_current", image_format))
     OBSERVED_CELLS_PLOT_NAME = ".".join(("cells", image_format))
     DEFORMATION_PLOT_NAME = ".".join(("deformation", image_format))
     CONTOUR_COMPARISON_PLOT_NAME = ".".join(("assessment_contour_comparison", image_format))
 
-    CURRENT_TIME = time_start.timestamp() + 11 * 60 * 60
-
-    include_start_point_in_assessment = True
-
-    ignition_list = [
-        TimedPoint(ignition_center[0] - 750, ignition_center[1], time_start.timestamp()),
-        # TimedPoint(ignition_center[0] - 1000, ignition_center[1] + 1000, time_start.timestamp()),
-    ]
-
-    prediction_propagation = create_wildfire_propagation(
-        area_default, ignition_list, wind_speed=2., wind_direction=0.50 * np.pi, world=THE_WORLD)
-    observation_propagation = create_wildfire_propagation(
-        area_default, ignition_list, wind_speed=1., wind_direction=0.50 * np.pi, world=THE_WORLD)
+    # TODO: print wildfire input data in logs
 
     w = WildfireGraph(prediction_propagation.prop_data)
 
-    # Time, n_uavs, coverage
-    observation_passes = [
-        # {"time": time_start.timestamp() + 3 * 60 * 60, "number_uavs": 3, "coverage": 0.5},
-        # {"time": time_start.timestamp() + 5 * 60 * 60, "number_uavs": 3, "coverage": 0.75},
-        {"time": CURRENT_TIME, "number_uavs": 3, "coverage": 0.5}
-    ]
     all_perimeter_cells = {}
     all_obs_flattened = {observation_propagation.prop_data.array_index(ignition[0:2]): ignition[2]
                          for
@@ -369,7 +377,7 @@ if __name__ == "__main__":
         all_perimeter_cells = {**all_perimeter_cells, **outermost_perimeter_cells}
 
     # The cells in the predicted fire map that have the same ignition time as the observations
-    observed_cell_list = list(all_obs_flattened.keys())
+    observed_cell_list = list(all_obs_flattened.keys())[::observation_sparsity_step]
     corresponding_cells_in_prediction = [
         w.find_parent_or_child_of_time(cell,
                                        observation_propagation.prop_data["ignition"][cell])
@@ -379,6 +387,12 @@ if __name__ == "__main__":
     logger.info("FIRE ID: {}".format(benchmark_id))
     logger.info("Size: ({:d},{:d})".format(observation_propagation.prop_data.data.shape[0],
                                            observation_propagation.prop_data.data.shape[1]))
+    logger.info("Predicted wind ([km/h], [rad]): ({}, {:.2f}×π)".format(
+        prediction_propagation.environment.area_wind[0],
+        prediction_propagation.environment.area_wind[1] / np.pi))
+    logger.info("Real wind ([km/h], [rad]): ({}, {:.2f}×π)".format(
+        observation_propagation.environment.area_wind[0],
+        observation_propagation.environment.area_wind[1] / np.pi))
     for ignition in ignition_list:
         logger.info("Ignition: ({}, {}) {:%Y-%m-%d %H:%M}".format(
             *observation_propagation.prop_data.array_index(ignition[0:2]),
@@ -389,11 +403,11 @@ if __name__ == "__main__":
             curr_obs_pass["number_uavs"], curr_obs_pass["coverage"] * 100))
 
     gdd_predicted = fig_fire_predicted(corresponding_cells_in_prediction,
-                                       prediction_propagation, CURRENT_TIME)
+                                       prediction_propagation, current_time)
     gdd_predicted.figure.savefig(os.path.join(output_path, PROPAGATION_PLOT_NAME),
                                  **save_fig_options)
 
-    gdd_observed = fig_fire_observed(observed_cell_list, observation_propagation, CURRENT_TIME)
+    gdd_observed = fig_fire_observed(observed_cell_list, observation_propagation, current_time)
     gdd_observed.figure.savefig(os.path.join(output_path, OBSERVED_PLOT_NAME),
                                 **save_fig_options)
 
@@ -403,8 +417,31 @@ if __name__ == "__main__":
                               observed_cell_list
                               )
 
+    if checker_board_path:
+        import cv2
+
+        checkboard = cv2.imread(checker_board_path, cv2.IMREAD_GRAYSCALE)
+        checkerboad_warped = _warp_image(checkboard, corresponding_cells_in_prediction,
+                                         observed_cell_list)
+
+        matplotlib.rcParams['font.family'] = 'sans-serif'
+        matplotlib.rcParams['text.usetex'] = True
+        fig = matplotlib.pyplot.figure()
+        ax = fig.gca()
+        ax.matshow(checkerboad_warped.T, cmap="Greys")
+        if connection_arrows:
+            draw_connecting_arrows(ax, observed_cell_list, corresponding_cells_in_prediction)
+        ax.scatter(*zip(*corresponding_cells_in_prediction), label="from")
+        ax.scatter(*zip(*observed_cell_list), label="to")
+        ax.set_xlim((0, checkerboad_warped.shape[1]))
+        ax.set_ylim((0, checkerboad_warped.shape[0]))
+        ax.legend(loc="lower left")
+        fig.savefig(os.path.join(output_path, ".".join(("checkerboard_deformation", image_format))),
+                    **save_fig_options)
+        del fig
+
     gdd_assessment = fig_fire_warped(corresponding_cells_in_prediction, observed_cell_list,
-                                     warped_map, observation_propagation, CURRENT_TIME)
+                                     warped_map, observation_propagation, current_time)
     gdd_assessment.figure.savefig(os.path.join(output_path, ASSESSMENT_PLOT_NAME),
                                   **save_fig_options)
 
@@ -418,42 +455,89 @@ if __name__ == "__main__":
                                             binary=True)
     obs_cells_fig.draw_ignition_points(
         [prediction_propagation.prop_data.coordinates(c) for c in
-         corresponding_cells_in_prediction], color='green')
+         corresponding_cells_in_prediction], color='C0')
     obs_cells_fig.draw_ignition_points(
         [observation_propagation.prop_data.coordinates(c) for c in observed_cell_list],
-        color='red')
-    add_custom_legend(obs_cells_fig, ["red", "green"], ["observed (to)", "predicted (from)"])
+        color='C1')
+    if connection_arrows:
+        draw_connecting_arrows(obs_cells_fig.axes, observed_cell_list,
+                               corresponding_cells_in_prediction)
+    add_custom_legend(obs_cells_fig, ["C0", "C1"], ["predicted (from)", "observed (to)"])
     obs_cells_fig.figure.savefig(os.path.join(output_path, OBSERVED_CELLS_PLOT_NAME),
                                  **save_fig_options)
 
-    warped_map_perimeter = Perimeter(warped_map, CURRENT_TIME)
+    warped_map_perimeter = Perimeter(warped_map, current_time)
     # FIXME: There is a bug in Perimeter
 
-    # obs_uav_cells_fig = fig_observation_contour(observation_propagation, all_obs_flattened)
-    # obs_uav_cells_fig.figure.savefig(os.path.join(output_path, "observed_cell_map"),
-    #                                  **save_fig_options)
-    obs_uav_cells_fig2 = fig_observation_contour(observation_propagation,
-                                                 outermost_perimeter_cells,
-                                                 cmap="Reds_r", binary=True)
-    obs_uav_cells_fig2 = fig_observation_contour(observation_propagation,
-                                                 warped_map_perimeter.cells,
-                                                 cmap="Purples_r", binary=True,
-                                                 gdd=obs_uav_cells_fig2)
-    add_custom_legend(obs_uav_cells_fig2, ["red", "purple"], ["Observed", "Assessment"])
-    obs_uav_cells_fig2.figure.savefig(
-        os.path.join(output_path, CONTOUR_COMPARISON_PLOT_NAME), **save_fig_options)
     matrix, surface_diff, surface1, surface2 = difference_area_perimeters(
         prediction_propagation, warped_map_perimeter.cells, outermost_perimeter_cells,
         prediction_propagation.prop_data.array_index(ignition_center[0:2]))
 
+    obs_uav_cells_fig2 = fig_observation_contour(observation_propagation,
+                                                 outermost_perimeter_cells,
+                                                 cmap=matplotlib.colors.ListedColormap("C1"),
+                                                 binary=True)
+    obs_uav_cells_fig2 = fig_observation_contour(observation_propagation,
+                                                 warped_map_perimeter.cells,
+                                                 cmap=matplotlib.colors.ListedColormap("C2"),
+                                                 binary=True,
+                                                 gdd=obs_uav_cells_fig2)
+    add_custom_legend(obs_uav_cells_fig2, ["C1", "C2"], ["Observed", "Assessment"])
+    obs_uav_cells_fig2.figure.savefig(
+        os.path.join(output_path, CONTOUR_COMPARISON_PLOT_NAME), **save_fig_options)
+
     logger.info("SITUATION ASSESSMENT (CURRENT):")
-    logger.info("Time: {:%Y-%m-%d %H:%M}".format(datetime.datetime.fromtimestamp(CURRENT_TIME)))
+    logger.info("Time: {:%Y-%m-%d %H:%M}".format(datetime.datetime.fromtimestamp(current_time)))
     logger.info("Surface of real fire: {:.3f}km²".format(surface1 / 1000 / 1000))
     logger.info("Surface of the estimated fire: {:.3f}km²".format(surface2 / 1000 / 1000))
     logger.info("Absolute error: {:.3f}km²".format(surface_diff / 1000 / 1000))
     logger.info("Relative error: {:.2f}%".format(surface_diff / surface1 * 100))
     # except Exception as e:
     #     logger.error("Situation Assessment (Current) failed with error: {}".format(str(e)))
-    # future_assessment = perform_future_situation_assessment(propagation_env, assessment, CURRENT_TIME+100*60*60)
+    # future_assessment = perform_future_situation_assessment(propagation_env, assessment, current_time+100*60*60)
 
     print("END")
+
+
+def prepare_benchmark(json_str: str):
+    """ Read a json string and produce the necessary input arguments for a benchmark:
+
+    benchmark_id, output_base_folder, current_time, ignition_list, prediction_propagation,
+         observation_propagation, observation_passes
+    """
+    benchmark_id = datetime.datetime.now(pytz.timezone('UTC')).isoformat()
+    output_base_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
+    current_time = time_start.timestamp() + 10 * 60 * 60
+
+    ignition_list = [
+        TimedPoint(ignition_center[0] - 750, ignition_center[1], time_start.timestamp()),
+        # TimedPoint(ignition_center[0] - 1000, ignition_center[1] + 1000, time_start.timestamp()),
+    ]
+
+    prediction_propagation = create_wildfire_propagation(
+        area_default, ignition_list, wind_speed=2., wind_direction=0.25 * np.pi, world=THE_WORLD)
+    observation_propagation = create_wildfire_propagation(
+        area_default, ignition_list, wind_speed=2., wind_direction=0.50 * np.pi, world=THE_WORLD)
+
+    # Time, n_uavs, coverage
+    observation_passes = [
+        # {"time": time_start.timestamp() + 3 * 60 * 60, "number_uavs": 3, "coverage": 0.5},
+        # {"time": time_start.timestamp() + 5 * 60 * 60, "number_uavs": 3, "coverage": 0.75},
+        {"time": current_time, "number_uavs": 2, "coverage": 0.5}
+    ]
+
+    return benchmark_id, output_base_folder, current_time, ignition_list, prediction_propagation, observation_propagation, observation_passes
+
+
+def main():
+    image_format = "pdf"
+    checker_board_path = "/home/rbailonr/Downloads/Checkerboard_pattern.svg.png"
+    connection_arrows = False
+
+    benchmark(*prepare_benchmark(""), image_format=image_format,
+              include_start_point_in_assessment=True, checker_board_path=checker_board_path,
+              connection_arrows=connection_arrows, observation_sparsity_step=1)
+
+
+if __name__ == "__main__":
+    main()
