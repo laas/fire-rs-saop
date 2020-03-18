@@ -163,12 +163,16 @@ class GeoDataDisplayBase:
         y = np.arange(geodata.max_y)
         self._y_ticks = (y * geodata.cell_height) + geodata.y_offset + geodata.cell_width/2
 
-        x_fmtr = EngOffsetFormatter(unit='m',
-                                    offset=-geodata.x_offset - geodata.cell_width/2 + self._frame[0])
-        y_fmtr = EngOffsetFormatter(unit='m',
-                                    offset=-geodata.y_offset - geodata.cell_width/2 + self._frame[1])
+        x_fmtr = EngOffsetFormatter(
+            unit='m', offset=-geodata.x_offset - geodata.cell_width / 2 + self._frame[0])
+        y_fmtr = EngOffsetFormatter(
+            unit='m', offset=-geodata.y_offset - geodata.cell_width / 2 + self._frame[1])
         self._axes.xaxis.set_major_formatter(x_fmtr)
+        self._axes.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=8))
         self._axes.yaxis.set_major_formatter(y_fmtr)
+        self._axes.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=8))
+        self._axes.set_xlim(self._x_ticks[0], self._x_ticks[-1])
+        self._axes.set_ylim(self._y_ticks[0], self._y_ticks[-1])
 
         self._image_scale = (
             self._x_ticks[0], self._x_ticks[-1], self._y_ticks[0], self._y_ticks[-1])
