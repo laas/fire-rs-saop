@@ -311,7 +311,7 @@ def _warp_image(array: np.ndarray, orig: ty.Sequence[ty.Tuple[int, int]],
     dest_p = np.array(dest, np.int32)
     dest_p = dest_p.reshape(1, -1, 2)  # Don't ask why. https://stackoverflow.com/a/47114049
     good_matches = [cv2.DMatch(p, p, 0) for p in range(len(orig))]
-    tps = cv2.createThinPlateSplineShapeTransformer(60.0)  # Relax strict interpolation condition
+    tps = cv2.createThinPlateSplineShapeTransformer()
     tps.estimateTransformation(dest_p, orig_p, good_matches)
     warped = None
     warped = tps.warpImage(newarray, warped, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, np.inf)
