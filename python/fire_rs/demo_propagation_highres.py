@@ -26,19 +26,24 @@ the_world = g_environment.World(elevation_path=FIRERS_DEM_DATA,
                                 landcover_to_fuel_remap=g_environment.EVERYTHING_FUELMODEL_REMAP)
 the_world.dem_wind_tile_split = 1
 
-fire_env = Environment(((479998.0+2000, 484997.0-2000), (6210003.0+2000, 6215002.0-2000)),
-                       10, 0, the_world)
+fire_env = Environment(((480025.0, 485025.0), (6210000.5, 6215000.5)),
+                       5, 1.75*np.pi, the_world)
 
 # fire_env = Environment(((470010.0, 485010.0), (6210010.0, 6225010.0)), 5, 0, the_world)
 # fire_env = Environment(((574995.0, 575005.0), (6199995.0, 6200005.0)), 5, 0, the_world)
 fire_prop = FirePropagation(fire_env)
-now = 0.
-# now = datetime.datetime(2019,6,1,0,0).timestamp()
-ignitionpoint = TimedPoint(482010-1000, 6212010.0, now)
-fire_prop.set_ignition_point(ignitionpoint)
+# now = 0
+now = datetime.datetime(2020,1,1,0,0).timestamp()
+ignitionpoint1 = TimedPoint(482000, 6212000.0, now)
+ignitionpoint2 = TimedPoint(482000-250, 6212000.0+1800, now)
+ignitionpoint3 = TimedPoint(482000+2000, 6212000.0+2000, now)
+
+fire_prop.set_ignition_point(ignitionpoint1)
+fire_prop.set_ignition_point(ignitionpoint2)
+fire_prop.set_ignition_point(ignitionpoint3)
 # fire_prop.set_ignition_point(TimedPoint(575000.0, 6200000.0, 0))
 
-propagation_end_time = now + 60*60*10
+propagation_end_time = now + 60*60*4
 export_front = (7000, 7100)
 
 fire_prop.propagate(propagation_end_time)
@@ -59,12 +64,16 @@ fire_env.raster.write_to_file("demo_propagation_highres_dem.tif", "elevation")
 # Figure terrain + ignition contour + ignition point
 gdd = display.GeoDataDisplay.pyplot_figure(
     fire_env.raster.combine(fire_prop.ignitions().slice(["ignition"])),
-    frame=(12.5, 0.))
+    frame=(12.5, 12.5))
 # gdd.draw_elevation_shade(with_colorbar=False, cmap=matplotlib.cm.terrain)
 # gdd.draw_wind_quiver()
-gdd.draw_ignition_shade(cmap=matplotlib.cm.Reds)
+gdd.draw_elevation_shade()
+gdd.draw_wind_quiver()
+# gdd.draw_ignition_shade(cmap=matplotlib.cm.Reds, with_colorbar=True)
 gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.plasma)
-gdd.draw_ignition_points(ignitionpoint)
+gdd.draw_ignition_points(ignitionpoint1)
+gdd.draw_ignition_points(ignitionpoint2)
+gdd.draw_ignition_points(ignitionpoint3)
 
 gdd.figure.show()
 
