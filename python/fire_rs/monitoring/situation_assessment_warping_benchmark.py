@@ -92,7 +92,7 @@ THE_WORLD = g_environment.World(elevation_path=FIRERS_DEM_DATA,
                                 landcover_to_fuel_remap=g_environment.EVERYTHING_FUELMODEL_REMAP)
 THE_WORLD.dem_wind_tile_split = 1
 time_start = datetime.datetime(2020, 1, 1, 0, 0, 0, 0)
-ignition_center = TimedPoint(2776812.5, 2212112.5, time_start.timestamp())
+ignition_center = TimedPoint(2776812.5 + 1000, 2212112.5 + 1000, time_start.timestamp())
 area_default = ((ignition_center[0] - 2500, ignition_center[0] + 1500),
                 (ignition_center[1] - 1500, ignition_center[1] + 2500))
 
@@ -136,11 +136,14 @@ def fig_fire_propagation(fire_prop: FirePropagation,
     return gdd
 
 
-def observe_contour(firemap: GeoData, contour: float, n_uavs, uav_speed, duty_cycle=0.25):
+def observe_contour(firemap: GeoData, contour: float, n_uavs, uav_speed, duty_cycle=0.25, shift=.0):
     """Extract a contour and then simulate it is observed by N UAVs.
     Each UAV gets an equal size chunk and observed a contigous portion of it (duty_cycle)
-    The observation time is estimated from the speed
-    speed is in m/s"""
+    The chunks can be shifted along the perimeter (shift)
+    """
+
+    def rotate(l, n):
+        return l[n:] + l[:n]
 
     def perimeter_length_cumulated(observed_cells):
         perimeter_l = 0.
@@ -167,7 +170,8 @@ def observe_contour(firemap: GeoData, contour: float, n_uavs, uav_speed, duty_cy
     per_uav_lenght = perimeter_length / n_uavs
     per_uav_observed_lenght = per_uav_lenght * duty_cycle
 
-    chs = list(chunks(list(observed_cells.items()), int(len(observed_cells) / n_uavs)))
+    chs = list(chunks(rotate(list(observed_cells.items()), int(shift * len(observed_cells))),
+                      int(len(observed_cells) / n_uavs)))
     effective_chunks = []
     for n_uav, chunk in zip(range(n_uavs), chs):
         effective_chunks.append(list(chunks(chunk, int(len(chunk) * duty_cycle)))[0])
@@ -188,13 +192,13 @@ def fig_observation_contour(base_propagation: FirePropagation,
     return gdd
 
 
-def add_custom_legend(gdd: display.GeoDataDisplay, colors, labels):
+def add_custom_legend(gdd: display.GeoDataDisplay, colors, labels, loc="best"):
     colors = colors
     # create a patch (proxy artist) for every color
     patches = [matplotlib.patches.Patch(color=colors[i], label=labels[i]) for i in
                range(len(colors))]
     # put those patched as legend-handles into the legend
-    gdd.axes.legend(handles=patches, loc="best")
+    gdd.axes.legend(handles=patches, loc=loc)
 
 
 def perform_situation_assessment(fire_prop_env: Environment,
@@ -219,26 +223,26 @@ def perform_future_situation_assessment(fire_prop_env: Environment,
 
 
 def fig_fire_predicted(corresponding_cells_in_prediction, prediction_propagation,
-                       time) -> display.GeoDataDisplay:
+                       time, observed_cell_list) -> display.GeoDataDisplay:
     gdd = display.GeoDataDisplay.pyplot_figure(prediction_propagation.ignitions(), frame=(0., 0.))
-    gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.viridis)
-    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.Reds,
+    gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.autumn)
+    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.colors.ListedColormap("k"),
                               time_range=(0, time))
-    # gdd.axes.scatter(*zip(*(prediction_propagation.prop_data.coordinates(c) for c in
-    #                         corresponding_cells_in_prediction)), label="predicted (from)",
-    #                  c='C0')
+    # gdd.axes.scatter(
+    #     *zip(*(prediction_propagation.prop_data.coordinates(c) for c in
+    #            corresponding_cells_in_prediction)), label="predicted (from)", c='C0')
     return gdd
 
 
 def fig_fire_observed(observed_cell_list,
                       observation_propagation, time) -> display.GeoDataDisplay:
     gdd = display.GeoDataDisplay.pyplot_figure(observation_propagation.ignitions(), frame=(0., 0.))
-    gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.plasma)
-    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.Reds,
+    gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.autumn)
+    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.colors.ListedColormap("k"),
                               time_range=(0, time))
-    gdd.axes.scatter(
-        *zip(*(observation_propagation.prop_data.coordinates(c) for c in observed_cell_list)),
-        label="observed (to)", c='C1')
+    # gdd.axes.scatter(
+    #     *zip(*(observation_propagation.prop_data.coordinates(c) for c in observed_cell_list)),
+    #     label="observations", c='C1')
     return gdd
 
 
@@ -246,8 +250,8 @@ def fig_fire_warped(corresponding_cells_in_prediction, observed_cell_list, warpe
                     observation_propagation, time,
                     connection_arrows=False) -> display.GeoDataDisplay:
     gdd = display.GeoDataDisplay.pyplot_figure(warped_map, frame=(0., 0.))
-    gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.magma)
-    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.cm.Reds,
+    gdd.draw_ignition_shade(time_range=(0, time), cmap=matplotlib.cm.autumn)
+    gdd.draw_ignition_contour(with_labels=True, cmap=matplotlib.colors.ListedColormap("k"),
                               time_range=(0, time))
 
     pred_cells = list((observation_propagation.prop_data.coordinates(c) for c in
@@ -263,6 +267,7 @@ def fig_fire_warped(corresponding_cells_in_prediction, observed_cell_list, warpe
     gdd.axes.scatter(
         *zip(*(observation_propagation.prop_data.coordinates(c) for c in observed_cell_list)),
         label="observed (to)", c='C1')
+    gdd.axes.legend(loc='lower left')
     return gdd
 
 
@@ -270,14 +275,14 @@ def fig_warp_deformation(warped_map, corresponding_cells_in_prediction,
                          observed_cell_list, connection_arrows=False) -> matplotlib.figure.Figure:
     fig = matplotlib.pyplot.figure()
     ax = fig.gca()
-    ax.matshow(warped_map["ignition"].T)
-    if connection_arrows:
-        draw_connecting_arrows(ax, observed_cell_list, corresponding_cells_in_prediction)
+    ax.matshow(warped_map["ignition"].T, cmap=matplotlib.cm.inferno)
     ax.scatter(*zip(*corresponding_cells_in_prediction), label="predicted (from)")
     ax.scatter(*zip(*observed_cell_list), label="observed (to)")
     ax.set_xlim((0, warped_map["ignition"].shape[1]))
     ax.set_ylim((0, warped_map["ignition"].shape[0]))
     ax.legend(loc='lower left')
+    if connection_arrows:
+        draw_connecting_arrows(ax, observed_cell_list, corresponding_cells_in_prediction)
     return fig
 
 
@@ -349,12 +354,14 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
     matplotlib.rcParams["axes.autolimit_mode"] = 'round_numbers'
 
     save_fig_options = {'dpi': 200, 'bbox_inches': 'tight'}
-    PROPAGATION_PLOT_NAME = ".".join(("predicted_fire", image_format))
-    OBSERVED_PLOT_NAME = ".".join(("real_truth", image_format))
-    ASSESSMENT_PLOT_NAME = ".".join(("assessment_current", image_format))
-    OBSERVED_CELLS_PLOT_NAME = ".".join(("cells", image_format))
-    DEFORMATION_PLOT_NAME = ".".join(("deformation", image_format))
-    CONTOUR_COMPARISON_PLOT_NAME = ".".join(("assessment_contour_comparison", image_format))
+    PROPAGATION_PLOT_NAME = ".".join((benchmark_id + "_predicted_fire", image_format))
+    OBSERVED_PLOT_NAME = ".".join((benchmark_id + "_ground_truth", image_format))
+    ASSESSMENT_PLOT_NAME = ".".join((benchmark_id + "_assessment_current", image_format))
+    OBSERVED_CELLS_PLOT_NAME = ".".join((benchmark_id + "_cells", image_format))
+    DEFORMATION_PLOT_NAME = ".".join((benchmark_id + "_deformation", image_format))
+    CONTOUR_COMPARISON_PLOT_NAME = ".".join((benchmark_id + "_assessment_contour_comparison",
+                                             image_format))
+    DIFFERENCE_MAP_PLOT_NAME = ".".join((benchmark_id + "_difference_map", image_format))
 
     # TODO: print wildfire input data in logs
 
@@ -370,7 +377,8 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
         curr_perimeter_cells, obs_chuncks = observe_contour(
             observation_propagation.ignitions(), curr_obs_pass["time"],
             curr_obs_pass["number_uavs"], 20.0,
-            curr_obs_pass["coverage"])
+            curr_obs_pass["coverage"],
+            curr_obs_pass["shift"])
         obs_flattened_per_observation_pass.append(reduce(lambda x, y: {**x, **y}, obs_chuncks))
         all_obs_flattened = {**all_obs_flattened, **obs_flattened_per_observation_pass[-1]}
         outermost_perimeter_cells = curr_perimeter_cells
@@ -403,7 +411,7 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
             curr_obs_pass["number_uavs"], curr_obs_pass["coverage"] * 100))
 
     gdd_predicted = fig_fire_predicted(corresponding_cells_in_prediction,
-                                       prediction_propagation, current_time)
+                                       prediction_propagation, current_time, observed_cell_list)
     gdd_predicted.figure.savefig(os.path.join(output_path, PROPAGATION_PLOT_NAME),
                                  **save_fig_options)
 
@@ -423,9 +431,6 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
         checkboard = cv2.imread(checker_board_path, cv2.IMREAD_GRAYSCALE)
         checkerboad_warped = _warp_image(checkboard, corresponding_cells_in_prediction,
                                          observed_cell_list)
-
-        matplotlib.rcParams['font.family'] = 'sans-serif'
-        matplotlib.rcParams['text.usetex'] = True
         fig = matplotlib.pyplot.figure()
         ax = fig.gca()
         ax.matshow(checkerboad_warped.T, cmap="Greys")
@@ -455,23 +460,33 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
                                             binary=True)
     obs_cells_fig.draw_ignition_points(
         [prediction_propagation.prop_data.coordinates(c) for c in
-         corresponding_cells_in_prediction], color='C0')
+         corresponding_cells_in_prediction], color='C0', edgecolor='C0')
     obs_cells_fig.draw_ignition_points(
         [observation_propagation.prop_data.coordinates(c) for c in observed_cell_list],
-        color='C1')
+        color='C1', edgecolor='C1')
+
+    add_custom_legend(obs_cells_fig, ["C0", "C1"], ["predicted (from)", "observed (to)"],
+                      loc="lower left")
     if connection_arrows:
-        draw_connecting_arrows(obs_cells_fig.axes, observed_cell_list,
-                               corresponding_cells_in_prediction)
-    add_custom_legend(obs_cells_fig, ["C0", "C1"], ["predicted (from)", "observed (to)"])
+        draw_connecting_arrows(
+            obs_cells_fig.figure.gca(), [observation_propagation.prop_data.coordinates(c) for c in
+                                         observed_cell_list],
+            [prediction_propagation.prop_data.coordinates(c) for c in
+             corresponding_cells_in_prediction])
     obs_cells_fig.figure.savefig(os.path.join(output_path, OBSERVED_CELLS_PLOT_NAME),
                                  **save_fig_options)
 
     warped_map_perimeter = Perimeter(warped_map, current_time)
     # FIXME: There is a bug in Perimeter
 
-    matrix, surface_diff, surface1, surface2 = difference_area_perimeters(
+    diff_map, surface_diff, surface1, surface2 = difference_area_perimeters(
         prediction_propagation, warped_map_perimeter.cells, outermost_perimeter_cells,
         prediction_propagation.prop_data.array_index(ignition_center[0:2]))
+
+    f = matplotlib.pyplot.figure()
+    a = f.gca()
+    a.matshow(diff_map[..., ::-1].T, cmap=matplotlib.colors.ListedColormap(["w", "k"]))
+    f.savefig(os.path.join(output_path, DIFFERENCE_MAP_PLOT_NAME), **save_fig_options)
 
     obs_uav_cells_fig2 = fig_observation_contour(observation_propagation,
                                                  outermost_perimeter_cells,
@@ -482,7 +497,8 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
                                                  cmap=matplotlib.colors.ListedColormap("C2"),
                                                  binary=True,
                                                  gdd=obs_uav_cells_fig2)
-    add_custom_legend(obs_uav_cells_fig2, ["C1", "C2"], ["Observed", "Assessment"])
+    add_custom_legend(obs_uav_cells_fig2, ["C1", "C2"], ["Observed", "Assessment"],
+                      loc="lower left")
     obs_uav_cells_fig2.figure.savefig(
         os.path.join(output_path, CONTOUR_COMPARISON_PLOT_NAME), **save_fig_options)
 
@@ -499,44 +515,125 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
     print("END")
 
 
-def prepare_benchmark(json_str: str):
-    """ Read a json string and produce the necessary input arguments for a benchmark:
+def prepare_benchmark(duration: float, ignitions, wind_predicted, wind_observed,
+                      observation_passes):
+    """ roduce the necessary input arguments for a benchmark:
 
-    benchmark_id, output_base_folder, current_time, ignition_list, prediction_propagation,
+    current_time, ignition_list, prediction_propagation,
          observation_propagation, observation_passes
     """
-    benchmark_id = datetime.datetime.now(pytz.timezone('UTC')).isoformat()
-    output_base_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
-    current_time = time_start.timestamp() + 10 * 60 * 60
+    current_time = time_start.timestamp() + duration
 
-    ignition_list = [
-        TimedPoint(ignition_center[0] - 750, ignition_center[1], time_start.timestamp()),
-        # TimedPoint(ignition_center[0] - 1000, ignition_center[1] + 1000, time_start.timestamp()),
-    ]
+    ignition_list = [TimedPoint(p["x"], p["y"], time_start.timestamp() + p["time"]) for p in
+                     ignitions]
 
     prediction_propagation = create_wildfire_propagation(
-        area_default, ignition_list, wind_speed=2., wind_direction=0.25 * np.pi, world=THE_WORLD)
+        area_default, ignition_list, wind_speed=wind_predicted[0], wind_direction=wind_predicted[1],
+        world=THE_WORLD)
     observation_propagation = create_wildfire_propagation(
-        area_default, ignition_list, wind_speed=2., wind_direction=0.50 * np.pi, world=THE_WORLD)
+        area_default, ignition_list, wind_speed=wind_observed[0], wind_direction=wind_observed[1],
+        world=THE_WORLD)
 
-    # Time, n_uavs, coverage
-    observation_passes = [
-        # {"time": time_start.timestamp() + 3 * 60 * 60, "number_uavs": 3, "coverage": 0.5},
-        # {"time": time_start.timestamp() + 5 * 60 * 60, "number_uavs": 3, "coverage": 0.75},
-        {"time": current_time, "number_uavs": 2, "coverage": 0.5}
-    ]
+    for op in observation_passes:
+        op["time"] += time_start.timestamp()
 
-    return benchmark_id, output_base_folder, current_time, ignition_list, prediction_propagation, observation_propagation, observation_passes
+    return current_time, ignition_list, prediction_propagation, observation_propagation, \
+           observation_passes
 
 
 def main():
-    image_format = "pdf"
-    checker_board_path = "/home/rbailonr/Downloads/Checkerboard_pattern.svg.png"
-    connection_arrows = False
+    image_format = "svg"
+    # checker_board_path = "/home/rbailonr/Downloads/Checkerboard_pattern.svg.png"
+    checker_board_path = None
+    connection_arrows = True
+    include_start_point_in_assessment = True
+    observation_sparsity_step = 2
 
-    benchmark(*prepare_benchmark(""), image_format=image_format,
-              include_start_point_in_assessment=True, checker_board_path=checker_board_path,
-              connection_arrows=connection_arrows, observation_sparsity_step=1)
+    folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output_test",
+                          datetime.datetime.now(pytz.timezone('UTC')).isoformat())
+
+    benchmarks = [
+        lambda: prepare_benchmark(duration=4 * 60 * 60,
+                                  ignitions=[
+                                      {"x": ignition_center[0],
+                                       "y": ignition_center[1],
+                                       "time": 0}
+                                  ],
+                                  wind_predicted=(6., 0.75 * np.pi),
+                                  wind_observed=(5., 0.75 * np.pi),
+                                  observation_passes=[
+                                      {"time": 4 * 60 * 60,
+                                       "number_uavs": 3,
+                                       "coverage": 0.33,
+                                       "shift": 0.0},
+                                  ]),
+        lambda: prepare_benchmark(duration=4 * 60 * 60,
+                                  ignitions=[
+                                      {"x": ignition_center[0],
+                                       "y": ignition_center[1],
+                                       "time": 0}
+                                  ],
+                                  wind_predicted=(5., 0.66 * np.pi),
+                                  wind_observed=(5., 0.75 * np.pi),
+                                  observation_passes=[
+                                      {"time": 4 * 60 * 60,
+                                       "number_uavs": 3,
+                                       "coverage": 0.33,
+                                       "shift": -0.2},
+                                  ]),
+        lambda: prepare_benchmark(duration=4 * 60 * 60,
+                                  ignitions=[
+                                      {"x": ignition_center[0],
+                                       "y": ignition_center[1],
+                                       "time": 0}
+                                  ],
+                                  wind_predicted=(6., 0.66 * np.pi),
+                                  wind_observed=(5., 0.75 * np.pi),
+                                  observation_passes=[
+                                      {"time": 4 * 60 * 60,
+                                       "number_uavs": 3,
+                                       "coverage": 0.33,
+                                       "shift": -0.1},
+                                  ]),
+
+        lambda: prepare_benchmark(duration=4 * 60 * 60,
+                                  ignitions=[
+                                      {"x": ignition_center[0],
+                                       "y": ignition_center[1],
+                                       "time": 0}
+                                  ],
+                                  wind_predicted=(6., 0.66 * np.pi),
+                                  wind_observed=(5., 0.75 * np.pi),
+                                  observation_passes=[
+                                      {"time": 4 * 60 * 60,
+                                       "number_uavs": 3,
+                                       "coverage": 0.33,
+                                       "shift": 0.0},
+                                  ]),
+        lambda: prepare_benchmark(duration=4 * 60 * 60,
+                                  ignitions=[
+                                      {"x": ignition_center[0] - 750,
+                                       "y": ignition_center[1],
+                                       "time": 0}
+                                  ],
+                                  wind_predicted=(6., 0.25 * np.pi),
+                                  wind_observed=(4., 0.75 * np.pi),
+                                  observation_passes=[
+                                      {"time": 4 * 60 * 60,
+                                       "number_uavs": 3,
+                                       "coverage": 0.75,
+                                       "shift": -0.1},
+                                  ]),
+
+    ]
+
+    for i, b in enumerate(benchmarks):
+        benchmark("assessment_scenario_" + str(i), folder,
+                  *b(), image_format=image_format,
+                  include_start_point_in_assessment=include_start_point_in_assessment,
+                  checker_board_path=checker_board_path,
+                  connection_arrows=connection_arrows,
+                  observation_sparsity_step=observation_sparsity_step)
 
 
 if __name__ == "__main__":
