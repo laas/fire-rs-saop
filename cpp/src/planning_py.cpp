@@ -489,6 +489,16 @@ PYBIND11_MODULE(uav_planning, m) {
                                                    double) const)
                          &UAV::path_sampling_airframe, py::arg("origin"), py::arg("destination"), py::arg("wind"),
                  py::arg("step_size"))
+            .def("__repr__",
+                 [](const UAV& uav) {
+                     std::stringstream repr;
+                     repr << "UAV(name=" << uav.name()
+                          << ", max_air_speed=" << uav.max_air_speed()
+                          << ", max_angular_velocity=" << uav.max_angular_velocity()
+                          << ", max_pitch_angle=" << uav.max_pitch_angle() << ")";
+                     return repr.str();
+                 }
+            )
             .def(py::pickle(
                     [](const UAV &self) { // __getstate__
                         /* Return a tuple that fully encodes the state of the object */
