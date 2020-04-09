@@ -797,6 +797,10 @@ def create_command(args):
     with open(os.path.join(args.output, 'scenario'), 'wb+') as scenario_f:
         pickle.dump(scenarios, scenario_f)
 
+    with open(os.path.join(args.output, 'scenario_digest.txt'), 'w') as scenario_f:
+        for s in scenarios:
+            scenario_f.write(repr(s))
+            scenario_f.write("\n")
 
 def main():
     class JsonReadAction(argparse.Action):
