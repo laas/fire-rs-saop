@@ -779,12 +779,20 @@ def run_command(args):
 
 
 def create_command(args):
-    # Scenario loading / generation
+    """Create benchmark scenarios"""
+
     if not os.path.exists(args.output):
         os.makedirs(args.output)
     _logger.info("Using factory %s to create %d scenario instances in %s", args.factory,
                  args.n_instances, args.output)
-    scenario_generator = scenario_factory_funcs[args.factory]
+    scenario_generator = None
+    if args.factory_collection is not None:
+        import importlib
+        importlib.invalidate_caches()
+        factory_module = importlib.import_module(args.factory_collection)
+        scenario_generator = getattr(factory_module, args.factory)
+    else:
+        scenario_generator = scenario_factory_funcs[args.factory]
     scenarios = [scenario_generator() for i in range(args.n_instances)]
     with open(os.path.join(args.output, 'scenario'), 'wb+') as scenario_f:
         pickle.dump(scenarios, scenario_f)
@@ -813,13 +821,15 @@ def main():
     # create the parser for the "create" command
     parser_create = subparsers.add_parser('create', help='Create a benchmark scenario')
     parser_create.add_argument('factory',
-                               help="Name of the benchmark scenario factory.",
-                               choices=scenario_factory_funcs.keys())
+                               help="Name of the benchmark scenario factory.")
     parser_create.add_argument('output', help="Scenario output directory", )
     parser_create.add_argument("--n-instances",
                                help="Number of scenario instances to generate",
                                type=int,
                                default=40)
+    parser_create.add_argument('--factory-collection',
+                               help="Name of a custom factory python module",
+                               default=None)
 
     # create the parser for the "run" command
     parser_run = subparsers.add_parser('run', help='Run a benchmark scenario')
