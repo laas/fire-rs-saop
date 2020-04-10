@@ -497,6 +497,7 @@ namespace SAOP {
     [[maybe_unused]]
     static void to_json(json& j, const Trajectory& traj) {
         j = json{{"name",           traj.name()},
+                 {"max_duration",   traj.conf().max_flight_time},
                  {"maneuver_names", traj.names()},
                  {"duration",       traj.duration()},
                  {"num_segments",   traj.size()},
