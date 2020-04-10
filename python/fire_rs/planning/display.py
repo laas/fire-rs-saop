@@ -73,7 +73,7 @@ class TrajectoryDisplayExtension(gdd.DisplayExtension):
 
     def _add_utility_shade_colorbar(self, shade, label: 'str' = "Utility"):
         cb = self._base_display.figure.colorbar(shade, ax=self._base_display.axes, shrink=0.65,
-                                                aspect=20, format="%f")
+                                                aspect=20, format="%.1f")
         cb.set_label(label)
         self._base_display.colorbars.append(cb)
 
