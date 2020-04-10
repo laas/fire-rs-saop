@@ -335,7 +335,7 @@ def create_logger(file_path: ty.Optional[str]):
     return _logger
 
 
-def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
+def benchmark(logger, benchmark_id, output_base_folder, current_time, ignition_list,
               prediction_propagation, observation_propagation, observation_passes,
               image_format="pdf", include_start_point_in_assessment=True,
               checker_board_path: ty.Optional[str] = None, observation_sparsity_step=1,
@@ -343,10 +343,7 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
     output_path = os.path.join(output_base_folder, benchmark_id)
 
     if not os.path.exists(output_path):
-        # logger.info("Output path did not exist previoulsy. Making it...")
         os.makedirs(output_path)
-    logger = create_logger(os.path.join(output_path, "output.log"))
-    logger.info("Output path: {}".format(output_path))
 
     if image_format == 'eps' or image_format == 'pdf':
         matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -497,7 +494,7 @@ def benchmark(benchmark_id, output_base_folder, current_time, ignition_list,
                                                  cmap=matplotlib.colors.ListedColormap("C2"),
                                                  binary=True,
                                                  gdd=obs_uav_cells_fig2)
-    add_custom_legend(obs_uav_cells_fig2, ["C1", "C2"], ["Observed", "Assessment"],
+    add_custom_legend(obs_uav_cells_fig2, ["C1", "C2"], ["Real", "Estimated"],
                       loc="lower left")
     obs_uav_cells_fig2.figure.savefig(
         os.path.join(output_path, CONTOUR_COMPARISON_PLOT_NAME), **save_fig_options)
@@ -627,8 +624,13 @@ def main():
 
     ]
 
-    for i, b in enumerate(benchmarks):
-        benchmark("assessment_scenario_" + str(i), folder,
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    logger = create_logger(os.path.join(folder, "output.log"))
+    logger.info("Output path: {}".format(folder))
+
+    for i, b in enumerate(benchmarks, start=1):
+        benchmark(logger, "assessment_scenario_" + str(i), folder,
                   *b(), image_format=image_format,
                   include_start_point_in_assessment=include_start_point_in_assessment,
                   checker_board_path=checker_board_path,
