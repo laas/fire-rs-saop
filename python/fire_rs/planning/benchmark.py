@@ -781,6 +781,74 @@ def run_command(args):
 def create_command(args):
     """Create benchmark scenarios"""
 
+    def draw_scenario(i, scen, a):
+        # Fetch scenario environment data with additional elevation mode for planning
+        env = propagation.Environment(scen.area, wind_speed=scen.wind_speed,
+                                      wind_dir=scen.wind_direction,
+                                      world=fire_rs.geodata.environment.World(
+                                          landcover_to_fuel_remap=fire_rs.geodata.environment.EVERYTHING_FUELMODEL_REMAP))
+
+        # Propagate fires in the environment
+        propagation_end_time = scen.time_window_end + 60 * 10
+        _logger.debug("Propagating fire ignitions %s until %s", str(scen.ignitions),
+                      str(propagation_end_time))
+        prop = propagation.propagate_from_points(env, scen.ignitions,
+                                                 until=propagation_end_time)
+        ignitions = prop.ignitions()
+
+        # Transform altitude of UAV bases from agl (above ground level) to absolute
+        for f in scen.flights:
+            base_h = 0.  # If flat, start at the default segment insertion h
+            f.base_waypoint = Waypoint(f.base_waypoint.x, f.base_waypoint.y, base_h,
+                                       f.base_waypoint.dir)
+
+        # Define the flight window
+        flight_window = TimeWindow(scen.time_window_start, scen.time_window_end)
+
+        # Create utility map
+        utility = make_utility_map(ignitions, flight_window, layer='ignition',
+                                   output_layer='utility')
+        utility_cpp = utility.as_cpp_raster('utility')
+
+        # Make a FireData object
+        fire_data = make_fire_data(ignitions, env.raster,
+                                   elevation_map_layer='elevation')
+
+        # Create an initial plan
+        initial_plan = Plan(str(i), [f.as_cpp() for f in scen.flights], fire_data,
+                            flight_window, utility_cpp)
+
+        final_plan = initial_plan
+
+        # Propagation was running more time than desired in order to reduce edge effect.
+        # Now we need to filter out-of-range ignition times. Crop range is rounded up to the next
+        # 10-minute mark (minus 1). This makes color bar ranges and fire front contour plots nicer
+        ignitions['ignition'][ignitions['ignition'] > \
+                              int(scen.time_window_end / 60. + 5) * 60. - 60] = _DBL_MAX
+        # Representation of unburned cells using max double is not suitable for display,
+        # so those values must be converted to NaN
+        ignitions_nan = ignitions['ignition'].copy()
+        ignitions_nan[ignitions_nan == _DBL_MAX] = np.nan
+        first_ignition = np.nanmin(ignitions_nan)
+        last_ignition = np.nanmax(ignitions_nan)
+
+        # Create the geodatadisplay object & extensions that are going to be used
+        geodatadisplay = GeoDataDisplay.pyplot_figure(env.raster.combine(ignitions),
+                                                      frame=(0, 0))
+        geodatadisplay.add_extension(TrajectoryDisplayExtension, (None,), {})
+
+        plot_plan_with_background(final_plan, geodatadisplay, (first_ignition, last_ignition),
+                                  {'colorbar': a.colorbar, 'background': a.background,
+                                   'foreground': []})
+
+        # Save the picture
+        filepath = os.path.join(a.output,
+                                str(i) + "." + a.format)
+        _logger.info("Saving as figure as: %s", str(filepath))
+        geodatadisplay.axes.get_figure().set_size_inches(a.size)
+        geodatadisplay.axes.get_figure().savefig(filepath, dpi=a.dpi, bbox_inches='tight')
+        geodatadisplay.close()
+
     if not os.path.exists(args.output):
         os.makedirs(args.output)
     _logger.info("Using factory %s to create %d scenario instances in %s", args.factory,
@@ -801,6 +869,12 @@ def create_command(args):
         for s in scenarios:
             scenario_f.write(repr(s))
             scenario_f.write("\n")
+
+    if args.draw_maps:
+        joblib.Parallel(n_jobs=args.parallel, backend="threading", verbose=5) \
+            (joblib.delayed(draw_scenario)(n, scenario, args) \
+             for n, scenario in enumerate(scenarios))
+
 
 def main():
     class JsonReadAction(argparse.Action):
@@ -834,6 +908,36 @@ def main():
     parser_create.add_argument('--factory-collection',
                                help="Name of a custom factory python module",
                                default=None)
+    parser_create.add_argument('--draw-maps', action="store_true",
+                               help="Draw the scenario maps as image files",
+                               default=True)
+    parser_create.add_argument("--background", nargs='+',
+                               help="List of background layers for the output maps, from bottom to top.",
+                               choices=['elevation_shade', 'elevation_planning_shade',
+                                        'ignition_shade',
+                                        'observedcells', 'ignition_contour', 'wind_quiver',
+                                        'utilitymap'],
+                               default=['elevation_shade', 'ignition_contour', 'wind_quiver'])
+    parser_create.add_argument("--dpi",
+                               help="Resolution of the output figures",
+                               type=int,
+                               default=150)
+    parser_create.add_argument("--size", nargs=2,
+                               help="Size (in inches) of the output figures",
+                               type=int,
+                               default=(15, 10))
+    parser_create.add_argument("--format",
+                               help="Format of the output figures",
+                               choices=['png', 'svg', 'eps', 'pdf'],
+                               default='png')
+    parser_create.add_argument('--colorbar', dest='colorbar', action='store_true',
+                            help="Display colorbars")
+    parser_create.add_argument('--no-colorbar', dest='colorbar', action='store_false',
+                            help="Display colorbars")
+    parser_create.add_argument("--parallel",
+                            help="Set the number of threads to be used for parallel processing.",
+                            type=int,
+                            default=1)
 
     # create the parser for the "run" command
     parser_run = subparsers.add_parser('run', help='Run a benchmark scenario')
