@@ -709,7 +709,7 @@ def run_command(args):
     # Use TeX fonts when the output format is eps or pdf
     # When this is active, matplotlib drawing is slower
     if args.format == 'eps' or args.format == 'pdf':
-        matplotlib.rcParams['font.family'] = 'serif'
+        matplotlib.rcParams['font.family'] = 'sans-serif'
         matplotlib.rcParams['text.usetex'] = True
 
     if args.vns_conf:
