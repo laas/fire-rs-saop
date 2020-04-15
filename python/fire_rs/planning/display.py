@@ -419,7 +419,7 @@ def plot_plan_with_background(plan: Plan, geodatadisplay: gdd, time_range, outpu
             geodatadisplay.draw_elevation_shade(
                 with_colorbar=output_options_plot.get('colorbar', True), layer='elevation_planning')
         elif layer == 'ignition_shade':
-            geodatadisplay.draw_ignition_shade(
+            geodatadisplay.draw_ignition_shade(cmap=matplotlib.cm.inferno,
                 with_colorbar=output_options_plot.get('colorbar', True))
         elif layer == 'observedcells':
             raise NotImplementedError()
