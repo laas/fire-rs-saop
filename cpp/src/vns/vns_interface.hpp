@@ -157,7 +157,7 @@ namespace SAOP {
             SearchResult result(p);
 
             shared_ptr<Plan> best_plan = make_shared<Plan>(p);
-            shared_ptr<Plan> best_plan_for_restart = best_plan;
+            shared_ptr<Plan> best_plan_for_restart = make_shared<Plan>(p);
 
             // a list of tuples (t, u) where 't' is a time in seconds reliative to the start of search and 'u' is the value
             // of the best utility found a 't'
@@ -179,7 +179,7 @@ namespace SAOP {
                 if (num_restarts > 0) {
                     BOOST_LOG_TRIVIAL(debug) << "Plan \"" << best_plan_for_restart->name() << "\" shuffle no. "
                                              << num_restarts;
-                    best_plan_for_restart = std::make_shared<Plan>(Plan(*best_plan));
+                    best_plan_for_restart = std::make_shared<Plan>(*best_plan);
                     shuffler->shuffle(best_plan_for_restart);
                     if (save_improvements) {
                         // save plan even though its is probably not an improvement
@@ -204,7 +204,7 @@ namespace SAOP {
                         move->apply();
 
                         if (best_plan_for_restart->utility() < best_plan->utility()) {
-                            best_plan = best_plan_for_restart;
+                            best_plan = make_shared<Plan>(*best_plan_for_restart);
                             utility_history.emplace_back(
                                     std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                         }
@@ -236,7 +236,9 @@ namespace SAOP {
                 }
 
                 if (best_plan_for_restart->utility() < best_plan->utility()) {
-                    best_plan = best_plan_for_restart;
+                    best_plan = make_shared<Plan>(*best_plan_for_restart);
+                    utility_history.emplace_back(
+                            std::pair<double, double>(seconds_since_start(), best_plan_for_restart->utility()));
                 }
 
                 // no neighborhood provides improvements, restart or exit.
