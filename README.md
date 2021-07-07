@@ -68,6 +68,7 @@ The core functions of FireRS SAOP require running a GNU/Linux operating system (
     * pytz
     * scikit-image
     * scipy
+    * six
 
 Using Ubuntu, run as *root*:
 

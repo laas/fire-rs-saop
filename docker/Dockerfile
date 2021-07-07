@@ -35,6 +35,7 @@ RUN pip3 install pybind11
 RUN pip3 install joblib
 RUN pip3 install scikit-image
 RUN pip3 install scipy
+RUN pip3 install six
 
 # Clean Apt cache
 RUN apt-get clean && \
