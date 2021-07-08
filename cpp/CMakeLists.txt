@@ -136,8 +136,9 @@ IF (BUILD_TESTING)
             src/test/main_imc_server.cpp
             )
     target_link_libraries(imc_server
-            libimc
+            imc
             ${Boost_LIBRARIES}
+            ${Boost_SYSTEM_LIBRARY}
             )
 
     add_executable(saop_to_dune
@@ -145,15 +146,17 @@ IF (BUILD_TESTING)
             src/neptus/imc_message_factories.hpp
             )
     target_link_libraries(saop_to_dune
-            libimc
+            imc
             ${Boost_LIBRARIES}
+            ${Boost_SYSTEM_LIBRARY}
             )
 
     add_executable(imc_client
             src/test/main_imc_client.cpp
             )
     target_link_libraries(imc_client
-            libimc
+            imc
             ${Boost_LIBRARIES}
+            ${Boost_SYSTEM_LIBRARY}
             )
 ENDIF (BUILD_TESTING)
