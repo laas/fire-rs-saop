@@ -127,7 +127,7 @@ IF (BUILD_TESTING)
             src/test/main_tests.cpp
             )
     target_link_libraries(tests
-            saopcore
+            saop
             ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
             )
     add_test(tests tests)
