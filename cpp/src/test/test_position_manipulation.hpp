@@ -39,7 +39,7 @@ namespace SAOP {
 
         using namespace boost::unit_test;
 
-        UAV uav(10., 32. * M_PI / 180, 0.1);
+        UAV uav("test", 10., 32. * M_PI / 180, 0.1);
 
         void test_single_point_to_observe() {
             // all points ignited at time 0, except ont at time 100
