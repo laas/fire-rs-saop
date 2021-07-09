@@ -40,7 +40,7 @@ namespace SAOP {
         }
 
         Trajectories default_plan() {
-            UAV uav(10., 32. * M_PI / 180, 0.1);
+            UAV uav("test", 10., 32. * M_PI / 180, 0.1);
             Waypoint3d start(5, 5, 0, 0);
             Waypoint3d end(11, 11, 0, 0);
 
